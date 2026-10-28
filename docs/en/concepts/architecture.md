@@ -1,75 +1,45 @@
 # Architecture Overview
 
-AxonX separates capability calls, research execution, and result storage. The CLI, Studio, and external Agents call Jobs; asynchronous Job Steps access components; time-consuming research runs as synchronous Tasks in worker processes. Once results reach the workspace, task queries and Studio use the same records.
+AxonX separates application capabilities, synchronous research and file evidence.
 
-![AxonX architecture layers](../../figures/concepts/architecture.svg)
+![Architecture](../../figures/concepts/architecture.svg)
 
-## Responsibilities by Layer
+## Responsibilities by layer
 
-| Layer         | Responsibility                                                           | Typical objects                           |
-| ------------- | ------------------------------------------------------------------------ | ----------------------------------------- |
-| Client        | Assemble parameters and credentials; consume JSON or events              | CLI, Studio, HttpClient, McpClient        |
-| Protocol      | HTTP, MCP, SSE, uploads, and Bearer authentication                       | HttpService                               |
-| Orchestration | Validate parameters, execute asynchronous steps, and produce JobResponse | Dispatcher, Job, BaseStep                 |
-| Component     | Manage reusable capabilities and their lifecycles                        | TaskManager, TaskRepository, Agent, Proxy |
-| Task          | Execute specific research steps and produce validated results            | BaseTask and plugin Tasks                 |
-| Storage       | Save unified lifecycle metadata, progress events, and research artifacts | Workspace and separate log directory      |
+| Layer       | Responsibility                                    | Owning modules |
+| ----------- | ------------------------------------------------- | -------------- |
+| Clients     | JSON, SSE, uploads, MCP                           | `axonx.client` |
+| Application | Config, dispatch, providers, managed lifecycle    | `axonx.app`    |
+| Daemon      | Supervised service, scheduled processes, updates  | `axonx.daemon` |
+| Plugins     | Installed Task registrations and wheels           | `axonx.plugin` |
+| Tasks       | Typed authoring, execution, records and artifacts | `axonx.task`   |
 
-Regular HTTP calls and SSE event calls pass through the same Job capability layer. MCP maps public Jobs to tools and returns regular responses. SSE is a separate HTTP endpoint for live events; these are different transports.
+## Execution chain for queries
 
-## Execution Chain for Queries
+A client calls `/jobs/status` with `task_id`. Authentication and Dispatcher validate the request. The Job Step reads through `task_index`, returning a `JobResponse`. The index observes files; reading a record does not execute or repair a Task.
 
-Using `status` as an example:
+## Execution chain for research
 
-1. The client submits `task_id` to `/jobs/status`.
-2. The protocol validates service credentials; Dispatcher finds the Job and validates its parameters.
-3. The Job executes the `get_status` Step.
-4. The Step queries records through TaskManager / Repository.
-5. The response includes status in `JobResponse.answer`.
+Local CLI `exec` discovers Task registrations and resolves execution settings, then constructs the Task and calls `TaskExecutor`. Synchronous steps and children run in that process. The executor persists metadata/progress, closes resources, validates output and publishes final state. CLI waits and returns output/exit code.
 
-A query does not execute the Task again. Repository watches workspace records and provides the current index to callers; observing file changes and executing workers are separate responsibilities.
+Remote native commands go through the target's `cli` Job, which launches the configured AxonX command in a new process at the service workspace, streams stdout/stderr and cleans up its process group. Scheduled `exec` commands are launched through the daemon and survive replacement of the application service. These are distinct process owners.
 
-## Execution Chain for Research
+## Application assembly
 
-Using `submit --task demo` as an example:
-
-1. The `submit_task` Step encodes structured parameters as Task command arguments.
-2. The local TaskManager validates the task definition and identity, creates a queued record, and starts a separate subprocess.
-3. The Job returns a TaskHandle containing `task_id`, `run_id`, and the registered name.
-4. The worker parses typed input, executes synchronous steps sequentially, and writes progress, status, and logs.
-5. It atomically publishes typed output and terminal state together in `metadata.json`.
-6. The client confirms the terminal state with `wait_task` and reads results from files or research pages.
-
-`axonx exec` runs the same kind of Task directly in the current CLI process, without HTTP or a persistent TaskManager. Process isolation supports cancellation and reconciliation after abnormal exits; it is not a code security sandbox.
-
-## Application Assembly
-
-Application creates Components, Jobs, and Scheduler from configuration and registries. Components declare dependencies through `depend`; the application starts them in topological order. Normal shutdown closes them in reverse dependency order, while startup failures roll back objects already started.
-
-Component names in configuration therefore serve as actual references. For example, TaskManager's `task_repository: default` binds the Repository of that name; synchronization components can also depend on it. Removing a component while retaining references causes startup failure rather than automatic use of another backend.
-
-The persistent service manages Application through the ASGI lifespan. Service exit initiates shutdown, and TaskManager stops its workers. Files preserve status, but there is no general mechanism for resuming interrupted execution.
+`Application` composes configured providers in a local registry, injects typed dependencies and starts managed components in topological order; it closes them in reverse order. Framework extensions use `providers=...`. Startup supplies the TaskCatalog, update backend and scheduled-command launcher explicitly. Embedded applications can omit product adapters; Cron requires a host launcher.
 
 ## Plugins and Agents
 
-Plugins contribute Tasks, Components, and Jobs through installed Python distribution entry points and `plugin.yaml`. Task types and input/output schemas come from plugin classes; plugins implement the quantitative algorithms. Components and Jobs load during application assembly. Task-only wheel updates through the installation Job can refresh live definitions and subsequent submissions; direct pip/source changes and changes marked `restart_required` need a service restart.
+Plugin manifests register Tasks only. Installing code changes the chosen Python environment; it does not refresh the persistent service's registration snapshot or cached classes. Remote installation explicitly builds, uploads, installs and cleans up, followed by restart/verification.
 
-AxonX supplies the quantitative research Harness: Task contracts, execution, records, and artifact queries. The model/tool loop and conversational context are managed by the external Agent host or the built-in Claude Agent SDK backend. With a Skill or development guide, source access, and code tools, either Agent path can develop plugins and use Task evidence for iteration. The built-in Agent is a component whose capabilities depend on Job tools, SDK tools, working directory, and permission mode. Research Tasks can execute independently of Agent.
+Agents use CLI or configured Job tools to inspect the same evidence. The built-in Claude backend owns SDK sessions and appends the canonical development guide. Research execution is independent of an Agent turn.
 
-A remote service is another complete Application with its own plugin environment, workers, and workspace. Studio forwards remote operations through the local backend, while an explicit CLI `--target` connects directly to the target.
+## Design boundaries
 
-## Design Boundaries
+- `upstream_task_ids` declares input dependencies; `parent_task_id`/`children` records invocations. Neither launches a whole DAG automatically.
+- Task queries are observations. Runtime startup/termination reconciles confirmed dead local processes.
+- Caller coordination protects same-name writes; atomic metadata replacement is not a lock.
+- Display synchronization copies bounded evidence, not active processes, environments or an entire workspace.
+- Each target has its own interpreter, files and service configuration. Explicit CLI targets connect directly; Studio can use configured backend forwarding.
 
-- `source_tasks` records upstream relationships; the framework does not automatically execute the entire DAG.
-- Repository indexes can be rebuilt from records; artifact files and plugin environments must be preserved separately.
-- Synchronization copies terminal Task directories, without migrating active workers or copying the entire workspace.
-- Resource queries provide machine readings, without automatic machine selection or GPU scheduling.
-
-## Further Reading
-
-- [Jobs and Tasks](jobs-and-tasks.md): the two execution abstractions and how to choose between them.
-- [Workspace](workspace.md): file formats and recovery boundaries.
-- [Remote Machines](../guides/remote-machines.md): the two remote call paths.
-- [Framework Extensions](../development/framework-extensions.md): component and orchestration extensions.
-
-Implementation entry points: [Application](../../../axonx/core/application.py), [TaskRunner](../../../axonx/task/runtime/runner.py), [HTTP assembly](../../../axonx/components/service/http/app.py).
+[Jobs and Tasks](jobs-and-tasks.md) · [Task contracts](../reference/task-contracts.md) · [Framework extensions](../development/framework-extensions.md)

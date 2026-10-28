@@ -36,7 +36,7 @@ Header:    Authorization: Bearer <AxonX 服务 token>
 ```python
 import asyncio
 import os
-from axonx.components.client.mcp import McpClient
+from axonx.client.mcp import McpClient
 
 async def main():
     async with McpClient(
@@ -73,7 +73,7 @@ asyncio.run(main())
 
 ## 文件上传
 
-文件字节通过 HTTP `POST /files` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径（插件安装还须本地 wheel 的 SHA256）传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+文件字节通过 HTTP `POST /upload` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。插件安装通过 `cli` 传入 `["plugin", "install", uploaded.location]`；`sync_tasks` 使用 `uploaded.path`。核验传输时将安装结果的 `sha256` 与本地 wheel 哈希比较，随后按暂存相对路径清理。`cli` 和 `plugin install` 均不接受预期哈希参数。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 ## MCP 与实时事件
 
@@ -93,14 +93,13 @@ asyncio.run(main())
 
 Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 
-| 浏览器工具             | 用途                                       |
-| ---------------------- | ------------------------------------------ |
-| `list_axonx_task_runs` | 查询托管当前 Studio 页面的本地服务任务状态 |
-| `submit_axonx_task`    | 提交注册任务与 config 对象                 |
+| 浏览器工具         | 用途                                                                             |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `list_axonx_tasks` | 查询托管当前 Studio 页面的本地服务，以 `{ tasks: [...] }` 返回完整 Task metadata |
 
 浏览器不提供该 API 时直接跳过注册，Studio 其他功能不因此失效。这两个工具调用前端现有 API，与服务 `/mcp` 不是同一个协议入口。当前实现不传递 `target`，因此始终操作托管页面的本地服务，不跟随 Studio 的远程机器选择。浏览器环境不支持时不能用它替代普通 MCP 连接。
 
-`submit_axonx_task` 的 config 需满足安装任务 Schema，返回提交 handle；仍需独立查询最终状态。页面生命周期结束时，通过 AbortSignal 结束工具注册生命周期。
+当前浏览器桥接仅注册这一查询工具，输入 Schema 为空对象。执行 Task 使用服务 `cli` Job 或 Studio Task 定义页面。页面生命周期结束时，通过 AbortSignal 结束工具注册。
 
 ## 连接排查
 
@@ -115,6 +114,6 @@ Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 ## 相关文档与实现
 
 - [API 总览](../api/overview.md)、[Python 调用](../reference/python.md)
-- [`MCP 客户端`](../../../axonx/components/client/mcp.py)
-- [`HTTP/MCP Job 路由`](../../../axonx/components/service/http/jobs.py)
+- [`MCP 客户端`](../../../axonx/client/mcp.py)
+- [`HTTP/MCP Job 路由`](../../../axonx/app/components/service/http/jobs.py)
 - [`浏览器工具注册`](../../../axonx_studio/src/webmcp.ts)

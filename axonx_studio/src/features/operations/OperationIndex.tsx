@@ -1,66 +1,41 @@
-import { ArrowRight, Clock, Play, RefreshCw } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { TaskSummary } from "../../shared/api/contracts";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
 import { Status } from "../tasks/TaskRow";
-import { formatDate } from "../tasks/format";
-import { entryDate, entryLabel, type OperationEntry } from "./model";
 
 export function OperationIndex({
-  entries,
+  tasks,
   selected,
   onSelected,
 }: {
-  entries: OperationEntry[];
+  tasks: TaskSummary[];
   selected?: string;
   onSelected: (id: string) => void;
 }) {
   const { t } = useTranslation();
   return (
     <div className="operation-index-list">
-      {entries.map((entry) => (
+      {tasks.map((task) => (
         <article
-          key={entry.id}
-          className={selected === entry.id ? "active" : ""}
-          data-kind={entry.kind}
+          key={task.task_id}
+          className={selected === task.task_id ? "active" : ""}
         >
           <button
-            className="run-main rail-list-item"
-            aria-pressed={selected === entry.id}
-            onClick={() => onSelected(entry.id)}
+            className="task-main rail-list-item"
+            aria-pressed={selected === task.task_id}
+            onClick={() => onSelected(task.task_id)}
           >
-            <span className="run-item-avatar rail-avatar">
-              {entry.kind === "task" ? (
-                <Play />
-              ) : entry.kind === "job" ? (
-                <RefreshCw />
-              ) : (
-                <Clock />
-              )}
+            <span className="task-item-avatar rail-avatar">
+              <Play />
             </span>
             <span className="rail-item-copy">
-              <strong>{entryLabel(entry)}</strong>
-              <small>
-                {entry.kind === "schedule"
-                  ? entry.schedules[0]
-                    ? `${t("operations.configurationShort")} · ${entry.schedules[0].cron}`
-                    : t("schedules.removed")
-                  : formatDate(entryDate(entry))}
-              </small>
-              {entry.kind !== "schedule" && (
-                <span className="operation-run-footer">
-                  <span>
-                    {t(
-                      entry.kind === "task"
-                        ? "operations.taskRun"
-                        : "operations.jobRun",
-                    )}
-                  </span>
-                  <Status
-                    state={
-                      entry.kind === "task" ? entry.task.state : entry.run.state
-                    }
-                  />
-                </span>
-              )}
+              <strong>{task.display_name || task.reg_name}</strong>
+              <small>{formatDate(task.started_at || task.created_at)}</small>
+              <span className="operation-task-footer">
+                <span>{t("operations.taskRecord")}</span>
+                <Status state={task.state} />
+              </span>
             </span>
             <ArrowRight />
           </button>

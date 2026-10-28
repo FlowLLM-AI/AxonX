@@ -1,11 +1,12 @@
 """Rank retention and bounded daily replacements on the shared stock ledger."""
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from pydantic import Field
+
+from axonx.task.builtins.stock.models import StockBacktestOutput, StockPortfolioInput
 from axonx_qlib_a158.backtest import Alpha158BacktestTask as BaseTask
-from axonx.task.builtins.stock.backtest import StockPortfolioInput, StockBacktestOutput
 
 
 @dataclass(frozen=True)

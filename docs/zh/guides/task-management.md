@@ -1,134 +1,39 @@
-# 任务提交与管理
+# Task 执行与观察
 
-本页用内置 demo 演示发现定义、提交、等待、查看状态与日志。前提是服务已按[快速开始](../getting-started/quickstart.md)启动，并配置 `AXONX_SERVICE_TOKEN`。demo 无需数据源或模型凭据。
+![Task 进程归属](../../figures/guides/task-management.svg)
 
-![任务管理流程](../../figures/guides/task-management.svg)
-
-## 分组任务列表
-
-Studio 按 `<任务类型>#<注册名>` 聚合任务记录，有活跃任务的组优先展示并初始展开。组头显示匹配数／总数、匹配任务的状态分布和最近运行时间。列表使用统一列标题和紧凑组头，保持各组任务行对齐。展开后显示任务名称，每页 50 条，最新任务在前；缺少名称字段的记录显示完整 Task ID。复制和打开详情始终使用完整 Task ID。
-
-搜索、类型和状态筛选先作用于具体任务，再展示分组。组内勾选和筛选结果全选覆盖所有分页及折叠组中的匹配终态任务。切换筛选条件会保留已选任务，删除前请核对已选数量。自动刷新和折叠分组保留页码，修改筛选条件重置页码；切换机器重置展开状态、页码和选择。
-
-右键点击组头，可选择或删除该组所有分页中匹配的终态任务，无需展开分组。组删除需要确认，仅影响该组，其他组的已有选择会保留。运行中和排队中的任务不能选择或删除。
-
-## 发现定义
+## 发现并执行
 
 ```bash
-axonx list_installed_task_definitions
-axonx get_task_definition --task demo
+axonx get_task_def --task demo
+axonx exec --task demo --task-name add-01 --x 1 --y 2
+axonx status --task-id 'base#demo#add-01' --detail full
+axonx read_task_log --task-id 'base#demo#add-01' --offset -1 --limit 8192
+axonx get_task_graph --task-id 'base#demo#add-01'
 ```
 
-定义返回注册名、来源、Task 类型、说明以及 input_schema/output_schema。demo 必需参数为整数 `x`、`y`，可选 `fail` 用于模拟执行失败。Studio 提交页根据同一 Schema 构建表单。
-
-未知参数通常由 Task 的输入模型拒绝。`submit` 的外层 Schema 允许额外业务参数，是为了透传到具体 Task，并不意味着 Task 任意接收字段。
-
-## 提交并保存 handle
-
-```bash
-axonx submit --task demo --task-name add-01 --x 1 --y 2
-```
-
-保存 `answer.task_id` 和 `answer.run_id`。这里的 Task ID 为 `base#demo#add-01`，run_id 必须使用实际返回值。
-
-希望保留多轮实验时，应每轮使用新名称或省略 `--task-name`。固定名称在终态后重跑会替换旧目录；活跃任务无法被同名覆盖。
-
-在 Studio 中，选择执行机器、打开任务提交页、选择 demo，然后输入 x/y 并提交。打开任务详情确认身份与状态，避免把提交提示当成执行完成提示。
-
-下图使用演示数据展示英文分组列表：包含活跃任务的训练组初始展开，分析、回测、ETL 和预测组折叠展示。展开分组后查看各个具体任务。
-
-![Studio 英文分组任务列表](../../figures/studio/task-list.png)
+Exec 同步执行，返回业务输出和进程退出码。记录 Task ID、metadata.started_at、目标和工作区。省略 task_name 会生成新实例，固定名称替换当前已完成输出并保留 persistent/。
 
 ## 等待完成
 
-```bash
-axonx wait_task --task-id 'base#demo#add-01' \
-  --run-id '<实际返回的 run_id>' --client-timeout 600
-```
+在另一终端观察长任务。`axonx wait_task --task-id ID --client-timeout 600` 捕获当前启动时间，等待期间重跑则报错，只有 succeeded 时成功。失败响应仍可能包含完整 Task metadata，应检查 error/exit_code 和实际响应形态。
 
-长任务需要调大客户端超时。默认客户端请求超时为 60 秒；客户端超时或关闭浏览器不等于 Task 被取消，可以重新查状态。
+## 状态与日志
 
-成功时 `answer.state` 为 succeeded，`answer.output_params` 包含 result=3、branch=different、operands 等输出。失败时 JobResponse.success 为 false，应继续读取 error 和日志。
+CLI status/wait 默认摘要，完整详情包含输入输出、步骤和子任务。日志游标按字节计，用 next_offset 继续读取，可传 started_at 拒绝替换执行。`stream_task --stream true` 传输进度/日志直到最终 result。观察不启动任务，也不修复失效状态。
 
-实时观察可使用：
+## 停止与重跑
 
-```bash
-axonx stream_task --task-id 'base#demo#add-01' \
-  --stream true --client-timeout 600
-```
+使用 `axonx kill --task-id ID --timeout 5 --force false`。force=true 选择强制信号，不是调度或服务更新选项。发送信号前检查进程身份。子任务解析到根进程所有者，随整次执行停止。展示副本不能本地执行或停止源进程。
 
-事件流适合进度和日志展示，`wait_task` 适合确认指定 run_id 的终态。只订阅流但不检查最终 result，无法可靠判定研究成功。
+只能修正确认已退出的本机进程，异机或无法访问的进程会阻止替换。使用源 execution_target/工作区，不把 machine_id 当作地址。停止后先核对结果再重跑。
 
-## 查询状态和日志
+## 删除已停止目录
 
-```bash
-axonx list_task_ids
-axonx list_task_statuses
-axonx status --task-id 'base#demo#add-01'
-axonx read_task_log --task-id 'base#demo#add-01' --offset -1 --limit 65536
-```
+当前文件接口为 `delete_entries --paths '["base/base#demo#add-01"]'`，不保护活动进程。确认写入者均停止，使用工作区相对路径并与并发执行协调。该操作也删除 persistent/，删除不能代替停止进程。
 
-日志 offset 单位是字节，`-1` 读取尾部，正值从指定字节偏移读取；limit 范围为 1024–262144，默认 65536。后续增量读取应使用响应提供的偏移信息，不按字符数自行计算。
+## Studio
 
-Studio 详情中的 Run details 展示退出码、步骤和输出。下图的 `docs-demo` 使用 x=2、y=3，依次完成 initialize、add_x、add_y、finish 四步，result 为 5。图片只保留执行详情区域，底部 Output JSON 未完整显示；需要完整结果时读取 API 响应或 metadata。
+任务定义使用当前输入 Schema 构造表单，执行通过服务拥有的 CLI 命令并展示实时输出，metadata 独立观察。区分命令连接失败与 Task 失败，重跑比较 started_at，并确认所选机器。任务分组反映工作区记录，包括副本和其他进程结果。
 
-![Studio 英文任务详情中的四个完成步骤及输出片段](../../figures/studio/task-details.png)
-
-日志区域可以进一步核对每一步使用的参数和累计结果。下图可见 total 从 2 变为 5，最终 exit_code=0；截图已移除个人绝对路径，仅保留日志正文。
-
-![Studio 英文任务日志中的 demo 执行过程](../../figures/studio/task-logs.png)
-
-任务进度事件与文本日志属于不同记录。检查错误时先看 status.error，再看日志上下文；输出截断表示读取窗口有限，不代表原日志只有这些内容。
-
-## 查看成功元数据
-
-```bash
-axonx preview_file --path 'base/base#demo#add-01/metadata.json'
-```
-
-metadata 位于类型目录下，成功输出在 `output_params`，不是顶层 result。demo 是 base 类型，不会出现在 ETL、训练或回测研究结果列表。
-
-研究插件应另外检查 artifacts 指向的文件存在，图表数据与参数一致。状态成功仅说明框架执行完成，并不证明策略或数据质量达到研究要求。
-
-## 失败、取消与重跑
-
-```bash
-# 此任务用于观察 failed；运行命令本身返回的是提交 handle
-axonx submit --task demo --task-name failure-01 --x 1 --y 2 --fail true
-axonx status --task-id 'base#demo#failure-01'
-
-# 对仍在运行的真实研究任务取消
-axonx cancel --task-id '<活跃 Task ID>'
-```
-
-若要取消提交 handle 中的精确执行，使用 `axonx cancel --run-id '<run_id>'`。按 Task 取消会选定当前执行，按 Run 取消不会影响后来的重跑。Studio 和批次清理使用 Run ID。
-
-demo 很快完成，通常不能用它稳定演示取消。取消返回 false 时，应核对任务是否已经结束、是否由当前管理器管理，以及执行机器是否选择正确。
-
-对于[复合 Task](composite-tasks.md)，应保存并取消父 handle。子 Task 有独立 ID 和状态记录，但共用父 worker，无法单独取消。从父 `metadata.json` 获取子 ID，再使用相同的状态、日志和事件流命令查询各子 Task。删除终态父 Task 不会删除其子 Task。
-
-修正参数后可用新名称保留失败记录；复用固定名称会替换旧任务目录。没有通用的自动断点续跑，插件自己实现恢复时应遵循其文档。
-
-## 删除终态任务
-
-```bash
-axonx delete_tasks --task-ids '["base#demo#failure-01"]'
-```
-
-删除只适用于终态记录，活跃任务会被拒绝。删除会移除任务文件，清理前先检查[血缘关系](../concepts/task-lineage.md)，确保上游产物不再被需要。
-
-一般任务清理使用 `delete_tasks`；任意工作区文件删除使用 `delete_entries`，两者的范围与保护不同。
-
-## 常见失败
-
-| 现象                       | 检查与处理                              |
-| -------------------------- | --------------------------------------- |
-| Job 目录缺少 submit        | 配置服务 token 并重启；查看实际 `/jobs` |
-| Unknown Task               | 在执行机器安装插件，重新查询定义        |
-| 同名目录已存在             | 等活跃任务结束，或使用新名称            |
-| wait 的运行身份不匹配      | 检查是否同名重跑，使用原始 handle       |
-| 任务列表有记录，研究页没有 | 检查是否研究类型及成功 metadata         |
-
-[Task API](../api/tasks.md) · [生命周期](../concepts/task-lifecycle.md) · [Task 契约](../reference/task-contracts.md)
-
-源码：[任务命令 Step](../../../axonx/steps/task/command.py)、[TaskManager](../../../axonx/components/task_manager/local/manager.py)。
+源码：[CLI](../../../axonx/cli/commands.py)、[观察 Step](../../../axonx/app/steps/task.py)、[停止执行](../../../axonx/task/runtime/lifecycle.py)。

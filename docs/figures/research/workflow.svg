@@ -46,7 +46,7 @@
       <text x="632.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Inspect and compare evidence</text>
       <text x="632.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">Metadata · Artifacts · Common dates</text>
       <text x="632.0" y="461.0" font-size="18" font-weight="400" text-anchor="start">Signal quality · Net returns · Risk</text>
-      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Submit each stage explicitly and wait for success; factor analysis is optional for training.</text>
+      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Execute stages directly or through a parent Task; verify successful outputs before consumption.</text>
       <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Arrows show data dependencies; the framework does not execute a DAG automatically.</text>
     </g>
     <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />

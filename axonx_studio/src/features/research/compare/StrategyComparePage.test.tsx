@@ -1,16 +1,16 @@
-import { axonx } from "../../../shared/api/client";
-// @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../../i18n";
-import { table } from "../../../playground/fixtures";
-import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
+import { table } from "../../../playground/data";
+import { axonx } from "../../../shared/api/client";
+import { previewWorkspaceFile } from "../../../shared/api/workspace";
 import StrategyComparePage from "./StrategyComparePage";
 
+// @vitest-environment jsdom
+
 vi.mock("../../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
-vi.mock("../../workspace/api", () => ({
-  listTaskRuns: vi.fn(),
+vi.mock("../../../shared/api/workspace", () => ({
   previewWorkspaceFile: vi.fn(),
 }));
 vi.mock("../backtest/BacktestChart", () => ({ BacktestChart: () => null }));
@@ -30,21 +30,7 @@ it.each(["en", "zh"])(
   "compares current source and replica signals on the selected machine in %s",
   async (language) => {
     await i18n.changeLanguage(language);
-    vi.mocked(listTaskRuns).mockResolvedValue({
-      path: "backtest",
-      workspace_root: null,
-      truncated: false,
-      entries: ["a", "b"].map((name) => ({
-        name,
-        path: `backtest/${name}`,
-        kind: "directory",
-        preview_kind: null,
-        supported: true,
-        size: null,
-        modified_at: 0,
-      })),
-    });
-    vi.mocked(previewWorkspaceFile).mockImplementation(async (path) => {
+    vi.mocked(previewWorkspaceFile).mockImplementation(async ({ path }) => {
       if (!path.endsWith("metadata.json"))
         return table([{ trade_date: "20260105", top1_net_return: 0.01 }]);
       const name = path.split("/")[1];
@@ -100,7 +86,8 @@ it.each(["en", "zh"])(
       const values = await Promise.all(
         ["a", "b"].map(async (name) => {
           const preview = await previewWorkspaceFile(
-            `backtest/${name}/metadata.json`,
+            { path: `backtest/${name}/metadata.json` },
+            {},
           );
           if (preview.kind !== "json") throw new Error("Expected metadata");
           return {
@@ -120,7 +107,7 @@ it.each(["en", "zh"])(
       ),
     );
     for (const button of container.querySelectorAll<HTMLButtonElement>(
-      ".compare-run-item",
+      ".compare-task-item",
     )) {
       await act(async () => button.click());
     }
@@ -130,11 +117,12 @@ it.each(["en", "zh"])(
     expect(container.querySelector(".compare-tabs")).not.toBeNull();
     for (const name of ["a", "b"]) {
       expect(previewWorkspaceFile).toHaveBeenCalledWith(
-        `backtest/backtest#${name}/daily.parquet`,
-        0,
-        5000,
-        "remote",
-        expect.any(AbortSignal),
+        {
+          path: `backtest/backtest#${name}/daily.parquet`,
+          offset: 0,
+          limit: 5000,
+        },
+        { target: "remote", signal: expect.any(AbortSignal) },
       );
     }
   },
@@ -147,7 +135,7 @@ it("loads only selected details and displays detail failures", async () => {
       task_id: `backtest#${name}`,
       reg_name: name,
       display_name: name,
-      run_id: name,
+      started_at: name,
       task_type: "backtest",
       state: "succeeded",
     }));
@@ -159,7 +147,7 @@ it("loads only selected details and displays detail failures", async () => {
     vi.mocked(axonx.invoke).mock.calls.filter(([job]) => job === "status"),
   ).toHaveLength(0);
   await act(async () =>
-    container.querySelector<HTMLButtonElement>(".compare-run-item")!.click(),
+    container.querySelector<HTMLButtonElement>(".compare-task-item")!.click(),
   );
   const detailCalls = vi
     .mocked(axonx.invoke)
@@ -182,7 +170,7 @@ it("does not request old task IDs from a newly selected machine while its list i
         reg_name: "only-a",
         display_name: "only-a",
         task_type: "backtest",
-        run_id: "a",
+        started_at: "a",
         state: "succeeded",
       },
     ];

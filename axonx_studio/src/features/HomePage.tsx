@@ -1,4 +1,3 @@
-import { assetUrl } from "../app/environment";
 import {
   Activity,
   ArrowDown,
@@ -6,16 +5,17 @@ import {
   Bot,
   ChartNoAxesCombined,
   Crosshair,
+  FileCode2,
+  Folder,
   FolderSearch,
   GitCompareArrows,
-  FileCode2,
   Network,
   Puzzle,
-  Send,
   Workflow,
 } from "lucide-react";
-import type { SectionId } from "../app/routes";
 import { useTranslation } from "react-i18next";
+import { assetUrl } from "../app/environment";
+import type { SectionId } from "../app/routes";
 
 const researchSteps = [
   { id: "question", icon: Crosshair },
@@ -32,13 +32,13 @@ const harnessFeatures = [
   { id: "task", code: "TASK", icon: Activity },
   { id: "machine", code: "TARGET", icon: Network },
   { id: "evidence", code: "EVIDENCE", icon: FolderSearch },
-  { id: "agent", code: "AGENT", icon: ChartNoAxesCombined },
+  { id: "online", code: "ONLINE", icon: ChartNoAxesCombined },
 ] as const;
 
 export default function HomePage({
   onNavigate,
 }: {
-  onNavigate: (page: "submit" | "tasks" | SectionId) => void;
+  onNavigate: (page: "task-defs" | "tasks" | SectionId) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -105,9 +105,9 @@ export default function HomePage({
                 <ArrowRight aria-hidden="true" />
               </button>
               <div className="hero-task-actions">
-                <button onClick={() => onNavigate("submit")}>
-                  <Send aria-hidden="true" />
-                  {t("home.submitTask")}
+                <button onClick={() => onNavigate("workspace")}>
+                  <Folder aria-hidden="true" />
+                  {t("shell.navigation.workspace")}
                 </button>
                 <button onClick={() => onNavigate("tasks")}>
                   <Activity aria-hidden="true" />

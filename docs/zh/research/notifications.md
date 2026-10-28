@@ -28,7 +28,7 @@ Studio 中选择 `send_dingtalk_task`，填写 Title、Text 和 Message Type 后
 下面是会实际发送外部消息的使用示例，按自己的接收配置执行：
 
 ```bash
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX 研究完成' \
   --text '### 回测已完成\n请在 Studio 查看对应 Task 的净收益、成本和执行协议。' \
   --message-type markdown
@@ -42,7 +42,7 @@ message=$(cat <<'MESSAGE'
 请查看对应 Task 的 metadata 与标准产物。
 MESSAGE
 )
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX 研究完成' --text "$message" --message-type markdown
 ```
 
@@ -50,7 +50,7 @@ axonx submit --task send_dingtalk_task \
 
 ## 等待并核对返回
 
-保存提交返回的 TaskHandle，并等待对应 `task_id` 与 `run_id`。成功输出包含：
+Exec 等待通知 Task。重试前检查退出码和业务投递结果，超时可能无法判断是否已发送。成功输出包括：
 
 | 字段                 | 含义                           |
 | -------------------- | ------------------------------ |
@@ -63,9 +63,9 @@ axonx submit --task send_dingtalk_task \
 
 推荐调用方先等待研究 Task 的终态，再形成包含 Task ID、日期范围和结果位置的消息。失败通知应基于真实错误和日志，不要直接把“提交接受”写成“回测成功”。
 
-通知是另一条独立 Task。若需要记录关系，可传入研究任务的 `source_tasks` 作为血缘信息，但通知实现不会主动读取上游结果或自动生成研究总结。
+通知是另一条独立 Task。若需要记录关系，可传入研究任务的 `upstream_task_ids` 作为血缘信息，但通知实现不会主动读取上游结果或自动生成研究总结。
 
-当前没有内置“通知所有任务完成”的统一开关。调度 Job 可以提交通知任务，但研究任务的等待和消息构造仍需显式编排。
+当前没有内置“通知所有任务完成”的统一开关。Cron 可以启动本地通知 `exec` 命令；等待研究完成和构造消息需要显式实现父 Task 或宿主流程。
 
 ## 失败与重复发送
 

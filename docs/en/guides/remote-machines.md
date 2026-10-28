@@ -1,120 +1,31 @@
-# Using remote machines
-
-AxonX can call a service on another machine. Tasks execute in the called service's Python environment and use its plugins, workspace, and log directory. CLI direct connections and Studio backend forwarding require separate credential configuration.
-
-![Remote call paths](../../figures/guides/remote-machines.svg)
+# Remote Machines
 
 ## Prepare the target service
 
-Install AxonX, required research plugins, and model dependencies on the target machine, configure a separate service token, then start:
-
-```bash
-export AXONX_SERVICE_TOKEN='<target service token>'
-axonx start --service.host 0.0.0.0 --service.port 1024
-```
-
-The target's HTTP(S) address must be reachable by clients. The built-in Uvicorn service does not handle TLS; terminate HTTPS externally for deployment across networks. See [Deployment guide](deployment.md).
+Run `axonx app --service.host 0.0.0.0 --service.port 1024` on the destination with AXONX_SERVICE_TOKEN configured. Ensure network access and the intended interpreter, workspace, plugin dependencies and input files. Explicit CLI targets connect directly; they require a service with authenticated cli capability for native commands.
 
 ## CLI direct connections
 
 ```bash
-export AXONX_TARGET_TOKEN='<target service token>'
-axonx version --target 'http://research.example:1024'
-axonx get_task_definition --task demo --target 'http://research.example:1024'
-axonx submit --task demo --x 1 --y 2 --target 'http://research.example:1024'
+export AXONX_TARGET_TOKEN='replace-with-target-token'
+axonx version --target node-b:1024
+axonx plugin list --target node-b:1024
+axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
+axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:1024
 ```
 
-The domain here is a placeholder and must be replaced. The CLI connects directly to the target; it requires neither a running local AxonX service nor adding the target to local targets.
-
-With an explicit `--target`, the CLI reads credentials from `AXONX_TARGET_TOKEN` by default; without one, it connects to the local service and reads `AXONX_SERVICE_TOKEN`. `--token` overrides the environment source.
-
-Continue selecting the same target when waiting, checking status, and reading logs. TaskHandle does not turn the remote address into automatic routing information; retain the target address alongside it in scripts or experiment records.
+Ordinary Jobs call the target directly. Native commands forward argv through cli. Exec waits and streams target stdout/stderr, preserving the target exit code. Retain target, Task ID and started_at for follow-up observations. Connection cancellation may stop the owned remote execution; inspect before retrying.
 
 ## Studio backend forwarding
 
-Studio requests its own same-origin backend, and the browser stores the local service token. The backend selects preconfigured remote credentials based on the request's target.
-
-### One target: built-in remote configuration
-
-Set these values in `.env` in the local startup directory:
-
-```dotenv
-AXONX_SERVICE_TOKEN=your-local-service-token
-AXONX_TARGET=192.0.2.10:1024
-AXONX_TARGET_TOKEN=your-target-service-token
-```
-
-Replace the address and credentials, then start the local service:
-
-```bash
-axonx start --config remote
-```
-
-The built-in `remote` configuration extends `default` and adds the target address and token to `targets`. Set the local token in Studio, then select the remote machine. `AXONX_TARGET` does not redirect ordinary CLI commands that omit `--target`; direct CLI access still requires the explicit address as shown above.
-
-### Multiple targets: custom configuration
-
-Use custom YAML for multiple targets or other service settings. This example uses `research-cluster.yaml`:
-
-```yaml
-extends: default
-service:
-  host: 127.0.0.1
-  token: ${AXONX_SERVICE_TOKEN}
-targets:
-  - address: http://research.example:1024
-    token: ${AXONX_REMOTE_RESEARCH_TOKEN}
-```
-
-```bash
-export AXONX_SERVICE_TOKEN='<local service token>'
-export AXONX_REMOTE_RESEARCH_TOKEN='<target service token>'
-axonx start --config research-cluster.yaml
-```
-
-After restarting, select the target in Studio's machine entry. The remote token remains in server configuration; the browser does not need to store it directly.
-
-Addresses are normalized, and targets does not allow duplicate addresses. Forwarding fails if the target is unconfigured; selectable UI targets should match local configuration. Restart the current service after configuration changes.
-
-## Connectivity and resources
-
-```bash
-axonx list_machines
-axonx machine_status --target 'http://research.example:1024'
-```
-
-`list_machines` asks the current service to check its targets. A direct CLI query of the target's `machine_status` returns that target's resource information.
-
-CPU, memory, and GPU fields are readings taken at query time. When GPU detection is unavailable, inspect the returned fields rather than concluding the machine definitely has no GPU. These fields provide no resource reservation, GPU binding, or automatic machine selection.
-
-Studio's Machine resources page displays the same kinds of returned values as CPU, memory, and GPU cards. The screenshot below shows the English resource area with machine addresses removed; readings and device counts describe the example machine at capture time, not AxonX deployment requirements.
-
-![CPU, memory, and GPU readings on the English Studio machine resources page](../../figures/studio/machine-resources.png)
+Configure target address/token in the local service's targets list. Studio selects that machine and sends a transport-level target; the backend resolves its credential. Job arguments do not override routing credentials. Each target has independent state and Agent sessions.
 
 ## Remote files and plugins
 
-Locally installed plugins do not automatically appear remotely. To install on the target, use:
+All native command paths are interpreted at the target service workspace, including plugin install/build/inspect source paths. --target does not upload local files. Build a local wheel, upload to /upload, install the returned absolute location, clean relative path and restart the persistent service to refresh its Task catalog. See [Plugin deployment](../plugins/management.md).
 
-```bash
-axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
-```
+## Connectivity, resources and termination
 
-Task-only wheel updates apply to subsequent Task queries and submissions without restarting. Restart the target service only when restart_required is true, then verify Task definitions. Remote workers run code in that environment, and source_tasks only locates directories in the target workspace.
+Use list_machines/machine_status/diagnose for observed resources; there is no automatic machine scheduling. For kill use the source execution_target and workspace_dir from metadata. A display replica cannot control the source process, and machine_id is not an address.
 
-To reuse local upstream artifacts, first transfer the required task snapshots or copy data according to your deployment method. Raw data, Agent sessions, and model environments do not migrate with remote calls.
-
-## Common failures
-
-| Symptom                           | Assessment and action                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------------------------ |
-| Connection refused                | Check target process, listening host/port, and network entry                               |
-| 401                               | For direct calls, check target token; for Studio, check both local and targets credentials |
-| Target unconfigured               | Add the normalized address to local targets and restart                                    |
-| Task registered name missing      | Check target plugin installation and restart, rather than only the local environment       |
-| Schema or response fields differ  | Compare service and plugin versions on both sides                                          |
-| Target task has no upstream files | Confirm data and Task directories were transferred to the target                           |
-
-[Authentication](authentication.md) · [Plugin management](../plugins/management.md) · [Task synchronization](task-sync.md) · [Machine API](../api/machines.md)
-
-Source: [targets model](../../../axonx/config/models.py), [Remote client](../../../axonx/components/client/base.py), [Job routing](../../../axonx/components/service/http/jobs.py).
+[Authentication](authentication.md) · [Deployment](deployment.md) · [Task management](task-management.md)

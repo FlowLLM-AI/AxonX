@@ -1,435 +1,258 @@
-"""Plugin lifecycle tests for the environment-backed implementation."""
+"""Plugin contracts across wheel inspection, installation and Task resolution."""
 
+import json
+import sys
+from importlib import metadata
 from pathlib import Path
 from types import SimpleNamespace
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 import pytest
 
-from axonx import Application
-from axonx.components.client import ClientOptions
-from axonx.components.client.remote import stream_remote_job
-from axonx.components.job import JobResponse, ResultEvent
-from axonx.config import ConfigResolver
-from axonx.plugin_kit import PluginArtifact, PluginInfo, index_contributions
-from axonx.plugin_kit.cli import plugin_cli
-from axonx.plugin_kit.discovery import _package_path
-from axonx.plugin_kit.identity import (
-    content_sha256_from_directories,
-    content_sha256_from_wheel,
-)
-from axonx.plugin_kit.installer import install_staged_plugin
-from axonx.plugin_kit.wheel import source_sha256
-from axonx.workspace.models import FileCopy
-from axonx.workspace.staging import StagedFiles
+from axonx.cli import main
+from axonx.plugin import discovery, fingerprint, installer, wheel
+from axonx.plugin.manifest import PluginManifest
+from axonx.plugin.models import PluginInfo
 
 
-def _artifact(path: Path, sha256: str) -> PluginArtifact:
-    return PluginArtifact(
-        distribution="demo-plugin",
-        version="1.0",
-        plugin_names=("demo",),
-        tasks={},
-        requirements=(),
-        wheel=path,
-        content_sha256="content",
-        sha256=sha256,
-        components={},
-        jobs={},
-    )
-
-
-def test_content_sha_is_independent_of_directory_or_wheel_packaging(tmp_path):
-    source = tmp_path / "source" / "demo_plugin"
-    source.mkdir(parents=True)
-    (source / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (source / "plugin.yaml").write_text("tasks: {}\n", encoding="utf-8")
-    cache = source / "__pycache__"
-    cache.mkdir()
-    (cache / "ignored.pyc").write_bytes(b"host-specific")
-
-    wheel = tmp_path / "demo.whl"
-    with ZipFile(wheel, "w") as archive:
-        archive.writestr("demo_plugin/plugin.yaml", "tasks: {}\n")
-        archive.writestr("demo_plugin/__init__.py", "VALUE = 1\n")
-        archive.writestr("demo_plugin/__pycache__/ignored.pyc", b"other-host")
-        archive.writestr("demo_plugin-1.0.dist-info/RECORD", "volatile")
-
-    arguments = {
-        "distribution": "demo-plugin",
-        "version": "1.0",
-        "requirements": ["dependency>=1"],
-        "plugins": {"demo": "demo_plugin"},
+def make_wheel(tmp_path, *, packages=None, compression=ZIP_STORED):
+    packages = packages or {
+        "ResearchPlugin": ("example_plugin", "tasks: {research: axonx.task.builtins.demo:DemoTask}")
     }
-    directory_hash = content_sha256_from_directories(**arguments, package_paths={"demo_plugin": source})
-    with ZipFile(wheel) as archive:
-        wheel_hash = content_sha256_from_wheel(archive, **arguments)
-
-    assert directory_hash == wheel_hash
-
-
-def test_content_sha_changes_when_plugin_content_changes(tmp_path):
-    package = tmp_path / "demo_plugin"
-    package.mkdir()
-    source = package / "__init__.py"
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    arguments = {
-        "distribution": "demo-plugin",
-        "version": "1.0",
-        "requirements": [],
-        "plugins": {"demo": "demo_plugin"},
-        "package_paths": {"demo_plugin": package},
-    }
-    before = content_sha256_from_directories(**arguments)
-
-    source.write_text("VALUE = 2\n", encoding="utf-8")
-
-    assert content_sha256_from_directories(**arguments) != before
-
-
-@pytest.mark.parametrize(
-    "generated",
-    [
-        "node_modules",
-        "web/node_modules",
-        ".axonx",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".mypy_cache",
-        ".tox",
-        ".nox",
-        ".git",
-        ".venv",
-        "__pycache__",
-        "demo.egg-info",
-        "package/demo.egg-info",
-    ],
-)
-def test_source_hash_ignores_generated_directories_without_traversing(tmp_path, monkeypatch, generated):
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
-    source = tmp_path / "source.py"
-    source.write_text("VALUE = 1\n")
-    before = source_sha256(tmp_path)
-    output = tmp_path / generated
-    output.mkdir(parents=True)
-    (output / "link").symlink_to(source)
-    iterdir = Path.iterdir
-
-    def guarded_iterdir(path):
-        assert path != output, "Generated directories must not be traversed"
-        return iterdir(path)
-
-    monkeypatch.setattr(Path, "iterdir", guarded_iterdir)
-    assert source_sha256(tmp_path) == before
-    source.write_text("VALUE = 2\n")
-    assert source_sha256(tmp_path) != before
-
-
-@pytest.mark.parametrize("directory", ["build", "dist"])
-def test_source_hash_keeps_nested_build_sources_and_rejects_source_symlinks(tmp_path, directory):
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
-    nested = tmp_path / "package" / directory
-    nested.mkdir(parents=True)
-    source = nested / "source.py"
-    source.write_text("VALUE = 1\n")
-    before = source_sha256(tmp_path)
-    output = tmp_path / directory
-    output.mkdir()
-    (output / "link").symlink_to(source)
-    assert source_sha256(tmp_path) == before
-    source.write_text("VALUE = 2\n")
-    assert source_sha256(tmp_path) != before
-    (nested / "link").symlink_to(source)
-    with pytest.raises(ValueError, match="does not allow symlinks"):
-        source_sha256(tmp_path)
-
-
-@pytest.mark.parametrize("relative", [".DS_Store", "package/.DS_Store"])
-def test_source_hash_ignores_generated_files(tmp_path, relative):
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
-    before = source_sha256(tmp_path)
-    generated = tmp_path / relative
-    generated.parent.mkdir(parents=True, exist_ok=True)
-    generated.write_bytes(b"metadata")
-    assert source_sha256(tmp_path) == before
-    generated.write_bytes(b"updated metadata")
-    assert source_sha256(tmp_path) == before
-
-
-def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
-    package = tmp_path / "src" / "demo_plugin"
-    package.mkdir(parents=True)
-    distribution = SimpleNamespace(locate_file=lambda relative: tmp_path / "site-packages" / relative)
-    specification = SimpleNamespace(submodule_search_locations=[str(package)])
-    monkeypatch.setattr("axonx.plugin_kit.discovery.util.find_spec", lambda _package: specification)
-
-    assert _package_path(distribution, "demo_plugin") == package.resolve()
-
-
-def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_path):
-    staged = tmp_path / "demo.whl"
-    staged.write_bytes(b"uploaded")
-    expected = "a" * 64
-    destination = tmp_path / "artifacts" / expected / staged.name
-    destination.parent.mkdir(parents=True)
-    destination.write_bytes(b"tampered")
-
-    monkeypatch.setattr(
-        "axonx.plugin_kit.installer.inspect_wheel",
-        lambda path: _artifact(Path(path), expected if Path(path) == staged else "b" * 64),
-    )
-
-    with pytest.raises(ValueError, match="Stored plugin wheel SHA-256 mismatch"):
-        install_staged_plugin(staged, expected, tmp_path / "artifacts")
-
-
-@pytest.mark.asyncio
-async def test_install_job_discards_staged_wheel_when_installation_fails(monkeypatch, tmp_path):
-    staged_files = StagedFiles(tmp_path)
-    copied = staged_files.store(b"wheel", "demo.whl")
-
-    def fail(*_args):
-        raise RuntimeError("pip failed")
-
-    monkeypatch.setattr("axonx.steps.plugin.install_plugin.install_staged_plugin", fail)
-    app = Application(
-        workspace_dir=str(tmp_path),
-        enable_logo=False,
-        log_to_console=False,
-        log_to_file=False,
-        jobs={
-            "install_plugin": {
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string"},
-                        "sha256": {"type": "string"},
-                    },
-                    "required": ["path", "sha256"],
-                    "additionalProperties": False,
-                },
-                "steps": [{"backend": "install_plugin_step"}],
-            },
-        },
-    )
-
-    async with app:
-        response = await app.run_job(
-            "install_plugin",
-            {"path": copied.path, "sha256": "a" * 64},
+    path = tmp_path / "example_plugin-1.0-py3-none-any.whl"
+    with ZipFile(path, "w", compression=compression) as archive:
+        archive.writestr(
+            "example_plugin-1.0.dist-info/METADATA",
+            "Name: example-plugin\nVersion: 1.0\nRequires-Dist: axonx>=0.1\nRequires-Dist: packaging>=20\n",
         )
+        archive.writestr(
+            "example_plugin-1.0.dist-info/entry_points.txt",
+            "[axonx.plugins]\n" + "\n".join(f"{name} = {package}" for name, (package, _) in packages.items()),
+        )
+        for package, manifest in packages.values():
+            prefix = package.replace(".", "/")
+            archive.writestr(
+                f"{prefix}/__init__.py", "raise RuntimeError('Plugin code must not run during inspection')"
+            )
+            archive.writestr(f"{prefix}/plugin.yaml", manifest)
+    return path
 
-    assert response.success is False
-    with pytest.raises(ValueError, match="does not exist"):
-        staged_files.file(copied.path)
+
+def installed_distribution(path, root, *, provenance=None):
+    with ZipFile(path) as archive:
+        archive.extractall(root)
+    info = root / "example_plugin-1.0.dist-info"
+    if provenance is not None:
+        (info / "direct_url.json").write_text(provenance)
+    return metadata.Distribution.at(info)
 
 
-def test_contribution_index_rejects_duplicate_public_names():
-    one = PluginInfo(distribution="one", version="1", tasks={"shared": "one:Task"})
-    two = PluginInfo(distribution="two", version="1", tasks={"shared": "two:Task"})
+def test_wheel_and_installed_metadata_agree_without_importing_plugin_code(tmp_path, monkeypatch, capsys):
+    path = make_wheel(tmp_path)
+    artifact = wheel.inspect_wheel(path)
+    provenance = json.dumps({"archive_info": {"hashes": {"sha256": artifact.sha256.upper()}}})
+    distribution = installed_distribution(path, tmp_path / "installed", provenance=provenance)
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
+    info = discovery.get_installed_plugin("ResearchPlugin")
+    assert info.error is None
+    assert info.plugins == artifact.plugins == ["ResearchPlugin"]
+    assert info.content_sha256 == artifact.content_sha256
+    assert info.sha256 == artifact.sha256
+    assert info.tasks == artifact.tasks
+    assert main(["plugin", "inspect", str(path)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["plugins"] == info.plugins
+    assert result["wheel"] == str(path)
+    assert result["content_sha256"] == info.content_sha256
 
-    with pytest.raises(ValueError, match="provided by plugins 'one' and 'two'"):
-        index_contributions([one, two])
+
+def test_content_identity_ignores_archive_compression_and_installed_bytecode(tmp_path, monkeypatch):
+    path = make_wheel(tmp_path)
+    first = wheel.inspect_wheel(path)
+    distribution = installed_distribution(path, tmp_path / "installed")
+    package = tmp_path / "installed/example_plugin"
+    (package / "__pycache__").mkdir()
+    (package / "__pycache__/cached.pyc").write_bytes(b"compiled")
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
+    assert discovery.get_installed_plugin("example_plugin").content_sha256 == first.content_sha256
+    second = wheel.inspect_wheel(make_wheel(tmp_path, compression=ZIP_DEFLATED))
+    assert second.sha256 != first.sha256
+    assert second.content_sha256 == first.content_sha256
+    (package / "__init__.py").write_text("changed = True")
+    assert discovery.get_installed_plugin("example-plugin").content_sha256 != first.content_sha256
 
 
-def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
-    source = tmp_path / "plugin"
+def test_conflicting_archive_members_are_not_hidden_by_duplicate_filenames(tmp_path):
+    path = make_wheel(tmp_path)
+    with pytest.warns(UserWarning, match="Duplicate name"):
+        with ZipFile(path, "a") as archive:
+            archive.writestr("example_plugin/__init__.py", "changed = True")
+    with pytest.raises(ValueError, match="Conflicting plugin wheel file"):
+        wheel.inspect_wheel(path)
+
+
+@pytest.mark.parametrize("text", ["[", "[]", '{"archive_info": null}', '{"archive_info": {"hashes": []}}'])
+def test_malformed_provenance_does_not_hide_an_installed_plugin(tmp_path, monkeypatch, text):
+    distribution = installed_distribution(make_wheel(tmp_path), tmp_path / "installed", provenance=text)
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
+    info = discovery.get_installed_plugin("example-plugin")
+    assert info.error is None
+    assert info.sha256 is None
+
+
+@pytest.mark.parametrize("manifest", ["[]", "tasks: [", "components: {}", "tasks: {research: 1}"])
+def test_invalid_manifests_fail_wheel_inspection_and_remain_visible_in_discovery(tmp_path, monkeypatch, manifest):
+    path = make_wheel(tmp_path, packages={"example": ("example_plugin", manifest)})
+    with pytest.raises(ValueError, match="manifest"):
+        wheel.inspect_wheel(path)
+    distribution = installed_distribution(path, tmp_path / "installed")
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
+    info = discovery.get_installed_plugin("example")
+    assert info.error
+    assert not info.tasks
+    assert discovery.discover_task_registrations() == []
+
+
+def test_manifests_reject_duplicate_tasks_and_invalid_packages_before_reading():
+    packages = {"one": "first", "two": "second"}
+    with pytest.raises(ValueError, match="Duplicate Task"):
+        PluginManifest.from_packages(packages, lambda package: "tasks: {same: package:Task}")
+    for package in ("package:Class", "../package", "", "package..nested"):
+        with pytest.raises(ValueError, match="must target a package"):
+            PluginManifest.from_packages({"one": package}, lambda value: pytest.fail("Read an invalid package"))
+
+
+def test_discovery_keeps_the_first_distribution_on_the_import_path(tmp_path, monkeypatch):
+    path = make_wheel(tmp_path)
+    first = installed_distribution(path, tmp_path / "first")
+    second = installed_distribution(path, tmp_path / "second")
+    (tmp_path / "second/example_plugin/plugin.yaml").write_text("tasks: {shadowed: missing:Task}")
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [first, second])
+    plugins = discovery.list_installed_plugins()
+    assert len(plugins) == 1
+    assert set(plugins[0].tasks) == {"research"}
+    assert discovery.discover_task_registrations() == [
+        ("research", "axonx.task.builtins.demo:DemoTask", "example-plugin")
+    ]
+
+
+def test_task_registration_discovery_does_not_import_plugin_code_or_compute_fingerprints(tmp_path, monkeypatch):
+    distribution = installed_distribution(make_wheel(tmp_path), tmp_path / "installed")
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
+    monkeypatch.setattr(
+        discovery, "content_sha256_from_directories", lambda **kwargs: pytest.fail("Computed a content fingerprint")
+    )
+    monkeypatch.setattr(discovery, "_wheel_sha256", lambda value: pytest.fail("Read wheel provenance"))
+    assert discovery.discover_task_registrations() == [
+        ("research", "axonx.task.builtins.demo:DemoTask", "example-plugin")
+    ]
+
+
+def test_source_cache_ignores_generated_files_but_tracks_nested_source_and_rejects_symlinks(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'example'")
+    first = fingerprint.source_sha256(tmp_path)
+    for ignored in ("build", "dist", ".git", "example.egg-info", "__pycache__"):
+        directory = tmp_path / ignored
+        directory.mkdir()
+        (directory / "generated").write_text("ignored")
+    assert fingerprint.source_sha256(tmp_path) == first
+    nested = tmp_path / "package/build"
+    nested.mkdir(parents=True)
+    (nested / "source.py").write_text("included = True")
+    assert fingerprint.source_sha256(tmp_path) != first
+    (tmp_path / "linked.py").symlink_to(nested / "source.py")
+    with pytest.raises(ValueError, match="symlinks"):
+        fingerprint.source_sha256(tmp_path)
+
+
+def test_preparation_reuses_source_cache_and_explicit_output_rebuilds(tmp_path, monkeypatch):
+    source = tmp_path / "source"
     source.mkdir()
-    config = tmp_path / "app.yaml"
-    config.write_text("plugins:\n  sources: [plugin]\n", encoding="utf-8")
+    (source / "pyproject.toml").write_text("[project]\nname = 'example'")
+    builds = []
 
-    loaded = ConfigResolver(tmp_path).load(config)
+    def build(command, **kwargs):
+        output = Path(command[command.index("--wheel-dir") + 1])
+        builds.append(output)
+        make_wheel(output)
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
 
-    assert loaded["plugins"]["sources"] == [str(source.resolve())]
+    monkeypatch.setattr(wheel.subprocess, "run", build)
+    first = installer.prepare_artifact(source, cache_dir=tmp_path / "cache")
+    assert installer.prepare_artifact(source, cache_dir=tmp_path / "cache").sha256 == first.sha256
+    assert len(builds) == 1
+    assert not list(first.wheel.parent.glob(".build-*"))
+    installer.prepare_artifact(source, output=tmp_path / "output")
+    installer.prepare_artifact(source, output=tmp_path / "output")
+    assert len(builds) == 3
+    with pytest.raises(ValueError, match="existing wheel"):
+        installer.prepare_artifact(first.wheel, output=tmp_path / "output")
 
 
-def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="local-demo", version="1")
-    monkeypatch.setattr("axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin])
-    assert plugin_cli(["list"], ClientOptions()) == 0
-    assert '"distribution": "local-demo"' in capsys.readouterr().out
-
-
-def test_plugin_cli_installs_locally_by_default(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="local-demo", version="1")
-    artifact = object()
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
+def test_install_preserves_the_host_and_checks_provenance_and_content(tmp_path, monkeypatch):
+    artifact = wheel.inspect_wheel(make_wheel(tmp_path))
+    info = PluginInfo(**artifact.model_dump(exclude={"wheel"}))
+    commands = []
     monkeypatch.setattr(
-        "axonx.plugin_kit.cli.install_plugin",
-        lambda received, **_options: plugin if received is artifact else None,
+        installer.subprocess,
+        "run",
+        lambda command, **kwargs: commands.append(command) or SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
-    assert plugin_cli(["install", "source"], ClientOptions()) == 0
-    assert '"distribution": "local-demo"' in capsys.readouterr().out
+    monkeypatch.setattr(installer, "get_installed_plugin", lambda name: info)
+    assert installer.install_plugin(artifact) == info
+    assert commands[0] == [sys.executable, "-m", "pip", "install", "packaging>=20"]
+    assert commands[1][-2:] == ["--no-deps", str(artifact.wheel)]
+    for field, message in (
+        ("sha256", "provenance mismatch"),
+        ("content_sha256", "content mismatch"),
+        ("error", "invalid"),
+    ):
+        broken = info.model_copy(update={field: "changed"})
+        monkeypatch.setattr(installer, "get_installed_plugin", lambda name, value=broken: value)
+        with pytest.raises(RuntimeError, match=message):
+            installer.install_plugin(artifact)
 
 
-def test_plugin_cli_uses_jobs_when_client_address_is_supplied(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="remote-demo", version="1")
-
-    async def remote(args, options):
-        assert args.command == "list"
-        assert options.target == "http://127.0.0.1:1024"
-        return [plugin]
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["list"], options) == 0
-    assert '"distribution": "remote-demo"' in capsys.readouterr().out
-
-
-def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-    artifact = _artifact(wheel, "a" * 64)
-    discarded: list[str] = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-        async def copy_file(self, _path):
-            return FileCopy(path="copies/demo.whl", size=5)
-
-        async def run_job(self, _name, _arguments):
-            return JobResponse(answer="pip failed", success=False)
-
-        async def discard_file(self, path):
-            discarded.append(path)
-            return path
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.HttpClient", lambda **_options: Client())
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["install", str(wheel)], options) == 1
-    assert discarded == ["copies/demo.whl"]
-
-
-@pytest.mark.asyncio
-async def test_streamed_submit_calls_selected_service(monkeypatch):
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-        async def stream_job(self, name, arguments):
-            assert name == "submit"
-            assert arguments == {"task": "demo_task"}
-            yield ResultEvent(answer="ok")
-
-    monkeypatch.setattr(
-        "axonx.components.client.remote.HttpClient",
-        lambda **options: Client(),
-    )
-
-    events = [event async for event in stream_remote_job("submit", {"task": "demo_task"}, target="10.0.0.2:1024")]
-
-    assert events[0].answer == "ok"
-
-
-@pytest.mark.parametrize("flag", ["-e", "--editable"])
-def test_plugin_cli_installs_editable_locally(monkeypatch, tmp_path, flag):
-    plugin = PluginInfo(distribution="editable-demo", version="1")
-    artifact = object()
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
-
-    def install(received, *, editable_source):
-        assert received is artifact
-        assert editable_source == tmp_path.resolve()
-        return plugin
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", install)
-    assert plugin_cli(["install", flag, str(tmp_path)]) == 0
-
-
-@pytest.mark.parametrize(
-    ("extra", "options", "message"),
-    [
-        ([], ClientOptions(target="127.0.0.1:1024"), "--target"),
-        (["--output", "dist"], ClientOptions(), "--output"),
-    ],
-)
-def test_editable_rejects_incompatible_options(extra, options, message, monkeypatch, capsys):
-    def unexpected(*_args):
-        pytest.fail("Invalid editable options must fail before building or installing")
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", unexpected)
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", unexpected)
-    assert plugin_cli(["install", "-e", "plugins/demo", *extra], options) == 1
-    assert message in capsys.readouterr().err
-
-
-def test_editable_rejects_wheel_before_build(monkeypatch, tmp_path, capsys):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-
-    def unexpected(*_args):
-        pytest.fail("Editable wheels must fail before building or installing")
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", unexpected)
-    assert plugin_cli(["install", "-e", str(wheel)]) == 1
-    assert "project directory" in capsys.readouterr().err
-
-
-@pytest.mark.parametrize("editable", [False, True])
-def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, tmp_path, editable):
-    from dataclasses import replace
-    from axonx.plugin_kit.wheel import install_artifact
-
-    artifact = replace(
-        _artifact(tmp_path / "demo.whl", "digest"),
-        requirements=("AxonX>=0.1", "example-dependency>=1"),
-    )
+def test_editable_install_discovers_in_a_fresh_interpreter(tmp_path, monkeypatch):
+    artifact = wheel.inspect_wheel(make_wheel(tmp_path))
+    info = PluginInfo(distribution=artifact.distribution, version=artifact.version, tasks=artifact.tasks)
     commands = []
 
-    def run(command, **_kwargs):
+    def run(command, **kwargs):
         commands.append(command)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stderr="", stdout=info.model_dump_json() if command[1] == "-c" else "")
 
-    monkeypatch.setattr("axonx.plugin_kit.wheel.subprocess.run", run)
-    source = tmp_path / "source" if editable else None
-    install_artifact(artifact, editable_source=source)
-    assert commands[0][3:] == ["install", "example-dependency>=1"]
-    assert "--no-deps" in commands[1]
-    if editable:
-        assert commands[1][-2:] == ["--editable", str(source)]
-    else:
-        assert commands[1][-1] == str(artifact.wheel)
-        assert "--editable" not in commands[1]
+    monkeypatch.setattr(installer.subprocess, "run", run)
+    monkeypatch.setattr(installer, "get_installed_plugin", lambda name: pytest.fail("Used stale interpreter hooks"))
+    assert installer.install_plugin(artifact, editable_source=tmp_path) == info
+    assert commands[1][-2:] == ["--editable", str(tmp_path)]
+    assert commands[2][:2] == [sys.executable, "-c"]
+    assert commands[2][-1] == artifact.distribution
 
 
-@pytest.mark.parametrize("failure", [None, "discovery", "invalid"])
-def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path, failure):
-    from axonx.plugin_kit.installer import install_plugin
-
-    artifact = _artifact(tmp_path / "demo.whl", "digest")
-    plugin = PluginInfo(
-        distribution=artifact.distribution,
-        version="1",
-        error="invalid" if failure == "invalid" else None,
+def test_uninstall_allows_broken_plugins_and_reports_pip_failures(monkeypatch):
+    info = PluginInfo(distribution="example", version="1", error="missing manifest")
+    monkeypatch.setattr(installer, "get_installed_plugin", lambda name: info)
+    commands = []
+    monkeypatch.setattr(
+        installer.subprocess,
+        "run",
+        lambda command, **kwargs: commands.append(command) or SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
-    monkeypatch.setattr("axonx.plugin_kit.installer.install_artifact", lambda *_args, **_kwargs: None)
+    assert installer.uninstall_plugin("example") == {"distribution": "example"}
+    assert commands == [[sys.executable, "-m", "pip", "uninstall", "--yes", "example"]]
+    monkeypatch.setattr(
+        installer.subprocess,
+        "run",
+        lambda command, **kwargs: SimpleNamespace(returncode=1, stderr="pip failed", stdout=""),
+    )
+    with pytest.raises(RuntimeError, match="uninstall failed: pip failed"):
+        installer.uninstall_plugin("example")
 
-    def run(command, **_kwargs):
-        assert command[-1] == artifact.distribution
-        assert "get_installed_plugin" in command[-2]
-        return SimpleNamespace(
-            returncode=int(failure == "discovery"),
-            stdout=plugin.model_dump_json(),
-            stderr="failed",
-        )
 
-    monkeypatch.setattr("axonx.plugin_kit.installer.subprocess.run", run)
-    if failure:
-        with pytest.raises(
-            RuntimeError,
-            match="discovery failed" if failure == "discovery" else "invalid",
-        ):
-            install_plugin(artifact, editable_source=tmp_path)
-    else:
-        assert install_plugin(artifact, editable_source=tmp_path) == plugin
+@pytest.mark.parametrize("contents", [b"not a zip", b""])
+def test_invalid_wheels_return_a_cli_error(tmp_path, capsys, contents):
+    path = tmp_path / "broken.whl"
+    path.write_bytes(contents)
+    assert main(["plugin", "inspect", str(path)]) == 2
+    assert "Not a readable plugin wheel" in capsys.readouterr().err

@@ -1,262 +1,122 @@
-# 工作区与文件传输 API
+# 工作区与上传 API
 
-工作区 Job 用于目录、元数据与数据预览；文件传输是独立 HTTP 路由，用于暂存 wheel 与同步归档。
+文件 Job 操作所选工作区，产物路径来自当前 Task metadata。
 
-![工作区与文件传输 API调用示意](../../figures/api/upload.svg)
+所有下列 Job 使用 `POST /jobs/NAME` 和 `{"arguments": {...}}` 请求体。流式入口为 `/jobs/NAME/events`，MCP 使用相同 Job 名和业务参数。先调用 `help --job NAME` 获取目标服务实际 Schema。示例中的 Task/会话 ID 必须替换为实际值。
 
-## 调用约定
+![上传、消费与清理](../../figures/api/upload.svg)
 
-以下均为 `POST /jobs/{name}`，请求体是 `{"arguments":{...}}`。远程转发时在封装顶层添加 `target`，不能放进 arguments。每个响应使用 [JobResponse](overview.md#响应与错误)，表格默认值依据当前内置配置和 Step。部署可修改 Job Schema，运行服务的 `/jobs` 是最终依据。
+## 接口列表
 
-所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskMetadata 字段见 [Task 协议](../reference/task-contracts.md)。
-
-## 接口清单
-
-| Job              | 用途                              |
-| ---------------- | --------------------------------- |
-| `list_entries`   | 列出工作区内一层目录。            |
-| `list_task_runs` | 列出含 metadata.json 的任务目录。 |
-| `preview_file`   | 预览支持类型的文件。              |
-| `delete_entries` | 删除工作区中的文件或目录。        |
+| Job                     | 用途                                              |
+| ----------------------- | ------------------------------------------------- |
+| `list_entries`          | 列出工作区内一个目录的条目。                      |
+| `list_task_directories` | 列出指定类型目录下含 metadata.json 的 Task 目录。 |
+| `preview_file`          | 预览工作区内一个受支持格式的文件。                |
+| `delete_entries`        | 删除工作区内多个文件或目录。                      |
 
 ## list_entries
 
-列出工作区内一层目录。
+列出工作区内一个目录的条目。
 
-| 参数     | 类型    | 必填 | 默认值 | 约束与含义                   |
-| -------- | ------- | ---- | ------ | ---------------------------- |
-| `path`   | string  | 否   | `""`   | 服务工作区相对路径           |
-| `offset` | integer | 否   | `0`    | 跳过的已排序条目数，必须非负 |
-
-只接受表中业务字段。
-
-**请求**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**响应**
-
-answer 为 WorkspaceListing：path、entries、truncated。每个 entry 含 name、path、kind、preview_kind、supported、size、modified_at。
-
-```json
-{
-  "answer": {
-    "path": "",
-    "entries": [],
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-path 默认空字符串表示根目录；目录优先排序。最多返回 5000 项，truncated=true 表示还有下一页，将已读取条目数作为 offset 可继续浏览。分页反映当前目录内容；文件变化后应从 offset=0 刷新。
-
-## list_task_runs
-
-列出含 metadata.json 的任务目录。
-
-| 参数        | 类型   | 必填 | 默认值      | 约束与含义                                                    |
-| ----------- | ------ | ---- | ----------- | ------------------------------------------------------------- |
-| `task_type` | string | 是   | `—（省略）` | 任务类型目录；minLength=1, 正则 `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
-
-只接受表中业务字段。
-
-**请求**
+| 参数     | 类型      | 必填 | 默认/约束                   |
+| -------- | --------- | ---- | --------------------------- |
+| `path`   | `string`  | 否   | `{"default":""}`            |
+| `offset` | `integer` | 否   | `{"minimum":0,"default":0}` |
 
 ```json
 {
   "arguments": {
-    "task_type": "train"
+    "path": ""
   }
 }
 ```
 
-**响应**
+`answer` 包含 `path`、绝对 `workspace_root`、`entries` 和 `truncated`。目录优先，其后按忽略大小写的名称及原始名称排序；从 `offset` 起最多返回 5000 项。截断时以 `offset + entries.length` 继续。条目包含 name、相对 path、kind、preview_kind、supported、size、modified_at；可列出符号链接，但不能沿其访问。
 
-answer 与 WorkspaceListing 相同，只保留任务结果目录。
+## list_task_directories
+
+列出指定类型目录下含 metadata.json 的 Task 目录。
+
+| 参数        | 类型     | 必填 | 默认/约束                                                 |
+| ----------- | -------- | ---- | --------------------------------------------------------- |
+| `task_type` | `string` | 是   | `{"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9_-]*$"}` |
 
 ```json
 {
-  "answer": {
-    "path": "train",
-    "entries": [],
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
+  "arguments": {
+    "task_type": "base"
+  }
 }
 ```
 
-**行为与失败情况**
-
-所有生命周期状态都保留 metadata，应根据 state 筛选成功研究结果。task_type 是目录名，不是 Task 注册名。
+列出指定 task_type 下含 metadata.json 的目录，这是文件发现，不是不可变执行历史。
 
 ## preview_file
 
-预览支持类型的文件。
+预览工作区内一个受支持格式的文件。
 
-| 参数        | 类型    | 必填 | 默认值      | 约束与含义                                                        |
-| ----------- | ------- | ---- | ----------- | ----------------------------------------------------------------- |
-| `path`      | string  | 是   | `—（省略）` | 服务工作区相对路径                                                |
-| `offset`    | integer | 否   | `0`         | CSV/JSONL/Parquet 预览跳过的数据行数；minimum=0                   |
-| `limit`     | integer | 否   | `200`       | CSV/JSONL/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
-| `max_bytes` | integer | 否   | 省略        | 文本/Markdown/JSON/YAML 字节预算，1–33554432；CLI 默认 8192。     |
-
-只接受表中业务字段。
-
-**请求**
+| 参数        | 类型      | 必填 | 默认/约束                                    |
+| ----------- | --------- | ---- | -------------------------------------------- |
+| `max_bytes` | `integer` | 否   | `{"minimum":1,"maximum":33554432}`           |
+| `path`      | `string`  | 是   | `—`                                          |
+| `offset`    | `integer` | 否   | `{"minimum":0,"default":0}`                  |
+| `limit`     | `integer` | 否   | `{"minimum":1,"maximum":5000,"default":200}` |
 
 ```json
 {
   "arguments": {
-    "path": "base/base#demo#api-demo/metadata.json"
+    "path": "base/base#demo#api-check/metadata.json",
+    "limit": 20,
+    "max_bytes": 8192
   }
 }
 ```
-
-**响应**
-
-answer 按 kind 判别：text/markdown/json/jsonl/yaml/csv/parquet/unsupported；每种都有 size。
-
-```json
-{
-  "answer": {
-    "kind": "json",
-    "size": 1200,
-    "content": "",
-    "data": {},
-    "parse_error": null,
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-offset/limit 仅对 CSV、JSONL、Parquet 的数据行有效，默认 0/200，上限 5000。text/markdown 最多读取 512 KiB；JSON/YAML 超过 32 MiB 返回 parse_error。解析失败可仍是 success=true，必须查看 parse_error。
-
-`preview_file` 对文本、Markdown、JSON、YAML 支持可选 `max_bytes`（1–33554432）。超出时返回 UTF-8 前缀并标明 `truncated=true`；结构化预览的 `data=null`，`parse_error` 说明仅返回部分内容。CSV/JSONL/Parquet 仍按行数限制。CLI 默认 `limit=20`、`max_bytes=8192`；HTTP/MCP 未显式覆盖时保留原有限制。
 
 ## delete_entries
 
-删除工作区中的文件或目录。
+删除工作区内多个文件或目录。
 
-| 参数    | 类型  | 必填 | 默认值      | 约束与含义                                           |
-| ------- | ----- | ---- | ----------- | ---------------------------------------------------- |
-| `paths` | array | 是   | `—（省略）` | 待删除的工作区相对路径列表；maxItems=200, minItems=1 |
-
-只接受表中业务字段。
-
-**请求**
+| 参数    | 类型    | 必填 | 默认/约束                       |
+| ------- | ------- | ---- | ------------------------------- |
+| `paths` | `array` | 是   | `{"minItems":1,"maxItems":200}` |
 
 ```json
 {
   "arguments": {
-    "paths": ["tmp/example.txt"]
+    "paths": ["base/base#demo#api-check"]
   }
 }
 ```
 
-**响应**
-
-answer 是 DeletedEntry 数组，每项 deleted 为相对路径，kind 为 file/directory。
-
-```json
-{
-  "answer": [
-    {
-      "deleted": "tmp/example.txt",
-      "kind": "file"
-    }
-  ],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-最多 200 路径；根目录与逃逸路径不可删除。任务目录应优先使用 delete_tasks，保留任务状态和日志管理约束。
-
-## 相关文档
-
-- [协议、鉴权与错误](overview.md)
-- [工作区操作](../guides/workspace-files.md)
-- [CLI 参考](../reference/cli.md)
-- [事件协议](events.md)
-
-实现依据：`axonx/config/default.yaml`、`axonx/steps/workspace/` 与 `axonx/components/service/http/jobs.py`。
+删除工作区相对路径。这是通用文件操作，不保护活动 Task 进程，删除目录前应确认已停止并与执行串行协调。
 
 ## 文件上传与清理
 
-`POST /files` 支持原始二进制请求体和 `multipart/form-data`。两种格式返回相同的 FileCopy，只暂存文件本身的字节；上传 Python 脚本不会执行脚本。
-
-原始二进制上传中，`x-file-name` 为必填文件名 header；`x-file-directory` 可选，指定以 tmp 开头的工作区相对子目录，不能指定工作区任意位置。现有客户端可继续使用此格式：
+`POST /upload` 接受带 `x-file-name` 的二进制请求体，或 multipart `file` 和可选 `directory`；`x-file-directory` 优先于 multipart 目录。目标限制在工作区 `tmp`，使用 UUID 目录避免冲突。默认传输预算 512 MiB，multipart 额外允许 64 KiB 封装。
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
-  -H 'Content-Type: application/octet-stream' \
-  -H 'x-file-name: axonx_example-0.1.0-py3-none-any.whl' \
-  -H 'x-file-directory: tmp/plugins' \
-  --data-binary @dist/axonx_example-0.1.0-py3-none-any.whl
+curl --fail-with-body 'http://HOST:1024/upload' \
+  -H "Authorization: Bearer $AXONX_TARGET_TOKEN" \
+  -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-multipart 上传须通过 `file` 字段传入一个文件，可选的文本字段 `directory` 指定暂存子目录。文件名来自文件部分；提供 `x-file-name` 或非空的 `x-file-directory` 时，请求头优先于文件名和表单目录。不接受其他字段或多个文件。使用 `curl -F` 时不要手动设置 Content-Type，curl 会自动生成含 boundary 的 multipart 请求头。
+JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/UUID/file.whl", "location": "/absolute/workspace/tmp/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_tasks` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
 
-```bash
-curl -s -X POST http://127.0.0.1:1024/files \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
-  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
-  -F 'directory=tmp/plugins'
-```
+## 预览响应类型
 
-运行依赖 `python-multipart` 已在 `pyproject.toml` 中声明，无需额外的服务配置开关即可使用两种格式。
+所有预览都包含 `kind` 与字节 `size`，限制按格式区分：
 
-FileCopy 的响应形状如下，路径和字节大小必须以真实返回为准：
+| 格式           | 响应字段与限制                                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 文本           | `content`、`truncated`；默认前 512 KiB，可用 `max_bytes` 覆盖                                                                                      |
+| Markdown       | 正文 `content`、解析后的 `frontmatter`、`frontmatter_error`、`truncated`；字节预算同文本                                                           |
+| JSON / YAML    | 解析的 `data`，或带 `parse_error` 的原文 `content`；不传 `max_bytes` 时最多解析 32 MiB，更大的文件返回错误                                         |
+| CSV            | `columns`、行数组、`offset`、`limit`、`has_more`；表头不计入行偏移                                                                                 |
+| JSONL / NDJSON | `rows` 含 line、content、data、parse_error、逐行 truncated；每页另有独立的 512 KiB 预算，不受 `max_bytes` 控制，并返回页级 `truncated`、`has_more` |
+| Parquet        | `columns`、`column_schema`、行数组、`row_count`、`row_group_count`、`offset`、`limit`、`has_more`                                                  |
+| 不支持的格式   | `kind="unsupported"`、`size`，不预览内容                                                                                                           |
 
-```json
-{
-  "answer": {
-    "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
-    "size": 4096
-  },
-  "success": true,
-  "metadata": {}
-}
-```
+行格式默认每页 200 行，最多 5000 行。`max_bytes` 仅作用于文本、Markdown、JSON 和 YAML，上限为 32 MiB。截断的 JSON/YAML 返回带标记的原文前缀和解析错误，不返回解析对象。CLI 额外设置默认 20 行和 8192 字节；普通 HTTP/MCP Job 使用上述服务端默认值。行分页依据 `has_more`，将预览作为完整证据前还需检查展示副本的采样与遗漏。
 
-每次上传使用独立暂存目录，不计算内容哈希，也不按内容去重。默认单文件上限为 512 MiB；服务同时检查 Content-Length 和实际流入字节数。multipart 请求允许额外 64 KiB 的请求封装开销，文件本身仍受单文件上限约束。multipart 临时文件在存储结束或失败时关闭，包括请求取消。非法 Content-Length、损坏的 multipart 请求体或过多的表单部分为 400，超限为 413；缺失/非法文件名、缺少 `file` 文件、未知字段、目录逃逸等为 422，拒绝符号链接及目录逃逸。
-
-消费者 install_plugin、sync_tasks 使用返回的 path。安装调用方还需提供原始 wheel 的 SHA-256，由插件消费者校验。上传完成不代表插件已安装，也不代表任务快照已应用。消费者会清理暂存制品；未消费时可主动清理：
-
-```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
-```
-
-上例路径为占位，需替换实际 path；cleanup 响应 answer 为 `{"path":"返回的路径"}`。重复清理已消费的合法路径是无害的；此路由只清理暂存文件，不能删除任意工作区文件。后端路径规则拒绝绝对路径、逃逸路径和 tmp 外的路径。
-
-## 预览响应分型
-
-| kind        | 特有字段                                                     | 消费建议                             |
-| ----------- | ------------------------------------------------------------ | ------------------------------------ |
-| text        | content、truncated                                           | 内容截断时不要推断完整文件           |
-| markdown    | content、frontmatter、frontmatter_error、truncated           | frontmatter 单独读取，错误单独提示   |
-| json / yaml | content、data、parse_error、truncated                        | parse_error 非空时不能使用 data 分析 |
-| csv         | columns、rows、offset、limit、has_more                       | 下一页 offset 加已返回行数           |
-| parquet     | CSV 同类字段，以及 column_schema、row_count、row_group_count | schema 提供列类型与 nullable         |
-| unsupported | size                                                         | 接口不提供该格式的预览内容           |
-
-原始文件字节大小、行分页 offset 与日志字节 offset 是三种不同信息。文本预览没有通用字符分页。Parquet 行数与分组信息来自文件元数据，返回 rows 只是当前窗口。
-
-JSONL/NDJSON 预览返回 `rows`（`line`、`content`、`data`、`parse_error`）、`offset`、`limit`、`has_more` 和 `truncated`。偏移按实际行计数，包含损坏记录。每页限制为 512 KiB，单行错误不会使整个预览失败。
+源码：[默认 Job 契约](../../../axonx/app/config/default.yaml) · [Job 协议](overview.md)

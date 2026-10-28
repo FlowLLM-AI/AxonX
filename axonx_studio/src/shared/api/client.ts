@@ -1,5 +1,7 @@
 import { playground } from "../../app/environment";
-import type { JobCatalog, JobResponse } from "./types";
+import { readJobEvents, type StreamOptions } from "./event";
+import { readJobResponse } from "./response";
+import type { JobCatalog } from "./types";
 
 const tokenStorageKey = "axonx-service-token";
 
@@ -16,54 +18,6 @@ export interface RequestOptions {
   target?: string;
 }
 
-export class AxonXError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = "AxonXError";
-  }
-}
-
-async function decode(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    throw new AxonXError(
-      `Invalid server response (HTTP ${response.status})`,
-      response.status,
-    );
-  }
-}
-
-export async function readJobResponse<T>(response: Response): Promise<T> {
-  const payload = await decode(response);
-  if (!response.ok) {
-    const detail =
-      payload && typeof payload === "object" && "detail" in payload
-        ? payload.detail
-        : undefined;
-    throw new AxonXError(
-      typeof detail === "string"
-        ? detail
-        : detail == null
-          ? `HTTP ${response.status}`
-          : JSON.stringify(detail),
-      response.status,
-    );
-  }
-  if (!payload || typeof payload !== "object" || !("success" in payload))
-    throw new AxonXError("Invalid AxonX response envelope", response.status);
-  const result = payload as JobResponse<T>;
-  if (!result.success)
-    throw new AxonXError(
-      String(result.answer || "Job failed"),
-      response.status,
-    );
-  return result.answer;
-}
-
 export type Transport = (url: string, init?: RequestInit) => Promise<Response>;
 
 export class AxonXClient {
@@ -74,14 +28,18 @@ export class AxonXClient {
     this.token = authentication ? storedToken() : "";
   }
 
-  request(url: string, init?: RequestInit): Promise<Response> {
-    return this.transport(url, init);
-  }
   private token: string;
+  private revision = 0;
+
+  get authRevision(): number {
+    return this.revision;
+  }
 
   setToken(token: string): void {
     if (!this.authentication) return;
-    this.token = token.trim();
+    const next = token.trim();
+    if (next !== this.token) this.revision += 1;
+    this.token = next;
     try {
       if (this.token) localStorage.setItem(tokenStorageKey, this.token);
       else localStorage.removeItem(tokenStorageKey);
@@ -101,37 +59,53 @@ export class AxonXClient {
     return headers;
   }
 
-  invocation(arguments_: Record<string, unknown>, target?: string) {
-    return { arguments: arguments_, target };
+  private requestJob(
+    name: string,
+    arguments_: Record<string, unknown>,
+    options: RequestOptions,
+    streaming = false,
+  ): Promise<Response> {
+    return this.transport(
+      `/jobs/${encodeURIComponent(name)}${streaming ? "/events" : ""}`,
+      {
+        method: "POST",
+        headers: this.requestHeaders({
+          "Content-Type": "application/json",
+          ...(streaming ? { Accept: "text/event-stream" } : {}),
+        }),
+        body: JSON.stringify({ arguments: arguments_, target: options.target }),
+        signal: options.signal,
+      },
+    );
   }
 
-  async invoke<T>(
+  async invoke<T = unknown>(
     name: string,
     arguments_: Record<string, unknown> = {},
     options: RequestOptions = {},
   ): Promise<T> {
-    const response = await this.request(`/jobs/${encodeURIComponent(name)}`, {
-      method: "POST",
-      headers: this.requestHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(this.invocation(arguments_, options.target)),
-      signal: options.signal,
-    });
+    const response = await this.requestJob(name, arguments_, options);
     return readJobResponse<T>(response);
+  }
+
+  async stream<T = unknown>(
+    name: string,
+    arguments_: Record<string, unknown> = {},
+    options: StreamOptions<T> = {},
+  ): Promise<T> {
+    const response = await this.requestJob(name, arguments_, options, true);
+    return readJobEvents<T>(response, options.onEvent);
   }
 
   async jobs(options: RequestOptions = {}): Promise<JobCatalog> {
     const query = options.target
       ? `?${new URLSearchParams({ target: options.target })}`
       : "";
-    const response = await this.request(`/jobs${query}`, {
+    const response = await this.transport(`/jobs${query}`, {
       headers: this.requestHeaders(),
       signal: options.signal,
     });
     return readJobResponse<JobCatalog>(response);
-  }
-
-  eventsUrl(name: string): string {
-    return `/jobs/${encodeURIComponent(name)}/events`;
   }
 }
 

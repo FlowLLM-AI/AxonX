@@ -1,5 +1,5 @@
 """Execute ``python -m axonx.cli``."""
 
-from . import main
+from .main import main
 
 raise SystemExit(main())

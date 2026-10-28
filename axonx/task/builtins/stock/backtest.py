@@ -2,49 +2,32 @@
 
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import polars as pl
-from pydantic import Field, field_validator
 
-from ....enums import TaskType
-from ....utils.fs import atomic_write, file_revision
-from ...schemas.reports import (
+from ...core.base import TaskStep
+from ...core.research import BaseBacktestTask
+from ...models.artifacts import PredictionProtocol, task_protocol
+from ...models.identity import TaskType, task_type_from_id
+from ...models.reports import (
     BacktestBenchmark,
     BacktestDimensions,
     BacktestUniverse,
     BacktestUniverseReport,
 )
-from ...contracts import BaseBacktestOutputParams, BaseBacktestTask, BaseInputParams
-from ...core import TaskStep, parse_source_tasks, task_type_from_id
-from ...schemas.protocol import STOCK_SIGNALS_FORMAT, task_protocol
-from ...schemas.prediction import PredictionProtocol
-from ...storage import artifact_record, read_metadata
-from ...storage.inputs import pin_source_artifacts
+from ...storage.artifacts import artifact_record
+from ...storage.files import atomic_write, file_revision
+from ...storage.inputs import pin_upstream_artifacts, read_upstream_metadata
 from .data import KEYS
-from .engine import BacktestConfig, PortfolioPolicy, run_backtest
-from .settings import PortfolioSettings
-
-
-class StockPortfolioInput(PortfolioSettings, BaseInputParams):
-    input_file: Path | None = None
-    market_file: Path | None = None
-    calendar_file: Path | None = None
-    labels_file: Path | None = None
-    as_of_date: str | None = None
-
-    @field_validator("as_of_date", mode="before")
-    @classmethod
-    def cutoff(cls, value: object) -> str | None:
-        return BaseBacktestTask.normalize_yyyymmdd(value, optional=True)
-
-
-class StockBacktestInput(StockPortfolioInput):
-    holding_days: int = Field(default=1, ge=1)
-
-
-class StockBacktestOutput(BaseBacktestOutputParams):
-    signals_format: Literal["stock-signals-v1"]
+from .engine import run_backtest
+from .ledger import PortfolioPolicy
+from .models import (
+    BacktestConfig,
+    StockBacktestInput,
+    StockBacktestOutput,
+)
+from .protocol import STOCK_SIGNALS_FORMAT
 
 
 class BaseStockBacktestTask(BaseBacktestTask):
@@ -57,26 +40,28 @@ class BaseStockBacktestTask(BaseBacktestTask):
         yield self.calculate
         yield self.write_outputs
 
-    def source_file(self, task_id: str, name: str) -> tuple[Path, dict[str, Any]]:
-        root = self.source_task_dir(task_id)
-        metadata = read_metadata(root / "metadata.json")
-        (path,) = pin_source_artifacts(self, task_id, name, metadata=metadata)
+    def upstream_file(self, task_id: str, name: str) -> tuple[Path, dict[str, Any]]:
+        _, metadata = read_upstream_metadata(self.workspace_path, task_id)
+        (path,) = pin_upstream_artifacts(self, task_id, name, metadata=metadata)
         return path, metadata
 
     def resolve_inputs(self) -> None:
         p = self.input_params
         paths = {key: getattr(p, key + "_file") for key in ("input", "market", "calendar", "labels")}
-        sources = parse_source_tasks(p.source_tasks)
-        etl = next((s for s in sources if task_type_from_id(s) == TaskType.ETL), None)
+        upstream_ids = p.upstream_task_ids
+        etl = next((s for s in upstream_ids if task_type_from_id(s) == TaskType.ETL), None)
         if paths["input"] is None:
-            prediction = p.source_task(TaskType.PREDICT)
-            paths["input"], metadata = self.source_file(prediction, "predictions")
-            PredictionProtocol.model_validate(metadata["output_params"]["protocol"])
-            etl = etl or metadata["output_params"]["protocol"]["market_source_task"]
+            prediction = p.upstream_task_id(TaskType.PREDICT)
+            paths["input"], metadata = self.upstream_file(prediction, "predictions")
+            protocol = metadata["output_params"]["protocol"]
+            PredictionProtocol.model_validate(protocol)
+            etl = etl or protocol["market_upstream_task_id"]
         if etl:
-            for key in ("market", "calendar", "labels"):
-                if paths[key] is None:
-                    paths[key] = self.source_file(etl, key)[0]
+            names = tuple(key for key in ("market", "calendar", "labels") if paths[key] is None)
+            if names:
+                _, metadata = read_upstream_metadata(self.workspace_path, etl)
+                pinned = pin_upstream_artifacts(self, etl, *names, metadata=metadata)
+                paths.update(zip(names, pinned, strict=True))
         if paths["market"] is None or paths["calendar"] is None:
             raise ValueError("Backtest requires independent market and calendar artifacts")
         paths = {key: self.resolve_workspace_path(value) for key, value in paths.items() if value is not None}
@@ -112,7 +97,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
         return None
 
     def engine_config(self) -> BacktestConfig:
-        return PortfolioSettings.engine_config(self.input_params, holding_days=self.fixed_holding_days())
+        return self.input_params.engine_config(holding_days=self.fixed_holding_days())
 
     def run_universe(self, universe, market, calendar, labels):
         return run_backtest(
@@ -193,7 +178,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 "no label filter",
                 "fees": "buy_cost_rate/sell_cost_rate on executed notional",
                 "cutoff": self.state["cutoff"],
-                "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "source_tasks"}),
+                "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
                 "input_revisions": self.state["input_revisions"],
                 "allocation": "each target has at most 1/N equity; locked capacity and unfilled slots retain cash",
                 "top30_holdings": "signal targets, not actual position book; positions artifact contains live holdings",

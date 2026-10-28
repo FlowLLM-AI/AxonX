@@ -4,29 +4,27 @@ import {
   Bot,
   BrainCircuit,
   Cpu,
-  Folder,
   FileCode2,
   FlaskConical,
-  Network,
+  Folder,
   GitCompareArrows,
-  Sparkles,
+  Network,
   Settings2,
+  Sparkles,
   Workflow,
-  RefreshCw,
-  Database,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import type { StudioPage } from "../shared/api/contracts";
+import { operationPages } from "../features/operations/pages";
 import type { AppRoute, SectionId } from "./routes";
 
-export interface NavigationItem {
+interface NavigationItem {
   id: string;
   route: AppRoute;
   icon: ComponentType<{ className?: string }>;
   labelKey: string;
 }
 
-export interface NavigationGroup {
+interface NavigationGroup {
   id: "operations" | "system" | "development" | "research";
   defaultOpen: boolean;
   labelKey: string;
@@ -57,13 +55,24 @@ export const navigationGroups: NavigationGroup[] = [
         icon: Settings2,
         labelKey: "runtime.environment",
       },
+      {
+        id: "workspace",
+        route: { section: "workspace", view: "files" },
+        icon: Folder,
+        labelKey: "shell.navigation.workspace",
+      },
     ],
   },
   {
     id: "operations",
     defaultOpen: true,
     labelKey: "shell.groups.operations",
-    items: [],
+    items: operationPages.map((page): NavigationItem => ({
+      id: `operation-${page.id}`,
+      route: { section: "operations", view: page.id },
+      icon: page.icon,
+      labelKey: page.titleKey,
+    })),
   },
   {
     id: "research",
@@ -126,12 +135,6 @@ export const navigationGroups: NavigationGroup[] = [
         labelKey: "shell.navigation.taskDefs",
       },
       {
-        id: "workspace",
-        route: { section: "workspace", view: "files" },
-        icon: Folder,
-        labelKey: "shell.navigation.workspace",
-      },
-      {
         id: "apis",
         route: { section: "apis", view: "catalog" },
         icon: Network,
@@ -142,28 +145,6 @@ export const navigationGroups: NavigationGroup[] = [
 ];
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items);
-
-export function configuredNavigation(
-  pages: StudioPage[],
-  language: "en" | "zh",
-): NavigationGroup[] {
-  const operations: NavigationItem[] = pages.map((page) => ({
-    id: `operation-${page.id}`,
-    route: { section: "operations", view: page.id },
-    icon:
-      page.view === "schedules"
-        ? RefreshCw
-        : page.view === "tasks"
-          ? Database
-          : Activity,
-    labelKey: page.title[language],
-  }));
-  return navigationGroups
-    .map((group) =>
-      group.id === "operations" ? { ...group, items: operations } : group,
-    )
-    .filter((group) => group.items.length > 0);
-}
 
 export function navigationItemForRoute(
   route: AppRoute,

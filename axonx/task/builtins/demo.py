@@ -1,8 +1,8 @@
 """Small built-in Task used to demonstrate synchronous execution."""
 
-from ...components.registry import provider
-from ...enums import TaskType
-from ..core import BaseInputParams, BaseOutputParams, BaseTask
+from ..core.base import BaseTask
+from ..models.identity import TaskType
+from ..models.params import BaseInputParams, BaseOutputParams
 
 
 class DemoTaskInputParams(BaseInputParams):
@@ -19,7 +19,6 @@ class DemoTaskOutputParams(BaseOutputParams):
     operands: list[str]
 
 
-@provider("demo")
 class DemoTask(BaseTask):
     """Demonstrate synchronous Task execution with a small arithmetic workflow.
 
@@ -32,6 +31,7 @@ class DemoTask(BaseTask):
     task_type = TaskType.BASE
     input_cls = DemoTaskInputParams
     output_cls = DemoTaskOutputParams
+    input_params: DemoTaskInputParams
 
     def build_task_steps(self):
         """Choose later steps from state populated by earlier steps."""
@@ -54,24 +54,21 @@ class DemoTask(BaseTask):
 
     def add_equal_operands(self) -> None:
         """Use one conditional step when both operands are equal."""
-        self.report_progress(50)
-        self.state["operands"].extend(("x", "y"))
-        self.state["total"] += self.input_params.x + self.input_params.y
-        self.logger.info(f"Added equal operands total={self.state['total']}")
+        self._add_operands("x", "y")
 
     def add_x(self) -> None:
         """Add the first operand to the accumulator."""
-        self.report_progress(50)
-        self.state["operands"].append("x")
-        self.state["total"] += self.input_params.x
-        self.logger.info(f"Added operand x total={self.state['total']}")
+        self._add_operands("x")
 
     def add_y(self) -> None:
         """Add the second operand to the accumulator."""
+        self._add_operands("y")
+
+    def _add_operands(self, *names: str) -> None:
         self.report_progress(50)
-        self.state["operands"].append("y")
-        self.state["total"] += self.input_params.y
-        self.logger.info(f"Added operand y total={self.state['total']}")
+        self.state["operands"].extend(names)
+        self.state["total"] += sum(getattr(self.input_params, name) for name in names)
+        self.logger.info("Added operands={} total={}", names, self.state["total"])
 
     def fail(self) -> None:
         """Demonstrate framework-managed error status and exit code."""

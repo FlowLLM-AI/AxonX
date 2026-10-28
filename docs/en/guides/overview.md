@@ -14,7 +14,7 @@ Manage the service, execution target, and persistent research records as separat
 | Host a service with or without Studio              | [Deployment](deployment.md)                   |
 | Use CLI direct access or Studio forwarding         | [Remote machines](remote-machines.md)         |
 | Forward configured HTTP requests                   | [HTTP proxy](http-proxy.md)                   |
-| Schedule recurring Jobs                            | [Scheduling](scheduling.md)                   |
+| Schedule recurring local Task commands             | [Scheduling](scheduling.md)                   |
 | Send task notifications through DingTalk           | [Notifications](../research/notifications.md) |
 | Diagnose failures, back up, and recover records    | [Troubleshooting and recovery](operations.md) |
 
@@ -22,8 +22,8 @@ Manage the service, execution target, and persistent research records as separat
 
 A remote service owns its plugins, data, worker processes, and workspace. Direct CLI access uses the target service token; Studio uses the local token and forwards through its same-origin backend to a configured target. Use the same execution target for submission, waiting, logs, and artifact queries.
 
-Task synchronization copies terminal Task directories. Prepare raw data, plugin dependencies, model credentials, and Agent session environments separately. See [workspace concepts](../concepts/workspace.md) for storage boundaries and [client configuration](../reference/client-configuration.md) for connection precedence.
+Task synchronization copies terminal display snapshots and optional live parent/child groups; replicas cannot be research inputs. Prepare raw data, plugin dependencies, model credentials, and Agent session environments separately. See [workspace concepts](../concepts/workspace.md) for storage boundaries and [client configuration](../reference/client-configuration.md) for connection precedence.
 
 ## Preserve evidence while maintaining the service
 
-Retain distinct Task identities for experiments. A fixed-name rerun replaces a finished directory; deletion removes records and artifacts. Cancellation and service shutdown affect workers but do not provide resumable execution. Read [task lifecycle](../concepts/task-lifecycle.md) before choosing cleanup or recovery actions.
+Retain distinct Task identities for experiments. A fixed-name rerun replaces a finished directory; deletion removes records and artifacts. Explicit Task termination and service-owned command cancellation stop execution without resuming it later. Daemon-owned scheduled commands survive service restart. Read [task lifecycle](../concepts/task-lifecycle.md) before choosing cleanup or recovery actions.

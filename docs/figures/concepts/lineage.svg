@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1256" height="646" viewBox="0 0 1256 646" role="img" aria-labelledby="title desc">
-  <title id="title">Task lineage: recorded source_tasks references</title>
+  <title id="title">Task lineage: recorded upstream_task_ids references</title>
   <desc id="desc">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -9,7 +9,7 @@
   <rect x="8" y="8" width="1240.0" height="630.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
   <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
     <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
-      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Task lineage: recorded source_tasks references</text>
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Task lineage: recorded upstream_task_ids references</text>
       <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</text>
       <rect x="40" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="136" y="182" font-size="23" font-weight="700" text-anchor="middle">Market data</text>
@@ -46,8 +46,8 @@
       <text x="632.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Record flags, separate from research stages</text>
       <text x="632.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">provisional: state is not succeeded</text>
       <text x="632.0" y="461.0" font-size="18" font-weight="400" text-anchor="start">missing: referenced record unavailable</text>
-      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Submit each stage explicitly and wait for success; factor analysis is optional for training.</text>
-      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Solid: prepared data input. Dashed: source_tasks references. No automatic DAG execution.</text>
+      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Execute stages directly or through a parent Task; verify successful outputs before consumption.</text>
+      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Solid: prepared data input. Dashed: upstream_task_ids references. No automatic DAG execution.</text>
     </g>
     <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>

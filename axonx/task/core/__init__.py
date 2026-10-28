@@ -1,17 +1,16 @@
-"""Stable authoring API shared by built-in and plugin Tasks."""
+"""Synchronous Task authoring, grouped by responsibility.
 
-from .context import TaskContext
-from .identity import parse_source_tasks, task_type_from_id, validate_registration_name
-from .params import BaseInputParams, BaseOutputParams
-from .task import BaseTask, TaskStep
+base: BaseTask, child Task calls, typed output publication and step contracts.
+clock: Real business time and monotonic deadline budgets.
+research: ETL, analysis, training, prediction, backtest and comparison bases.
+windows: Window scheduling, realtime collection and fixed-model inference bases.
+"""
+
+from . import base, clock, research, windows
 
 __all__ = [
-    "BaseInputParams",
-    "BaseOutputParams",
-    "BaseTask",
-    "TaskContext",
-    "TaskStep",
-    "parse_source_tasks",
-    "task_type_from_id",
-    "validate_registration_name",
+    "base",
+    "clock",
+    "research",
+    "windows",
 ]

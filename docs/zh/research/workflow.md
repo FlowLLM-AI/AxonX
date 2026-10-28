@@ -14,7 +14,7 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 - 已完成[快速开始](../getting-started/quickstart.md)，服务 token 与连接可用。
 - 执行任务的服务环境已安装 qlib_a158 插件；本地 CLI 安装不会自动改变远程机器环境。
 - 工作区已有覆盖训练和预测区间的 Tushare 历史数据，以及必要的主数据。
-- 研究任务与上游产物位于同一工作区，或者已按[任务同步](../guides/task-sync.md)准备好完整上游目录。
+- 研究任务使用源工作区中的完整上游产物。[展示同步](../guides/task-sync.md)可能采样或省略文件，不能用于准备执行输入。
 
 从 AxonX 源码仓库根目录执行（插件尚未发布到 PyPI）：
 
@@ -22,9 +22,9 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 axonx plugin install ./plugins/qlib_a158
 ```
 
-本机 Agent 修改插件时使用 `axonx plugin install -e ./plugins/qlib_a158`。远程执行时使用普通安装并追加 `--target <host:port>`；源码准备、依赖顺序和安装方式见[插件管理](../plugins/management.md)。
+本机 Agent 修改插件时使用 `axonx plugin install -e ./plugins/qlib_a158`。远程部署需要本地构建、上传、目标机安装与清理；仅追加 `--target` 不会传输源码，详见[插件管理](../plugins/management.md)。
 
-本机安装或 editable 源码变更后需重启常驻服务；远程 `axonx plugin install` 会刷新 Task 定义，仅在 `restart_required=true` 时重启。运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
+安装或 editable 源码变更后需重启常驻服务，以刷新 Task 注册快照和已缓存的定义。运行 `axonx list_task_defs` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict`、`qlib_a158_backtest` 以及父任务 `qlib_a158_research`。
 
 ## 研究链中每一步产生什么
 
@@ -37,46 +37,40 @@ axonx plugin install ./plugins/qlib_a158
 | 预测     | `qlib_a158_predict`     | 一个 Train Task   | 全截面预测 Parquet              |
 | 回测     | `qlib_a158_backtest`    | 一个 Predict Task | 日频与汇总 Parquet              |
 
-因子分析是 ETL 的独立下游，训练不依赖因子分析成功。预测从训练 metadata 继续解析 ETL 上游，因此训练目录和 ETL 数据都需要保留。
+因子分析是 ETL 的独立下游，训练不依赖因子分析成功。预测优先使用显式声明的 ETL 上游，否则从训练 metadata 解析；它固定经核验的模型集合和所选数据集快照。为便于复现，仍需保留源记录与产物。
 
-## 提交并等待一个阶段
+## 执行并核验一个阶段
 
-下面命令中的 Task ID 必须替换为上一阶段实际返回的值；不能使用注册名代替 Task ID。
-
-```bash
-axonx submit --task qlib_a158_etl --start-date 20150101
-```
-
-返回的 `answer` 是 TaskHandle，保存其中 `task_id` 和 `run_id`。提交接受只表示 worker 已创建，随后等待该次执行：
+需要可预测 Task ID 时显式指定实例名：
 
 ```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<返回的 task_id>' --run-id '<返回的 run_id>'
+axonx exec --task qlib_a158_etl --task-name experiment --start-date 20150101
+axonx status --task-id 'etl#qlib_a158_etl#experiment' --detail full
 ```
 
-确认最终成功后，才将它传给下游。完整提交和查询方法见[任务管理](../guides/task-management.md)。不要把客户端超时解释为后台任务已经取消。
+Exec 等待完成、输出业务结果并返回 Task 退出码。从 metadata 记录 Task ID、started_at 和输入/产物修订，确认成功后再向下游传递 ID。另一个终端观察可用 Task ID 调用 wait_task，等待时重跑会报错。远程命令连接中断后先检查 metadata，再决定是否重试。
 
 ## 从 ETL 到样本外预测
 
 ```bash
 # ETL 成功后，可独立做因子分析
-axonx submit --task qlib_a158_factor --source-tasks '<ETL Task ID>'
+axonx exec --task qlib_a158_factor --upstream-task-ids '<ETL Task ID>'
 
 # 训练结束日期不包含在训练区间内
-axonx submit --task qlib_a158_train --source-tasks '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # 训练成功后，预测开始日期必须不早于 train_end
-axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # 预测成功后，生成回测产物
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-每条提交命令之间都要执行上一节的等待。`source_tasks` 使用英文逗号分隔 Task ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
+每条 `exec` 都等待完成，执行下一阶段前检查退出码与 metadata。`upstream_task_ids` 是 JSON 数组，CLI `exec` 也接受逗号分隔 ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
 
 训练按交易日顺序保留末尾日期作验证，默认验证比例为 10%。先用验证集和早停选择轮数，再用训练窗口的全部有效样本拟合最终模型。保存的训练曲线来自调参阶段，不能将它当成最终模型在独立测试集上的表现。
 
@@ -102,13 +96,22 @@ qlib_a158 独立发布特征、原始标签、行情和日历产物。标签固�
 
 ## 使用仓库脚本
 
-[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) 已实现提交、读取 handle、逐阶段等待和失败退出，可作为串联命令的参考：
+[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) 直接调用已注册的 `qlib_a158_research` 父 Task，执行前先安装插件并准备历史数据：
 
 ```bash
 bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
 ```
 
-脚本会安装插件、刷新最近 7 天原始数据，并使用已有历史分区跑多年研究。它不是自动补齐全量历史数据的下载脚本；执行前准备数据，并核对固定日期是否适合自己的研究区间。
+脚本将参数转交同步 `exec`，不会安装包或下载行情。各阶段使用嵌套参数配置：
+
+```bash
+axonx get_task_def --task qlib_a158_research
+axonx exec --task qlib_a158_research --task-name pipeline-01 \
+  --etl.start-date 20150101 --train.train-end 20230101 \
+  --predict.pred-end 20231231 --backtest.top-ns '[20,30]'
+```
+
+父 Task 管理子实例名和 `upstream_task_ids`，依次运行 ETL → Train → Predict → Backtest，返回 `stage_task_ids`。添加 `--analysis '{}'` 会在 ETL 后执行因子分析，默认不启用。`predict.pred_start` 默认采用 `train.train_end`。嵌套阶段名、依赖以及显式回测输入文件覆盖会被拒绝；复用已有上游时使用叶子 Task。子任务与父任务共享进程，并继承父实例名，详见[组合 Task](../guides/composite-tasks.md)。
 
 ## 常见失败与处理
 

@@ -10,27 +10,33 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.enums import TaskType
 from axonx.task.builtins.stock.data import KEYS, validate_keys
-from axonx.task.builtins.stock.protocol import feature_identity
-from axonx.task.contracts import (
-    BaseInputParams,
-    BasePredictOutputParams,
-    BasePredictTask,
-)
-from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
-from axonx.task.protocol import (
+from axonx.task.core.base import TaskStep
+from axonx.task.core.research import BasePredictTask
+from axonx.task.models.artifacts import (
     ModelCollection,
     fingerprint,
     prediction_protocol,
     validate_protocol,
 )
-from axonx.task.storage import artifact_record
-from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
-from axonx.task.storage.models import snapshot_model_collection
-from axonx.utils.fs import atomic_write
+from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.identity import (
+    TaskType,
+    task_type_from_id,
+    validate_upstream_task_ids,
+)
+from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
+from axonx.task.storage.artifacts import artifact_record
+from axonx.task.storage.files import atomic_write, file_revision
+from axonx.task.storage.inputs import (
+    pin_upstream_artifacts,
+    snapshot_model_collection,
+    upstream_artifact,
+)
+from axonx.task.storage.workspace import task_path
 
 from .internal.modeling import feature_matrix
+from .internal.protocol import feature_identity
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
@@ -53,7 +59,7 @@ class LgbmPredictInputParams(BaseInputParams):
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str | None:
-        return BasePredictTask.normalize_yyyymmdd(value, optional=True)
+        return normalize_yyyymmdd(value, optional=True)
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:
@@ -75,17 +81,17 @@ class LgbmPredictTask(BasePredictTask):
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_train_task
-        yield self.resolve_source_dataset
+        yield self.resolve_upstream_dataset
         yield self.load_and_validate_prediction_data
         yield self.load_model
         yield self.predict_full_cross_section
         yield self.write_outputs
 
     def resolve_train_task(self) -> None:
-        train_task_id = self.input_params.source_task(TaskType.TRAIN)
-        train_dir = self.source_task_dir(train_task_id)
+        train_task_id = self.input_params.upstream_task_id(TaskType.TRAIN)
+        train_dir = task_path(self.workspace_path, train_task_id)
         train_metadata_path = train_dir / "metadata.json"
-        manifest_path, train_metadata = source_artifact(self, train_task_id, "model_manifest")
+        manifest_path, train_metadata = upstream_artifact(self, train_task_id, "model_manifest")
         manifest_path = snapshot_model_collection(
             manifest_path,
             self.task_dir / "model_snapshot",
@@ -116,20 +122,27 @@ class LgbmPredictTask(BasePredictTask):
             f"model={model_path} train_end={train_end}",
         )
 
-    def resolve_source_dataset(self) -> None:
-        sources = parse_source_tasks(self.state["train_metadata"].get("input_params", {}).get("source_tasks", ""))
-        etl_sources = [task_id for task_id in sources if task_type_from_id(task_id) == TaskType.ETL]
-        if len(etl_sources) != 1:
+    def resolve_upstream_dataset(self) -> None:
+        upstream_ids = validate_upstream_task_ids(
+            self.state["train_metadata"].get("input_params", {}).get("upstream_task_ids", [])
+        )
+        explicit = [
+            task_id for task_id in self.input_params.upstream_task_ids if task_type_from_id(task_id) == TaskType.ETL
+        ]
+        etl_upstream_ids = explicit or [
+            task_id for task_id in upstream_ids if task_type_from_id(task_id) == TaskType.ETL
+        ]
+        if len(etl_upstream_ids) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
-        etl_task_id = etl_sources[0]
-        etl_dir = self.source_task_dir(etl_task_id)
+        etl_task_id = etl_upstream_ids[0]
+        etl_dir = task_path(self.workspace_path, etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        dataset_path, etl_metadata = source_artifact(self, etl_task_id, "dataset")
+        dataset_path, etl_metadata = upstream_artifact(self, etl_task_id, "dataset")
         feature_protocol = etl_metadata["output_params"]["protocol"]
         validate_protocol(feature_protocol, TaskType.ETL)
         if feature_identity(feature_protocol) != feature_identity(self.state["model_collection"]["feature_protocol"]):
             raise ValueError("Feature protocol differs from training")
-        (dataset_path,) = pin_source_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
+        (dataset_path,) = pin_upstream_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
         self.state.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -304,10 +317,10 @@ class LgbmPredictTask(BasePredictTask):
                     "trade_time": "1500",
                     "return_unit": "decimal",
                 },
-                self.state["predictions_path"],
+                file_revision(self.state["predictions_path"]),
                 frame["trade_date"].unique(),
                 {"model": "pred"},
-                market_source_task=self.state["etl_task_id"],
+                market_upstream_task_id=self.state["etl_task_id"],
             ),
             artifacts={"predictions": artifact_record(self.state["predictions_path"], self.task_dir)},
         )

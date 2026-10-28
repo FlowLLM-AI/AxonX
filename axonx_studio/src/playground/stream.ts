@@ -1,4 +1,5 @@
 import type { JobEvent } from "../shared/api/event";
+
 const abortError = () => new DOMException("Aborted", "AbortError");
 
 export function sse(

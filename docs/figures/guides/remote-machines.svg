@@ -33,7 +33,7 @@
       <text x="44" y="92.0" font-size="18" fill="#143252" text-anchor="start">CLI connects directly; Studio routes through the local AxonX backend.</text>
       <text x="64.0" y="220" text-anchor="start" font-size="18">Explicit target and</text>
       <text x="64.0" y="248" text-anchor="start" font-size="18">credentials</text>
-      <text x="754.0" y="220" text-anchor="start" font-size="18">Workers, plugins and</text>
+      <text x="754.0" y="220" text-anchor="start" font-size="18">Processes, plugins and</text>
       <text x="754.0" y="248" text-anchor="start" font-size="18">artifacts</text>
       <text x="64.0" y="450" text-anchor="start" font-size="18">Local credentials and</text>
       <text x="64.0" y="478" text-anchor="start" font-size="18">target</text>

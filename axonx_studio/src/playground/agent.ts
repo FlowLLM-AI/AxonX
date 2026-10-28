@@ -1,4 +1,4 @@
-import type { AgentHistoryBlock, AgentSession } from "../features/agent/types";
+import type { AgentHistoryBlock, AgentSession } from "../shared/api/contracts";
 import type { JobEvent } from "../shared/api/event";
 import { sse } from "./stream";
 
@@ -110,8 +110,8 @@ export function createAgent() {
     session.blocks.push(user, tool, assistant);
     const zh = /[\u3400-\u9fff]/.test(String(args.message));
     const text = zh
-      ? "这是脚本模拟对话，没有调用 LLM。示例包含稳健与波动两组回测；可在策略比较中检查净值、回撤和持仓。你也可以提交 playground.backtest，选择策略及成功或失败场景，查看执行日志。"
-      : "This is a scripted conversation; no LLM is called. The demo includes steady and volatile backtests. Open Strategy comparison to inspect returns, drawdowns and holdings. Submit playground.backtest to choose a strategy and success or failure scenario, then follow its logs.";
+      ? "这是脚本模拟对话，没有调用 LLM。示例包含稳健与波动两组回测；可在策略比较中检查净值、回撤和持仓。可以打开任务记录查看示例日志。"
+      : "This is a scripted conversation; no LLM is called. The demo includes steady and volatile backtests. Open Strategy comparison to inspect returns, drawdowns and holdings. Open a task record to inspect its example logs.";
     let offset = 0;
     let sequence = 0;
     const finish = () => {

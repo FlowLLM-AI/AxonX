@@ -11,7 +11,7 @@ Implement quantitative logic in plugins, execute Tasks and retain evidence, then
 | Develop or improve a plugin          | [Development and operations guide](../dev_guide.md) → [Plugin management](../plugins/management.md) | Implement, register, install, and discover Tasks                |
 | Inspect execution artifacts          | [Reading results](results.md) → [Backtest methodology](backtest.md)                                 | Inspect features, models, predictions, and the portfolio ledger |
 | Evaluate a research change           | [Strategy comparison](strategy-comparison.md) → [Experiment design](experiments.md)                 | Align definitions, control variables, and confirm independently |
-| Reproduce a documented case          | [Alpha158 improvement case](alpha158-case.md)                                                       | Settings, metrics, commands, and Task/Run provenance            |
+| Reproduce a documented case          | [Alpha158 improvement case](alpha158-case.md)                                                       | Settings, metrics, commands, and Task execution provenance      |
 
 ## Extend a baseline progressively
 
@@ -21,6 +21,6 @@ Plugin READMEs maintain parameters, algorithms, and artifact definitions. Discov
 
 ## Execution and conclusions
 
-Keep source changes, service installation, and Task submission separate. Retain source revisions, data snapshots, windows, parameters, costs, and actual Task/Run IDs. Wait for upstream success before downstream submission; lineage records do not automatically schedule a DAG. Factor analysis branches independently from ETL and is not a training prerequisite.
+Keep source changes, service installation, and Task submission separate. Retain source revisions, data snapshots, windows, parameters, costs, and actual Task IDs and metadata `started_at`. Wait for upstream success before downstream submission; lineage records do not automatically schedule a DAG. Factor analysis branches independently from ETL and is not a training prerequisite.
 
 Task success establishes completed execution. Algorithm improvement requires comparable settings, candidate selection records, and independent confirmation. The [Alpha158 case](alpha158-case.md) reports three fixed configurations with limits for incomplete data, parameter differences, and missing independent confirmation.

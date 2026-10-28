@@ -20,7 +20,7 @@ External hosts configure their own models; the service configures the built-in m
 | Data and timing        | Data snapshot, universe, history, and signal availability                                         |
 | Windows and selection  | Training, validation, development, and independent confirmation windows; candidate selection rule |
 | Evaluation             | Metrics, Top N, costs, fills, and exit assumptions                                                |
-| Execution and delivery | Target service, source revision, Task/Run IDs, and artifacts                                      |
+| Execution and delivery | Target service, source revision, Task IDs and metadata `started_at`, and artifacts                |
 
 ## A ready-to-use example
 
@@ -38,7 +38,7 @@ in the selected execution service. Discover that service's actual Task schemas,
 check upstream compatibility, and run ETL, training, prediction, and backtesting,
 waiting for each upstream execution to succeed.
 
-Keep the source revision, data settings, parameters, costs, and actual Task/Run IDs.
+Keep the source revision, data settings, parameters, costs, and actual Task IDs and metadata `started_at`.
 Report RankIC, net returns, drawdown, turnover, failures, and evidence limits.
 Lock the candidate before independent confirmation and propose the next change
 based on the evidence.

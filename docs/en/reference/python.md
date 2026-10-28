@@ -1,60 +1,48 @@
-# Python usage reference
+# Python Reference
 
-Python can embed an Application in-process or connect to a running HTTP/MCP service. Both paths return JobResponse, but differ in lifecycle, configuration, and execution location. This page uses the currently publicly exported classes and functions.
-
-![Local application and remote clients](../../figures/reference/python-paths.svg)
+![Python integration paths](../../figures/reference/python-paths.svg)
 
 ## Import entry points
 
 ```python
-from axonx import Application, BaseStep, provider
-from axonx.config import resolve_app_config
-from axonx.components.client import HttpClient, McpClient, RemoteServiceError
-from axonx.core import run_remote_job, stream_remote_job
-from axonx.components.job import ResultEvent
+from axonx.app.core.application import Application
+from axonx.app.config.loader import ConfigLoader
+from axonx.app.steps.base import BaseStep
+from axonx.app.components.registry import provider
+from axonx.client.http import HttpClient, run_remote_job, stream_remote_job
+from axonx.client.mcp import McpClient
+from axonx.client.base import RemoteServiceError, RemoteConnectionError
+from axonx.client.models import JobResponse, StagedFile
+from axonx.client.events import ResultEvent
 ```
 
-Application is exported at the top level; HTTP/MCP clients and event types are exported from their respective subpackages. The project uses Python 3.12 syntax and cannot be imported directly with older interpreters.
+Use Python 3.12+. The root package exports version metadata; capability namespaces do not re-export every implementation.
 
 ## Embedding Application
 
 ```python
 import asyncio
-from axonx import Application
-from axonx.config import resolve_app_config
+from axonx.app.core.application import Application
 
 async def main():
-    config = resolve_app_config(log_config=False, config="default")
-    async with Application(**config) as app:
-        response = await app.run_job("version", {})
-        if not response.success:
-            raise RuntimeError(str(response.answer))
-        print(response.model_dump(mode="json"))
+    async with Application(log_to_console=False, log_to_file=False) as app:
+        print(app.is_started, app.workspace_path)
 
 asyncio.run(main())
 ```
 
-async with starts components, Jobs, and schedulers in dependency order and closes them in reverse order on exit. This example does not start an HTTP listener; CLI start calls the service's run_app. Loading default composes its components, so their dependencies must be importable in the current environment. A minimal application can retain only the Jobs it needs.
-
-Application does not automatically read .env; resolve_app_config expands only existing environment variables. If .env is needed, load it first using the application's own environment-loading approach.
+This minimal graph needs no product adapters and starts no HTTP listener. To load configured Jobs, resolve configuration with `ConfigLoader().resolve(config="default", log_config=False)` and pass the resulting mapping. Inject a TaskCatalog, update backend or scheduled launcher when using those capabilities; they belong to the host. Task-only clients do not need an Application. Application does not automatically load .env.
 
 ## Application methods
 
-| Method                                           | Parameters                                             | Return and constraints                                                     |
-| ------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------- |
-| start()                                          | None                                                   | await; idempotent startup                                                  |
-| close()                                          | None                                                   | await; cleanup in reverse order; multiple cleanup errors may be aggregated |
-| run_job(name, arguments=None, *, target=None)    | Job name, argument mapping, optional configured target | await returns JobResponse                                                  |
-| stream_job(name, arguments=None, *, target=None) | Same as above                                          | Returns AsyncIterator; do not await the method itself                      |
-
-run_job and stream_job both require a started application. A nonempty target must appear in ApplicationConfig.targets and uses its address/token. Local calls are not restricted by HTTP public_jobs filtering, but business Schemas and reserved system fields are still validated.
+`start()` and `close()` manage dependency-ordered lifecycles. `run_job(name, arguments=None, *, target=None)` returns JobResponse; `stream_job(...)` returns an async iterator and is not awaited directly. Both require a running application. A forwarded target must be configured in ApplicationConfig.targets.
 
 ## HTTP client
 
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.client.http import HttpClient
 
 async def main():
     async with HttpClient(
@@ -62,116 +50,52 @@ async def main():
         token=os.environ["AXONX_SERVICE_TOKEN"],
         timeout=600.0,
     ) as client:
-        definitions = await client.run_job("get_task_definition", {"task": "demo"})
-        if not definitions.success:
-            raise RuntimeError(str(definitions.answer))
-        submitted = await client.run_job("submit", {"task": "demo", "x": 1, "y": 2})
-        if not submitted.success:
-            raise RuntimeError(str(submitted.answer))
-        handle = submitted.answer
-        completed = await client.run_job("wait_task", {
-            "task_id": handle["task_id"],
-            "run_id": handle["run_id"],
+        response = await client.run_job("cli", {"argv": [
+            "exec", "--task", "demo", "--task-name", "python-api",
+            "--x", "1", "--y", "2",
+        ]})
+        if not response.success:
+            raise RuntimeError(str(response.answer))
+        assert response.answer["exit_code"] == 0
+        status = await client.run_job("status", {
+            "task_id": "base#demo#python-api", "detail": "full",
         })
-        print(completed.success, completed.answer)
+        print(status.model_dump(mode="json"))
 
 asyncio.run(main())
 ```
 
-Remote answer values are decoded dictionaries/lists; a local Application.answer may retain Pydantic/dataclass objects. For uniform processing, call response.model_dump(mode="json") first, rather than assuming answer has the same Python object type on both paths.
-
-| HttpClient method | Key signature details               | Return                      |
-| ----------------- | ----------------------------------- | --------------------------- |
-| run_job           | name, arguments=None                | JobResponse                 |
-| stream_job        | name, arguments=None                | AsyncIterator[JobEvent]     |
-| list_jobs         | None                                | list[JobInfo]               |
-| health            | None                                | bool; failures map to false |
-| copy_file         | Path, filename=None, directory=None | FileCopy                    |
-| discard_file      | path: str                           | Cleaned-up path string      |
-
-Constructor parameters are target=None, timeout=60.0, and token=None; optional transport injects an HTTP transport, for example in tests. Calls are available only after entering async with. target must not contain `/mcp` or a Job subpath.
+Methods are `run_job`, `stream_job`, `list_jobs`, `health`, `copy_file(Path, filename=None, directory=None)` and `discard_file(path)`. Constructor fields are target, timeout, token and optional HTTP transport injection. Use async with for connection ownership. Supply credentials explicitly; library clients do not read CLI token variables automatically. Remote answers are decoded data; local answers may contain model objects. Normalize with model_dump(mode="json") when needed.
 
 ## Consuming events
 
 ```python
-async with HttpClient(target="127.0.0.1:1024", token=token, timeout=600.0) as client:
-    async for event in client.stream_job("stream_task", {"task_id": task_id}):
+from contextlib import aclosing
+from axonx.client.events import ResultEvent
+
+# Inside an async function with a started HttpClient named client:
+async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as events:
+    async for event in events:
         if isinstance(event, ResultEvent):
-            response = event.response()
-            print(response.success, response.answer)
+            print(event.response().model_dump(mode="json"))
         elif event.kind == "log":
             print(event.content, end="")
 ```
 
-This snippet belongs inside an asynchronous function; token/task_id come from configuration and submission results. See [SSE](../api/events.md) for detailed framing and disconnection rules. Use contextlib.aclosing for asynchronous generators whose consumption ends early to ensure the event source is closed.
-
 ## File upload
 
-`HttpClient.copy_file` streams a raw binary request to `/files` and supplies the filename and optional staging directory through headers. Direct HTTP callers can also use multipart; both formats return the same FileCopy. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
-
-```python
-from pathlib import Path
-
-async with HttpClient(target=target, token=token) as client:
-    copied = await client.copy_file(Path("dist/axonx_example-0.1.0-py3-none-any.whl"))
-    try:
-        installed = await client.run_job("install_plugin", {
-            "path": copied.path,
-            "sha256": copied.sha256,
-        })
-        print(installed.model_dump(mode="json"))
-    finally:
-        await client.discard_file(copied.path)
-```
-
-This is an installation-flow snippet; confirm the artifact before executing it. copy_file reads and uploads in chunks; service-relative paths are not client file paths. Repeated discard_file calls can clean up staging locations already consumed.
+`copy_file` returns StagedFile with path, size and absolute location. Use location for target-side plugin install and path for staged-file cleanup or sync. Clean up with discard_file in finally. A complete remote installation example is in [Plugin management](../plugins/management.md).
 
 ## MCP client
 
-```python
-async with McpClient(target=target, token=token, timeout=60.0) as client:
-    print(await client.health())
-    jobs = await client.list_jobs()
-    response = await client.run_job("list_task_ids", {})
-    print(response.model_dump(mode="json"))
-```
-
-McpClient health uses MCP ping; list_jobs generates JobInfo from tool Schemas; run_job validates JobResponse from structured_content/data. It has no stream_job, copy_file, or discard_file; use HttpClient for live events and byte transfer.
+`McpClient` shares run_job, list_jobs and health over `/mcp` using the service base target. MCP returns ordinary Job responses. Use HTTP SSE for live events; use HTTP upload for files.
 
 ## One-shot remote functions
 
-```python
-response = await run_remote_job(
-    "version", {}, target="node-b:1024", token=token, timeout=60.0
-)
-async for event in stream_remote_job(
-    "stream_task", {"task_id": task_id},
-    target="node-b:1024", token=token, timeout=600.0,
-):
-    print(event.model_dump(mode="json"))
-```
-
-arguments is a required mapping; each call creates and closes an HttpClient. Use a long-lived client for frequent queries to avoid repeated connections. This target is a direct connection address and does not depend on the local Application's targets.
+`await run_remote_job("version", {}, target=..., token=...)` opens and closes one HTTP client. `stream_remote_job` is an async generator; close it with aclosing if consumption stops early. These helpers do not perform CLI value conversion.
 
 ## Errors and cleanup
 
-```python
-try:
-    async with HttpClient(target=target, token=token) as client:
-        response = await client.run_job("status", {"task_id": task_id})
-except RemoteServiceError as exc:
-    print("Connection or protocol failure", exc.status_code, str(exc))
-else:
-    if not response.success:
-        print("Business failure", response.answer)
-```
+RemoteConnectionError identifies unreachable/time-out connections. RemoteServiceError covers protocol/HTTP failures and carries optional status_code. Check JobResponse.success separately. A dropped command stream can leave execution acceptance uncertain; inspect Task start time before retrying. Cancellation closes owned connections and can terminate service-owned CLI children.
 
-Connection failures, HTTP rejection, and invalid envelopes/events raise RemoteServiceError; success=false within HTTP 200 must be checked separately. Local parameter errors may directly raise ValueError; exceptions within Steps are usually handled by the Job. Closing Application closes its task manager and may cancel managed workers, so a short-lived embedded application is unsuitable for submitting a task and exiting immediately.
-
-## Related documentation
-
-- [Client configuration](client-configuration.md)
-- [API overview](../api/overview.md)
-- [Framework extensions](../development/framework-extensions.md)
-
-Implementation references: `axonx/__init__.py`, `core/application.py`, `core/dispatch.py`, `components/client/`.
+Sources: [Application](../../../axonx/app/core/application.py), [HTTP](../../../axonx/client/http.py), [MCP](../../../axonx/client/mcp.py).

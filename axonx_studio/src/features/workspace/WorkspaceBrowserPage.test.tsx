@@ -2,19 +2,19 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WorkspaceBrowserPage from "./WorkspaceBrowserPage";
+import type {
+  WorkspaceEntry,
+  WorkspaceListing,
+} from "../../shared/api/contracts";
+import type { WorkspacePreview } from "../../shared/api/workspace";
 import {
   getWorkspaceRoot,
   listWorkspaceEntries,
   previewWorkspaceFile,
-} from "./api";
-import type {
-  WorkspaceListing,
-  WorkspaceEntry,
-  WorkspacePreview,
-} from "./types";
+} from "../../shared/api/workspace";
+import WorkspaceBrowserPage from "./WorkspaceBrowserPage";
 
-vi.mock("./api", () => ({
+vi.mock("../../shared/api/workspace", () => ({
   getWorkspaceRoot: vi.fn(),
   listWorkspaceEntries: vi.fn(),
   previewWorkspaceFile: vi.fn(),
@@ -118,10 +118,8 @@ describe("workspace browser", () => {
     );
     await render();
     expect(listWorkspaceEntries).toHaveBeenCalledWith(
-      "",
-      "machine-a",
-      expect.any(AbortSignal),
-      0,
+      { path: "", offset: 0 },
+      { target: "machine-a", signal: expect.any(AbortSignal) },
     );
     expect(
       [...container.querySelectorAll("nav button[title]")].map((button) =>
@@ -133,7 +131,7 @@ describe("workspace browser", () => {
 
   it("reveals arbitrary nested files beyond the first directory page", async () => {
     vi.mocked(listWorkspaceEntries).mockImplementation(
-      async (path, _target, _signal, offset) => {
+      async ({ path, offset } = {}) => {
         if (path === "")
           return offset
             ? directory("", [entry("models")])
@@ -143,17 +141,12 @@ describe("workspace browser", () => {
     );
     await render("models/report.txt");
     expect(listWorkspaceEntries).toHaveBeenCalledWith(
-      "",
-      "machine-a",
-      expect.any(AbortSignal),
-      1,
+      { path: "", offset: 1 },
+      { target: "machine-a", signal: expect.any(AbortSignal) },
     );
     expect(previewWorkspaceFile).toHaveBeenCalledWith(
-      "models/report.txt",
-      0,
-      200,
-      "machine-a",
-      expect.any(AbortSignal),
+      { path: "models/report.txt", offset: 0, limit: 200 },
+      { target: "machine-a", signal: expect.any(AbortSignal) },
     );
     expect(
       container
@@ -170,7 +163,7 @@ describe("workspace browser", () => {
 
   it("appends more entries and loads folders only when opened", async () => {
     vi.mocked(listWorkspaceEntries).mockImplementation(
-      async (path, _target, _signal, offset) => {
+      async ({ path, offset } = {}) => {
         if (path === "agents") return directory(path);
         return offset
           ? directory("", [entry("models")])
@@ -223,7 +216,7 @@ describe("workspace browser", () => {
     );
     vi.mocked(previewWorkspaceFile).mockReturnValue(pending.promise);
     await render("note.txt");
-    const signal = vi.mocked(previewWorkspaceFile).mock.calls[0][4]!;
+    const signal = vi.mocked(previewWorkspaceFile).mock.calls[0][1]!.signal!;
     await click(".workspace-root");
     expect(signal.aborted).toBe(true);
     onConnection.mockClear();
@@ -243,14 +236,12 @@ describe("workspace browser", () => {
     const pending = deferred<WorkspaceListing>();
     vi.mocked(listWorkspaceEntries).mockReturnValueOnce(pending.promise);
     await render();
-    const signal = vi.mocked(listWorkspaceEntries).mock.calls[0][2]!;
+    const signal = vi.mocked(listWorkspaceEntries).mock.calls[0][1]!.signal!;
     await render(undefined, "machine-b");
     expect(signal.aborted).toBe(true);
     expect(listWorkspaceEntries).toHaveBeenLastCalledWith(
-      "",
-      "machine-b",
-      expect.any(AbortSignal),
-      0,
+      { path: "", offset: 0 },
+      { target: "machine-b", signal: expect.any(AbortSignal) },
     );
     await act(async () => pending.resolve(directory("", [entry("obsolete")])));
     expect(container.querySelector('[title="obsolete"]')).toBeNull();
@@ -258,18 +249,15 @@ describe("workspace browser", () => {
 });
 
 it("opens an absolute committed file inside the selected workspace", async () => {
-  vi.mocked(listWorkspaceEntries).mockImplementation(async (path) =>
+  vi.mocked(listWorkspaceEntries).mockImplementation(async ({ path } = {}) =>
     path === "data"
       ? directory("data", [entry("data/quote.csv", "file")])
       : directory("", [entry("data")]),
   );
   await render("/server/workspace/data/quote.csv", "machine-b");
   expect(previewWorkspaceFile).toHaveBeenCalledWith(
-    "data/quote.csv",
-    0,
-    200,
-    "machine-b",
-    expect.any(AbortSignal),
+    { path: "data/quote.csv", offset: 0, limit: 200 },
+    { target: "machine-b", signal: expect.any(AbortSignal) },
   );
   expect(container.querySelector("[data-preview]")).not.toBeNull();
   expect(getWorkspaceRoot).not.toHaveBeenCalled();
@@ -284,29 +272,28 @@ it.each([
   const folder = "tushare/2026/20261019/rt/rt_k";
   const path = `${folder}/${name}`;
   vi.mocked(getWorkspaceRoot).mockResolvedValue("/nas/jinli.yl/data/axon");
-  vi.mocked(listWorkspaceEntries).mockImplementation(async (path = "") => {
-    const parts = folder.split("/");
-    const depth = path ? path.split("/").length : 0;
-    return {
-      ...directory(path, [
-        depth < parts.length
-          ? entry(parts.slice(0, depth + 1).join("/"))
-          : entry(`${folder}/${name}`, "file"),
-      ]),
-      workspace_root: null,
-    };
-  });
-  await render(`/nas/jinli.yl/data/axon/${path}`, "machine-b");
-  expect(getWorkspaceRoot).toHaveBeenCalledWith(
-    "machine-b",
-    expect.any(AbortSignal),
+  vi.mocked(listWorkspaceEntries).mockImplementation(
+    async ({ path = "" } = {}) => {
+      const parts = folder.split("/");
+      const depth = path ? path.split("/").length : 0;
+      return {
+        ...directory(path, [
+          depth < parts.length
+            ? entry(parts.slice(0, depth + 1).join("/"))
+            : entry(`${folder}/${name}`, "file"),
+        ]),
+        workspace_root: null,
+      };
+    },
   );
+  await render(`/nas/jinli.yl/data/axon/${path}`, "machine-b");
+  expect(getWorkspaceRoot).toHaveBeenCalledWith({
+    target: "machine-b",
+    signal: expect.any(AbortSignal),
+  });
   expect(previewWorkspaceFile).toHaveBeenCalledWith(
-    path,
-    0,
-    200,
-    "machine-b",
-    expect.any(AbortSignal),
+    { path, offset: 0, limit: 200 },
+    { target: "machine-b", signal: expect.any(AbortSignal) },
   );
   expect(container.querySelector("[data-preview]")).not.toBeNull();
 });

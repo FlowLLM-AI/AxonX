@@ -1,144 +1,129 @@
-# Plugin installation and deployment
+# Plugin Installation and Deployment
 
-Plugins are Python packages providing AxonX Tasks, Components, and Jobs. Local management commands operate on the current Python environment; only an explicit `--target` operates on a remote service. Building and installation read plugin code and dependencies. Task-only wheel updates through the service apply without restarting; check `restart_required` for Components/Jobs and dependency changes.
+Plugins are Python distributions that register Tasks through `axonx.plugins` entry points and `plugin.yaml`. Management commands modify the Python environment in which they execute.
 
-![Plugin deployment workflow](../../figures/guides/plugin-deployment.svg)
+![Plugin deployment](../../figures/guides/plugin-deployment.svg)
 
 ## Three names
 
-| Name                 | Purpose                                        | Source                         |
-| -------------------- | ---------------------------------------------- | ------------------------------ |
-| distribution         | Python package installation and uninstallation | project.name in pyproject.toml |
-| plugin name          | Discover and distinguish plugin entries        | axonx.plugins entry point      |
-| Task registered name | submit / exec / definition queries             | tasks in plugin.yaml           |
+| Name              | Purpose                                                   |
+| ----------------- | --------------------------------------------------------- |
+| Distribution      | pip installation and uninstallation; `project.name`       |
+| Plugin entry name | Identifies an `axonx.plugins` entry pointing to a package |
+| Task registration | Key in `plugin.yaml.tasks`; used by `exec --task`         |
 
-These three names may differ. Do not pass a distribution name directly to `--task`; first check the Task registered names in plugin contributions.
+Query the actual registration name before executing. Package names and Task names are not interchangeable.
 
 ## Inspect the current environment
 
 ```bash
 axonx plugin list
-axonx plugin show '<distribution or plugin name>'
-axonx plugin inspect '<distribution or plugin name>'
+axonx plugin show DISTRIBUTION
+axonx plugin inspect DISTRIBUTION
 ```
 
-Displayed fields include distribution, version, entry name, requirements, and contributions. Query the definition interface separately to obtain the input/output Schema for a Task registered name.
-
-The local CLI checks the current environment directly, without HTTP. If the service uses another virtual environment, local CLI results may not represent the persistent service's environment.
+Local commands inspect the current interpreter. Add `--target HOST:PORT` to run the command in the service's interpreter. Each command starts a new process and discovers installed metadata.
 
 ## Prepare plugin sources
 
-Research plugins are not published to PyPI. Install the AxonX core, clone the repository, and run this page's commands from its root:
-
-```bash
-pip install axonx
-git clone https://github.com/FlowLLM-AI/AxonX.git
-cd AxonX
-```
-
-Alpha158 is the base plugin; factor depends on Alpha158, and strategy depends on factor. Before using a downstream plugin, install compatible upstream versions in the same execution environment in Alpha158 → factor → strategy order. The installer resolves dependencies through pip; it does not locate other plugin directories in the checkout automatically. Missing or incompatible upstream versions are looked up in the package index.
+Research plugins are not published to PyPI. Clone this repository and install them in dependency order: Alpha158 → factor → strategy. pip resolves declared dependencies but does not locate sibling source directories automatically. An unmet research dependency may cause pip to search the configured package index.
 
 ## Build and inspect from source
 
-The repository's qlib_a158 directory is an example source path:
-
 ```bash
-axonx plugin inspect ./plugins/qlib_a158
 axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
+axonx plugin inspect './dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-Source builds require pyproject, manifest, and valid contributions. The tool builds a wheel and checks its contents. Building does not run a research task or require Task submission.
-
-Without `--output`, the CLI's default cache is `.axonx/plugins/artifacts/<content_sha256>` under the current directory. The plugin CLI chooses this cache path itself; it does not automatically follow another service's workspace_dir.
-
-Source hashing skips `node_modules`, `.axonx`, Python environments/tool caches, and root build outputs without traversing them. These ignored files and directories do not invalidate the build cache. Nested source packages named `build` or `dist` remain included; symlinks in included source paths are rejected. These rules are independent of `.gitignore`.
-
-Existing wheels can be inspected/installed directly, but cannot be combined with `--output`:
-
-```bash
-axonx plugin inspect './dist/plugins/<actual wheel filename>.whl'
-```
+Build output includes `wheel`, `sha256`, `content_sha256`, distribution, version, requirements and registrations. Save the actual wheel filename. Without `--output`, builds use `.axonx/plugins/artifacts/<source fingerprint>` relative to the CLI working directory. Existing wheels cannot be combined with `--output`. Source hashing ignores environments/caches and rejects symlinks in included source.
 
 ## Local installation
 
 ```bash
-# Local Agent / plugin development: install in dependency order in the current environment
 axonx plugin install -e ./plugins/qlib_a158
-# Install factor and strategy extensions as needed
 axonx plugin install -e ./plugins/qlib_factor
 axonx plugin install -e ./plugins/qlib_strategy
 ```
 
-Editable installation supports only local source directories, without `--target` or `--output`. The execution service must use this Python environment. Python source changes do not require reinstallation, but restart persistent services to reload Tasks, Jobs, and Components; reinstall after dependency or entry-point metadata changes. Editable installation still builds and checks a wheel first.
-
-For fixed-version experiments or deployment, use ordinary installation to build and install a wheel. Reinstall after source changes and restart any running local service:
-
-```bash
-axonx plugin install ./plugins/qlib_a158
-```
-
-The service's `plugins.sources` configuration can install sources at startup; see [Configuration reference](../reference/configuration.md) for path resolution. Installed valid plugins are discovered through entry points, rather than an explicit enablement list copied from another project.
+Editable installs still build and validate a wheel first; they require a source directory and reject `--output`. Ordinary `plugin install PATH` installs the built or supplied wheel. The installer installs declared dependencies except AxonX itself, force-reinstalls the plugin without dependencies, and validates installed provenance/content. Ensure the current AxonX version meets the plugin requirement.
 
 ## Deploy remotely
 
-```bash
-export AXONX_TARGET_TOKEN='<remote service token>'
-axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
-# As needed, keep the same target and dependency order
-axonx plugin install ./plugins/qlib_factor --target 'http://research.example:1024'
-axonx plugin install ./plugins/qlib_strategy --target 'http://research.example:1024'
+A target forwards the command; it does not transfer local files. `plugin install ./source --target HOST:PORT` interprets `./source` in the target service's workspace. When starting with local source, perform all of these steps:
+
+1. Build a wheel locally.
+2. Upload that wheel to the destination service's `POST /upload` endpoint.
+3. Install the upload's absolute `location` through the same service's `cli` Job.
+4. Clean up the upload using its workspace-relative `path`.
+5. Restart the persistent service to refresh its Task catalog and verify definitions.
+
+The following script runs after local wheel construction; replace the filename, service address and token. It validates installation and cleans up on success or failure:
+
+```python
+import asyncio
+import hashlib
+import json
+import os
+from pathlib import Path
+from axonx.client.http import HttpClient
+
+async def deploy():
+    wheel = Path("dist/plugins/ACTUAL_FILENAME.whl")
+    expected_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    async with HttpClient(
+        target="http://research.example:1024",
+        token=os.environ["AXONX_TARGET_TOKEN"],
+        timeout=600.0,
+    ) as client:
+        uploaded = await client.copy_file(wheel)
+        try:
+            response = await client.run_job("cli", {
+                "argv": ["plugin", "install", uploaded.location],
+            })
+            result = response.answer
+            if not response.success or result["exit_code"] != 0:
+                raise RuntimeError(str(result))
+            installed = json.loads(result["stdout"])
+            if installed["sha256"] != expected_sha256:
+                raise RuntimeError("Installed wheel differs from local wheel")
+            print(installed)
+        finally:
+            await client.discard_file(uploaded.path)
+
+asyncio.run(deploy())
 ```
 
-The CLI builds local source into a wheel, uploads it to remote `/files`, then calls remote install_plugin with the returned path and the locally built wheel SHA256 and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and the local wheel SHA256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+The explicit local hash comparison verifies the installed wheel against the local artifact after installation. The CLI does not accept a caller-provided expected hash. The installer separately verifies installed provenance against the wheel read on the target. Cleanup does not roll back an installation. Interrupted or timed-out installation requests require checking the target environment before retrying; pip may already have changed files.
 
-`plugin build` only runs locally and does not support `--target`. Remote inspect queries installed plugins on the target; it does not send a local source directory to the target for inspection.
+If using curl, upload with `-F 'file=@LOCAL.whl'` to `/upload`, then run `axonx plugin install '<answer.location>' --target HOST:PORT --client-timeout 600`. Use `DELETE /upload?path=<answer.path>` for cleanup. Set `AXONX_TARGET_TOKEN` for CLI authentication. Keep upload, install, cleanup and queries on the same service.
+
+`location` is an absolute path for target-side installation; `path` is relative to the remote workspace and is used for upload cleanup. A local source path cannot stand in for either. A wheel or source tree already present on the target can be installed directly. Remote editable installs refer to source already on that machine.
 
 ## Checksums and restart
 
-| Field            | Explanation                                                             |
-| ---------------- | ----------------------------------------------------------------------- |
-| content_sha256   | Content/source fingerprint for build caching and content identification |
-| sha256           | Specific wheel file checksum for transfer and installation verification |
-| restart_required | Whether live Components/Jobs or replaced dependencies require a restart |
-
-The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel SHA256 calculated by the local builder to the installation interface, not the source fingerprint.
-
-Task-only wheel installation and updates through `install_plugin` refresh plugin package imports in the running service. Subsequent definition queries and submissions use updated Task classes, parameter models, and helpers without restarting, including additional packages or standalone modules shipped in the same wheel. Uninstalling a Task-only plugin removes its registrations from subsequent queries and submissions. Identical wheels skip installation and preserve cached classes.
-
-Installation and uninstallation are coordinated with Task queries and submission through worker launch across all Applications in the same process, including separate event loops; waiting does not block the service event loop. Cancelling an installation/uninstallation request or closing its Application waits for already-started environment changes to finish before releasing coordination and cleaning up staged files. Cancellation does not roll back pip changes; verify the installed plugin afterward. Imports across plugin packages are refreshed together, while AxonX and third-party dependency modules retain their identities. Running Tasks are not migrated or pinned to a version when files are overwritten.
-
-`restart_required` remains true for current or removed Component/Job contributions and when installation replaces an existing dependency version. Pending restart hints remain true until the service process restarts, including on identical reinstallations and after Component/Job contributions have been removed. Direct `pip install` or source edits outside the installation Job do not trigger this refresh; restart after those changes. Editable installations can also require interpreter startup to load import hooks.
-
-After installation, restart only if `restart_required` is true, then verify:
+`sha256` identifies wheel bytes; `content_sha256` identifies normalized plugin content. They are different hashes. Installation results have no restart flag and do not refresh loaded service modules. New `exec` and `plugin` processes discover installed plugins; persistent definition Jobs and Studio use the startup catalog and cached classes. Restart the service after changing registrations, schemas or loaded dependencies:
 
 ```bash
-axonx list_installed_task_definitions --target 'http://research.example:1024'
-axonx get_task_definition --task '<plugin Task registered name>' \
-  --target 'http://research.example:1024'
+axonx restart_service --target research.example:1024
+# After the service is reachable again:
+axonx plugin list --target research.example:1024
+axonx list_task_defs --target research.example:1024
+axonx get_task_def --task qlib_a158_etl --target research.example:1024
 ```
+
+A successful restart response means acceptance; inspect `get_update_status` for completion. Coordinate installations yourself: plugin environment mutations are not serialized, and existing processes are not version-isolated.
 
 ## Uninstallation and troubleshooting
 
 ```bash
-axonx plugin uninstall '<distribution or plugin name>'
-axonx plugin uninstall '<distribution or plugin name>' \
-  --target 'http://research.example:1024'
+axonx plugin uninstall DISTRIBUTION --target research.example:1024
 ```
 
-Uninstallation affects future code loading but does not automatically delete historical research artifacts. Existing metadata remains readable, though reruns may require restoring the original plugin version.
+Uninstallation removes installed code, not historical artifacts. Restart persistent services to refresh their catalogs. For failures, distinguish local file paths, remote `location`, remote `path`, target interpreter, dependency availability and Task registration names. Follow the returned error and process exit code.
 
-| Problem                                       | Check                                                                    |
-| --------------------------------------------- | ------------------------------------------------------------------------ |
-| Registered name conflict                      | Whether plugin contributions share names with built-ins or other plugins |
-| Invalid manifest                              | Types, module:Class, and class base classes                              |
-| Installation succeeded but UI has not updated | restart_required, target machine, and runtime environment                |
-| Wheel checksum failed                         | Use the local wheel SHA256 and transfer the correct file again           |
-| Missing model dependencies                    | requirements and device libraries in the target environment              |
+[Plugin manifest](../reference/plugin-manifest.md) · [File upload and cleanup](../api/workspace.md) · [Development guide](../dev_guide.md)
 
-[Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](../guides/remote-machines.md) · [Existing development guide](../dev_guide.md)
-
-Source: [Plugin CLI](../../../axonx/plugin_kit/cli.py), [Wheel building](../../../axonx/plugin_kit/wheel.py), [Installer](../../../axonx/plugin_kit/installer.py).
+Sources: [CLI](../../../axonx/cli/commands.py), [installer](../../../axonx/plugin/installer.py), [HTTP client](../../../axonx/client/http.py).
 
 ## Research plugins
 

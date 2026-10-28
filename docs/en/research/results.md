@@ -13,7 +13,7 @@ Screenshots on this page show historical research results from a remote workspac
 
 ## From run pages to result pages
 
-Use task pages for execution status, steps, and logs, and research pages for published research metadata. If a task is running, failed, or cancelled, troubleshoot in task details first. If a successful task is absent, check the current machine, task type, and whether `metadata.json` exists and can be read.
+Use task pages for execution status, steps, and logs, and research pages for published research metadata. If a task is running or failed, troubleshoot in task details first. If a successful task is absent, check the current machine, task type, and whether `metadata.json` exists and can be read.
 
 After selecting a result, first check task identity, creation time, source tasks, and artifact directory. Use specific Task IDs to compare experiments; rerunning with a fixed name may have replaced original artifacts. The research list count is not the count of all submitted tasks.
 
@@ -108,7 +108,7 @@ Click artifacts on a result page to preview or locate files. Paths in standard `
 
 Do not directly modify model or data files of successful tasks; doing so separates metadata verification information from actual contents. qlib_a158 prediction verifies the training model revision and checks model feature names and ordering.
 
-For abnormal results, retain Task ID, run_id, inputs, upstream IDs, metadata, and logs. Use [task lineage](../concepts/task-lineage.md) to verify dependencies, then inspect file contents.
+For abnormal results, retain Task ID, started_at, inputs, upstream IDs, metadata, and logs. Use [task lineage](../concepts/task-lineage.md) to verify dependencies, then inspect file contents.
 
 ## Related documentation and implementation
 

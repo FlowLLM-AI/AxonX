@@ -1,33 +1,33 @@
-import { ReportTabs } from "../../shared/ui/ReportTabs";
-import { TaskLogPanel } from "./TaskLogPanel";
-import { TaskChildren } from "./TaskChildren";
-import { ExecutionSteps } from "./ExecutionSteps";
-import { ReplicaNotice } from "../../shared/ReplicaNotice";
-import { hasTaskReport } from "../online/types";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
-  Ban,
+  ArrowUpRight,
+  Bot,
   Check,
   Copy,
   FileJson,
   FileText,
   GitBranch,
-  Bot,
   LoaderCircle,
   LocateFixed,
-  ArrowUpRight,
-  Settings2,
   RefreshCw,
+  Settings2,
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { useRefresh } from "../../shared/hooks/useRefresh";
-import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { canCancel } from "./groups";
-import { cancelTask, getTaskStatus } from "./api";
+import { ReplicaNotice } from "../../shared/ReplicaNotice";
+import { ReportTabs } from "../../shared/ui/ReportTabs";
+import { getTaskStatus } from "./api";
+import { ExecutionSteps } from "./ExecutionSteps";
+import { hasTaskReport } from "./model";
+import { TaskChildren } from "./TaskChildren";
+import { TaskGraphPanel } from "./TaskGraph";
+import { TaskLogPanel } from "./TaskLogPanel";
 import { Status } from "./TaskRow";
-import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
+import { executionActive, useTaskExecutions } from "./execution";
+import { TaskExecutionOutput } from "./TaskExecution";
 
 export function TaskDetailPage({
   taskId,
@@ -51,7 +51,6 @@ export function TaskDetailPage({
     string,
     string
   >;
-  const cancellation = useRef<AbortController | null>(null);
   const configClipboard = useCopyFeedback();
   const configCopied = configClipboard.copied === "config";
   const [locateRequest, setLocateRequest] = useState(0);
@@ -59,7 +58,7 @@ export function TaskDetailPage({
   const load = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const result = await getTaskStatus(taskId, target, signal);
+        const result = await getTaskStatus(taskId, { target, signal });
         signal.throwIfAborted();
         onConnection(true);
         return result;
@@ -72,21 +71,35 @@ export function TaskDetailPage({
   );
 
   const {
-    data: task,
+    data: loadedTask,
     loading,
     error: requestError,
     reload: loadStatus,
   } = useAsyncResource(load);
-  const [action, setAction] = useState<{
-    resource: typeof load;
-    busy: boolean;
-    error: string;
-  } | null>(null);
   const refreshAll = useRefresh(loadStatus);
-  useEffect(() => () => cancellation.current?.abort(), [load]);
-  const currentAction = action?.resource === load ? action : null;
-  const cancelling = currentAction?.busy ?? false;
-  const error = requestError || currentAction?.error || "";
+  const execution = useTaskExecutions().find(
+    (run) => run.taskId === taskId && run.target === target,
+  );
+  const previousExecution = useRef(execution);
+  useEffect(() => {
+    const previous = previousExecution.current;
+    previousExecution.current = execution;
+    if (
+      previous &&
+      execution &&
+      previous.id === execution.id &&
+      executionActive(previous) &&
+      !executionActive(execution)
+    )
+      void loadStatus();
+  }, [execution, loadStatus]);
+  const task =
+    execution?.task &&
+    executionActive(execution) &&
+    (!loadedTask || execution.task.started_at === loadedTask.started_at)
+      ? execution.task
+      : loadedTask;
+  const error = requestError;
   const hasResearch =
     task?.state === "succeeded" &&
     ["etl", "analysis", "train", "predict", "backtest"].includes(
@@ -100,30 +113,6 @@ export function TaskDetailPage({
       "config",
     );
   };
-  const cancel = async () => {
-    if (!task || !window.confirm(t("cancelConfirm"))) return;
-    cancellation.current?.abort();
-    const controller = new AbortController();
-    cancellation.current = controller;
-    setAction({ resource: load, busy: true, error: "" });
-    try {
-      const cancelled = await cancelTask(task.run_id, target);
-      if (controller.signal.aborted) return;
-      if (!cancelled) throw new Error(t("cancelFailed"));
-      await loadStatus();
-    } catch (reason) {
-      if (!controller.signal.aborted)
-        setAction({
-          resource: load,
-          busy: false,
-          error: reason instanceof Error ? reason.message : String(reason),
-        });
-    } finally {
-      if (!controller.signal.aborted)
-        setAction((current) => current && { ...current, busy: false });
-    }
-  };
-
   if (loading && !task)
     return (
       <section className="workspace-page task-detail-loading">
@@ -146,7 +135,6 @@ export function TaskDetailPage({
       </section>
     );
   const configEntries = Object.entries(task.input_params || {});
-  const composite = task.task_type === "composite";
   const locateCurrentTask = () => {
     setLocateRequest((current) => current + 1);
   };
@@ -165,15 +153,13 @@ export function TaskDetailPage({
           <span className="task-detail-subtitle">
             <Status state={task.state} />
             {t(`types.${task.task_type}`, task.task_type)} · PID{" "}
-            {task.pid || "—"} ·{" "}
-            {task.source.schedule
-              ? t("schedules.scheduledSource", {
-                  name: task.source.schedule.name,
-                })
-              : t(`schedules.sources.${task.source.kind}`)}
+            {task.pid || "—"}
           </span>
         </div>
       </div>
+      {execution && execution.task?.started_at === task.started_at && (
+        <TaskExecutionOutput run={execution} />
+      )}
       {error && (
         <div className="error-banner">
           <strong>{t("requestFailed")}</strong>
@@ -217,16 +203,6 @@ export function TaskDetailPage({
                 <Bot />
                 {t("agent.interpretTask")}
               </button>
-              {canCancel(task) && !task.replica && (
-                <button
-                  className="danger-outline task-detail-cancel"
-                  onClick={() => void cancel()}
-                  disabled={cancelling}
-                >
-                  <Ban />
-                  {cancelling ? t("cancelling") : t("cancel")}
-                </button>
-              )}
             </div>
           }
           tabs={[
@@ -328,28 +304,30 @@ export function TaskDetailPage({
                   <span className={`task-orb ${task.state}`}>
                     {task.task_type.slice(0, 1).toUpperCase()}
                   </span>
-                  {labels.runDetails}
+                  {labels.taskDetails}
                 </>
               ),
               content: (
-                <section className="task-detail-card open task-run-card">
+                <section className="task-detail-card open task-execution-card">
                   <div className="task-detail-card-body">
                     {task.error && (
                       <p className="error-state" role="alert">
                         {task.error}
                       </p>
                     )}
-                    <h3>{composite ? labels.children : t("steps")}</h3>
-                    {composite ? (
-                      <TaskChildren
-                        records={task.children}
-                        onOpenTask={onOpenTask}
-                      />
-                    ) : (
-                      <ExecutionSteps
-                        key={`${target}:${task.run_id}`}
-                        task={task}
-                      />
+                    <h3>{t("steps")}</h3>
+                    <ExecutionSteps
+                      key={`${target}:${task.started_at}`}
+                      task={task}
+                    />
+                    {task.children.length > 0 && (
+                      <>
+                        <h3>{labels.children}</h3>
+                        <TaskChildren
+                          records={task.children}
+                          onOpenTask={onOpenTask}
+                        />
+                      </>
                     )}
                   </div>
                 </section>
@@ -367,7 +345,7 @@ export function TaskDetailPage({
                 <section className="task-detail-card open task-log-card">
                   <div className="task-detail-card-body">
                     <TaskLogPanel
-                      key={`${target}:${task.task_id}:${task.run_id}`}
+                      key={`${target}:${task.task_id}:${task.started_at}`}
                       task={task}
                       target={target}
                       toolbar={

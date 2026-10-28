@@ -1,15 +1,16 @@
-import { taskStatus } from "../../playground/fixtures";
-// @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import i18n from "../../i18n";
+import { taskStatus } from "../../playground/data";
 import { PredictionOverview } from "./PredictionOverview";
-import type { ResearchArtifact } from "./types";
+import type { ResearchTask } from "./types";
+
+// @vitest-environment jsdom
 
 let root: Root;
 let container: HTMLDivElement;
-const meta: ResearchArtifact<"predict"> = {
+const meta: ResearchTask<"predict"> = {
   ...taskStatus("predict", "predict#demo", "demo"),
   task_type: "predict",
   created_at: "",
@@ -17,7 +18,7 @@ const meta: ResearchArtifact<"predict"> = {
   output_params: {
     rows: 4,
     date_range: {},
-    output_columns: [],
+    output_columns: ["signal_price", "is_buyable_at_signal"],
     protocol: {},
     statistics: {},
     artifacts: {},

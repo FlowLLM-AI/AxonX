@@ -20,3 +20,11 @@
 ## 维护文档与站点
 
 中英文同步更新。通用步骤放在指南，字段放在[参考手册](../reference/overview.md)，算法放在插件 README，具体实验放在研究案例。[站点维护指南](../../../github-pages/README_ZH.md)说明导航、生成与构建验证。
+
+## 文档所有权与验证
+
+公共 Job 入参以 `axonx/app/config/default.yaml` 为准，原生命令语法属于 `axonx/cli/parser.py`，执行行为属于 `commands.py`/`remote.py`。Task 模型与开发接口位于 `axonx/task`。契约变化时同时更新引用、示例、图示和中英文。
+
+内置 Agent 资源通过符号链接指向 docs/en/dev_guide.md 和 docs/zh/dev_guide.md。维护这两份可执行指南，并将可分发 skills/axonx/SKILL.md 正文与英文指南同步。常驻服务在启动时重新加载指南。
+
+从仓库根目录，在后端开发环境运行 `python -m pytest tests/unit/test_documentation_contracts.py`；安装两套前端依赖后运行 `npm --prefix github-pages test` 和 `npm --prefix github-pages run build`。契约检查验证所有已配置 Job 的请求示例、文档 CLI 入参/导入和可执行 Task 开发/组合示例。站点构建还检查导航、翻译、锚点、资源和导出。历史研究表格和基准图保留记录值及来源。

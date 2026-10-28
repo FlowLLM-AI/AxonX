@@ -39,7 +39,7 @@ Qlib aliases `colsample_bytree` / `subsample` map to `feature_fraction` / `baggi
 
 ## Install and inspect
 
-Requires Python 3.12+ and AxonX `>=0.2.1`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
+Requires Python 3.12+ and AxonX `>=0.3.0`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
 
 This plugin is not published to PyPI. Install the AxonX core and clone the repository, then install a wheel from its root for fixed-version execution:
 
@@ -59,34 +59,30 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
 
-Editable installation is for local source development in the current Python environment and cannot use `--target` or `--output`. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
+Editable installation requires source in the selected Python environment and cannot use `--output`; with `--target`, the source directory belongs to that machine. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
 
 The local CLI environment may differ from the remote service environment. For remote deployment, configure the target service token and specify the target explicitly:
 
 ```bash
 export AXONX_TARGET_TOKEN='<service token>'
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install` and editable source changes require a service restart. Use compatible AxonX core and plugin versions, following the plugin package requirements. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task IDs and start times and stop on installation or verification failures. [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
 
 ## Prepare data
 
 Configure `AXONX_TUSHARE_TOKEN` in the execution service environment and use the built-in `download_tushare_task` to prepare Tushare Parquet data. The default ETL input is `tushare/` inside the workspace, rather than the current shell directory.
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20140101 --end-date 20261008 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-Save the returned `task_id` and `run_id`, and wait for the download to succeed before submitting ETL:
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<download_task_id>' --run-id '<download_run_id>'
-```
+`axonx exec` returns the final exit code. Continue with ETL after the download succeeds.
 
 | Files                                                            | Purpose                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -101,6 +97,20 @@ Prepare sufficient preceding history for rolling windows. The example trains fro
 
 ETL reads the preceding market dates required by its longest rolling window. Earlier partitions outside that calculation window do not block the task; all participating quotes and adjustment factors remain strictly validated.
 
+## Composed research
+
+`qlib_a158_research` runs ETL → Train → Predict → Backtest as independently observable child Tasks. Supply `--analysis '{}'` to run factor analysis from the ETL output. Historical Tushare inputs must already exist.
+
+```bash
+axonx exec --task qlib_a158_research --task-name baseline \
+  --etl '{"start_date":"20150101","end_date":"20261008"}' \
+  --train '{"train_end":"20230101"}' \
+  --predict '{"pred_end":"20261008"}' \
+  --backtest '{"top_ns":[5,10,20,30]}'
+```
+
+Prediction starts at the training cutoff when omitted. The plugin owns nested research inputs, child names and dependencies. Backtests end at the last signal by default; set `backtest.as_of_date` explicitly for later valuation or settlement. Leaf prediction accepts a Train and an optional compatible ETL, allowing saved models to score new datasets.
+
 ## Tasks and execution
 
 | Task                 | Upstream              | Outputs                                                             |
@@ -114,31 +124,23 @@ ETL reads the preceding market dates required by its longest rolling window. Ear
 Factor analysis branches from ETL and is not a prerequisite for training. Submit in the following order, use the actual returned Task IDs, and wait for each stage to succeed before submitting its downstream stage.
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # After ETL succeeds
-axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --upstream-task-ids '["<etl_task_id>"]'
+axonx exec --task qlib_a158_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101
 
 # After training succeeds
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008
 
 # After prediction succeeds
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-For every wait, provide both identifiers from that submission:
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<task_id>' --run-id '<run_id>'
-axonx get_task_definition --task qlib_a158_train
-```
-
-For remote execution, add the same `--target` to all submission, wait, and definition queries. Install and execute against the same service environment.
+Inspect each Task's schema with `axonx get_task_def --task qlib_a158_train`. For remote execution, add the same `--target` to execution and definition commands and use the target service's Python environment.
 
 ## Key parameters
 
@@ -158,7 +160,7 @@ For remote execution, add the same `--target` to all submission, wait, and defin
 | Backtest `sell_cost_rate`                         | `0.0015`                | Fee on executed sell notional                                   |
 | Backtest `annualization_days`                     | `252`                   | Trading days used for annualization                             |
 
-Consult `get_task_definition` in the execution environment for the complete parameter Schema.
+Consult `get_task_def` in the execution environment for the complete parameter Schema.
 
 ## Features, labels, and backtest protocol
 
@@ -178,7 +180,7 @@ From the repository root, after installing development dependencies:
 
 ```bash
 python -m pytest \
-  tests/unit/test_qlib_a158.py tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
+  plugins/qlib_a158/tests \
   tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
@@ -188,6 +190,6 @@ These checks cover feature boundaries, label timing, four-way parameter comparis
 
 Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
 
-AxonX owns protocol v1 in `axonx.task.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
+AxonX owns protocol v1 in `axonx.task.models.artifacts`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). The plugin owns feature contracts and semantic fingerprints; AxonX provides verified model snapshots. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
 
 Backtests now publish **all market** (`all`) and **CSI 300** (`hs300`) as independent reports in one Task. Studio provides a universe dropdown, including independent selections in strategy comparison. Positive signal-time `index_weight_hs300` defines CSI 300 membership. The backtest schema uses `default_universe`, `universes` and a shared artifact registry; regenerate old backtests.

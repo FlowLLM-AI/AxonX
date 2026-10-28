@@ -3,12 +3,12 @@
 import argparse
 import configparser
 import importlib
-from email.parser import BytesParser
-from importlib import metadata, resources
-from pathlib import Path
 import runpy
 import tarfile
 import tomllib
+from email.parser import BytesParser
+from importlib import metadata, resources
+from pathlib import Path
 from zipfile import ZipFile
 
 from packaging.version import Version
@@ -27,8 +27,8 @@ def read_project(source: Path) -> dict:
     config = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))
     project = config["project"]
     if "version" in project.get("dynamic", []):
-        assert config["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "axonx._version.VERSION"
-        project["version"] = runpy.run_path(str(source / "axonx/_version.py"))["VERSION"]
+        assert config["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "axonx._version.__version__"
+        project["version"] = runpy.run_path(str(source / "axonx/_version.py"))["__version__"]
     return project
 
 
@@ -65,10 +65,20 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         if plugin:
             required.add(f"{package}/plugin.yaml")
         else:
-            required.update({"axonx/_version.py", "axonx/config/default.yaml", "axonx/config/remote.yaml"})
+            required.update(
+                {
+                    "axonx/_version.py",
+                    "axonx/app/config/default.yaml",
+                    "axonx/app/config/remote.yaml",
+                }
+            )
         with ZipFile(wheels[0]) as archive:
             names = set(archive.namelist())
             assert required <= names, f"Missing package files: {required - names}"
+            extra_modules = {
+                name for name in names if name.startswith(f"{package}/") and name.endswith(".py")
+            } - source_files.keys()
+            assert not extra_modules, f"Obsolete Python modules in wheel: {extra_modules}"
             for name, content in source_files.items():
                 assert archive.read(name) == content, f"Wheel file differs from source: {name}"
             assert not any(name.startswith(("tests/", "axonx_studio/", "github-pages/")) for name in names)
@@ -93,6 +103,10 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
                 if member.isfile() and "/" in member.name
             }
             names = set(members)
+            extra_modules = {
+                name for name in names if name.startswith(f"{package}/") and name.endswith(".py")
+            } - source_files.keys()
+            assert not extra_modules, f"Obsolete Python modules in sdist: {extra_modules}"
             missing = (required | {"pyproject.toml"}) - names
             assert not missing, f"Missing files in sdist: {missing}"
             for name, content in source_files.items():
@@ -121,22 +135,40 @@ def verify_installation() -> None:
             assert entry.load().__name__ == package
         else:
             assert module.__version__ == distribution.version
-            assert files.joinpath("config/default.yaml").is_file()
-            assert files.joinpath("config/remote.yaml").is_file()
+            assert files.joinpath("app/config/default.yaml").is_file()
+            assert files.joinpath("app/config/remote.yaml").is_file()
             for language in ("en", "zh"):
-                guide = files.joinpath("components/agent/guides", f"{language}.md")
-                assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
+                guide = files.joinpath("app/components/agent/guides", f"{language}.md")
+                assert (
+                    guide.read_bytes() == (source / "axonx/app/components/agent/guides" / f"{language}.md").read_bytes()
+                )
         print(f"Verified installation: {project['name']} {distribution.version}")
 
-    from axonx.config import ConfigResolver  # pylint: disable=import-outside-toplevel
-    from axonx.plugin_kit.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
+    from axonx.app.config.loader import ConfigLoader
+    from axonx.app.config.models import ApplicationConfig
+    from axonx.plugin.discovery import (
+        discover_task_registrations,
+        get_installed_plugin,  # pylint: disable=import-outside-toplevel
+    )
+    from axonx.task.runtime.catalog import TaskCatalog
 
+    assert ApplicationConfig(**ConfigLoader().resolve(log_config=False)).cron == []
+
+    task_names = {"demo", "send_dingtalk_task", "download_tushare_task"}
     for _, source, _, plugin in PACKAGES[1:]:
         info = get_installed_plugin(plugin)
         assert info.error is None, info.error
         assert info.tasks, f"Plugin {plugin} has no tasks"
+        task_names.update(info.tasks)
         if "axonx.configs" in read_project(source).get("entry-points", {}):
-            assert ConfigResolver().load(plugin), f"Plugin {plugin} config did not load"
+            assert ConfigLoader().resolve(config=plugin, log_config=False), f"Plugin {plugin} config did not load"
+
+    catalog = TaskCatalog(registrations=discover_task_registrations())
+    definitions = [catalog.definition(name) for name in sorted(task_names)]
+    assert {read_project(source)["name"] for _, source, _, _ in PACKAGES[1:]} <= {
+        task.plugin for task in definitions
+    }, "Missing Task definitions from a shipped plugin distribution"
+    print(f"Verified Task imports and schemas: {len(definitions)} definitions")
 
 
 if __name__ == "__main__":

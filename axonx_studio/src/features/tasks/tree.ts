@@ -1,5 +1,5 @@
+import type { ChildTaskRecord, TaskMetadata } from "../../shared/api/contracts";
 import { getTaskStatus } from "./api";
-import type { ChildTaskRecord, TaskMetadata } from "./types";
 
 export interface TaskNode {
   record: ChildTaskRecord;
@@ -8,34 +8,38 @@ export interface TaskNode {
   issue?: "replaced" | "snapshot";
 }
 
-/** Follow exact owned Runs, including nested download and ETL chains. */
+/** Follow recorded child Tasks, including nested download and ETL chains. */
 export async function readTaskChildren(
   parent: TaskMetadata,
   target: string | undefined,
   signal: AbortSignal,
   messages: { replaced: string; snapshot: string },
 ): Promise<TaskNode[]> {
-  const visited = new Set([`${parent.task_id}:${parent.run_id}`]);
+  const visited = new Set([`${parent.task_id}:${parent.started_at}`]);
   const requests = new Map<string, Promise<TaskMetadata>>();
   async function visit(owner: TaskMetadata): Promise<TaskNode[]> {
     const records = [
       ...new Map(
-        owner.children.filter((c) => c.task_id).map((c) => [c.task_id!, c]),
+        owner.children
+          .filter((c) => c.child_task_id)
+          .map((c) => [c.child_task_id!, c]),
       ).values(),
     ];
     const branches = await Promise.all(
       records.map(async (record): Promise<TaskNode[]> => {
-        const identity = `${record.task_id}:${record.run_id}`;
+        if (record.started_at === null)
+          return [{ record, status: null, error: "" }];
+        const identity = `${record.child_task_id}:${record.started_at}`;
         if (visited.has(identity)) return [];
         visited.add(identity);
         try {
-          if (!requests.has(record.task_id!))
+          if (!requests.has(record.child_task_id!))
             requests.set(
-              record.task_id!,
-              getTaskStatus(record.task_id!, target, signal),
+              record.child_task_id!,
+              getTaskStatus(record.child_task_id!, { target, signal }),
             );
-          const status = await requests.get(record.task_id!)!;
-          if (status.run_id !== record.run_id)
+          const status = await requests.get(record.child_task_id!)!;
+          if (status.started_at !== record.started_at)
             return [
               {
                 record,

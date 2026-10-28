@@ -1,81 +1,54 @@
 # 结果展示同步
 
-任务同步发布**结果展示副本**，不是可执行的工作区备份。普通任务完成后才同步；显式配置的在线父任务在每次组件 flush 时同步。`task_names` 匹配 `<task type>#<registration>#<task name>` 的最后一段；空列表包含所有名称。普通任务的父子任务独立筛选；`live_task_ids` 精确选择父任务，自动跟随它引用的子 Run，不受 `task_names` 限制。
+同步创建有大小限制的展示副本，不是可执行工作区备份。普通 Task 在终态后选择；显式 live_task_ids 选择父任务组及其对应子执行快照。task_names 按 Task ID 最后一段筛选，空列表包含全部名称。
+
+![展示快照同步](../../figures/guides/task-sync.svg)
 
 ## 内容与语义
 
-副本包含 `metadata.json`、执行事件、发布的产物及模型或在线清单声明的文件。只从发布的产物表、比较结果、在线提交和前序历史节点提取依赖；来源溯源字段和父任务中的子任务汇总不声明本地文件。排除上游 `inputs/`、固定模型输入 `model_snapshot/`、未发布文件、临时工作区及插件环境。本地硬链接输入快照保持完整。
+副本包含 metadata、进度证据和引用的已发布产物，不包含环境、原始工作区、未引用文件或上游输入/模型快照。缺失文件记录在 replica.omitted，源声明和指标保持原样。副本不能执行、不能作为可修改的研究输入，也不继续转发为同步源。
 
-发布文件缺失时在 `replica.omitted` 中记录原因，继续同步状态、日志和其余现存产物。保留源 metadata 和产物声明。文件恢复会改变源版本，下次同步时补齐。展示同步不校验研究信号格式。
+## 统一预算
 
-源指标与研究协议保留原始运行语义。`metadata.replica` 保存 `purpose: display`、源与策略版本、实际文件大小和文件版本、省略路径及原因、采样行数与日期范围、源日志路径。目标本地 `log_path` 为空。Studio 标记副本，文件覆盖范围和省略项按需展开。计算消费者拒绝将副本作为研究输入；副本不会作为同步源继续转发。
-
-## 唯一预算
-
-应用级 `transfer_budget_bytes` 默认 536870912（512 MiB），控制每个归档的压缩前总大小，包括 metadata 与 tar 开销，同时控制上传上限。发送端通过 `task_sync_index` 使用两端较小预算。没有独立单文件大小选项；`max_file_bytes`、`max_archive_bytes` 会被拒绝。
-
-能放入预算时保持文件完整。否则按共同的最近完整 `trade_date` 范围重新生成日期型业务 Parquet。采样检查实际编码大小，保留类型及文件元数据，绝不截断字节或单个交易日。模型、JSON、任务记录、报告汇总、交易流水和参考交易日历不采样。最近一个完整交易日仍放不下时省略可采样数据并记录原因；仍超限时先省略较大的剩余文件，优先保留日志。仅任务 metadata 自身无法放入预算时拒绝。源文件和原始指标均不改变。
+transfer_budget_bytes（默认 512 MiB）限制上传和含 tar 封装的归档大小，发送/接收使用较小预算。较大的日期键 Parquet 可采样为共同的完整交易日后缀，大小、修订、源行数和覆盖范围区分副本与完整源产物。其他文件可省略，不会悄悄截断。
 
 ## 配置
 
-两端使用相同应用预算，接收端无需配置同步组件。目标 token 应与接收服务的鉴权 token 一致。
-
 ```yaml
 extends: default
-transfer_budget_bytes: 536870912
 targets:
-  - address: http://archive.example:1024
-    token: ${AXONX_SYNC_REMOTE_TOKEN}
+  - address: http://display:1024
+    token: ${DISPLAY_TOKEN}
 components:
   sync:
     default:
       backend: local
-      target: http://archive.example:1024
-      task_names: [research-model]
-      live_task_ids: [composite#online#research-model]
+      target: http://display:1024
+      task_index: default
+      task_names: []
+      live_task_ids: []
       max_archives_per_flush: 4
       timeout_seconds: 300
 jobs:
   sync_flush:
-    enable_serve: false
+    parameters: { type: object, properties: {}, additionalProperties: false }
     steps:
       - backend: sync_flush_step
         sync: default
-schedules:
-  workspace_sync:
-    job: sync_flush
-    cron: "* * * * *"
-    concurrency_policy: forbid
 ```
 
-## 对账、重试与清理
+配置可选 Job 后显式调用 `axonx sync_flush`，默认未启用。Cron 支持本地 Task exec，不能将 Job 调度块直接移入 cron；可由宿主工作流周期调用 flush。同步组件依赖 task_index。
 
-`task_sync_index` 返回 `transfer_budget_bytes` 与 `tasks` 映射，其中每个已校验副本包含 `source_revision`、`policy_revision`。首次 flush 比较 Run ID、发布文件的大小及修改时间和采样策略；服务启动不等待同步。相同副本跳过；重跑、产物或预算变化会触发替换。仅被排除的输入内容变化无需重传。
+## 协调、重试与清理
 
-Repository 事件将终态源任务加入队列；Watcher 漏事件恢复后触发对账。索引失败在后续 flush 重试。暂时性的准备、上传或提交失败保留队列；不安全的路径和 metadata 超限明确报告。缺失产物明确记录省略原因，不再让整个任务反复等待。未尝试批次保留队列。队列仅存于内存，重启后的首次 flush 对账恢复中断传输。本地删除不自动传播。
+索引事件将符合条件的源记录加入待处理队列；flush 协调遗漏事件、生成有限批次、上传归档并通过 sync_tasks 应用。临时失败可在后续 flush 重试，不安全或超预算证据报告错误/省略。检查同步报告，上传清理和目标协调属于同步消费者。
 
-一个任务副本完整装入一个归档。接收端验证精确文件清单、大小，拒绝覆盖本机活跃任务，并原子提交，失败回滚。成功、失败和取消均清理源端采样临时文件及远端上传暂存文件；取消等待后台准备结束后再清理文件。
+## 连续父任务快照
 
-## 持续父任务快照
-
-`live_task_ids` 默认为 `[]`。每次 flush 将父任务的 metadata、steps 进度、当前子 Run 和已发布的展示产物捕获为一组，放入同一个归档。直接跟随已有 flush 调度，不另建定时器或 watcher；普通任务保留终态同步。Run 身份变化或子任务缺失时，整组延后到下次重试，不复制未发布的工作文件。
-
-在线副本排除输入特征、模型权重、源数据/debug 快照以及变化中的事件日志；活动和步骤已包含在 metadata 中。普通副本和在线副本均最多携带自身最近 1 MiB 日志，小预算时进一步缩减，源路径限制在配置的日志目录。`replica.log` 记录保留的原始字节起止位置，`read_task_log` 保持源偏移，所请求的内容已过期时返回 reset。变化的日志尾部作为有界文件重传，未变化的日志和产物按文件版本复用。这是文件级差量同步，不是逐字节追加协议；源端完整日志继续遵循既有保留策略。
-
-`replica.snapshot` 保存源工作区身份、父 Task/Run、采样时间及有序版本。`task_sync_index` 接收 `live_task_ids`，在统一的 `tasks` 索引中返回来源/策略版本、已校验 Run ID 和文件版本。差量归档仍保留完整清单，接收端只从匹配且校验一致的本地 Run 补齐未变化文件，再验证整组并提交，失败回滚。拒绝旧版本、来源冲突、同 Run 从终态回退到运行态，以及覆盖本机活跃任务。已完成组成员可在 Run ID 不变时独立同步；同源的更新快照可以将共享子任务归入另一父任务。不迁移执行进程，副本不能取消或用作研究输入。活跃任务组没有进度变化时仍刷新采样时间，便于区分源端空闲与同步延迟。准备产物前按组内成员平分协商的总预算，在各自额度内采样或省略文件；metadata 无法放入额度时明确报告并在后续 flush 重试。
-
-Studio 在页面可见时默认每 5 秒刷新列表、详情和跟随日志，包括已完成的副本，以接收最终快照。跨机器数据新鲜度仍由 flush 频率决定。启用 `live_task_ids` 前须升级发送端和接收端；旧接收端会明确报错并重试，不退回在线任务的终态副本。
-
-## 破坏式格式
-
-发送端和接收端需要一起升级。已有 SHA-256 副本记录仍可读取，并在下次同步时替换为新格式；新上传和索引使用文件版本。旧完整目录归档及旧索引响应仍拒绝。手动 `sync_tasks` 接受准备好的副本归档或显式删除，不接受未标记的普通任务目录。
+LiveSnapshot 记录 source_id、root_task_id、root_started_at、captured_at 和有序 revision。子集合跟随父任务实际调用，而非只匹配名称。稳定发布和源未变检查防止混合快照。副本包含文件/策略修订、采样、省略及可选有限日志信息。
 
 ## 验证
 
-检查匹配的父子任务均出现、输入快照不存在、样本保留最近完整日期、源文件不变、实际大小匹配副本清单、重启不重复传输、预算与运行变化可更新、暂时性失败可恢复、临时文件已清理。
+核对源/目标、执行启动身份、产物覆盖和目标只读标识。同步不恢复进程、不安装插件、不传凭据，也不代替备份。
 
-[调度](scheduling.md) · [远程机器](remote-machines.md) · [同步 API](../api/plugins-sync.md)
-
-所有副本共用产物准备、索引、待发送队列、归档预算和发送流程。每组使用独立暂存目录。打包时任务组不可拆分，引用同一任务的组分开发送归档，避免准备或验证时快照互相覆盖。差量包按补齐后的完整大小预留预算。轮转顺序防止持续运行的任务组挤占后续任务组或已完成任务；已完成且未变化的组跳过发送。
-
-同步和上传不对文件内容计算校验和。使用固定长度的文件属性摘要标识 Run 身份、文件大小和修改时间；大小与修改时间都不变的内容改动不会被检测到。研究产物使用大小与修改时间版本，插件安装保留 wheel 校验和。旧 SHA-256 副本记录可读，并在下次同步时替换；新索引和上传协议需要两端一起升级。已完成且未变化的任务组在准备前跳过；未变化的在线组只刷新 metadata 并复用远端文件。批次额度耗尽后停止准备，最多额外准备一个用于判断批次边界的任务组。Gzip 使用级别 1。在线 flush 刷新远端索引，不重复扫描普通源任务；漏事件恢复及预算变化时重新对账。
+源码：[同步组件](../../../axonx/app/components/sync/local.py)、[副本构建器](../../../axonx/app/components/sync/replica.py)。

@@ -7,18 +7,19 @@ from pathlib import Path
 
 import polars as pl
 from pydantic import Field, field_validator
-from pydantic.json_schema import SkipJsonSchema
 
 from axonx.task.builtins.stock.data import (
-    StockETLOutput,
     apply_market_status,
     fixed_labels,
     stock_protocol,
 )
-from axonx.task.contracts import BaseETLInputParams, BaseETLTask
-from axonx.task.core import TaskStep
-from axonx.task.storage import artifact_record
-from axonx.utils.fs import atomic_write
+from axonx.task.builtins.stock.models import StockETLOutput
+from axonx.task.core.base import TaskStep
+from axonx.task.core.research import BaseETLTask
+from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.params import BaseETLInputParams
+from axonx.task.storage.artifacts import artifact_record
+from axonx.task.storage.files import atomic_write
 
 from .internal.etl_pipeline import (
     FEATURES,
@@ -65,7 +66,7 @@ class Alpha158OutputParams(StockETLOutput):
 class Alpha158InputParams(BaseETLInputParams):
     """Configure source data and the dates included in the Alpha158 dataset."""
 
-    input_dir: SkipJsonSchema[Path] = Path("tushare")
+    input_dir: Path = Path("tushare")
     market_status_file: Path | None = None
     start_date: str | None = Field(
         default="20140101",
@@ -86,7 +87,7 @@ class Alpha158InputParams(BaseETLInputParams):
     @classmethod
     def normalize_date(cls, value: object) -> object:
         """Normalize YYYYMMDD boundaries, including integer dates from YAML."""
-        return BaseETLTask.normalize_yyyymmdd(value, optional=True)
+        return normalize_yyyymmdd(value, optional=True)
 
 
 class Alpha158Task(BaseETLTask):

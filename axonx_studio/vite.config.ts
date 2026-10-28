@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/health": backend,
         "/jobs": backend,
-        "/files": backend,
+        "/upload": backend,
         "/mcp": backend,
         "/proxy": backend,
       },

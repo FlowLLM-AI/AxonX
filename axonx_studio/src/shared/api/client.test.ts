@@ -1,9 +1,57 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AxonXClient, AxonXError } from "./client";
+import { AxonXClient } from "./client";
+import { AxonXError } from "./response";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AxonXClient", () => {
+  it.each([
+    null,
+    [],
+    { answer: 42 },
+    { success: true },
+    { success: "false", answer: 42 },
+    { success: 1, answer: 42 },
+  ])("rejects a malformed response envelope: %j", async (payload) => {
+    const client = new AxonXClient(async () => Response.json(payload), false);
+    await expect(client.invoke("demo")).rejects.toEqual(
+      new AxonXError("Invalid AxonX response envelope", 200),
+    );
+  });
+
+  it.each([null, false, 0, ""])(
+    "preserves a successful falsy answer: %j",
+    async (answer) => {
+      const client = new AxonXClient(
+        async () => Response.json({ success: true, answer }),
+        false,
+      );
+      await expect(client.invoke("demo")).resolves.toBe(answer);
+    },
+  );
+
+  it("preserves cancellation while reading the response body", async () => {
+    const response = new Response();
+    const reason = new DOMException("Aborted", "AbortError");
+    vi.spyOn(response, "json").mockRejectedValue(reason);
+    const client = new AxonXClient(async () => response, false);
+    await expect(client.invoke("demo")).rejects.toBe(reason);
+  });
+
+  it("reports invalid JSON and failed Jobs with their HTTP status", async () => {
+    const invalid = new AxonXClient(async () => new Response("invalid"), false);
+    await expect(invalid.invoke("demo")).rejects.toEqual(
+      new AxonXError("Invalid server response (HTTP 200)", 200),
+    );
+    const failed = new AxonXClient(
+      async () => Response.json({ success: false, answer: "Job rejected" }),
+      false,
+    );
+    await expect(failed.invoke("demo")).rejects.toEqual(
+      new AxonXError("Job rejected", 200),
+    );
+  });
+
   it("sends target selection to the local backend", async () => {
     const fetchMock = vi
       .fn()

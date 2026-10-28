@@ -1,377 +1,462 @@
 # AxonX 开发与运行指南
 
-本文可独立阅读，也可作为 Agent Skill 使用。文档与源码链接均使用绝对 URL，复制文件后不依赖原目录位置。项目维护地址为 [FlowLLM-AI/AxonX](https://github.com/FlowLLM-AI/AxonX)。
+AxonX 通过类型化 Task 执行量化研究，为 CLI、HTTP、MCP 和 Studio 保存执行证据。本文独立包含安装、开发、部署、执行与检查所需流程。
 
-`plugins/qlib_a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
+在用户授权范围内操作，示例本身不授权安装、执行、删除、外部消息或远程变更。使用发现的 Schema 与实际记录，不以进程创建推断成功，不编造不可得结果。
 
-AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现有 `TaskType`。训练通过 `output_params.protocol` 和一个 `models.json` 发布集合，不再生成成员或 checkpoint 的 metadata 文件。离线与在线预测共享一份 `model_identity`（`models_sha256`、`features_sha256`）、`dates`、`score_columns` 和文件版本（`size:mtime_ns`）。特征契约、语义指纹与模型快照校验均使用 AxonX 公共工具。缺少协议头和旧格式直接拒绝，产物需要重新生成；包发布版本独立管理。
+## 环境与服务
 
-在线推理通过 `OnlineStore` 和按角色引用产物的 `OnlineCommit` 发布结果。最终信号和模拟组合账本以不可变 Parquet 修订保存在 `persistent/online/commits/`，单一原子 manifest 选择有效历史；其固定快照发布为 `signal_history`。历史修订保留审计证据，并使后续组合报告过期，直到重放。消费者通过 `pin_online_history` 校验并固定文件。JSONL 信号日志和推理 ready 标记已移除，不提供兼容读取；旧在线 Task 使用新名称重新生成。采集 ready 标记保持不变。
-
-## 准备环境与服务
-
-本地 Task 执行使用 Python 3.12+，支持 macOS 和 Linux。在选定的工作目录创建并激活虚拟环境，再安装核心包：
+macOS 或 Linux 使用 Python 3.12+。安装后端与预构建 Studio，设置独立令牌并启动前台 Daemon/服务：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install axonx
-axonx --help
+pip install 'axonx[studio]'
+export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
+axonx app --service.host 127.0.0.1
 ```
 
-需要预构建 Studio 界面时，改为安装 `axonx[studio]`。研究插件需单独安装。源码开发时，克隆项目、进入仓库根目录，并在已激活的虚拟环境中安装：
+保持该终端运行，另一终端使用相同环境和 token。访问 `http://127.0.0.1:1024/`，在 Studio 设置中填写令牌。Demo 无需行情或模型凭据。不带 `studio` extra 的 `axonx` 仅安装后端。
+
+开发框架或插件时，在已激活的环境中使用源码仓库：
 
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-pip install -e .
+pip install -e '.[dev,studio]'
 ```
 
-凭据通过环境变量或从进程工作目录及其父目录发现的 `.env` 文件配置。启动本地服务前，将令牌占位符替换为自己的值：
+下文源码路径相对仓库根目录；服务工作区路径属于所选执行机器。仅安装 Python 包不会提供示例插件源码。
+
+CLI 启动从工作目录及最多五级父目录查找最近的 `.env`，已有环境变量优先。默认端口 `1024`、工作区 `.axonx`、日志目录 `logs`、时区 `Asia/Shanghai`。自定义启动时，将以下内容保存为 `app.yaml`，用 `axonx app --config app.yaml` 替代默认启动命令：
+
+```yaml
+extends: default
+workspace_dir: .axonx
+log_dir: logs
+timezone: Asia/Shanghai
+service:
+  host: 127.0.0.1
+  port: 1024
+  token: ${AXONX_SERVICE_TOKEN}
+cron: []
+```
+
+配置支持 YAML/JSON、`${NAME}`/`${NAME:-default}` 插值和 `extends`。字典递归合并，列表整体替换。运行时相对路径以进程目录为基准，不以配置文件为基准。修改配置后重启服务。
+
+## 发现能力、连接与响应
+
+执行或安装前先发现所选环境的能力：
 
 ```bash
-export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx start --service.host 127.0.0.1
+axonx --help
+axonx help
+axonx help --job cli
+axonx diagnose
+axonx list_task_defs --include-schemas false
+axonx get_task_def --task demo
+axonx machine_status
+axonx python --code 'print(1 + 2)' --timeout 30
 ```
 
-保持该进程运行。在另一终端激活相同环境并配置相同令牌，再执行 `axonx version` 验证连接。默认端口为 `1024`，默认工作区为启动目录下的 `.axonx`。使用已有服务时，先取得其地址与鉴权配置。插件查询、任务提交、状态、日志和产物检查应始终使用同一执行目标。
+`--help` 离线显示语法，`help` 查询公开 Job。裸命令 `axonx exec` 列出当前解释器的 Task；定义 Job 使用常驻服务启动时的目录。`diagnose` 报告构建、Python、磁盘/资源和已安装插件，仅显示凭据是否配置，不返回密钥。资源读数不代表自动分配。
 
-MCP 客户端使用 Streamable HTTP 连接 `http://127.0.0.1:1024/mcp`，并配置请求头 `Authorization: Bearer <service-token>`；将地址与令牌替换为所用服务的实际值。从已连接服务发现工具，不假定固定工具列表。下文 CLI 示例描述相同操作；调用 MCP 工具时使用发现的输入 Schema。
+`python` 适合短时探测，使用服务解释器、工作目录和环境，在新进程中执行；业务超时默认 30 秒、上限 300 秒，检查 `exit_code`、stdout/stderr 与截断标志。请求结束时清理进程组，长期工作使用 Task 执行/组合。
 
-内置 `demo` Task 可用于验证提交和跟踪，不需要行情或模型凭据；Alpha158 流程需要相应研究插件与准备好的输入数据。行情下载需要 `AXONX_TUSHARE_TOKEN`，使用模型的 Agent 需要单独配置模型。完整配置示例见 [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)、[研究工作流](https://flowllm-ai.github.io/AxonX/zh/research/workflow) 和 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
-
-将本文作为 Skill 使用时，仅执行用户请求所需的操作。文档示例本身不构成安装、任务执行、删除或远程变更的授权。修改源码仓库时，遵循该仓库的 `AGENTS.md` 和 [贡献指南](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING_ZH.md)。
-
-## 发现能力并诊断执行目标
-
-`axonx --help`（或不传参数）只显示本地语法，不连接服务。`axonx help` 是普通 Job，需要运行中的服务，列出该服务公开的 Jobs；`axonx help --job <名称>` 返回实际输入和输出 schema，包含必填字段、类型、默认值和限制。帮助和诊断与其他 Jobs 共用 CLI、HTTP 和 MCP 调用方式。未启用认证时，help 仍可用但只列出已公开的 Jobs；诊断要求服务认证。服务配置 token 后，调用 help 仍须提供该 token。
+CLI 直连远程无需本机服务。替换 `node-b:1024`，配置目标令牌，执行、状态和产物查询使用同一目标：
 
 ```bash
-axonx help --target node-b:1024
-axonx help --job python --target node-b:1024
-axonx diagnose --target node-b:1024
+export AXONX_TARGET_TOKEN='replace-with-target-token'
+axonx version --target node-b:1024
+axonx get_task_def --task demo --target node-b:1024
+axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
 ```
 
-替换为已确认的目标地址并配置凭据。先发现能力、查询选定 Task 的定义，再考虑阅读框架内部实现或编写替代工具。本地服务不可用但已知远程地址时，直接使用 `--target`，无需启动本地服务。离线 `--help` 只能解释 CLI 语法，无法提供不可达服务的实时目录。安装、重启和执行仍须处于用户任务授权范围内。
+地址必须带端口，可使用 HTTP(S)，不能包含凭据、子路径或查询字符串。`--token` 覆盖环境凭据。默认本机 CLI 使用 `AXONX_SERVICE_TOKEN`，显式 `--target` 使用 `AXONX_TARGET_TOKEN`；Python 客户端需显式传 token。Studio 经后端配置的 `targets` 地址/令牌转发。
 
-`diagnose` 只读汇总运行中的 AxonX 构建信息、Python 版本和解释器路径、工作目录、解析后的 workspace、磁盘容量、CPU/内存/GPU、已安装插件版本与指纹、插件错误和待重启状态。支持的凭据变量只返回是否配置，不返回值。workspace 不存在时，磁盘统计使用最近的已存在祖先目录。已安装插件信息不代表变更已全部加载；安装后处理 `restart_required` 并重新查询 Task 定义。保存安装结果的内容和 wheel 哈希；本地 Git SHA 无法单独标识包含未提交修改的安装包。
+HTTP 使用 Bearer 鉴权，通过 `POST /jobs/NAME` 传入 `arguments` 和可选的已配置转发 `target`。例如，向 `/jobs/cli` 发送：
 
-### 远程 Python 与长时间执行
+```json
+{
+  "arguments": {
+    "argv": [
+      "exec",
+      "--task",
+      "demo",
+      "--task-name",
+      "http-check",
+      "--x",
+      "1",
+      "--y",
+      "2"
+    ]
+  }
+}
+```
 
-`axonx python` 用于现有 Jobs 无法覆盖的短时环境探测、文件处理和诊断。源码在新进程中执行，使用服务的解释器、工作目录和继承环境。输出结构化结果，并检查 `success`、`exit_code`、stderr 和输出截断标记。`--timeout` 默认 30 秒、最大 300 秒；`--client-timeout` 是独立的传输等待预算，增大它不会延长执行时限。
+普通响应为 `{answer, success, metadata}`。`cli` 的 answer 包含 `stdout`、`stderr`、`exit_code`、`stdout_truncated`、`stderr_truncated`，各通道最多保留前 1 MiB。HTTP 200 或状态查询成功不代表 Task 成功。CLI Job 成功/失败返回 0/1，非法 CLI 输入通常返回 2。
 
-长时间或多 Task 工作应提交为 Task，并使用 `BaseCompositeTask` 同步组合，不要通过 `python` 启动脱离管理的 `subprocess.Popen` 控制器。这类后台进程没有 AxonX Task 生命周期、父任务取消或自动恢复能力。重复调用同一子 Task 且需保留各自产物时，显式指定不同的 `task_name`；仅设置 `node_name` 不会隔离目录。批次开始时统一解析日期、输入路径等共享参数，再显式传给每个子任务。
+MCP 通过 `/mcp` 的 Streamable HTTP 暴露公开 Job 名称与 Schema，返回普通 Job 响应；先发现实际服务工具。未配置服务令牌时，不公开要求认证的 Job。实时事件使用 `POST /jobs/NAME/events`，SSE 类型为 `progress`、`log`、`artifact`、`agent_message`、`result`，只有终态 result 确定 Job 结果。CLI 可用 `--stream true --stream-format json` 输出逐行事件。
 
-提交请求失败且尚未收到 handle 时，先检查已有运行再决定是否重提，服务可能已经受理。`wait_task` 超时或断线后保留原 Task/Run ID，查询 `status` 并核对返回的 Run ID；原运行仍活跃则继续等待，失败则检查终态错误和日志。客户端错误不表示 Task 已停止，不要自动重新提交。复合 Task 会记录子运行，但不提供自动断点恢复。
+## 执行、身份与观察
 
-### 按需查询详情
+参数使用 `--field value`：连字符转下划线，点号生成嵌套字典，值转换布尔值、null、数字和 JSON。shell 中引用含 `#` 的 Task ID 和 JSON 数组。未声明的 Task 入参会被拒绝。
 
-确认启动时轮询 `status`，核对返回的 Run ID、`queued`/`running` 状态与最近日志。`wait_task` 只用于等待终态，配置合适的客户端超时；短超时既不能确认启动，也不会取消 Task。超时后保留提交句柄，先查同一次运行再决定是否再次提交。
+```bash
+axonx exec --task demo --task-name check --x 1 --y 2
+axonx status --task-id 'base#demo#check' --detail full
+axonx wait_task --task-id 'base#demo#check' --client-timeout 600
+axonx read_task_log --task-id 'base#demo#check' --offset -1 --limit 8192
+axonx stream_task --task-id 'base#demo#check' --stream true
+```
 
-CLI 的 `status`、`wait_task` 默认 `--detail summary`；查看输入、输出、子任务、产物和完整错误时传 `--detail full`。`list_task_statuses` 也默认摘要，可用 `--task-type`、`--state` 过滤，只在必要时请求 `--detail full`。`read_task_log` 默认读取末尾 8,192 字节，绑定 `--run-id` 并用返回的偏移继续读取。CLI 文件预览及 Agent 会话查询默认 `--limit 20`。
+本地 `exec` 在 CLI 进程中同步执行，输出业务结果（此处 `result=3`）并返回 Task 退出码，不返回提交句柄。显式指定 target 时，由服务 `cli` Job 持有子进程组并持续传输输出至退出。远程原生命令保留子进程退出状态，负信号码映射为 `128 + signal`。
 
-CLI 的 `list_installed_task_definitions` 默认省略输入/输出 schema，可用 `--include-schemas true` 或查询单个 `get_task_definition`。CLI 的 `preview_file` 对文本、Markdown、JSON、YAML 还默认使用 `--max-bytes 8192`，大文件返回标记为截断的前缀，不解析不完整的结构化数据；完整检查时显式增大 `--max-bytes`（上限 33554432）。
+Task ID 为 `task_type#registration#task_name`；类型包括 `base`、`api`、`etl`、`analysis`、`train`、`predict`、`inference`、`backtest`。实例名为 1–32 个字母、数字或连字符，省略时自动生成。metadata `started_at` 区分同一目录的多次执行。状态为 `running`、`succeeded`、`failed`。
 
-`list_schedules` 默认返回配置及当前状态，不含 `history` 和最近触发记录的 `result`。`--name NAME` 精确筛选调度名称；排查触发历史时才传 `--include-history true --history-limit 10`（范围 1–200，默认 20）。`submit` 触发成功不代表 Task 完成。复用调度参数前，核对目标、Task 定义、固定名称覆盖行为及旧运行已停止。
+CLI 的 `status`、`wait_task` 默认返回摘要，`--detail full` 返回输入、输出、步骤与子调用。`wait_task` 捕获当前启动时间，等待期间若被替换则报错。`read_task_log --started-at TIMESTAMP` 保护日志读取；游标按字节计，用 `next_offset` 续读。列表/图使用周期刷新的索引（默认 5 秒），单任务状态直接读取 metadata。`get_task_context` 返回完整选中元数据、路径与输入关系，不是按字节限制的摘要。
 
-脚本使用 `subprocess.run(..., check=True, capture_output=True, text=True)`，解析 JSON 后继续检查 `success` 与业务状态。后续 shell 命令可能掩盖前一条 CLI 的失败。需要时将完整响应保存到文件，终端只打印必要字段，避免把完整状态或历史倾倒进对话。提交是否被接受不明确时，不要自动重提。
+执行配置优先级为显式 CLI 字段 > 服务 `get_config` > 默认值。共享字段为 `workspace_dir`、`log_dir`、`timezone`、`execution_target`、`log_to_console`、`log_to_file`、`environment`，显式环境变量按键合并。只有连接失败允许回退；认证或配置非法会失败。工作区覆盖只影响该命令，服务查询仍观察服务工作区。客户端默认超时 60 秒，`--client-timeout` 与业务截止时间分开。
 
-## 背景
+命令连接中断后先检查 Task 记录再重试。取消远程命令或关闭其服务可能终止所属进程组；取消观察流不会停止被观察 Task。
 
-AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。将用户的研究 Prompt 与本指南结合，通过外部或内置 Agent 开发新插件或优化已有插件。提供源码访问与文件／命令工具，实现并验证量化代码，安装到选定执行服务，运行 Task，再根据证据迭代。数据获取与 ETL、因子分析、训练、预测和回测遵循统一 Task 输入输出契约。
-研究实现由插件注册，Task 通过 Task ID 关联上下游，CLI 和 HTTP 服务支持在本地或远程机器提交执行，并查询机器资源、运行状态与日志。
-框架在工作区记录任务配置、依赖、结果元数据和产物，向 Agent 提供任务、依赖图和文件查询工具，便于验证研究结果、排查失败并复用上游数据。
+## 开发并打包 Task
 
-- 鉴权：服务启用鉴权时，提前在环境变量或 `.env` 中配置本地 `AXONX_SERVICE_TOKEN` 或远程 `AXONX_TARGET_TOKEN`。
-- 本地操作：使用表格中的“命令”，不传 `--target`。通过本机 AxonX HTTP 服务直接提交、查询 Task 和查询机器资源。
-- 发现远程机器：使用 `axonx list_machines` 查询本地服务 `targets` 中所有已配置机器的地址（`address`，如
-  `http://192.168.1.10:1024`）及对应的健康状态（`healthy`），再用 `axonx machine_status --target <host:port>` 查看候选机器的
-  CPU、内存和 GPU。
-- 远程操作：已知目标地址时，在支持远程的命令末尾追加“远程参数”列中的 `--target <host:port>`。
+创建以下最小插件，`__init__.py` 可为空：
 
-表格中的 `192.168.1.10:1024` 是示例目标地址，执行前替换。`—` 表示不支持远程。
+```text
+example/
+  pyproject.toml
+  example_plugin/
+    __init__.py
+    plugin.yaml
+    task.py
+```
 
-## 插件开发
-
-Task 统一通过 `axonx submit --task <名称>` 提交；无服务时使用 `axonx exec --task <名称>`。在插件清单中注册 Task，无需增加专用提交 Job。Job 用于有独立用途的能力；定时 Task 使用 `job: submit` 和 `arguments.task`。
-
-插件可注册多个 Task；qlib_a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 qlib_a158
-路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
-
-同名重跑清理当次执行文件（包括 metadata.json 和 events.jsonl），但保留约定的 `persistent/` 目录。通过 `self.persistent_dir` 保存累计业务数据；插件负责其格式、更新和并发控制。Run ID 和生命周期记录仍只描述当前执行。显式删除 Task 会一并删除持久数据；展示同步以所选产物原子替换目标 Task 目录。`persistent/` 必须是普通目录，不能是符号链接。
-
-### 必须遵守的开发协议
-
-所有插件 Task 都必须直接或间接继承 `BaseTask`，并遵守
-[`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py) 定义的公共开发协议。完成插件注册不能替代这些要求：
-
-- 声明固定的 `task_type`、`input_cls` 和 `output_cls`，建议添加详细的类 docstring。输入与输出模型必须分别继承
-  [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py) 中的 `BaseInputParams` 和 `BaseOutputParams`。
-- 实现 `build_task_steps()`，按执行顺序返回同步可调用步骤；实现 `build_output_params()`，返回经过校验的
-  `output_cls` 实例，不能仅返回普通字典。
-- 保留框架管理的 Task 身份、上下文、生命周期与元数据持久化行为。使用 `self.task_dir`、`source_task_dir()` 和
-  `resolve_workspace_path()` 处理任务产物与工作区路径，由框架运行时负责执行和状态记录。
-
-[`axonx/task/contracts/`](https://github.com/FlowLLM-AI/AxonX/tree/main/axonx/task/contracts) 为 ETL、Analysis、Train、Predict 和 Backtest 提供可选的标准研究
-Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Task`、`Base*InputParams` 和 `Base*OutputParams`。
-一旦采用，其必填字段、类型与校验规则就是插件必须遵守的契约：保留这些约束，通过子类声明新增字段。
-自定义 Task 可以直接继承 `BaseTask` 并定义自己的参数模型，但仍须遵守核心协议；注册并不要求所有 Task 都继承五类研究基类之一。
-
-将已安装 Task 组合成同步流程时，可从 `axonx.task` 导入并继承 `BaseCompositeTask`，在步骤中调用 `run_task()`。纯复合 Task 默认类型为 `composite`。每个子 Task（包括嵌套复合 Task）默认继承父 Task 解析后的 `task_name`，也可通过 `run_task(..., task_name="instance")` 显式指定独立实例。重复调用同一注册名会覆盖同一目录中的终态产物，节点名和调用序号只用于标识调用记录。文件产物应在下次覆盖前消费，Task 不能将自身 ID 作为上游。共享固定名称的流程需要串行执行；保留历史时应使用不同父实例名称。它默认输出 `BaseOutputParams`，自定义输出只包含业务字段。子调用快照统一保存在顶层 `metadata.json.children`，失败和取消的运行也会保留。取消操作指向父 Task。完整插件示例和失败策略见[复合 Task](https://flowllm-ai.github.io/AxonX/zh/guides/composite-tasks)。
-
-实现前应阅读 [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)、[Task 生命周期](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lifecycle) 和
-[研究产物协议](https://flowllm-ai.github.io/AxonX/zh/reference/research-artifacts)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
-还需满足实际消费者使用的产物映射与展示字段要求。
-
-### Task 类型
-
-| 类型     | 概念与用途                                         |
-| -------- | -------------------------------------------------- |
-| ETL      | 清洗、对齐原始数据，生成供后续研究使用的数据集。   |
-| Analysis | 分析 ETL 数据集中的因子，诊断因子质量与表现。      |
-| Train    | 使用 ETL 数据集训练模型，产出模型及训练结果。      |
-| Predict  | 使用 Train 产出的模型及其关联的 ETL 数据生成预测。 |
-| Backtest | 使用 Predict 结果进行回测，评估策略表现。          |
-
-Task 通过 Task ID 关联上下游。qlib_a158 示例的主要依赖链为 ETL → Train → Predict → Backtest，Analysis 使用 ETL 数据开展因子分析。
-
-### 开发步骤
-
-股票回测插件继承 `BaseStockBacktestTask`，通过 `build_universes()` 声明股池，通过 `select_universe(signals, universe)` 返回信号主键。一次 Task 在 `universes/<key>/` 发布独立账户。输出必须使用 `default_universe`、`universes` 和根级产物表；每个报告独立声明 dimensions、日期、状态和产物角色引用。Studio 提供股池下拉框。内置 Qlib 插件同时发布全市场和沪深300。扁平回测格式已删除，旧产物需重新生成；仅增加 ETL/预测辅助筛选字段且模型特征不变时，无须重新训练。
-
-#### 1. 修改代码与注册
-
-以 ETL 为例，最小结构包含输入参数、输出参数、Task 实现和注册。下面是结构示例，`transform` 中的 `...` 需替换为实际 ETL
-逻辑，读取输入并将结果写入 `self.state["output"]`。
-
-`plugins/qlib_a158/axonx_qlib_a158/etl.py`：
+将 Task 写入 `example_plugin/task.py`：
 
 ```python
-from pathlib import Path
+from axonx.task.core.base import BaseTask
+from axonx.task.models.params import BaseInputParams, BaseOutputParams
 
-from axonx.task.contracts import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+class AddInput(BaseInputParams):
+    x: int
+    y: int
 
+class AddOutput(BaseOutputParams):
+    total: int
 
-class Alpha158InputParams(BaseETLInputParams):
-    input_dir: Path = Path("tushare")
-
-
-class Alpha158OutputParams(BaseETLOutputParams):
-    pass  # 直接使用 ETL 基类的输出字段
-
-
-class Alpha158Task(BaseETLTask):
-    """清洗并对齐原始行情，生成供训练和因子分析使用的 ETL 数据集。
-    """
-
-    input_cls = Alpha158InputParams
-    output_cls = Alpha158OutputParams
-    input_params: Alpha158InputParams
+class AddTask(BaseTask):
+    """Add two integers and publish their sum."""
+    input_cls = AddInput
+    output_cls = AddOutput
 
     def build_task_steps(self):
-        yield self.transform
+        yield self.add
 
-    def transform(self):
-        # 从 self.resolve_workspace_path(self.input_params.input_dir) 读取数据，
-        # 将产物保存到 self.task_dir，并填充 self.state["output"]。
-        ...
+    def add(self):
+        self.state["total"] = self.input_params.x + self.input_params.y
 
     def build_output_params(self):
-        return self.output_cls(**self.state["output"])
+        return AddOutput(total=self.state["total"])
 ```
 
-Task 类的 docstring 用于 Task 定义的 `description`。缺少或仅含空白时返回空字符串，不阻塞 Task 解析、定义查询或任务列表展示。建议说明任务用途、输入及产物；docstring 必须放在类属性之前，才能被 Python 识别。
-
-`BaseETLOutputParams` 已定义必填字段 `rows`、`date_range`，因此 `self.state["output"]` 包含这些字段及 `artifacts.dataset` 记录；需要额外结果时，再在
-`Alpha158OutputParams` 中添加字段。
-
-`plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 注册 CLI 使用的 Task 名称：
+将注册写入 `example_plugin/plugin.yaml`：
 
 ```yaml
 tasks:
-  qlib_a158_etl: axonx_qlib_a158.etl:Alpha158Task
+  example_add: example_plugin.task:AddTask
 ```
 
-`qlib_a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
-
-新建插件时，包目录需包含 `__init__.py`，并在 `plugins/qlib_a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 qlib_a158 插件已配置这些内容：
+将包元数据写入 `pyproject.toml`：
 
 ```toml
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["axonx>=0.3.0"]
+
 [project.entry-points."axonx.plugins"]
-qlib_a158 = "axonx_qlib_a158"
+example = "example_plugin"
 
 [tool.setuptools.package-data]
-axonx_qlib_a158 = ["plugin.yaml"]
+example_plugin = ["plugin.yaml"]
 ```
 
-#### 2. 安装插件
-
-研究插件尚未发布到 PyPI，从 AxonX 仓库根目录安装。本机 Agent 开发使用 editable，并确保服务使用当前 Python 环境：
+从包含 `example/` 的目录执行：
 
 ```bash
-axonx plugin install -e plugins/qlib_a158
+axonx plugin install -e ./example
+axonx exec --task example_add --task-name check --x 1 --y 2
 ```
 
-修改 Python 源码后无需重新安装，但需重启常驻服务；依赖或入口点等安装元数据变化后需重新安装。`-e` 不能与 `--target` 或 `--output` 同用。扩展插件在同一执行环境按 Alpha158 → factor → strategy 顺序安装；安装器不会自动安装仓库中的上游插件源码。
+结果为 `total=3`。分发包 `axonx-example`、入口名 `example`、Task 注册名 `example_add` 各有用途。注册名必须唯一，manifest 只接受 `tasks`；运行时资源须包含在 package data 中。应用 Component/Job 通过独立的 `Application(providers=...)` 组合与配置扩展。类 docstring 提供定义说明。
 
-固定版本实验使用 `axonx plugin install plugins/qlib_a158`，从源码构建并安装 wheel。远程执行时使用普通安装：
+`BaseTask` 默认类型为 `base`，研究子类选择对应类型。输入/输出继承 `BaseInputParams`/`BaseOutputParams`，拒绝未声明字段。步骤必须同步，返回 `output_cls` 实例而非字典。`self.state` 在惰性生成的步骤之间传值。输出写入 `self.task_dir`，累计业务状态写入 `self.persistent_dir`，研究输入路径通过 `self.resolve_workspace_path()` 解析。
+
+`TaskExecutor` 负责准备、身份、进度、metadata 与终态。在步骤结束或初始化失败后调用 `close()`，清理后构建最终输出；保留输出构建所需的数据。`report_progress()` 更新当前步骤或命名子步骤，结束前停止后台生产者。`publish_output()` 发布经校验的部分输出，输出构建器须可重复调用。原子写入与快照工具位于 `axonx.task.storage.files`。
+
+任意 Task 都可用 `self.run_task("demo", node_name="add", x=1, y=2)` 同步调用子任务。`ChildTaskResult` 提供 `success`、`child_task_id`、调用 `record`、类型化 `output_params` 和 JSON `output`；构造失败时 ID/输出可能不可用。子任务共享进程、工作区、时区与业务时钟，默认继承父实例名，可用 `task_name` 覆盖。`node_name` 标识调用次数，不隔离目录。重复注册名/实例名会替换已结束输出，须先消费或固定产物。默认 `on_error="stop"` 抛错；`continue` 允许后续工作，但父任务默认仍保留失败结果。
+
+用唯一的 JSON 数组 `upstream_task_ids` 声明输入依赖，CLI `exec` 也接受逗号分隔 ID。各子任务的依赖须显式传入。`get_task_graph` 仅据这些输入引用建边，`missing` 表示记录不可用，`provisional` 表示记录存在但尚未 `succeeded`；父子调用单独保存在 `parent_task_id`/`children`，包含关系与调用顺序都不会增加输入边或调度 DAG。
+
+## 安装、部署与刷新插件
+
+从仓库按依赖顺序安装参考插件，仅选择所需层：
 
 ```bash
-axonx plugin install plugins/qlib_a158 --target 192.168.1.10:1024
+axonx plugin install -e ./plugins/qlib_a158
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
+axonx plugin list
+axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 ```
 
-CLI 会在本机构建 wheel，上传并安装到目标服务。记录代码版本和实验配置。远程提交前先部署本机插件改动；Git push 或相同的包版本号不会更新执行服务。目标仍返回旧 Task 定义时，在已授权的运行流程中重新部署。
+`plugin` 不带 target 时操作当前 Python 环境，指定 target 后在服务解释器中执行。`show`/`uninstall` 接收分发包名或入口名，`inspect` 还接受源码目录或 wheel。源码检查/构建生成 wheel 元数据，不安装。保留返回的 `wheel`、`sha256`、`content_sha256`；两个哈希分别标识 wheel 字节与规范化内容。
 
-安装后检查 `error` 和 `restart_required`，在已授权的服务管理范围内完成所需重启。提交前，在同一目标重新查询 Task 定义，核验预期默认值与执行资源；提交后记录返回的 Task/Run ID。安装或核验失败时，停止并报告具体问题。用户要求遇到问题先讨论时，遵循该要求。
+editable 安装要求执行机器上已有源码，不能与 `--output` 同用。普通安装构建源码或使用已有 wheel，安装 AxonX 自身之外的依赖并核验来源。安装或源码变化后重启常驻服务；依赖/入口点变化后重新安装。新 CLI 进程重新发现插件，已有进程不固定版本，也不自动刷新。环境变更需自行协调。
 
-#### 3. 确认插件与 Task 注册
+`--target` 将所有原生命令路径解释为目标机路径，不传输本地文件。本地到远程部署按本地构建、上传 `/upload`、安装绝对 `location`、清理相对 `path`、重启验证完成。以下完整上传/安装/清理示例中的 wheel 文件名、地址和 token 须替换为实际值：
 
-- 确认安装：使用 `axonx plugin list` 确认目标插件已安装且 `error` 为空；返回的 `tasks` 映射键可作为 `--task` 注册名。
-- 查看定义：使用 `axonx get_task_definition --task qlib_a158_etl` 查看所选 Task 的描述、类型及输入输出 schema。
-- 统一目标：远程查询和提交均追加同一个 `--target 192.168.1.10:1024`；本机服务使用不同 Python 环境时，也应显式指定服务地址。
+```python
+import asyncio
+import hashlib
+import json
+import os
+from pathlib import Path
+from axonx.client.http import HttpClient
 
-#### 4. 查看执行资源
+async def deploy():
+    wheel = Path("dist/plugins/ACTUAL_FILENAME.whl")
+    expected = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    async with HttpClient(
+        target="http://node-b:1024",
+        token=os.environ["AXONX_TARGET_TOKEN"],
+        timeout=600.0,
+    ) as client:
+        uploaded = await client.copy_file(wheel)
+        try:
+            response = await client.run_job("cli", {
+                "argv": ["plugin", "install", uploaded.location],
+            })
+            result = response.answer
+            if not response.success or result["exit_code"] != 0:
+                raise RuntimeError(str(result))
+            installed = json.loads(result["stdout"])
+            if installed["sha256"] != expected:
+                raise RuntimeError("Installed wheel differs from local wheel")
+            print(installed)
+        finally:
+            await client.discard_file(uploaded.path)
 
-- 使用 `axonx machine_status` 查询执行机器的 CPU、内存和 GPU；远程执行时追加 `--target 192.168.1.10:1024`。
-- 确认机器满足研究任务的资源需求后，再向该服务提交 Task。
+asyncio.run(deploy())
+```
 
-#### 5. 提交 Task
+`POST /upload` 也接受带 `x-file-name` 的二进制内容，或 multipart `file` 与可选 `directory`，`x-file-directory` 优先。暂存范围为工作区 `tmp`。`StagedFile` 包含相对 `path`、绝对 `location`、字节 `size`，不返回校验和。`DELETE /upload?path=...` 清理暂存。默认传输预算 512 MiB，multipart 额外允许 64 KiB 封装。清理不会回滚安装。
 
-只运行本次改动需要的 Task，复用未受影响的成功上游产物。控制变量：仅改变待验证因素，其余数据、区间和参数与基线保持一致。
+安装后请求重启，等待服务可连接，检查更新完成后再查询定义：
 
-- 增加因子：ETL → Train → Predict → Backtest。
-- 更新模型结构：Train → Predict → Backtest，复用已有 ETL。
-- 更新仓位管理策略：只跑 Backtest，复用已有 Predict。
+```bash
+axonx restart_service --target node-b:1024
+axonx get_update_status --target node-b:1024
+axonx list_task_defs --include-schemas false --target node-b:1024
+axonx get_task_def --task qlib_a158_etl --target node-b:1024
+```
 
-Analysis 仅在需要因子诊断时运行。以下命令按需选用。
+重启返回已接受操作的 `update_id`，用 `get_update_status --update-id ID` 跟踪该操作，不仅依赖最近记录。安装失败或连接中断可能留下部分环境变更，重试前先核验已安装元数据。
 
-| 命令名称 | 具体描述                                                       | 命令                                                                        | 远程参数                     |
-| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
-| `submit` | 提交 ETL，清洗并生成数据集；示例指定数据开始日期。             | `axonx submit --task qlib_a158_etl --start-date 20150101`                   | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Analysis，分析指定 ETL 产物中的因子。                     | `axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'`       | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Train，使用指定 ETL 数据集训练模型。                      | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`        | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Predict，使用指定 Train 模型及其关联的 ETL 数据生成预测。 | `axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>'`    | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Backtest，评估指定 Predict 的预测结果。                   | `axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
+## 执行与改进研究
 
-- Task 注册名：`--task qlib_a158_etl` 对应 `plugin.yaml` 中 `tasks` 的键，指向 `axonx_qlib_a158.etl:Alpha158Task`；Task 注册名取自
-  `axonx plugin list` 返回的 `tasks` 键， 用 `axonx get_task_definition --task qlib_a158_etl` 查看该 Task 的完整定义。
-- 输入参数：由 Task 的 `input_cls` 定义类型和默认值，CLI 将连字符转为下划线，例如 `--start-date` 对应
-  `Alpha158InputParams.start_date`，通过 `self.input_params.start_date` 读取；`--input-dir` 对应 `input_dir`，未声明的字段会被拒绝。
-- Task命名：默认省略 `--task-name`，名称自动生成为 `YYYYMMDDHH` 加 4 位随机字母或数字，Task ID 如
-  `etl#qlib_a158_etl#<生成名称>`。 仅在用户指定名称时传入； **复用显式名称会在前次完成后替换产物**。
-- 返回值：完整检查响应的 `success` 和 `answer`。提交成功仅表示已接受执行，`answer` 包含 `task_id`、`run_id`、`task`， 不包含
-  `state`；记录实际返回的两个 ID，用于等待本次运行。下游 `source-tasks` 使用成功上游的 `task_id`，不猜测 ID。
-- 上下游关联：将成功上游返回的 Task ID 填入 `--source-tasks`；多个 ID 用英文逗号连接，如 `'<id1>,<id2>'`，留空表示无上游。
-  下游通过上游 `metadata.json` 定位产物。
-- 执行目标：本地省略 `--target`，远程追加表中的参数并替换为真实地址。
+参考主链为 ETL → Train → Predict → Backtest，因子分析通过 `qlib_a158_factor` 从 ETL 独立分支。先安装 `qlib_a158` 并准备足够的 Tushare 历史。数据令牌与 AxonX 服务令牌不同；兼容数据服务可额外配置 `AXONX_TUSHARE_BASE_URL`。
 
-#### 6. 跟踪运行与检查产物
+以下选择一个历史示例窗口。各命令分别执行，确认退出码与完整 metadata 后再运行下一阶段，脚本须遇错停止。已有完整原始历史时可复用，不必重新下载：
 
-- 使用提交响应中的实际 Task ID 和 Run ID，在同一服务上等待运行、查询状态、读取日志和检查产物。
-- 需要完整详情时，为 CLI `status`、`wait_task` 指定 `--detail full` 并检查 `answer`：核对 `task_id`、`run_id` 和 `state`，并查看
-  `output_params`、`error`、`exit_code`、`log_path` 及步骤进度等字段。`status` 的 `success` 表示查询成功，不能据此判断 Task 成功。
-- `state` 为 `queued` 或 `running` 时继续等待；仅在 `succeeded` 时提交下游。`failed` 或 `cancelled` 时先检查错误和日志。
-- `wait_task` 必须传入提交返回的 `task_id`、`run_id`，等待指定运行结束；同一 Task ID 被重新提交后，Run ID 会变化， 不匹配时会报错。可用
-  `--poll-interval 1` 设置轮询间隔（秒，必须大于 0，默认 1）。 长任务用 `--client-timeout 86400` 增加客户端请求超时；它不设置
-  Task 执行时限。`wait_task` 仅在最终状态为 `succeeded` 时返回 `success: true`。
+```bash
+export AXONX_TUSHARE_TOKEN='replace-with-data-token'
+axonx exec --task download_tushare_task --task-name data-01 \
+  --start-date 20140101 --end-date 20240131
+axonx exec --task qlib_a158_etl --task-name research-01 \
+  --start-date 20150101 --end-date 20240131
+axonx exec --task qlib_a158_train --task-name research-01 \
+  --upstream-task-ids '["etl#qlib_a158_etl#research-01"]' \
+  --train-start 20150101 --train-end 20230101
+axonx exec --task qlib_a158_predict --task-name research-01 \
+  --upstream-task-ids '["train#qlib_a158_train#research-01","etl#qlib_a158_etl#research-01"]' \
+  --pred-start 20230101 --pred-end 20231231
+axonx exec --task qlib_a158_backtest --task-name research-01 \
+  --upstream-task-ids '["predict#qlib_a158_predict#research-01"]' \
+  --top-ns '[20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+```
 
-| 命令名称        | 具体描述                                                | 命令                                                                                       | 远程参数                     |
-| --------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
-| `wait_task`     | 等待提交返回的指定运行结束，检查最终 `answer.state`。   | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
-| `status`        | 查询已提交 ETL Task 的状态，确认是否成功。              | `axonx status --task-id '<etl_task_id>'`                                                   | `--target 192.168.1.10:1024` |
-| `read_task_log` | 读取该 ETL Task 的最近日志，检查输出或排查失败原因。    | `axonx read_task_log --task-id '<etl_task_id>' --run-id '<etl_run_id>'`                    | `--target 192.168.1.10:1024` |
-| `preview_file`  | 检查成功 ETL 的元数据，取得数据集产物路径，供下游使用。 | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                              | `--target 192.168.1.10:1024` |
+下载写入共享 `tushare/` 分区，位于下载 Task 目录之外。默认回溯 7 天不足以支持多年训练和滚动特征。检查覆盖和数据权限，空/缺失行情不能视为零收益。
 
-其他 Task 使用其实际 Task ID 和对应类型的工作区路径。实时跟踪、依赖图查询和数据预览等命令见下方 CLI API。
+训练结束日期不包含在训练区间，先用时间验证选择轮数再重拟合。预测开始不得早于训练结束，使用保存的特征顺序，输出评分而非收益预测。预测和选股输入不能关联未来标签。
 
-## CLI API
+也可执行已安装的父 Task，由它管理子名称与依赖，返回 `stage_task_ids`：
 
-- 示例值：IP、Task ID 和上传路径占位符须替换为配置或服务返回的真实值。
-- 参数格式：普通 Job 参数放在 Job 名之后；JSON 数组须作为一个 CLI 参数传入。
-- 执行超时：`python` 的 `--timeout` 是 Job 执行超时；`--client-timeout` 是客户端请求超时，长时间等待 Task 时使用后者。
-- 执行条件： **破坏性 Job 与 `python` 仅在当前任务确有需要且目标已确认时执行**。
+```bash
+axonx exec --task qlib_a158_research --task-name pipeline-01 \
+  --etl.start-date 20150101 --train.train-end 20230101 \
+  --predict.pred-end 20231231 --analysis '{}'
+```
 
-### 启动与本地执行
+此处 `analysis: {}` 启用因子分析，省略则禁用；预测开始默认采用训练结束日期。父入参拒绝调用方指定子名称、依赖及显式回测输入文件。复用已有上游时使用叶子 Task。远程研究每步保持相同 target，路径和凭据属于该机器。
 
-| 命令名称  | 具体描述                                                                                | 命令                                                    | 远程参数                     |
-| --------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
-| `help`    | 列出目标服务公开的 Jobs；传 `--job NAME` 查询实际输入输出 schema。                      | `axonx help`                                            | `--target 192.168.1.10:1024` |
-| `start`   | 未指定配置时加载注册的 `default` 配置，启动本机 HTTP 服务。                             | `axonx start`                                           | —                            |
-| `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/config/default.yaml`        | —                            |
-| `exec`    | 列出当前 Python 环境可执行的 Task 注册名及入口类，不执行 Task。                         | `axonx exec`                                            | —                            |
-| `exec`    | 在当前进程执行指定 ETL Task 并输出结果，无需通过 HTTP 服务提交。                        | `axonx exec --task qlib_a158_etl --start-date 20150101` | —                            |
-| `version` | 查询所连接 AxonX 服务的版本信息。                                                       | `axonx version`                                         | `--target 192.168.1.10:1024` |
+仅重跑假设所需部分：修改特征通常从 ETL 开始，修改模型可复用兼容 ETL，修改组合可复用兼容预测。`qlib_factor` 增加 13 个可选特征，但训练默认仍用 158 个基线特征；`qlib_strategy` 复用预测并提供持有期、排名与换仓策略。控制比较时固定数据、标签、窗口、训练参数、成本和股池定义。在开发窗口筛选候选，用独立确认窗口评估锁定的方案。
 
-### 插件管理
+## 产物与研究契约
 
-- 本地管理：不传 `--target`，直接操作当前 Python 环境。
-- 远程管理：传入 `--target`，查询或修改目标服务的插件。
-- 检查与构建：源码检查和 wheel 构建在本机完成。
-- `plugin inspect` 本地可传源码目录、wheel 路径或已安装插件名；远程只接受目标服务已安装的发行包名或插件名， 例如
-  `axonx-qlib-a158`。不能给本地路径示例直接追加 `--target`，远程检查不会上传源码或 wheel。
+研究基类位于 `axonx.task.core.research`，输入/输出模型位于 `axonx.task.models.params`，可移植协议位于 `axonx.task.models.artifacts`。自定义 Task 可直接继承 `BaseTask`。标准基类输出要求：
 
-| 命令名称           | 具体描述                                                                     | 命令                                                                | 远程参数                     |
-| ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------- |
-| `plugin list`      | 列出当前环境或目标服务已安装的插件；`tasks` 键为 Task 注册名。               | `axonx plugin list`                                                 | `--target 192.168.1.10:1024` |
-| `plugin show`      | 查看指定插件的版本、注册贡献和依赖等信息。                                   | `axonx plugin show axonx-qlib-a158`                                 | `--target 192.168.1.10:1024` |
-| `plugin inspect`   | 检查当前环境或目标服务已安装的插件；参数为发行包名或插件名。                 | `axonx plugin inspect axonx-qlib-a158`                              | `--target 192.168.1.10:1024` |
-| `plugin inspect`   | 从本机源码构建或复用缓存 wheel，检查插件元数据，不安装。                     | `axonx plugin inspect plugins/qlib_a158`                            | —                            |
-| `plugin inspect`   | 检查本机已有 wheel 的插件元数据，不重新构建或安装；将路径替换为实际文件。    | `axonx plugin inspect '<plugin_wheel_path>'`                        | —                            |
-| `plugin build`     | 从源码构建或复用缓存 wheel，输出产物路径、校验值和插件元数据，不安装。       | `axonx plugin build plugins/qlib_a158`                              | —                            |
-| `plugin build`     | 在指定目录生成 wheel，便于后续分发或安装。                                   | `axonx plugin build plugins/qlib_a158 --output .axonx/plugins/dist` | —                            |
-| `plugin install`   | 本机 Agent / 插件开发，以 editable 模式安装到当前 Python 环境。              | `axonx plugin install -e plugins/qlib_a158`                         | —                            |
-| `plugin install`   | 本机从源码构建 wheel 后直接安装；指定远程目标时上传 wheel 并在目标服务安装。 | `axonx plugin install plugins/qlib_a158`                            | `--target 192.168.1.10:1024` |
-| `plugin install`   | 使用本机已有 wheel 安装；指定远程目标时上传该 wheel 并在目标服务安装。       | `axonx plugin install '<plugin_wheel_path>'`                        | `--target 192.168.1.10:1024` |
-| `plugin uninstall` | 从当前环境或目标服务卸载指定插件。                                           | `axonx plugin uninstall axonx-qlib-a158`                            | `--target 192.168.1.10:1024` |
+| 阶段     | 基类必填字段                                             |
+| -------- | -------------------------------------------------------- |
+| ETL      | `rows`、`date_range`                                     |
+| Analysis | `rows`；可选分组 `scores`                                |
+| Train    | `train_rows`；可选 metrics、parameters、`training_curve` |
+| Predict  | `rows`、`date_range`、预测 `protocol`                    |
+| Backtest | `default_universe`、非空 `universes`、回测 `protocol`    |
 
-### 机器
+`ArtifactRecord` 位于 `axonx.task.models.artifacts`，`artifact_record` 和 `verify_artifact` 来自 `axonx.task.storage.artifacts`。所有输出包含 `artifacts: dict[str, ArtifactRecord]`。先写文件，再发布 metadata。`artifact_record(path, task_dir)` 记录 Task 内相对 `path`、字节 `size`、`revision="<size>:<mtime_ns>"`。用 `verify_artifact(root, record)` 核验普通文件的大小/版本，仅解析路径不会核验。此版本不是内容哈希，无法发现大小和修改时间均未变化的内容修改。通过原子替换发布不可变文件，字段须从真实文件计算。
 
-| 命令名称         | 具体描述                                                            | 命令                                              | 远程参数                     |
-| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------- |
-| `list_machines`  | 查询所连接服务 `targets` 中机器的地址和健康状态，用于选择执行目标。 | `axonx list_machines`                             | `--target 192.168.1.10:1024` |
-| `diagnose`       | 汇总构建、Python、workspace 磁盘、资源、插件指纹和待重启状态。      | `axonx diagnose`                                  | `--target 192.168.1.10:1024` |
-| `machine_status` | 查询所连接服务所在机器的 CPU、内存和 GPU 信息。                     | `axonx machine_status`                            | `--target 192.168.1.10:1024` |
-| `python`         | 在服务的 Python 环境执行多行代码。                                  | `axonx python --code 'print(1 + 1)' --timeout 30` | `--target 192.168.1.10:1024` |
+`upstream_artifact(task, task_id, name)` 要求成功且非副本的来源，并核验一个产物；`pin_upstream_artifacts(task, task_id, *names)` 将经核验文件固定到消费者 `inputs/`；`snapshot_model_collection()` 核验并复制模型集合。这些 helper 位于 `axonx.task.storage.inputs`。业务兼容性和特征时点仍由消费者负责。
 
-### Task 提交与运行
+协议头要求整数 `version=1` 和生产者 `task_type`，拒绝不支持或缺失的协议头。Qlib 训练通过 `artifacts.model_manifest` 指向 `models.json`；`ModelCollection` 包含 `feature_protocol`、命名 `members`（`model_artifact`、`model`）和产物注册表。模型清单是 Qlib 消费者要求，不是 `BaseTrainOutputParams` 必填字段。特征语义与指纹属于插件。
 
-| 命令名称              | 具体描述                                                                                 | 命令                                                                                     | 远程参数                     |
-| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------- |
-| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。                   | `axonx get_task_definition --task qlib_a158_etl`                                         | `--target 192.168.1.10:1024` |
-| `submit`              | 提交 ETL Task，由框架生成名称；记录 `answer.task_id`、`answer.run_id` 和 `answer.task`。 | `axonx submit --task qlib_a158_etl --start-date 20150101`                                | `--target 192.168.1.10:1024` |
-| `submit`              | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。                   | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`            | `--target 192.168.1.10:1024` |
-| `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                     | `--target 192.168.1.10:1024` |
-| `wait_task`           | 等待指定 Run ID 结束，返回完整状态；仅 `succeeded` 时响应成功。                          | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400`       | `--target 192.168.1.10:1024` |
-| `stream_task`         | 持续输出指定 Task 的进度与日志，直到结束并返回最终状态。                                 | `axonx stream_task --task-id '<task_id>' --stream true`                                  | `--target 192.168.1.10:1024` |
-| `list_task_ids`       | 列出具有生命周期元数据记录的 Task ID，供后续查询使用。                                   | `axonx list_task_ids`                                                                    | `--target 192.168.1.10:1024` |
-| `list_task_statuses`  | 获取 Task 状态快照列表，便于检查多个 Task 的运行情况。                                   | `axonx list_task_statuses`                                                               | `--target 192.168.1.10:1024` |
-| `status`              | 获取指定 Task 当前的状态快照，不持续跟踪日志。                                           | `axonx status --task-id '<task_id>'`                                                     | `--target 192.168.1.10:1024` |
-| `read_task_log`       | 单次读取指定 Task 的日志尾部，默认最多 8192 字节，用于查看最近输出。                     | `axonx read_task_log --task-id '<task_id>' --run-id '<run_id>'`                          | `--target 192.168.1.10:1024` |
-| `read_task_log`       | 从指定字节偏移读取日志；示例从头读取，后续可用响应的 `next_offset` 继续读取。            | `axonx read_task_log --task-id '<task_id>' --run-id '<run_id>' --offset 0 --limit 65536` | `--target 192.168.1.10:1024` |
-| `get_task_context`    | 汇总状态、元数据与日志路径、依赖图及上下游关系，供排查或后续研究使用。                   | `axonx get_task_context --task-id '<task_id>'`                                           | `--target 192.168.1.10:1024` |
-| `get_task_graph`      | 查询包含指定 Task 的依赖图，检查节点、连线和上下游关联。                                 | `axonx get_task_graph --task-id '<task_id>'`                                             | `--target 192.168.1.10:1024` |
-| `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>'`                                                     | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 删除已结束的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                               | `axonx delete_tasks --task-ids '["<task_id>"]'`                                          | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 一次删除多个已结束的 Task 及其文件。                                                     | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                          | `--target 192.168.1.10:1024` |
+`PredictionProtocol` 要求非空 `model_identity: dict[str, str]`、排序去重的 `dates`、非空且不同的成员到列映射 `score_columns`、`predictions_revision`。Qlib 身份项为 `models_sha256`/`features_sha256`，预测通过 `artifacts.predictions` 注册。日期范围使用 `start`/`end`。训练曲线使用字符串 `x` 标签，以及有限数值、等长的 `y_left`/可选 `y_right`；非空曲线须有左轴序列，两轴名称不能重复。
 
-### 工作区与同步
+股票 ETL 分离 `dataset`、`labels`、`market`、`calendar`。预测行要求唯一 `(trade_date, trade_time, ts_code)` 主键，以及有限 `pred`、Boolean `is_model_candidate`/`is_buyable_at_signal`、`signal_price`、`signal_adjustment_factor`，不包含未来标签。回测还需独立行情/日历产物，可选标签用于信号诊断。评估前固定输入版本。
 
-| 命令名称                | 具体描述                                                                               | 命令                                                                                                                                | 远程参数                     |
-| ----------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `list_entries`          | 查询所连接服务的工作区根目录，查看已有 Task 类型目录和其他条目。                       | `axonx list_entries --path ''`                                                                                                      | `--target 192.168.1.10:1024` |
-| `list_entries`          | 查询指定 ETL Task 目录中的文件和子目录，定位实际产物路径。                             | `axonx list_entries --path 'etl/<etl_task_id>'`                                                                                     | `--target 192.168.1.10:1024` |
-| `list_task_runs`        | 按 Task 类型列出包含 `metadata.json` 的运行目录；示例查询 ETL 类型。                   | `axonx list_task_runs --task-type etl`                                                                                              | `--target 192.168.1.10:1024` |
-| `preview_file`          | 读取指定 Task 的 `metadata.json`，检查配置、依赖和产物路径。                           | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                                                                       | `--target 192.168.1.10:1024` |
-| `preview_file`          | 按行预览 CSV 或 Parquet 数据；示例跳过 200 行，最多返回 100 行，路径须从实际产物取得。 | `axonx preview_file --path '<artifact_path>' --offset 200 --limit 100`                                                              | `--target 192.168.1.10:1024` |
-| `delete_entries`        | 删除指定工作区文件或目录；单个路径也须用 JSON 数组传入。                               | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'`                                                                      | `--target 192.168.1.10:1024` |
-| `delete_entries`        | 一次删除多个工作区文件或目录，路径均相对于工作区。                                     | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'`                                                        | `--target 192.168.1.10:1024` |
-| `sync_tasks`            | 使用目标服务返回的暂存归档路径，替换归档携带的 Task 目录；该命令本身不上传文件。       | `axonx sync_tasks --path '<staged_archive_path>'`                                                                                   | `--target 192.168.1.10:1024` |
-| `POST /files`（HTTP）   | 上传一个文件到暂存区，返回 path 和 size。                                              | `curl -sS '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -F 'file=@<local_file>'`                            | 替换服务 URL 与 token        |
-| `DELETE /files`（HTTP） | 清理返回路径对应的暂存文件。                                                           | `curl -sS -X DELETE '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -G --data-urlencode 'path=<staged_path>'` | 替换服务 URL 与 token        |
+股票回测插件继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，实现 `build_universes()` 和返回唯一信号主键的 `select_universe(signals, universe)`。各股池独立发布日期、维度、评估状态与产物角色引用，daily/summary 角色指向输出根级产物注册表，`default_universe` 选择默认报告。发布 `signals_format="stock-signals-v1"`，`signals.parquet` 保留信号并增加 `is_backtest_candidate`、`target_rank`、`label_return`。真实成交、现金、持仓、交易和订单与信号目标不同。说明执行/估值时点、费用、缺失行情处理和收益单位；Task 成功不证明评估完整或策略盈利。
 
-- 产物路径：执行期间持续将元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
-- 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
+## 工作区、重跑与清理
 
-`/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。multipart 接受恰好一个 `file` 文件与可选文本 `directory`（位于 `tmp` 下），由 curl 自动设置 Content-Type。原始二进制须提供 `x-file-name`，可选 `x-file-directory`；请求头优先于 multipart 元数据。默认单文件上限 512 MiB，multipart 请求额外允许 64 KiB 封装开销。
+目录规则为 `<workspace>/<task_type>/<task_id>/`：
 
-检查 `success`，保留 `answer.path` 和 `answer.size`；path 相对于接收服务的工作区。经过校验的展示副本归档的 path 用于 `sync_tasks`，插件 wheel 的返回 path 与本地构建 wheel 的 SHA256 用于 `install_plugin`；上传只暂存字节。消费者会清理暂存文件，未消费的上传使用表中的 DELETE 请求清理；重复清理无害。
+```text
+.axonx/
+  base/base#demo#check/
+    metadata.json
+    events.jsonl
+    persistent/
+  etl/etl#qlib_a158_etl#research-01/
+  tushare/
+  tmp/
+  agent/
+logs/
+```
+
+`metadata.json` 保存当前身份、进程归属、生命周期、输入/输出、步骤和子调用，`events.jsonl` 记录当前进度事件。`log_path` 指向真实文本日志，可位于 Task 目录外。产物路径相对 Task 目录，`preview_file` 路径相对工作区。
+
+```bash
+axonx list_task_statuses --task-type etl --state succeeded
+axonx get_task_graph --task-id 'base#demo#check'
+axonx list_entries --path ''
+axonx list_task_directories --task-type base
+axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
+axonx kill --task-id 'base#demo#check' --timeout 5 --force false
+axonx delete_entries --paths '["base/base#demo#check"]'
+```
+
+停止与删除是独立操作，最后一条仅示例清理已核验停止的目录。`kill` 检查机器/PID/进程启动身份，进程内子任务会解析到根所有者。`execution_target` 声明可达的源服务，须带端口，拒绝回环/通配地址；它与源 `workspace_dir` 支持远程停止，`machine_id` 是身份而非地址。
+
+同名重跑先确认旧进程停止，再替换当前文件并保留 `persistent/`。Task 目录不提供协调锁，启动、删除和副本替换须串行化。活动、异机或无法验证的 running 记录会阻止替换。查询不收敛失效记录，运行准备或显式 kill 可收敛已确认退出的本机进程。删除不保护活动 Task，并移除保留数据。
+
+目录列表最多返回 5000 个排序条目，`truncated` 时以 `offset + entries.length` 继续。行预览使用 `offset`、`limit`、`has_more`，服务端默认 200 行、上限 5000，CLI 默认 20。文本/Markdown 默认 512 KiB，JSON/YAML 最多 32 MiB。CLI 增加 `max_bytes=8192`，截断 JSON/YAML 返回原文和解析错误。JSONL 具有独立的 512 KiB 页预算。得出结论前检查实际行、解析错误与截断。
+
+## 展示同步与备份
+
+展示同步复制有限证据，不复制可执行环境。普通选择包含终态 Task，`live_task_ids` 可选父任务组及其精确子执行快照；`task_names` 筛选 Task ID 末段，空列表包含所有名称。源端可使用以下可选 `sync.yaml`，替换实际目标与令牌：
+
+```yaml
+extends: default
+targets:
+  - address: http://node-b:1024
+    token: ${AXONX_TARGET_TOKEN}
+components:
+  sync:
+    default:
+      backend: local
+      target: http://node-b:1024
+      task_index: default
+      task_names: []
+      live_task_ids: []
+jobs:
+  sync_flush:
+    parameters: { type: object, properties: {}, additionalProperties: false }
+    steps:
+      - backend: sync_flush_step
+        sync: default
+```
+
+通过 `axonx app --config sync.yaml` 启动，再显式调用 `axonx sync_flush`，默认配置未启用该 Job。组件对账变更、构建/上传归档并调用 `sync_tasks`，`task_sync_index` 返回经核验的目标快照。已有合法展示归档也可经 `/upload` 暂存，将相对 `path` 传给 `sync_tasks`，并可附带 Task 目录 `deletions`。
+
+发送/接收使用较小传输预算，默认 512 MiB。大型按日期分组的 Parquet 可被采样，省略文件记录于 `replica.omitted`，保留文件记录于 `replica.files`。实时快照绑定源、根 Task/启动时间和有序 revision。副本不能执行、不能作为本地 kill 目标或研究输入；同步不能覆盖活动原始 Task。
+
+备份前停止或协调写入，保留完整 Task 目录、`persistent/`、原始数据、外部日志、Agent 状态、配置、源码/插件版本和依赖。恢复文件不会恢复进程。展示副本可省略输入、模型和原始数据，不能代替完整备份。
+
+## 定时运行与维护
+
+定时执行本机任务时，将以下内容保存为 `scheduled.yaml`，用 `axonx app --config scheduled.yaml` 启动：
+
+```yaml
+extends: default
+timezone: Asia/Shanghai
+cron:
+  - expression: "0 16 * * 1-5"
+    command: "axonx exec --task download_tushare_task --days-back 7"
+```
+
+计划仅接受五个数值 cron 字段与本地 `axonx exec --task NAME`，不经 shell 解析；不支持管道、重定向或 `--target` 等客户端选项。触发使用应用时区，不回放错过时点。继承列表整体替换，`cron: []` 禁用计划，修改后重启。没有内置跳过/替换重叠策略，自动实例名保留不同记录，固定名称须自行协调。
+
+服务计算触发时点，Daemon 持有已启动的定时命令。服务拥有的手动 CLI 命令随服务停止，Daemon 定时执行在服务重启期间继续。Daemon 不恢复或重跑已完成 Task。通过 Task metadata 和 `logs/cron/entry-N.log` 检查结果。
+
+```bash
+axonx restart_service
+axonx get_update_status
+```
+
+`restart_service` 重载配置与已加载代码；`update_from_git` 快进当前分支、构建/安装 AxonX 与 Studio 后替换服务；`update_from_pip` 升级发布包。每次选择一种操作，均要求认证且由 Daemon 启动，不接受 `force`。响应仅表示接受，保留 `update_id`，重连后调用 `get_update_status --update-id ID` 至 `succeeded` 或 `failed`。维护期间除版本/更新状态查询外拒绝新本地工作。部分源码/依赖变更不会回滚，就地更新也不为运行中的定时 Task 固定版本。监督器或启动命令变化需重新启动整个 Daemon。
+
+## 窗口任务、在线历史与回放
+
+`axonx.task.core.windows` 提供 `BaseWindowTask`、`BaseRealtimeApiTask`、`BaseInferenceTask`，输入为 `models.params` 中的 `ExecutionWindow`/`WindowInputParams`，结果为 `models.reports` 中的 `WindowResult`。窗口 key 唯一，起止时间带时区并按开始时间排序，要求 `end_at > start_at`。
+
+通用窗口实现 `execute_window(window, budget)`，实时采集实现 `collect(window, budget)` 并返回 `None` 继续轮询；推理实现 `initialize_run()`、`inputs_ready(window)`、`infer(window, budget)`，初始化时固定一份非空模型身份映射。在 `close()` 释放资源。逐个结果以业务状态 `done`、`skipped`、`incomplete`、`failed` 发布，与 Task 状态分开；incomplete/skipped 默认不使整个 Task 失败。
+
+用 `axonx.task.core.clock` 的 `DeadlineBudget.remaining_seconds`、`sleep()`、`check()` 约束外部超时、重试和发布；它不能中断任意阻塞操作。异常保留前面窗口结果并停止 Task。
+
+`axonx.task.storage.online.OnlineStore` 将按角色组织的不可变文件写入 `persistent/online/commits/<commit_id>/`，原子更新 `persistent/online/` 下的 `manifest.json`。commit 记录 Task/启动身份、信号日期/时间、revision、模型身份、协议和产物。策略身份变化须使用新实例。用 `read_online_history()` 读取完整/冻结历史，消费前通过 `pin_online_history()` 核验并固定；未被引用的文件不是已提交证据。
+
+`axonx.task.storage.replay.ReplayStream.create()` 固定事件文件并在新目录发布 `stream.json`，拒绝覆盖；打开时核验引用版本。向 Task 注入 `axonx.task.runtime.replay.ReplayClock`，使用 `ReplayCursor` 按带时区的 `available_at` 交付事件，严格早于截止时间。只有创建线程可推进回放时间，生命周期时间戳与执行耗时仍为真实时间。
+
+## 内置 Agent 会话
+
+外部 Agent 使用宿主模型凭据和上文 CLI/MCP 连接。默认内置后端为 Claude Agent SDK，在服务机器配置模型环境后重启：
+
+```dotenv
+CLAUDE_CODE_API_KEY=replace-with-model-key
+CLAUDE_CODE_BASE_URL=https://api.anthropic.com
+CLAUDE_CODE_MODEL_NAME=replace-with-model-name
+```
+
+打开 Studio Agent 页面，或调用：
+
+```bash
+axonx agent_chat --message 'List current workspace tasks and summarize their actual status.' --stream true --client-timeout 600
+axonx list_agent_sessions --limit 20
+```
+
+保存 `metadata.session_id`，后续轮次传入 `--session-id UUID`。`get_agent_session` 读取历史，`rename_agent_session`、`tag_agent_session`、`fork_agent_session`、`delete_agent_session` 管理会话；不能删除运行中会话。`cancel_agent_turn --session-id UUID` 中断该轮次，独立研究执行须用 Task `kill` 停止；结束轮次也可能影响它拥有的工具。
+
+SDK `cwd` 默认工作区，源码开发时将 `components.agent.default.cwd` 设为仓库绝对路径。默认 `load_dev_guide=true` 加载应用 `language`（`en`/`zh`）选择的随包指南。`job_tools` 默认空，配置后通过进程内桥接调用对应 Job；SDK 文件/命令工具和权限独立，默认 `bypassPermissions` 并非只读模式。AxonX 管理会话 UUID/续接，同一会话轮次串行。会话存储与 Task 产物、展示同步分开。
+
+## 验证与报告
+
+源码变更在临时工作区运行受影响测试，基础框架检查为 `python -m pytest tests`，插件检查如 `python -m pytest plugins/qlib_a158/tests`。研究测试需安装对应依赖，外部服务测试须显式准备。构建/安装成功不证明算法正确。
+
+完成时报告执行目标/工作区、源码/插件版本或 wheel 哈希、Task ID 与 `started_at`、终态、输入修订、产物、指标及定义。性能结论包含数据/窗口对齐、样本数、成本、缺失数据影响与独立确认情况。失败或执行不确定时报告实际错误、已完成阶段和未验证部分，报告中不放凭据或私有数据。

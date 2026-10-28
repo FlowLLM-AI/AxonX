@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
+import { seed } from "../../playground/fixtures";
+import type { TaskMetadata } from "../../shared/api/contracts";
 import { TaskLogPanel } from "./TaskLogPanel";
 import { readTaskLog } from "./api";
-import { seed } from "../../playground/fixtures";
-import type { TaskMetadata } from "./types";
+
 vi.mock("./api", () => ({ readTaskLog: vi.fn() }));
 let root: Root;
 let container: HTMLDivElement;
@@ -15,9 +16,9 @@ let source: string;
 beforeEach(() => {
   vi.clearAllMocks();
   source = "A".repeat(464) + "B".repeat(65_536);
-  task = structuredClone(seed().tasks.get("composite#playground_online#demo")!);
+  task = structuredClone(seed().tasks.get("base#playground_online#demo")!);
   vi.mocked(readTaskLog).mockImplementation(
-    async (_id, offset = -1, limit = 65536) => {
+    async ({ offset = -1, limit = 65536 }) => {
       const start = offset < 0 ? Math.max(0, source.length - limit) : offset;
       const next = Math.min(source.length, start + limit);
       return {
@@ -50,14 +51,19 @@ it("loads the exact preceding byte range without overlapping the existing log", 
     container.querySelector<HTMLButtonElement>(".load-earlier")!.click(),
   );
   expect(container.querySelector("pre")?.textContent).toBe(source);
-  expect(vi.mocked(readTaskLog).mock.calls[1]?.slice(0, 4)).toEqual([
-    task.task_id,
-    0,
-    464,
-    "selected:1024",
+  expect(vi.mocked(readTaskLog).mock.calls[1]).toEqual([
+    {
+      task_id: task.task_id,
+      offset: 0,
+      limit: 464,
+      started_at: task.started_at,
+    },
+    { target: "selected:1024", signal: expect.any(AbortSignal) },
   ]);
   expect(
-    vi.mocked(readTaskLog).mock.calls.every((call) => call[5] === task.run_id),
+    vi
+      .mocked(readTaskLog)
+      .mock.calls.every((call) => call[0].started_at === task.started_at),
   ).toBe(true);
 });
 it("drains all remaining pages when the task finishes", async () => {
@@ -69,6 +75,21 @@ it("drains all remaining pages when the task finishes", async () => {
   await render();
   expect(container.querySelector("pre")?.textContent).toBe(source);
   expect(vi.mocked(readTaskLog).mock.calls.length).toBeGreaterThan(2);
+});
+
+it("resets the buffer and byte offset when the same Task restarts", async () => {
+  source = "previous execution";
+  await render();
+  const previousRequest = vi.mocked(readTaskLog).mock.calls[0];
+  source = "new execution with a longer log";
+  task = { ...task, started_at: "2026-10-26T10:00:00Z" };
+  await render();
+  expect(container.querySelector("pre")?.textContent).toBe(source);
+  expect(previousRequest[1]?.signal?.aborted).toBe(true);
+  expect(vi.mocked(readTaskLog).mock.lastCall?.[0].offset).toBe(-1);
+  expect(vi.mocked(readTaskLog).mock.lastCall?.[0].started_at).toBe(
+    task.started_at,
+  );
 });
 it("retains a bounded tail and disables invalid history offsets after trimming", async () => {
   source = "initial\n";
@@ -84,11 +105,11 @@ it("retains a bounded tail and disables invalid history offsets after trimming",
     container.querySelector("pre")!.textContent!.length,
   ).toBeLessThanOrEqual(524288);
 });
-it("shows the error without mixing logs when the server rejects a replacement run", async () => {
-  vi.mocked(readTaskLog).mockRejectedValue(new Error("Task run changed"));
+it("shows the error without mixing logs when the server rejects a task restart", async () => {
+  vi.mocked(readTaskLog).mockRejectedValue(new Error("Task restarted"));
   await render();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "Task run changed",
+    "Task restarted",
   );
   expect(container.querySelector("pre")?.textContent).toBe(
     i18n.t("taskDetail.logEmpty"),

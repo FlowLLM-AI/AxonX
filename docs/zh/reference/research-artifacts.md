@@ -3,9 +3,9 @@ title: 研究产物与 Studio 展示协议
 description: 标准研究输出、文件摘要、训练曲线及回测表的生产和读取契约。
 ---
 
-研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。这是破坏式格式更新：旧研究产物和回放数据需要重新生成，不迁移历史记录。
-
 # 研究产物与 Studio 展示协议
+
+研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。这是破坏式格式更新：旧研究产物和回放数据需要重新生成，不迁移历史记录。
 
 研究 Task 使用类型化 `output_params` 发布结果，Studio 从成功任务的 `metadata.json` 提取展示字段，再通过文件预览读取产物。本页区分三层要求：Python 基类必填字段、Studio 实际读取字段、具体插件的扩展协议。
 
@@ -13,11 +13,11 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 ## 统一协议 v1
 
-AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
+AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
 
 训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
 
-离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份字符串值的 `model_identity`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。模型身份使用 `models_sha256` 和 `features_sha256`，不包含日期、路径，也不按日期重复复制身份。股票特征契约与指纹由 `axonx.task.builtins.stock.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.models` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份非空 `model_identity: dict[str, str]`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。Qlib 插件使用 `models_sha256` 和 `features_sha256` 身份项；共享模型允许插件定义字符串键和值。身份不包含日期、路径，也不按日期重复复制。Qlib 特征契约与指纹由插件模块 `axonx_qlib_a158.internal.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.inputs` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
 
 ## metadata 与产物映射
 
@@ -39,11 +39,11 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 }
 ```
 
-示例 size 和版本只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与文件版本。`artifact_path(task_dir, metadata, name)` 解析记录并拒绝绝对路径或越出任务目录的路径。
+示例 size 和版本只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与文件版本。`verify_artifact(task_dir, ArtifactRecord.model_validate(record))` 解析记录，核验普通文件的大小和版本；拒绝越出 Task 目录或经过符号链接的路径。
 
 `BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和文件版本。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
 
-下游 helper 解析路径本身并不自动核验所有版本。qlib_a158 预测另行校验模型版本，不能据此宣称所有上游数据均经过完整校验。
+`task.artifact_path(name)` 仅解析路径，不核验文件内容或版本。`upstream_artifact()` 要求源 Task 成功且不是展示副本，并核验一个产物；`pin_upstream_artifacts()` 将经核验的输入复制到消费者的 `inputs/` 目录；`snapshot_model_collection()` 核验清单和引用的模型成员。这些检查基于大小与修改时间，不是内容摘要，也不证明数据在业务语义上兼容。
 
 ## 五类基础输出
 
@@ -53,9 +53,11 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 | -------- | ------------------------------------------- | ------------------------------------------------------- |
 | ETL      | `rows`、`date_range`                        | `feature_columns=[]`、`label_columns=[]`                |
 | Analysis | `rows`                                      | `scores={}`                                             |
-| Train    | `train_rows`、注册的 `model_manifest` 产物  | `model_name`、列名、metrics、parameters、training_curve |
+| Train    | `train_rows`                                | `model_name`、列名、metrics、parameters、training_curve |
 | Predict  | `protocol`、`rows`、`date_range`            | `output_columns=[]`、`statistics={}`                    |
 | Backtest | `default_universe`、`universes`、`protocol` | 共享的 `artifacts={}`                                   |
+
+`model_manifest` 产物是 Qlib 预测消费者的要求，不是 `BaseTrainOutputParams` 自身的必填字段。
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
 
@@ -167,7 +169,7 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 
 回测输入还需独立的 `market` 和 `calendar` 产物；可选 `labels` 用于 IC、RankIC、NDCG、目标标签收益和基准收益，无标签时仍可运行组合账本。指定文件时分别传 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`，上述 `input_file` 为预测 Parquet。
 
-通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`revision`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物大小和修改时间。`statistics` 是展示信息，不是回测选股输入。
+通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`revision`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `upstream_task_ids` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物大小和修改时间。`statistics` 是展示信息，不是回测选股输入。
 
 ## 回测 dimensions 与 protocol
 
@@ -209,12 +211,12 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
     "all_daily": {
       "path": "universes/all/daily.parquet",
       "size": 1234,
-      "revision": "<size>:<mtime_ns>"
+      "revision": "1234:1700000000000000000"
     },
     "all_summary": {
       "path": "universes/all/summary.parquet",
       "size": 1234,
-      "revision": "<size>:<mtime_ns>"
+      "revision": "1234:1700000000000000000"
     }
   }
 }
@@ -227,6 +229,12 @@ Studio 从 选中股池报告的 `artifacts.daily`、`artifacts.summary` 引用�
 每个股池拥有独立的 dimensions、日期、状态和产物引用。Studio 默认选择 `default_universe`，通过下拉框切换；比较页两侧可独立选择。删除顶层 daily/summary 别名和扁平回测字段，旧回测必须重新生成。
 
 插件继承 `BaseStockBacktestTask`，实现 `build_universes()` 返回 `BacktestUniverse` 定义，实现 `select_universe(signals, universe)` 返回唯一的 `(trade_date, trade_time, ts_code)` 主键。筛选器只接收信号时点数据，不接收标签和未来行情。框架验证主键，为各股池创建独立账户，将报告写入 `universes/<key>/`。可选的 `universe_events()` 为每个报告创建独立事件状态。预测和标签只加载一次。
+
+## 统一回测信号
+
+唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
+
+产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。
 
 ## 日频表的展示字段
 
@@ -265,28 +273,32 @@ topN_information_ratio_<benchmark key>
 
 N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图和策略比较是浏览器计算。qlib_a158 毛累计汇总用复利，毛收益图用累加，口径说明见[回测解读](../research/backtest.md)。
 
+## 窗口任务、在线历史与回放
+
+`BaseWindowTask` 接收有序 `ExecutionWindow`，起止时间必须带时区；逐窗口发布 `WindowResult`，状态为 `done`、`skipped`、`incomplete` 或 `failed`。这些是业务结果，与 Task 生命周期状态分开。`BaseRealtimeApiTask` 轮询 `collect()`，`BaseInferenceTask` 在整次执行中固定非空模型身份。网络调用与重试应以 `DeadlineBudget.remaining_seconds` 限制。
+
+`OnlineStore` 将不可变提交文件写入 `persistent/online/commits/<commit_id>/`，通过原子替换 `persistent/online/manifest.json` 发布所选历史。提交记录生产者 `task_id`、`started_at`、信号日期/时间、按信号连续递增的 revision、模型身份、协议和产物。策略身份变化需要使用新的实例名。`read_online_history()` 同时读取完整清单与冻结历史链；报告或回放前使用 `pin_online_history()` 核验引用文件，并固定到消费者目录。
+
+`ReplayStream.create()` 固定文件快照，在新目录中发布 `stream.json`，拒绝覆盖已有数据集；打开流时按大小和 revision 核验所有引用文件。事件按带时区的 `available_at` 排序。向 Task 注入 `ReplayClock`，通过 `ReplayCursor` 仅在业务截止时间之前交付事件。只有创建时钟的线程可以推进回放时间，生命周期时间戳与执行耗时仍使用真实时间。
+
 ## 生产者验收
 
 1. 用实际输出子类验证 output_params。
 2. 先写文件，再调用 artifact_record 并发布 metadata。
-3. 从 Task 目录用 artifact_path 解析每个标准 artifact。
+3. 用 `verify_artifact` 解析并核验注册产物，消费上游前固定输入快照。
 4. 对照当前 Studio 字段检查日期、数值单位、布尔列和结构数组。
 5. 验证曲线与下游契约，保留 protocol 的明确执行说明。
 
 不要手工用占位摘要冒充真实文件；也不要修改 metadata 来掩盖失败执行。所有图表依赖相应生产者和读取端的共同契约。
 
+## Studio 传输契约
+
+Studio 直接保存任务记录及其 `output_params`，不再平铺第二套研究对象。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。
+
 ## 实现依据
 
-- [`基础研究模型`](../../../axonx/task/contracts/)
+- [`基础研究模型`](../../../axonx/task/models/)
 - [`产物 helper`](../../../axonx/task/storage/artifacts.py)
 - [`Studio 读取映射`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`回测展示类型`](../../../axonx_studio/src/features/research/backtest/types.ts)
 - [`qlib_a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)
-
-## 统一回测信号
-
-唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
-
-产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。
-
-Studio 直接保存任务记录及其 `output_params`，不再平铺第二套研究对象。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。

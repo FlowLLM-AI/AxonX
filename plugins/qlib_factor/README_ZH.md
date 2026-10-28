@@ -25,6 +25,8 @@
 
 Beta 使用 T−1 及之前 60 个市场日，至少需要 30 个股票与市场配对收益。股票日收益按当日 2%/98% 分位缩尾，市场收益为其等权均值。Beta 为协方差除以市场方差，并限制在 [−3,3]；方差 ≤1e−12 时保持空值。中性动量为股票 5/10/20 日累计收益减去历史 beta × 市场累计收益。残差波动为“股票日收益 − 历史 beta × 市场日收益”的 20 日样本标准差；下行风险为 sqrt(mean(min(股票日收益,0)²))。风险窗口至少需要 20 日内 16 个有效观测；当日行情无效时所有股票特征保持空值。
 
+要求 AxonX 0.3.0 和当前版本的上游研究插件；框架与插件同步升级，不转换旧接口和旧产物格式。
+
 ## 安装与执行
 
 研究插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
@@ -37,23 +39,25 @@ axonx plugin install -e plugins/qlib_factor
 修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。固定版本实验去掉 `-e`。远程部署使用普通安装，在同一目标服务按顺序安装上游插件；先配置 `AXONX_TARGET_TOKEN`，并替换以下示例地址：
 
 ```bash
-axonx plugin install plugins/qlib_a158 --target http://research.example:1024
-axonx plugin install plugins/qlib_factor --target http://research.example:1024
-axonx get_task_definition --task qlib_factor_train --target http://research.example:1024
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+axonx get_task_def --task qlib_factor_train --target http://research.example:1024
 
-axonx submit --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
-axonx submit --task qlib_factor_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
+axonx exec --task qlib_factor_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank --parameter-preset axonx \
   --context-groups risk --feature-fraction 1.0 --target http://research.example:1024
-axonx submit --task qlib_factor_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_factor_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_factor_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --as-of-date 20261008 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-每次保存返回的 Task ID 和 Run ID，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。通过远程安装 Job 更新仅贡献 Task 的 wheel 无需重启；按 `restart_required=true` 重启并核对 Task 定义。直接 pip/源码变更仍要求重启。基础数据准备、标签与成交口径见 [Qlib Alpha158](../qlib_a158/README_ZH.md)。
+每次保存返回的 Task ID 和开始时间，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[Qlib Alpha158](../qlib_a158/README_ZH.md)
 
 ## 实验记录
 

@@ -30,18 +30,18 @@ The following illustrates a demo and a research plugin task; plugin filenames de
 logs/                            # Separate log directory, not necessarily inside the workspace
 ```
 
-The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registered_name>/<run_id>`. Task type directories come from the enumeration; a directory's existence does not mean its algorithm plugin is installed.
+The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registered_name>/<started_at>`. Task type directories come from the enumeration; a directory's existence does not mean its algorithm plugin is installed.
 
 The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and display synchronization replaces the target directory with selected published outputs. Plugins own its schema, updates, and locking. It must be a regular directory, not a symbolic link.
 
 ## Runtime Records
 
-| File            | Lifecycle                               | Contents                                                                                        |
-| --------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `metadata.json` | Acceptance through every terminal state | Identity, Run ID, input/output, state, steps, error, exit code, log path, and child invocations |
-| `events.jsonl`  | Appended as the worker reports progress | Replayable progress events, one JSON object per line                                            |
+| File            | Lifecycle                                 | Contents                                                                                                             |
+| --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `metadata.json` | Execution startup through terminal state  | Task ID, started_at, process identity, input/output, state, steps, error, exit code, log path, and child invocations |
+| `events.jsonl`  | Appended as the executor reports progress | Replayable progress events, one JSON object per line                                                                 |
 
-One atomic metadata snapshot is the authoritative Task record. The Runner owns updates during execution; the manager settles children and the parent after its worker stops. There are no separate status or composition documents, no duplicate result envelopes, and no legacy-format fallback.
+One atomic metadata snapshot is the authoritative Task record. `TaskExecutor` updates it in the synchronous execution process, including child invocations, cleanup and final output. Runtime preparation and explicit `kill` can reconcile confirmed dead local processes; queries only observe files. Each rerun replaces `metadata.json` and `events.jsonl`; neither file is an archive of previous executions.
 
 Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Synchronizing or deleting a parent does not include its children automatically.
 
@@ -79,7 +79,7 @@ Do not treat an artifact's path as relative to the workspace root, or use absolu
 
 ## Indexes and Files
 
-TaskRepository scans and watches only metadata under type directories, maintaining one index for task queries. Restarting can rebuild indexes from valid files; it does not retrain models or download raw data for you.
+TaskIndex polls metadata under type directories (every 5 seconds by default), maintaining one snapshot for lists and dependency graphs. Single-Task status, waiting and streaming read current metadata directly. Restarting can rebuild indexes from valid files; it does not retrain models or download raw data for you.
 
 Task lists include every valid lifecycle record. Studio research pages select records with `state=succeeded`; the existence of metadata alone does not mean an experiment succeeded.
 
@@ -87,7 +87,7 @@ Task lists include every valid lifecycle record. Studio research pages select re
 
 To reproduce experiments, retain task directories, raw data, service configuration, plugin versions, and model dependencies. Preserve Agent sessions, logs, and plugin source separately according to actual usage.
 
-Copying the entire workspace after stopping writes is the easiest way to obtain consistent files. Task synchronization copies only terminal Task directories and cannot replace a complete backup of raw data, Agent sessions, logs, and the software environment.
+Copying the entire workspace after stopping writes is the easiest way to obtain consistent files. Ordinary Task synchronization copies terminal display snapshots, with optional live parent/child groups and cannot replace a complete backup of raw data, Agent sessions, logs, and the software environment.
 
 Rerunning a fixed name replaces the old directory. Deleting upstream directories creates missing nodes in downstream lineage and may prevent downstream reruns from reading original artifacts.
 

@@ -1,6 +1,0 @@
-# Start with `axonx start --config remote` after setting the target variables.
-extends: default
-
-targets:
-  - address: ${AXONX_TARGET}
-    token: ${AXONX_TARGET_TOKEN}

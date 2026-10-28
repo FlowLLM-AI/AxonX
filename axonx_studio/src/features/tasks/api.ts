@@ -1,88 +1,62 @@
-import { axonx } from "../../shared/api/client";
-import { streamJob, type JobEvent } from "../../shared/api/event";
+import { axonx, type RequestOptions } from "../../shared/api/client";
 import type {
-  Schedule,
-  TaskDefinition,
-  TaskHandle,
   LogChunk,
+  TaskGraph,
   TaskMetadata,
   TaskSummary,
-} from "./types";
+} from "../../shared/api/contracts";
+import type { TaskDefinition } from "./model";
+import type { StreamOptions } from "../../shared/api/event";
 
-export const listSchedules = (
-  target?: string,
-  signal?: AbortSignal,
-  name?: string,
-) =>
-  axonx.invoke<Schedule[]>(
-    "list_schedules",
-    { include_history: true, history_limit: 200, ...(name ? { name } : {}) },
-    { target, signal },
-  );
+export interface CommandResult {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  stdout_truncated: boolean;
+  stderr_truncated: boolean;
+}
 
-export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
+export const executeTaskCommand = (
+  argv: string[],
+  options: StreamOptions<CommandResult> = {},
+) => axonx.stream<CommandResult>("cli", { argv }, options);
+
+export const listTaskStatuses = (options: RequestOptions = {}) =>
   axonx.invoke<TaskSummary[]>(
     "list_task_statuses",
     { detail: "summary" },
-    { target, signal },
+    options,
   );
-export const listFullTaskStatuses = (target?: string, signal?: AbortSignal) =>
+
+export const listFullTaskStatuses = (options: RequestOptions = {}) =>
   axonx.invoke<TaskMetadata[]>(
     "list_task_statuses",
     { detail: "full" },
-    { target, signal },
+    options,
   );
-export const getTaskStatus = (
-  taskId: string,
-  target?: string,
-  signal?: AbortSignal,
-) =>
-  axonx.invoke<TaskMetadata>("status", { task_id: taskId }, { target, signal });
+
+export const getTaskStatus = (taskId: string, options: RequestOptions = {}) =>
+  axonx.invoke<TaskMetadata>("status", { task_id: taskId }, options);
+
+interface ReadTaskLogArguments {
+  task_id: string;
+  offset?: number;
+  limit?: number;
+  started_at?: string;
+}
+
 export const readTaskLog = (
-  taskId: string,
-  offset = -1,
-  limit = 65_536,
-  target?: string,
-  signal?: AbortSignal,
-  runId?: string,
+  { offset = -1, limit = 65_536, ...arguments_ }: ReadTaskLogArguments,
+  options: RequestOptions = {},
 ) =>
   axonx.invoke<LogChunk>(
     "read_task_log",
-    { task_id: taskId, offset, limit, ...(runId ? { run_id: runId } : {}) },
-    { target, signal },
+    { ...arguments_, offset, limit },
+    options,
   );
-export const listInstalledTaskDefinitions = (
-  target?: string,
-  signal?: AbortSignal,
-) =>
-  axonx.invoke<TaskDefinition[]>(
-    "list_installed_task_definitions",
-    {},
-    { target, signal },
-  );
-export const cancelTask = (runId: string, target?: string) =>
-  axonx.invoke<boolean>("cancel", { run_id: runId }, { target });
-export const deleteTasks = (taskIds: string[], target?: string) =>
-  axonx.invoke<string[]>("delete_tasks", { task_ids: taskIds }, { target });
-export const submitTask = (
-  task: string,
-  values: Record<string, unknown>,
-  target?: string,
-) => axonx.invoke<TaskHandle>("submit", { task, ...values }, { target });
 
-export const streamTask = (
-  taskId: string,
-  target: string | undefined,
-  signal: AbortSignal,
-  onEvent: (event: JobEvent<TaskMetadata>) => void,
-) =>
-  streamJob<TaskMetadata>(
-    axonx,
-    "stream_task",
-    { task_id: taskId },
-    {
-      target,
-      signal,
-      onEvent,
-    },
-  );
+export const listTaskDefs = (options: RequestOptions = {}) =>
+  axonx.invoke<TaskDefinition[]>("list_task_defs", {}, options);
+
+export const getTaskGraph = (taskId: string, options: RequestOptions = {}) =>
+  axonx.invoke<TaskGraph>("get_task_graph", { task_id: taskId }, options);

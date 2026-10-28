@@ -1,9 +1,8 @@
-import { taskStatus } from "../../../playground/fixtures";
-// @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n";
+import { taskStatus } from "../../../playground/data";
 import { BacktestView } from "./BacktestView";
 import { loadBacktest } from "./api";
 import type {
@@ -12,6 +11,8 @@ import type {
   ChartSeries,
   DailyRow,
 } from "./types";
+
+// @vitest-environment jsdom
 
 vi.mock("./api", () => ({ loadBacktest: vi.fn() }));
 vi.mock("./BacktestChart", () => ({
@@ -103,12 +104,10 @@ describe("stock backtest report", () => {
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(
         i18n.t("backtest.incomplete_market_data"),
       );
-      expect(loadBacktest).toHaveBeenCalledWith(
-        meta,
-        "all",
-        "remote",
-        expect.any(AbortSignal),
-      );
+      expect(loadBacktest).toHaveBeenCalledWith(meta, "all", {
+        target: "remote",
+        signal: expect.any(AbortSignal),
+      });
       expect(container.querySelector("td.positive, td.negative")).toBeNull();
       await act(async () =>
         Array.from(
@@ -243,18 +242,16 @@ it("switches complete universe reports and reuses cached data", async () => {
     root.render(<BacktestView meta={multi} target="remote" />),
   );
   const select = container.querySelector("select")!;
-  const firstSignal = vi.mocked(loadBacktest).mock.calls[0][3]!;
+  const firstSignal = vi.mocked(loadBacktest).mock.calls[0][2]!.signal!;
   await act(async () => {
     select.value = "hs300";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
   expect(firstSignal.aborted).toBe(true);
-  expect(loadBacktest).toHaveBeenLastCalledWith(
-    multi,
-    "hs300",
-    "remote",
-    expect.any(AbortSignal),
-  );
+  expect(loadBacktest).toHaveBeenLastCalledWith(multi, "hs300", {
+    target: "remote",
+    signal: expect.any(AbortSignal),
+  });
   await act(async () => {
     select.value = "all";
     select.dispatchEvent(new Event("change", { bubbles: true }));

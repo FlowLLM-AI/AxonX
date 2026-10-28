@@ -1,99 +1,33 @@
-# Workspace browsing and preview
-
-File capabilities are rooted in the configured workspace and only accept workspace-relative paths. List directories to locate records, preview their formats, then clean up as needed. Studio's Workspace entry browses the entire configured `workspace_dir`, including data, Task artifacts, Agent files, logs, plugins, and temporary files. Directories load on demand; no data-source-specific root or sorting is applied.
+# Workspace Files
 
 ## Browse directories
 
 ```bash
-axonx list_entries
-axonx list_entries --path base
-axonx list_entries --path 'base/base#demo#add-01'
-axonx list_task_runs --task-type train
+axonx list_entries --path ''
+axonx list_task_directories --task-type base
+axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
 ```
 
-An empty path means the workspace root. Directory listings show directories first and sort by name; each response includes at most 5000 entries. When truncated is true, request the next page with offset set to the number of entries already read. Studio provides a Load more entries button. This is not a recursive file tree.
-
-`list_task_runs` selects directories containing metadata.json in every lifecycle state. Inspect `state` to distinguish active, failed, cancelled, and successful executions.
-
-Paths cannot escape the workspace through absolute paths, `..`, or symbolic links. Directory entries may show symlinks, but they should not be treated as ordinary previewable files.
+Paths are relative to the selected service workspace. list_entries uses offset pagination and bounded listings. list_task_directories selects type directories containing metadata.json, regardless of current lifecycle state. The Task ID includes # and should be shell-quoted.
 
 ## Preview records and artifacts
 
-```bash
-axonx preview_file --path 'base/base#demo#add-01/events.jsonl'
-axonx preview_file --path 'base/base#demo#add-01/metadata.json'
-```
-
-Preview responses include file size, format type, and format-specific content. JSON/YAML data is a structured object; on parsing failure, check parse_error rather than assuming the file has no data.
-
-Artifact paths are relative to the task directory. If metadata has `artifacts.dataset.path` set to `data/features.parquet`, compose the full preview path as:
-
-```text
-etl/<ETL Task ID>/data/features.parquet
-```
+Use paths from current metadata.output_params.artifacts and resolve them inside the Task directory. Preview text, Markdown, JSON/YAML, CSV, JSONL and Parquet through preview_file. Structured previews and row pages have format-specific fields; inspect parse errors, truncation, row_count and has_more rather than assuming every file returns the same shape.
 
 ## Formats and limits
 
-| Format            | Returned content                                             | Limits                                                     |
-| ----------------- | ------------------------------------------------------------ | ---------------------------------------------------------- |
-| txt               | UTF-8 text prefix                                            | At most 512 KiB, marked truncated                          |
-| md / markdown     | Body and frontmatter                                         | Same as above; frontmatter_error recorded separately       |
-| json / yaml / yml | Parsed content and structured data                           | Limit notice returned above 32 MiB                         |
-| csv               | Column names and row window                                  | offset/limit control rows                                  |
-| parquet           | Columns, types, total rows, and row window                   | offset/limit control rows                                  |
-| jsonl / ndjson    | Parsed records with physical line numbers and per-row errors | Paged by lines; at most 512 KiB of content per page        |
-| Other extensions  | unsupported and size                                         | Models, archives, and images are not automatically decoded |
-
-Text is parsed as UTF-8 by default, with BOM support. Renaming a binary file to txt does not make it valid text.
-
-Studio's Workspace page previews supported files from any workspace directory. CSV, JSONL, and Parquet previews use 200-row windows; JSON, YAML, Markdown, and text use the same bounded preview interfaces. The workspace root title returns to the root. Symbolic links are displayed but cannot be opened. Unsupported formats display their size and a preview-unavailable message.
-
-![Workspace browser previewing a research artifact with fictional Playground data](../../figures/studio/workspace-preview.jpg)
-
-## Row pagination
-
-```bash
-axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
-  --offset 0 --limit 200
-axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
-  --offset 200 --limit 200
-```
-
-The path is only a typical raw-data example; first select an actual file with `list_entries`. offset is the number of data rows to skip, and limit ranges from 1–5000, defaulting to 200.
-
-These parameters apply to CSV/JSONL/Parquet; they are not JSON text byte offsets. Directory pagination also uses offset, but counts entries rather than data rows. Task logs use another interface whose offset is measured in bytes.
-
-For large research files, previews provide quick checks of Schema, dates, and a small sample; complete statistics should read the full file in a local script or research Task. The first screen alone cannot establish that the entire dataset has no missing values.
+`max_bytes` controls text, Markdown, JSON and YAML previews (up to 32 MiB); `offset` and `limit` page row formats, with at most 5000 rows. JSONL has its own 512 KiB page budget; `max_bytes` does not change it. CLI defaults are 20 rows/8192 bytes. JSONL retains malformed/incomplete lines with raw content and parse_error; valid rows include parsed data. A bounded preview is not a full artifact or a research-quality acceptance check.
 
 ## Clean up files and directories
 
-```bash
-axonx delete_entries --paths '["temporary/report.txt"]'
-```
-
-This is a deletion example; first confirm the path exists and is no longer needed. The interface accepts 1–200 paths at once, validates the selection first, then deletes the highest-level roots; selecting both a parent directory and child file does not delete the child twice.
-
-`delete_entries` is a general file capability and lacks TaskManager's active-task protection. Prefer `delete_tasks` when cleaning up an entire Task to avoid directly deleting a directory being written.
-
-The workspace root cannot be deleted, and directory deletion is recursive. Path restrictions prevent leaving the workspace but provide neither undo nor a recycle bin; back up artifacts you need to retain first.
+Use delete_entries with a JSON paths array. This general file capability has no active-Task process protection. Stop writers, check source identity and serialize against execution before deleting current Task directories. Deletion removes persistent/ too; it does not terminate a process or rebuild downstream outputs.
 
 ## Upload and subsequent consumption
 
-Plugin installation and synchronization use `/files` with raw binary or multipart uploads to stage artifacts, returning path, size, and sha256 in FileCopy. Receivers consume the returned workspace-relative path rather than the client's source path.
+POST /upload or HttpClient.copy_file stages one file under tmp. StagedFile contains path, size and absolute location. Install a target-side plugin using location; sync and cleanup use relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
 
-Uploads are not general directory mirroring. Clean up staging files after successful consumption; see [File transfer API](../api/workspace.md) for the specific process.
+## Troubleshooting
 
-## Troubleshoot display issues
+Confirm target, workspace root, exact relative path, response bounds and replica sampling/omissions. Research pages require standard metadata/artifact contracts, not just files with familiar names.
 
-| Symptom                        | Check                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------- |
-| File missing from listing      | Execution machine, workspace root, directory level, truncated               |
-| JSON has no structured data    | parse_error or file exceeds the structured preview budget                   |
-| Table only shows some rows     | offset, limit, Parquet row_count, and has_more                              |
-| Research page has no artifacts | Whether metadata exists and artifact path is relative to the Task directory |
-
-[Workspace concepts](../concepts/workspace.md) · [Research artifact protocol](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
-
-Source: [Directory operations](../../../axonx/workspace/browser.py), [Preview implementation](../../../axonx/workspace/preview.py), [Path constraints](../../../axonx/workspace/paths.py).
-
-JSONL preview preserves malformed or incomplete lines with `parse_error` and raw `content`, while valid rows include parsed `data`. Studio displays each row independently, supports previous/next pages, and marks byte-limited pages as truncated.
+Sources: [Workspace](../../../axonx/app/workspace/core.py), [previews](../../../axonx/app/workspace/preview.py), [uploads](../../../axonx/app/workspace/uploads.py).

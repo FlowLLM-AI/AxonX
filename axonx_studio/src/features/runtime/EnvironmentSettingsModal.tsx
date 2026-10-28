@@ -1,12 +1,3 @@
-import { playground } from "../../app/environment";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
 import {
   GitBranch,
   GitCommitHorizontal,
@@ -17,11 +8,20 @@ import {
   Tag,
   X,
 } from "lucide-react";
-import { machineStatus } from "../machines/api";
-import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import type { MachineNode } from "../machines/types";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
+import { playground } from "../../app/environment";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { formatMachineAddress } from "../../shared/lib/format";
+import type { MachineNode } from "./machine";
+import { machineStatus } from "./machine";
 
 export function EnvironmentSettingsModal({
   machine,
@@ -42,7 +42,7 @@ export function EnvironmentSettingsModal({
   const closeButton = useRef<HTMLButtonElement>(null);
   const [token, setToken] = useState("");
   const loadStatus = useCallback(
-    (signal: AbortSignal) => machineStatus(target, signal),
+    (signal: AbortSignal) => machineStatus({ target, signal }),
     [target],
   );
   const { data: info, loading, error } = useAsyncResource(loadStatus);

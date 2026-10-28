@@ -1,99 +1,33 @@
-# 工作区浏览与预览
-
-文件能力以配置的工作区为根，只接收工作区相对路径。先列目录定位记录，再预览格式，最后按需要清理。Studio 的工作区入口浏览配置的整个 `workspace_dir`，包括数据、Task 产物、Agent 文件、日志、插件与临时文件。目录按需加载，不限定数据源，也不采用数据源专属排序。
+# 工作区文件
 
 ## 浏览目录
 
 ```bash
-axonx list_entries
-axonx list_entries --path base
-axonx list_entries --path 'base/base#demo#add-01'
-axonx list_task_runs --task-type train
+axonx list_entries --path ''
+axonx list_task_directories --task-type base
+axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
 ```
 
-空 path 表示工作区根。目录列表优先展示目录，并按名称排序；单次最多 5000 项。truncated 为 true 时，将已读取条目数作为 offset 请求下一页；Studio 提供“加载更多条目”按钮。它不是递归文件树。
-
-`list_task_runs` 筛选所有生命周期状态中包含 metadata.json 的目录，应检查 `state` 区分运行、失败、取消和成功。
-
-路径不能借助绝对路径、`..` 或符号链接逃离工作区。目录项中可显示 symlink，但不应把它当成可预览的普通文件。
+路径相对于所选服务工作区。list_entries 按 offset 分页并限制列表大小。list_task_directories 选择类型目录中包含 metadata.json 的目录，不限制生命周期状态。Task ID 包含 #，shell 中应加引号。
 
 ## 预览记录与产物
 
-```bash
-axonx preview_file --path 'base/base#demo#add-01/events.jsonl'
-axonx preview_file --path 'base/base#demo#add-01/metadata.json'
-```
+使用当前 metadata.output_params.artifacts 的路径，在 Task 目录内解析。preview_file 支持文本、Markdown、JSON/YAML、CSV、JSONL、Parquet，各格式响应字段不同。检查 parse_error、截断、row_count、has_more，不假设所有文件返回相同形态。
 
-预览响应包含文件大小、格式类型和格式对应内容。JSON/YAML 的 data 是结构化对象；解析失败时应检查 parse_error，而不是直接假设文件无数据。
+## 格式与大小限制
 
-产物路径相对任务目录。若 metadata 中 `artifacts.dataset.path` 为 `data/features.parquet`，完整预览 path 应组合为：
+`max_bytes` 控制文本、Markdown、JSON 和 YAML 预览（最多 32 MiB）；`offset` 和 `limit` 控制行格式分页，每页最多 5000 行。JSONL 有独立的 512 KiB 页预算，不受 `max_bytes` 控制。CLI 默认 20 行/8192 字节。JSONL 保留错误/未完整行的原始 content 和 parse_error，正常行包含 data。有限预览不是完整产物，也不能代替研究质量验收。
 
-```text
-etl/<ETL Task ID>/data/features.parquet
-```
+## 清理文件和目录
 
-## 格式与限制
-
-| 格式              | 返回内容                     | 限制                             |
-| ----------------- | ---------------------------- | -------------------------------- |
-| txt               | UTF-8 文本前缀               | 最多 512 KiB，标记 truncated     |
-| md / markdown     | 正文与 frontmatter           | 同上，frontmatter_error 单独记录 |
-| json / yaml / yml | 解析内容与结构化 data        | 超过 32 MiB 返回限制提示         |
-| csv               | 列名与行窗口                 | offset/limit 控制行数            |
-| parquet           | 列、类型、总行数与行窗口     | offset/limit 控制行数            |
-| jsonl / ndjson    | 解析记录、实际行号和逐行错误 | 按行分页，每页最多 512 KiB 内容  |
-| 其他扩展名        | unsupported 与大小           | 不自动解码模型、压缩包或图片     |
-
-文本默认按 UTF-8（支持 BOM）解析。二进制文件改后缀为 txt 不会使其变成有效文本。
-
-Studio 的工作区页面可预览任意工作区目录内的支持格式文件。CSV、JSONL 与 Parquet 使用每页 200 行的窗口；JSON、YAML、Markdown 与文本使用相同的有界预览接口。点击工作区根节点标题可返回根目录。符号链接会显示但无法打开；不支持的格式显示文件大小和无法预览的提示。
-
-![工作区浏览器预览研究产物（Playground 虚构数据）](../../figures/studio/workspace-preview.jpg)
-
-## 行分页
-
-```bash
-axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
-  --offset 0 --limit 200
-axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
-  --offset 200 --limit 200
-```
-
-路径仅为常见原始数据示例，应先用 `list_entries` 选择实际文件。offset 是跳过的数据行数，limit 为 1–5000，默认 200。
-
-这些参数适用于 CSV/JSONL/Parquet，不是 JSON 文本的字节偏移。目录分页也使用 offset，但计数单位是目录条目而不是数据行。任务日志使用另一个接口，其 offset 是字节单位。
-
-研究大文件时，预览用于快速检查 Schema、日期和少量样本；完整统计应由本机脚本或研究 Task 读取完整文件。仅凭首屏不能判断全数据不存在缺失值。
-
-## 清理文件与目录
-
-```bash
-axonx delete_entries --paths '["temporary/report.txt"]'
-```
-
-这是删除示例，先确认路径存在且不再需要。接口一次接受 1–200 个路径，先验证选择，再删除最上层根；同时选择父目录和子文件时，不会重复删除子项。
-
-`delete_entries` 是通用文件能力，不具备 TaskManager 的活跃任务保护。清理整个 Task 应优先使用 `delete_tasks`，避免直接删除正在写入的目录。
-
-工作区根不允许删除，目录删除是递归删除。路径限制防止离开工作区，不等于撤销或回收站；需要保留的产物先备份。
+delete_entries 接受 JSON paths 数组。这是通用文件能力，不保护活动 Task 进程。删除当前任务目录前停止写入者，检查源身份，并与执行串行协调。删除也移除 persistent/，不会停止进程或重建下游输出。
 
 ## 上传与后续消费
 
-插件安装和同步使用 `/files` 以原始二进制或 multipart 格式暂存制品，返回 FileCopy 中的 path、size、sha256。接收方消费的是返回的工作区相对路径，而非客户端源路径。
+POST /upload 或 HttpClient.copy_file 在 tmp 暂存单文件。StagedFile 包含 path、size、绝对 location。目标机插件安装使用 location，同步和清理使用相对 path。上传不安装文件，插件安装不自动删除暂存文件。应在 finally 清理，详见[上传 API](../api/workspace.md)。
 
-上传不是通用目录镜像。消费成功后应清理暂存文件，具体过程见[文件传输 API](../api/workspace.md)。
+## 排障
 
-## 排查显示异常
+确认目标、工作区根、精确相对路径、响应限制和副本采样/省略。研究页面要求规范 metadata/产物契约，熟悉文件名本身不足以被识别。
 
-| 现象               | 检查                                                |
-| ------------------ | --------------------------------------------------- |
-| 文件不在列表中     | 执行机器、工作区根、目录层级、truncated             |
-| JSON 无结构化 data | parse_error 或文件超过结构化预览预算                |
-| 表格只显示部分行   | offset、limit、Parquet 的 row_count 与 has_more     |
-| 研究页没有产物     | metadata 是否存在、artifact path 是否相对 Task 目录 |
-
-[工作区概念](../concepts/workspace.md) · [研究产物协议](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
-
-源码：[目录操作](../../../axonx/workspace/browser.py)、[预览实现](../../../axonx/workspace/preview.py)、[路径约束](../../../axonx/workspace/paths.py)。
-
-JSONL 预览保留损坏或未写完的行，通过 `parse_error` 和原始 `content` 展示；有效行提供解析后的 `data`。Studio 独立展示每一行，支持上一页／下一页，并标记受到字节预算限制的页面。
+源码：[Workspace](../../../axonx/app/workspace/core.py)、[预览](../../../axonx/app/workspace/preview.py)、[上传](../../../axonx/app/workspace/uploads.py)。

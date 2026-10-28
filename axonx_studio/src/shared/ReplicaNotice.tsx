@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { DisplayReplica } from "./lib/replica";
+import type { DisplayReplica } from "./api/contracts";
 
 export function ReplicaNotice({
   replica,
@@ -35,7 +35,7 @@ export function ReplicaNotice({
           </time>
           <span
             className={
-              ["queued", "running"].includes(state || "") &&
+              ["running"].includes(state || "") &&
               Date.now() - Date.parse(replica.snapshot.captured_at) > 120_000
                 ? "replica-stale"
                 : ""

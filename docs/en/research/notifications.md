@@ -28,7 +28,7 @@ Select `send_dingtalk_task` in Studio, fill in Title, Text, and Message Type, th
 The following usage example sends an actual external message; run it according to your recipient configuration:
 
 ```bash
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX research completed' \
   --text '### Backtest completed\nView net returns, costs, and execution protocol for the corresponding Task in Studio.' \
   --message-type markdown
@@ -42,7 +42,7 @@ message=$(cat <<'MESSAGE'
 Check metadata and standard artifacts for the corresponding Task.
 MESSAGE
 )
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX research completed' --text "$message" --message-type markdown
 ```
 
@@ -50,7 +50,7 @@ For text mode, set `--message-type text`. `title` and `text` must each contain a
 
 ## Waiting and checking the response
 
-Save the returned TaskHandle and wait for its `task_id` and `run_id`. Successful output includes:
+Exec waits for the notification Task. Check its exit code and business delivery result before retrying; a timeout may leave delivery uncertain. Successful output includes:
 
 | Field                | Meaning                                                    |
 | -------------------- | ---------------------------------------------------------- |
@@ -63,9 +63,9 @@ These identifiers mean the API accepted the request and returned references; the
 
 Callers should first wait for the research Task's terminal state, then construct a message with Task ID, date range, and result location. Failure notifications should use actual errors and logs. Do not describe “submission accepted” as “backtest succeeded.”
 
-A notification is another independent Task. To record relationships, pass the research task in `source_tasks` as lineage information. However, the notification implementation does not proactively read upstream results or automatically generate research summaries.
+A notification is another independent Task. To record relationships, pass the research task in `upstream_task_ids` as lineage information. However, the notification implementation does not proactively read upstream results or automatically generate research summaries.
 
-There is currently no unified built-in switch to notify on all task completions. Scheduled Jobs can submit notification tasks, but research-task waiting and message construction still require explicit orchestration.
+There is currently no unified built-in switch to notify on all task completions. Cron can launch a local notification `exec` command. To wait for research completion and construct a message, implement a parent Task or a host workflow explicitly.
 
 ## Failures and duplicate sends
 

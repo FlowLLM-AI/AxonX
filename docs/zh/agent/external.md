@@ -27,7 +27,7 @@ Skill 使用绝对文档和源码 URL，可以独立复制。示例源码路径�
 axonx version
 axonx machine_status
 axonx plugin list
-axonx get_task_definition --task demo
+axonx get_task_def --task demo
 ```
 
 `plugin list` 不指定目标时查询当前 Python 环境。若 CLI 环境与服务环境不同，显式指定服务地址查询其插件，并配置相应 `AXONX_TARGET_TOKEN`。
@@ -39,7 +39,7 @@ export AXONX_TARGET_TOKEN='<目标服务 token>'
 axonx version --target 192.0.2.10:1024
 axonx machine_status --target 192.0.2.10:1024
 axonx plugin list --target 192.0.2.10:1024
-axonx get_task_definition --task demo --target 192.0.2.10:1024
+axonx get_task_def --task demo --target 192.0.2.10:1024
 ```
 
 替换示例地址。直连无需启动本机服务；显式 `--target` 即使指向本机，也默认使用 `AXONX_TARGET_TOKEN`。完整连接规则见[客户端配置](../reference/client-configuration.md)。
@@ -47,22 +47,11 @@ axonx get_task_definition --task demo --target 192.0.2.10:1024
 ## 完成一次执行与证据检查
 
 ```bash
-axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
+axonx exec --task demo --task-name agent-check --x 2 --y 3 --target 192.0.2.10:1024
+axonx status --task-id 'base#demo#agent-check' --detail full --target 192.0.2.10:1024
 ```
 
-保存响应中的实际 `answer.task_id` 与 `answer.run_id`，检查 `success`，再等待本次运行：
-
-```bash
-axonx wait_task --task-id '<task_id>' --run-id '<run_id>' \
-  --client-timeout 120 --target 192.0.2.10:1024
-axonx status --task-id '<task_id>' --target 192.0.2.10:1024
-axonx read_task_log --task-id '<task_id>' --target 192.0.2.10:1024
-axonx get_task_context --task-id '<task_id>' --target 192.0.2.10:1024
-```
-
-先确认终态为 `succeeded`，再读取 metadata 与其中声明的产物。查询 `success=true` 表示查询成功，提交 `success=true` 表示已受理，两者都不能代替 Task 成功。读取文件用[工作区相对路径](../guides/workspace-files.md)，预览的分页内容不等于完整数据集。
-
-默认省略 `task_name`，让框架生成实例名。显式复用名称会替换已结束任务的记录与产物，见[任务生命周期](../concepts/task-lifecycle.md)。
+Exec 等待并输出业务结果，检查进程退出码、Task 状态、started_at 和输出。日志、关系和产物检查保持相同目标。远程 cli Job 拥有执行连接，取消可能停止其进程组。重试不确定请求前检查 Task 记录。远程插件部署遵循显式[构建/上传/安装/清理流程](../plugins/management.md)。
 
 ## 给 Agent 一个具体研究目标
 
@@ -74,6 +63,6 @@ Agent 开发实验应先按[实验设计与确认](../research/experiments.md)�
 
 ## 完成时报告什么
 
-报告执行目标、真实 Task/Run ID、终态、参数与产物位置，以及支持结论的指标和口径。失败时报告实际错误及已完成阶段；尚在运行或未取得完整产物时说明检查范围。
+报告执行目标、实际 Task ID 与 metadata `started_at`、终态、参数与产物位置，以及支持结论的指标和口径。失败时报告实际错误及已完成阶段；尚在运行或未取得完整产物时说明检查范围。
 
 开发实现遵循[贡献指南](../../../CONTRIBUTING_ZH.md)和 [Task 契约](../reference/task-contracts.md)。命令字段见 [CLI 参考](../reference/cli.md)，工具发现与响应处理见 [MCP 接入](mcp-integration.md)。

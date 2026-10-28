@@ -4,22 +4,9 @@ from collections.abc import Sequence
 from typing import Any
 
 import polars as pl
-from pydantic import field_validator
 
-from ....enums import TaskType
-from ...contracts import BaseETLOutputParams
-from ...schemas.protocol import task_protocol
-from .protocol import validate_feature_protocol
-
-
-class StockETLOutput(BaseETLOutputParams):
-    protocol: dict
-
-    @field_validator("protocol")
-    @classmethod
-    def validate_etl_protocol(cls, value):
-        return validate_feature_protocol(value)
-
+from ...models.artifacts import task_protocol
+from ...models.identity import TaskType
 
 KEYS = ("trade_date", "trade_time", "ts_code")
 LABEL_COLUMNS = (

@@ -1,188 +1,91 @@
 # CLI 参考
 
-AxonX 的命令格式是 `axonx ACTION --field value`。start、exec、plugin 在本地处理；其他 ACTION 是服务 Job 名。先配置连接 token，再根据 [公开目录](../api/overview.md) 选择 Job。
+## 命令职责
 
-## 命令分工
+| 命令                    | 执行位置           | 结果                         |
+| ----------------------- | ------------------ | ---------------------------- |
+| `axonx`、`--help`、`-h` | 本地离线           | CLI 语法                     |
+| `app`                   | 本地 Daemon 与服务 | 前台监督应用服务             |
+| `exec --task NAME`      | 当前 CLI 进程      | 业务结果 JSON 和 Task 退出码 |
+| `kill --task-id ID`     | 当前 CLI 环境      | 停止执行后的 Task metadata   |
+| `plugin …`              | 当前 Python 环境   | 插件信息或安装结果           |
+| 已配置的 Job 名         | 所选服务           | `JobResponse` JSON 或事件流  |
 
-| 命令         | 执行位置              | 用途                                       |
-| ------------ | --------------------- | ------------------------------------------ |
-| axonx start  | 当前进程              | 启动配置中的服务                           |
-| axonx exec   | 当前进程              | 执行同步 Task；无参数时列目录              |
-| axonx submit | 所连服务的 worker     | 通过 submit Job 异步提交                   |
-| axonx JOB    | 所连服务              | 普通或流式 Job 调用                        |
-| axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载                 |
-| axonx help   | 所连服务              | 发现公开 Jobs；用 `--job NAME` 查询 schema |
-
-exec 不要求服务运行；submit 需要服务。进程隔离不构成安全沙箱。
+显式 `--target HOST:PORT` 通过目标服务的 `cli` Job 转发原生命令（`app`、`exec`、`kill`、`plugin`）。远端 CLI 拒绝 `app`、嵌套 `cli` 和继续转发到其他目标。普通 Job 直接连接所选服务。
 
 ## 能力发现与环境诊断
 
 ```bash
-axonx --help
-axonx help --target node-b:1024
-axonx help --job python --target node-b:1024
-axonx diagnose --target node-b:1024
+axonx help
+axonx help --job cli
+axonx diagnose
+axonx exec
+axonx list_task_defs --include-schemas false
+axonx get_task_def --task demo
 ```
 
-`--help`、`-h` 和无参数调用只显示本地语法，不依赖服务。`help` 是普通服务 Job，返回公开 Job 名称与描述；传 `--job NAME` 返回一个 Job 的实际输入输出 schema。隐藏或不可用的 Job 无法查询。此变更有意替换原本地 `axonx help` 行为；离线请使用 `axonx --help`。`diagnose` 只读查询服务构建、解释器、workspace 磁盘、资源、已安装插件指纹、错误和待重启状态。支持的凭据变量只返回布尔值。详见[机器 API](../api/machines.md)。
+不带参数的 `exec` 离线列出当前解释器中的 Task。定义查询 Job 描述常驻服务的目录快照。新的 CLI 进程重新发现已安装插件；常驻服务需要重启才能重新读取注册快照和已缓存的类。
 
 ## 启动与配置覆盖
 
 ```bash
-axonx start
-axonx start --config app.yaml
-axonx start --config app.yaml --service.port 2024 --service.web-enabled false
-axonx start --workspace-dir .axonx --log-dir logs
+axonx app --config default
+axonx app --config app.yaml --service.port 2024
 ```
 
-没有 --config 时 resolver 读取 default；配置文件继承、环境展开和合并见 [服务端配置](configuration.md)。客户端 --target/--client-timeout 不能用于 start 或 exec。
+点号参数构造嵌套字典。配置支持 `extends`、字典递归合并和列表整体替换，详见[配置参考](configuration.md)。
 
-## Task 执行与提交
+## 任务执行与观察
 
 ```bash
-axonx exec
-axonx exec --task demo --x 1 --y 2
-axonx exec --task demo --x 1 --y 2 --task-name local-demo
-
-axonx list_installed_task_definitions
-axonx get_task_definition --task demo
-axonx submit --task demo --x 1 --y 2 --task-name cli-demo
+axonx exec --task demo --task-name check --x 1 --y 2
+axonx status --task-id 'base#demo#check' --detail full
+axonx wait_task --task-id 'base#demo#check' --client-timeout 600
+axonx kill --task-id 'base#demo#check' --timeout 5 --force false
 ```
 
-submit 输出通用 JobResponse；保存 answer.task_id 与 answer.run_id，替换下方占位：
+`exec` 同步执行。服务不可连接时可使用默认执行配置；认证、协议或 `get_config` 失败均报错。共享执行选项为 `workspace_dir`、`log_dir`、`timezone`、`execution_target`、`log_to_console`、`log_to_file` 和 `environment.KEY`。优先级为显式 CLI 参数 > 服务 `get_config` > 默认值。显式环境变量按键合并。
 
-```bash
-axonx wait_task --task-id 'base#demo#cli-demo' \
-  --run-id YOUR_RETURNED_RUN_ID --client-timeout 600
-axonx status --task-id 'base#demo#cli-demo'
-axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
-```
-
-wait_task 的最终 success 取决于任务是否 succeeded。submit 成功只表示接受并启动，不能立即假定 output_params 已准备或任务已成功。固定名称重跑会替换终态目录，活跃任务不能覆盖。
+远程执行添加 `--target HOST:PORT` 并设置 `AXONX_TARGET_TOKEN`。原生命令实时传输 stdout/stderr，保留目标进程退出码。`--client-timeout` 控制连接，不是 Task 业务截止时间。中断远程命令请求可能终止它拥有的进程组，重试前先检查 metadata。
 
 ## 轻量查询默认值
 
-| 查询                                       | CLI 默认返回                                  | 显式查询详情                                                              |
-| ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
-| `list_schedules`                           | 配置与状态，不含历史和最近 Job 结果           | `--name NAME --include-history true --history-limit 10`（1–200，默认 20） |
-| `list_task_statuses`                       | 所有传输方式默认摘要                          | `--detail full`；支持 `--task-type`、`--state` 过滤                       |
-| `status`、`wait_task`                      | Task/Run ID、状态、进度及管理归属摘要         | `--detail full` 查询输入、输出、子任务、产物及完整错误                    |
-| `list_installed_task_definitions`          | 注册信息，不生成 schema                       | `--include-schemas true`，或查询单个 `get_task_definition`                |
-| `read_task_log`                            | 末尾 8,192 字节                               | 显式 `--limit`（最多 262144）；绑定 `--run-id`                            |
-| `preview_file`                             | 20 行；文本/Markdown/JSON/YAML 字节预算 8,192 | `--limit`（最多 5000）、`--max-bytes`（最多 33554432）                    |
-| `list_agent_sessions`、`get_agent_session` | 20 条记录                                     | 显式 `--limit` 和 `--offset`                                              |
-
-这些有意调整的查询默认值不改变任务执行和持久化记录。HTTP/MCP 的 `status`、`wait_task` 默认仍为完整快照，Task 目录默认仍生成 schema。结构化文件被截断时只返回标记为部分内容的 UTF-8 前缀，不解析不完整的 JSON/YAML；检查 `truncated` 与 `parse_error`。CSV/JSONL/Parquet 使用行分页，与 `max_bytes` 独立。
-
-```bash
-axonx list_schedules --name daily --include-history true --history-limit 10
-axonx status --task-id 'base#demo#cli-demo' --detail full
-axonx list_task_statuses --detail full --state failed
-```
-
-确认启动时轮询 `status`，核对返回的 Run ID、`queued`/`running` 状态与日志。`wait_task` 等待终态，短客户端超时不用于确认启动，也不会取消 Task。传输失败后保留原 ID，先查询再决定是否重新提交。HTTP 传输错误会标明异常类型、目标、接口和超时配置；HTTP 超时是各操作或无数据等待的限制，不是整个 Task 的截止时间。
+CLI 的 `status`、`wait_task` 默认请求 `detail=summary`；文件预览默认 20 行、8192 字节；Agent 列表和历史默认 20 项。显式参数优先。Job 自身默认值可能不同，使用 `help --job NAME` 查询。
 
 ## 参数与值转换
 
-参数必须成对传递；布尔值也必须有值。连字符转下划线，点号建立嵌套字典。
-
-```bash
-axonx submit --task demo --x 1 --y 2 --fail false
-axonx start --service.port 2024
-axonx delete_tasks --task-ids '["base#demo#cli-demo"]'
-axonx delete_entries --paths '["tmp/example.txt"]'
-```
-
-CLI 自然值转换依次识别 null/none、布尔、整数/浮点、JSON，最后保留字符串。以零开头的数字避免直接数值转换，例如 000001 保留字符串。对象和数组建议单引号包裹合法 JSON，JSON 内使用双引号。
-
-需要强制保留数字文本时用 JSON 字符串：
-
-```bash
-axonx agent_chat --message '"123"'
-```
-
-此处实际 message 是字符串 123；写 `--message 123` 会变成数字，并在字符串 Schema 下失败。空字符串可写 `--path ''`；#、空格、JSON 都建议引号。相同字段重复、父字段与嵌套字段冲突、缺值、`key=value` 与 `--field=value` 都不属于普通 Job 参数的合法写法。
+使用 `--field value` 参数对。连字符转为下划线，点号生成嵌套字典。值会转换布尔值、null、数字、JSON 数组/对象和 JSON 引号包围的字符串。shell 中应引用包含 `#` 的 Task ID 和 JSON 数组。使用 `--upstream-task-ids '["etl#name#instance"]'` 声明依赖，不会自动执行上游。CLI `exec` 也接受逗号分隔的上游 ID。
 
 ## 客户端选项
 
-| 选项             | 默认值                  | 含义                 |
-| ---------------- | ----------------------- | -------------------- |
-| --target         | null，默认连接本机 1024 | 直接连接目标服务     |
-| --token          | null                    | 显式 Bearer token    |
-| --client-timeout | 60                      | 请求预算，必须大于 0 |
-| --stream         | false                   | 改用 SSE 入口        |
-| --stream-format  | blocks                  | blocks 或 json       |
+`--target`、`--token`、`--client-timeout`、`--stream`、`--stream-format` 属于连接和显示选项，不是 Job 入参。默认超时 60 秒。地址必须包含端口，可使用 HTTP(S)，不允许路径、查询参数和内嵌凭据。本地 CLI 默认读取 `AXONX_SERVICE_TOKEN`，显式 target 读取 `AXONX_TARGET_TOKEN`；Python 客户端需显式传 token。
 
-客户端选项可在 ACTION 前或后，但不能重复；不会进入 Job arguments。
+## 流式输出
 
 ```bash
-axonx --target node-b:1024 version --token your-target-token
-axonx version --target node-b:1024 --client-timeout 120
+axonx stream_task --task-id 'base#demo#check' --stream true --stream-format json
+axonx agent_chat --message '检查工作区' --stream true
 ```
 
-没有显式 token 时，无 target 读 AXONX_SERVICE_TOKEN，有显式 target 读 AXONX_TARGET_TOKEN。见 [客户端连接配置](client-configuration.md)。
-
-## 流输出
-
-```bash
-axonx stream_task --task-id 'base#demo#cli-demo' \
-  --stream true --stream-format blocks --client-timeout 600
-axonx agent_chat --message '查看当前工作区的任务状态' \
-  --stream true --stream-format json --client-timeout 600
-```
-
-blocks 适合终端阅读；json 每行一个事件模型 JSON，可供程序处理。最终 result 的 success 决定退出码。中断消费者不等于取消后台研究 Task；明确取消：
-
-```bash
-axonx cancel --task-id 'base#demo#cli-demo'
-axonx cancel --run-id '<run_id>'
-```
-
-使用 `--task-id` 取消当前执行，或用 `--run-id` 精确取消某次执行。至少提供一个 ID；同时提供两个 ID 时，不匹配则返回 false。
+普通 Job 默认返回一次响应。流式调用使用 `/jobs/NAME/events`；`blocks` 便于阅读，`json` 每行一个事件。终态 `result` 包含 `success`、`answer`、`metadata`。远程原生命令始终传输进程输出，不依赖 `--stream` 开关。
 
 ## 插件子命令
 
-plugin 使用 argparse 子语法，包含位置参数和 `-e` 布尔开关；它是普通成对 Job 选项规则的独立例外。
-
 ```bash
 axonx plugin list
-axonx plugin show axonx-example
-axonx plugin inspect ./plugins/example
-axonx plugin inspect ./dist/axonx_example-0.1.0-py3-none-any.whl
-axonx plugin build ./plugins/example --output ./dist
-axonx plugin install ./plugins/example
-axonx plugin install -e ./plugins/example
-axonx plugin uninstall axonx-example
+axonx plugin show DISTRIBUTION
+axonx plugin inspect ./plugins/qlib_a158
+axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
+axonx plugin install -e ./plugins/qlib_a158
+axonx plugin uninstall DISTRIBUTION
 ```
 
-没有显式 target 时插件操作针对当前 Python 环境，不默认连接本机 HTTP 服务。有显式 target 时 list、show、inspect、install、uninstall 针对服务环境；远程 install 的源目录或 wheel 在客户端先构建/检查再上传。
-
-```bash
-axonx plugin list --target node-b:1024
-axonx plugin install ./plugins/example --target node-b:1024
-```
-
-build 只在本地，不能配远程 target。editable 只支持本地源码目录，不能配 target 或 output；已有 wheel 不能配 output。远程安装客户端超时至少 300 秒。通过远程安装 Job 更新仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启。查看 restart_required：Component/Job 和被替换的依赖仍可能要求重启服务。
+使用 `--target` 时，路径在目标机解释，不会自动传输本地文件。从本机部署到远程必须显式构建 wheel、上传、用返回的绝对 `location` 安装，再用相对 `path` 清理。详见[插件部署](../plugins/management.md)。editable 需要执行机器上已有源码目录，不能与 `--output` 同用。
 
 ## 输出与退出码
 
-| 退出码 | 情况                                                                   |
-| ------ | ---------------------------------------------------------------------- |
-| 0      | JobResponse.success=true，或本地操作成功                               |
-| 1      | 业务失败、连接/运行错误；exec 可使用 Task 的具体退出码                 |
-| 2      | 主 CLI 的 FileNotFoundError、KeyError、TypeError、ValueError；参数错误 |
-
-普通 Job 打印完整 JSON；exec 打印 Task 输出而不是 JobResponse。失败时 stderr 可能含 `Error: 类型: 信息`。脚本应检查退出码，同时保留完整 response，区分“提交失败”与“任务后续失败”。
-
-## 相关文档
-
-- [快速开始](../getting-started/quickstart.md)
-- [任务 API](../api/tasks.md)
-- [插件管理](../plugins/management.md)
-- [现有开发速查](../dev_guide.md)
-
-实现依据：`axonx/cli/parser.py`、`main.py`、`constants.py`、`plugin_kit/cli.py`。
+Job 成功返回 0，失败返回 1。CLI 输入错误返回 2，其他执行错误返回 1。`exec` 输出业务结果并返回 Task 退出码。远程原生命令保留退出状态，负信号状态转换为 `128 + signal`。HTTP 成功不代表 Task 成功。
 
 ## 服务自更新
 
-[服务自更新](../guides/self-update.md)
+按服务配置调用 `update_from_git`、`update_from_pip`、`restart_service`、`get_update_status`。操作要求认证和 Daemon 支持，不接受 `force` 参数。详见[服务自更新](../guides/self-update.md)。

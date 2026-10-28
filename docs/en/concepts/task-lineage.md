@@ -1,85 +1,48 @@
 # Task Dependencies and Lineage
 
-AxonX uses `source_tasks` to record which upstream Tasks a task references. Lineage graphs help trace relationships between data, models, predictions, and backtests; each stage still requires explicit submission and confirmation of completion.
+The dependency graph records declared input references. Parent/child metadata records synchronous invocations separately. These records provide evidence of relationships; callers still execute stages and validate data compatibility.
 
-![Task lineage diagram](../../figures/concepts/lineage.svg)
+![Task lineage](../../figures/concepts/lineage.svg)
 
-## Passing Upstream Identities
+## Passing upstream identities
 
-All BaseInputParams have `source_tasks`, a string of Task IDs separated by commas:
+All BaseInputParams contain a list of canonical Task IDs:
 
 ```json
 {
   "task_name": "prediction-01",
-  "source_tasks": "etl#my-etl#dataset-01,train#my-train#model-01"
+  "upstream_task_ids": ["etl#my-etl#dataset-01", "train#my-train#model-01"]
 }
 ```
 
-This is a string, not a JSON array or file path. Parsing validates Task ID format and normalizes the content. Plugins can also use `source_task(TaskType.TRAIN)` to require exactly one upstream Task of a specified type; missing or multiple matches raise errors.
+Python/HTTP inputs use a JSON array. CLI exec accepts that array or comma-separated IDs. Names must be canonical and unique; the Task cannot depend on itself. Pass each child Task's upstream IDs explicitly. Declaring an upstream does not run it or validate its business compatibility.
 
-The following only illustrates parameter combinations. `my-predict` is an example registered name; first substitute the actual definition and required parameters from an installed plugin:
+## Where the graph comes from
 
-```bash
-axonx get_task_definition --task '<registered name of an installed prediction Task>'
-axonx submit --task '<registered name of an installed prediction Task>' \
-  --task-name prediction-01 \
-  --source-tasks 'etl#my-etl#dataset-01,train#my-train#model-01'
-```
+`get_task_graph` builds edges only from `metadata.input_params.upstream_task_ids`. It returns the connected input-dependency component, including missing referenced upstreams. Nodes are `provisional` while their state is not `succeeded`. `parent_task_id` and `children` describe in-process invocations in metadata and do not add graph edges. A parent with no declared input dependencies may therefore appear alone even when it has executed children.
 
-The base protocol validates ID format, but does not verify that upstream directories exist, that runs succeeded, that data definitions agree, or that a model is applicable. Each Task should validate required files and metadata when reading them.
-
-## Where the Graph Comes From
-
-Lineage is always read from `metadata.input_params.source_tasks`. A recorded reference does not certify data quality or compatibility.
-
-| Field              | Meaning                                           |
-| ------------------ | ------------------------------------------------- |
-| `parent_ids`       | Declared upstream Task IDs                        |
-| `provisional=true` | The Task has not reached `state=succeeded`        |
-| `missing=true`     | The referenced Task has no valid current metadata |
-
-## Querying and Inspecting
+## Querying and inspecting
 
 ```bash
 axonx get_task_graph --task-id 'predict#my-predict#prediction-01'
 axonx get_task_context --task-id 'predict#my-predict#prediction-01'
 ```
 
-Studio's task lineage entry lets you select nodes, inspect related tasks, and navigate to results. To confirm a node precisely, inspect its metadata state and artifacts; an edge only shows that a reference was recorded.
+Inspect actual metadata, start times and artifacts when following an edge. A fixed name can now refer to replaced inputs; pin verified revisions before consumption.
 
-The following uses two built-in demo tasks to illustrate the records. The parameter snapshot for `docs-child` explicitly sets `source_tasks=base#demo#docs-demo` while using its own x=5 and y=5.
-
-![docs-child references docs-demo in the English Studio parameter snapshot](../../figures/studio/task-config.png)
-
-The Relationships section therefore shows `docs-demo` → `docs-child`. This traceability relationship results from the user submitting two Tasks separately. The demo calculation uses only its own x/y; source_tasks does not automatically read upstream results or schedule downstream execution.
-
-![Two demo tasks and their reference edge in the English Studio relationship graph](../../figures/studio/task-lineage.png)
-
-When investigating backtest anomalies, usually work upstream from Backtest to Predict dates, then Train model configuration, and finally the ETL data window. The same registered name does not imply the same configuration, and the same type does not imply the same data version.
-
-## Reading Upstream Tasks in Plugins
+## Reading upstream Tasks in plugins
 
 ```python
-from axonx.enums import TaskType
+from axonx.task.models.identity import TaskType
 
-train_id = self.input_params.source_task(TaskType.TRAIN)
-train_dir = self.source_task_dir(train_id)
+train_id = self.input_params.upstream_task_id(TaskType.TRAIN)
+train_dir = self.upstream_task_dir(train_id)
 ```
 
-`source_task_dir()` locates that Task's directory in the local workspace. It does not automatically download upstream tasks from a remote machine or execute unfinished tasks. Read artifacts using relative paths from metadata and verify that files exist.
+The helper requires exactly one matching upstream type. Locating a directory neither downloads nor executes it. Use storage.inputs helpers to read metadata, validate paths and pin artifacts. Missing/failed/incompatible data is a consumer error, not resolved by a graph edge.
 
-Before executing downstream tasks on another machine, explicitly place the required terminal upstream directories on the execution machine and install compatible plugins. Passing upstream IDs to a remote service does not migrate their artifacts.
+## Naming and deletion
 
-## Effects of Naming and Deletion
+Use distinct instances for reproducible experiments and retain input/model revisions. Deletion does not cascade; downstream records may show missing upstreams. Display replicas can support inspection but cannot supply executable research inputs.
 
-Rerunning a fixed name reuses the Task ID and replaces its directory. Existing downstream tasks still reference the same ID, but upstream content may have changed. For traceable experiments, use distinct instance names and retain parameters and artifact checksums.
-
-After upstream deletion, downstream records may remain, with missing nodes in the graph. Deletion does not cascade to all descendants or guarantee that descendants can rerun. Before cleaning up experiments, inspect connected relationships and back up results you need to reuse.
-
-Self-references do not create valid graph edges; invalid relationships may be ignored during tolerant reads. Do not treat the lineage graph as a complete research logic validator or a cycle detection report.
-
-## Related Documentation
-
-[Task Management](../guides/task-management.md) · [Research Workflow](../research/workflow.md) · [Workspace](workspace.md) · [Task Contracts](../reference/task-contracts.md)
-
-Source: [source_tasks rules](../../../axonx/task/core/identity.py), [Input models](../../../axonx/task/core/params.py), [Relationship graph](../../../axonx/task/query/graph.py).
+Sources: [identity rules](../../../axonx/task/models/identity.py), [input models](../../../axonx/task/models/params.py), [graph](../../../axonx/app/components/task_index/query.py).

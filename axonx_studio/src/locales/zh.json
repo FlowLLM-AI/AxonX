@@ -9,7 +9,6 @@
     "filePreview": "文件预览",
     "dataPreview": "数据预览",
     "apiCall": "接口调用",
-    "configureSubmit": "参数与提交",
     "openSettings": "打开设置",
     "settings": "设置",
     "expandNavigation": "展开导航",
@@ -27,7 +26,7 @@
       "tasks": "全部任务",
       "resources": "机器资源",
       "agent": "智能体",
-      "taskDefs": "提交任务",
+      "taskDefs": "任务定义",
       "apis": "API接口",
       "workspace": "工作区",
       "etl": "ETL",
@@ -37,13 +36,11 @@
       "backtest": "离线回测",
       "compare": "策略对比"
     },
-    "switchLanguageLabel": "EN"
-  },
-  "pages": {
-    "submit": "提交任务"
+    "switchLanguageLabel": "EN",
+    "taskDefinitions": "任务定义"
   },
   "taskTitle": "任务运行中心",
-  "taskLead": "观察每一次计算，从排队到产出。",
+  "taskLead": "查看任务记录、状态、进度与日志。",
   "refresh": "刷新",
   "refreshNow": "立即刷新",
   "autoRefresh": "自动刷新",
@@ -53,8 +50,6 @@
   "allTypes": "全部类型",
   "active": "进行中",
   "succeeded": "已成功",
-  "attention": "需关注",
-  "taskId": "TASK ID",
   "type": "类型",
   "state": "状态",
   "progress": "进度",
@@ -69,52 +64,28 @@
     }
   },
   "details": "详情",
-  "cancel": "终止任务",
-  "cancelling": "终止中",
   "copyTaskId": "复制 Task ID",
   "copied": "已复制",
-  "selectAll": "选择全部可删除任务",
-  "selectTask": "选择任务 {{taskId}}",
-  "enableMultiSelect": "开启多选",
-  "finishSelection": "完成多选",
-  "selectedCount": "已选 {{count}} 项",
-  "deleteConfirm": "确定彻底删除选中的 {{count}} 个任务？",
-  "deleteHint": "任务目录、状态、产物及其独占日志会一并删除。",
-  "confirmDelete": "确认删除",
-  "deleting": "删除中",
-  "deletePartial": "仅删除了 {{deleted}}/{{total}} 条记录，其余任务可能仍在运行或已不存在",
   "noTasks": "暂无运行记录",
-  "noTasksHint": "提交一个 Task 后，状态会自动出现在这里。",
+  "noTasksHint": "在任务定义页面运行任务后，可在此查看运行记录。",
   "noMatches": "没有符合筛选条件的任务",
   "requestFailed": "无法读取任务状态",
   "staleHint": "当前显示最近一次成功获取的数据。",
   "retry": "重试",
   "taskDetails": "Task 详情",
-  "close": "关闭",
   "steps": "执行步骤",
   "result": "输出结果",
   "error": "错误信息",
   "notStarted": "尚未开始",
-  "cancelConfirm": "确定终止这个运行中的 Task？",
-  "confirmCancel": "确认终止",
-  "cancelFailed": "任务终止失败：进程可能已退出或不再由当前服务管理",
-  "submitTitle": "启动一个新任务",
-  "submitLead": "选择已安装的 Task，配置参数，然后交给 AxonX 独立执行。",
   "taskCatalog": "已安装 TASK",
   "tasksAvailable": "{{count}} 个可用",
   "findTask": "搜索已安装 Task",
   "nativeTasks": "原生任务",
   "pluginTasks": "插件任务",
-  "configure": "运行配置",
   "output": "预期输出",
   "required": "必填",
   "optional": "选填",
-  "choose": "请选择",
   "jsonHint": "请输入合法 JSON",
-  "submit": "提交运行",
-  "submitting": "正在提交",
-  "submitted": "任务已交给 AxonX",
-  "submittedHint": "工作进程启动后，运行状态会自动出现在任务管理页。",
   "viewTasks": "查看任务状态",
   "catalogFailed": "无法读取已安装的 Task",
   "noInstalled": "没有发现已安装的 Task",
@@ -125,18 +96,10 @@
   "memoryCapacity": "总内存",
   "online": "在线",
   "onlinePipeline": {
-    "title": "在线链路",
-    "lead": "按交易日跟踪在线任务的数据采集、模型推理和运行日志。",
     "refresh": "刷新",
-    "demo": "合成数据预览 · 所有数据和结果均为虚构。",
-    "search": "搜索运行记录",
-    "empty": "暂无在线任务。运行在线复合任务后在这里查看进展。",
+    "empty": "暂无在线任务。运行在线任务后在这里查看进展。",
     "pending": "尚未发布窗口报告。",
     "openTask": "任务详情",
-    "runState": "任务状态",
-    "outcomes": "已记录结果",
-    "complete": "完成 / 一致",
-    "model": "固定模型",
     "comparisons": "预测比对",
     "windows": "执行窗口",
     "coverage": "覆盖率",
@@ -147,14 +110,12 @@
       "api": "实时采集",
       "inference": "在线推理",
       "analysis": "预测比对",
-      "composite": "在线任务"
+      "base": "任务"
     },
     "status": {
-      "queued": "排队中",
       "running": "运行中",
       "succeeded": "已完成",
       "failed": "失败",
-      "cancelled": "已取消",
       "done": "完整",
       "skipped": "已跳过",
       "incomplete": "不完整",
@@ -200,20 +161,16 @@
       "source_data_revised": "源数据发生修订"
     },
     "collection": "数据采集",
-    "models": "模型推理",
     "scheduled": "计划时间（上海）",
     "deadline": "截止时间（上海）",
     "updated": "最近更新（上海）",
     "files": "已提交文件",
     "logSource": "日志来源",
     "chainLog": "整条链路",
-    "replacedRun": "所选任务已有新的运行记录，请重新选择需要查看的运行。",
-    "replacedChildRun": "此子任务已再次运行，旧运行的详情与日志已不可用。",
+    "restartedTask": "所选任务已有新的运行记录，请重新选择需要查看的运行。",
+    "replacedChild": "此子任务已再次运行，旧运行的详情与日志已不可用。",
     "replacedChildren": "{{count}} 个子任务已再次运行，旧运行的详情与日志不可用；已提交结果仍可查看。",
     "closed": "当日休市，未启动采集和推理。",
-    "collectionHint": "按配置时点采集；请求完成数与有效数据覆盖率分别展示，文件通过校验并提交后才列出。",
-    "published": "本次信号已发布：{{date}} {{time}}",
-    "previousPublication": "展示此前发布的信号：{{date}} {{time}}",
     "phases": {
       "download": "下载中",
       "validation": "校验中",
@@ -239,15 +196,9 @@
       "stocks": "证券"
     },
     "remaining": "距截止 {{seconds}} 秒",
-    "stageDetails": "执行阶段与信号结果",
-    "currentAction": "当前进展",
-    "nextSignal": "下个信号",
     "refreshHint": "每 60 秒刷新",
     "changedSnapshot": "同步快照已更新，等待下一次刷新。",
-    "history": "历史准备",
-    "download": "公共数据准备",
-    "nightly": "夜间复核",
-    "modelStages": "模型流程"
+    "nightly": "夜间复核"
   },
   "offline": "离线",
   "cpuUsage": "CPU 使用率",
@@ -264,15 +215,12 @@
   "gpuUtilization": "计算使用率",
   "gpuMemory": "显存使用率",
   "states": {
-    "queued": "排队中",
     "running": "运行中",
     "succeeded": "成功",
-    "failed": "失败",
-    "cancelled": "已取消"
+    "failed": "失败"
   },
   "types": {
     "base": "基础",
-    "composite": "复合",
     "api": "API 数据下载",
     "etl": "数据处理",
     "analysis": "分析",
@@ -280,15 +228,6 @@
     "predict": "预测",
     "inference": "在线推理",
     "backtest": "回测"
-  },
-  "submitPage": {
-    "selectTask": "选择一个 Task",
-    "selectTaskHint": "查看说明、配置参数并提交运行",
-    "submitAnother": "再提交一次",
-    "loadingCatalog": "正在加载 Task 目录…"
-  },
-  "schemaForm": {
-    "sourceTasksPlaceholder": "多个 Task ID 用英文逗号分隔，可留空"
   },
   "machine": {
     "cpuMemory": "CPU 与内存"
@@ -317,11 +256,11 @@
     "configSummary": "{{count}} 项执行参数",
     "noConfig": "本任务没有额外配置参数",
     "copyConfig": "复制配置",
-    "runDetails": "运行详情",
+    "taskDetails": "任务详情",
     "repeatedSteps": "重复 {{count}} 次 · 已完成",
     "noChildren": "暂无子任务",
     "logs": "日志",
-    "relations": "关系",
+    "relations": "上下游依赖",
     "relationsSummary": "查看上下游任务血缘",
     "task": "任务",
     "snapshot": "完整快照"
@@ -370,69 +309,68 @@
   "home": {
     "quantAria": "Agent 研究流程",
     "quantTitle": "从问题到实验",
-    "quantLead": "研究 Prompt + AxonX Skill，驱动 Agent 开发与迭代",
+    "quantLead": "结合 AxonX Skill，由 Agent 完成开发、运行与结果检查",
     "brandAria": "AxonX Agent 原生量化研究 Harness",
     "brandTitle": "让研究问题成为量化代码与可追溯实验",
-    "brandLead": "为 Agent 提供统一的量化开发工具与运行环境，支持插件开发、实验执行和结果分析。",
-    "submitTask": "提交",
+    "brandLead": "用 Agent 开发因子、模型与策略，统一运行实验、分析回测，并追踪在线预测结果。",
     "manageTasks": "任务管理",
-    "capabilitiesAria": "Harness 框架能力",
-    "capabilitiesTitle": "Harness 提供的能力",
-    "capabilitiesLead": "统一工具与运行环境，连接代码、执行和证据",
+    "capabilitiesAria": "研究与运行能力",
+    "capabilitiesTitle": "研究与运行能力",
+    "capabilitiesLead": "连接开发、执行、结果分析与日常运行",
     "steps": {
       "question": {
         "title": "定义研究问题",
-        "detail": "明确假设、基线、数据与评价标准"
+        "detail": "明确假设、数据范围、基线与评价标准"
       },
       "agent": {
         "title": "连接研究 Agent",
-        "detail": "外部或内置 Agent，结合 AxonX Skill"
+        "detail": "使用外部 Agent 或 Studio 内置会话"
       },
       "plugin": {
         "title": "开发研究插件",
-        "detail": "编写或优化因子、模型与组合策略"
+        "detail": "扩展数据处理、因子、模型与组合策略"
       },
       "experiment": {
-        "title": "执行研究实验",
-        "detail": "安装到目标服务，提交并跟踪 Task"
+        "title": "执行研究任务",
+        "detail": "通过 Agent 或 CLI，在选定服务运行"
       },
       "evidence": {
-        "title": "检查实验依据",
-        "detail": "查看参数、日志、指标与研究产物"
+        "title": "检查运行结果",
+        "detail": "查看日志、数据、训练曲线与回测表现"
       },
       "iterate": {
         "title": "比较与迭代",
-        "detail": "对比候选方案，依据结果继续优化"
+        "detail": "比较候选策略，验证差异并继续优化"
       }
     },
     "features": {
       "plugin": {
         "title": "可扩展研究插件",
-        "detail": "复用已有实现，扩展因子、模型和策略"
+        "detail": "覆盖数据处理、因子分析、训练、预测与回测"
       },
       "job": {
         "title": "统一工具接口",
-        "detail": "CLI、HTTP、MCP 与 Studio 共用 Jobs"
+        "detail": "通过 CLI、HTTP、MCP 调用工具与查询结果"
       },
       "task": {
-        "title": "实验任务管理",
-        "detail": "查询定义、提交运行、跟踪日志与取消"
+        "title": "任务状态与关系",
+        "detail": "查看参数、进度、日志、上下游与父子调用"
       },
       "machine": {
-        "title": "本地与远程执行",
-        "detail": "在选定服务运行，查看资源与运行状态"
+        "title": "本地与远程环境",
+        "detail": "切换执行目标，查看资源、配置与服务状态"
       },
       "evidence": {
-        "title": "可追溯实验依据",
-        "detail": "保留参数、Task/Run ID、依赖与产物"
+        "title": "研究结果与产物",
+        "detail": "浏览工作区，分析训练曲线、回测与策略差异"
       },
-      "agent": {
-        "title": "Agent 与可视化协作",
-        "detail": "Agent 检查结果，研究者在 Studio 分析"
+      "online": {
+        "title": "在线预测与校验",
+        "detail": "跟踪数据更新、分时信号与在线离线预测差异"
       }
     },
     "openAgent": "打开 Agent",
-    "journey": "你定义问题 · Agent 实现 · Harness 管理执行与证据",
+    "journey": "提出问题 · Agent 开发 · 任务执行 · 结果验证",
     "agentNote": "支持外部 Agent 与 Studio 内置 Agent"
   },
   "workspace": {
@@ -458,7 +396,7 @@
     "truncated": "内容过大，仅展示前 512 KiB",
     "invalidJson": "JSON 格式有误",
     "invalidYaml": "YAML 格式有误",
-    "frontmatter": "Frontmatter",
+    "frontmatter": "文档元信息",
     "rows": "行",
     "previous": "上一页",
     "next": "下一页",
@@ -466,7 +404,11 @@
     "list": "列表",
     "dict": "字典",
     "items": "项",
-    "keys": "键"
+    "keys": "键",
+    "markdownView": "Markdown 显示方式",
+    "preview": "预览",
+    "source": "原始",
+    "sourceFailed": "无法读取原始文件"
   },
   "research": {
     "pages": {
@@ -508,7 +450,7 @@
     "refresh": "刷新",
     "unable_to_load_artifacts": "无法读取任务产物",
     "retry": "重试",
-    "task_versions": "任务版本",
+    "task_list": "任务",
     "search_task_id": "搜索 task_id",
     "select": "多选",
     "metadata_unavailable": "元数据不可用",
@@ -517,12 +459,12 @@
     "deselect": "取消全选",
     "select_all": "全选",
     "delete": "确认删除",
-    "select_a_task_version": "选择一个任务版本",
+    "select_a_task": "选择一个任务",
     "its_data_and_artifacts_will": "右侧将显示该任务的数据与产物。",
     "task_artifacts_will_appear_here": "任务产出后会自动出现在这里。",
     "cancel": "取消",
-    "delete_selected_task_versions": "删除所选任务版本？",
-    "delete_this_task_version": "删除这个任务版本？",
+    "delete_selected_task_list": "删除所选任务？",
+    "delete_this_task": "删除这个任务？",
     "the_task_directories_and_all": "对应任务目录及其中的产物文件会被永久删除，此操作无法撤销。",
     "delete_failed": "删除失败",
     "deleting": "删除中…",
@@ -554,7 +496,6 @@
     "index_weight_decimal": "指数成分权重 · 小数",
     "pred_is_a_ranking_score": "pred 是排名分数，不代表预期收益率或概率。",
     "train_rows": "训练行数",
-    "days_2": "回测天数",
     "prediction_rows": "预测行数",
     "rows": "数据行数",
     "feature_columns": "特征列",
@@ -570,7 +511,6 @@
     "left_axis_l2_mean_squared": "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。",
     "output_files": "输出文件",
     "input_directory": "输入目录",
-    "artifacts_2": "产物清单",
     "model_members": "模型成员",
     "score_columns": "模型分数列"
   },
@@ -597,10 +537,10 @@
     "average_turnover": "平均换手率",
     "strategy_comparison": "策略对比",
     "compare_backtests_on_shared_trading": "在相同交易日和持仓数量下，观察两份回测的差异",
-    "task_versions": "任务版本",
+    "task_list": "任务",
     "refresh_tasks": "刷新任务",
     "search_task_id": "搜索 task_id",
-    "click_two_versions_to_compare": "点击两个版本进行对比；再次点击可取消",
+    "click_two_tasks_to_compare": "点击两个任务进行对比；再次点击可取消",
     "loading_tasks": "正在读取任务",
     "no_backtests_available": "暂无可用回测任务",
     "metadata_unavailable": "元数据不可用",
@@ -609,7 +549,7 @@
     "swap_a_and_b": "交换 A 和 B",
     "select_two_backtests_to_compare": "选择两份回测任务开始对比",
     "only_one_backtest_is_available": "目前只有一份回测任务；需要再运行一份回测才能比较",
-    "click_two_task_versions_on": "点击左侧两个任务版本，分别设为 A 和 B",
+    "click_two_task_list_on": "点击左侧两个任务，分别设为 A 和 B",
     "unable_to_load_backtests": "无法读取回测数据",
     "calculating_shared_window": "正在计算共同区间",
     "no_shared_top_n": "没有共同的 Top N",
@@ -674,11 +614,9 @@
       "rank_ic_mean": "RankIC 均值",
       "rank_icir": "RankICIR"
     },
-    "marketAverage": "全市场平均",
     "errors": {
       "parquetRequired": "回测产物必须是 Parquet 文件",
       "missingDailySummary": "回测 metadata 缺少 daily 或 summary 产物",
-      "missingDaily": "回测 metadata 缺少 daily 产物",
       "signalsFormat": "不支持旧版股票信号格式，请使用当前协议重新运行任务",
       "missingUniverse": "缺少股池报告，请重新回测"
     },
@@ -767,7 +705,6 @@
     "copy_task_id": "复制任务 ID",
     "kinds": {
       "base": "基础任务",
-      "composite": "复合任务",
       "api": "API",
       "etl": "ETL",
       "analysis": "因子分析",
@@ -776,8 +713,8 @@
       "inference": "在线推理",
       "backtest": "离线回测"
     },
-    "loading_task_relationships": "正在加载任务关系…",
-    "unable_to_load_relationships": "无法读取任务关系",
+    "loading_task_relationships": "正在加载上下游依赖…",
+    "unable_to_load_relationships": "无法读取上下游依赖",
     "locate_current_task": "定位当前任务",
     "some_tasks_use_provisional_relationships": "部分任务尚未成功完成，其血缘关系仍为暂定状态。",
     "open_task": "打开任务"
@@ -803,23 +740,21 @@
   },
   "update": {
     "title": "服务更新与重启",
-    "description": "更新 AxonX 和 Studio，或从磁盘重新启动所选服务。操作期间服务会暂时不可用。",
+    "description": "更新 AxonX 和 Studio，或重启所选服务并重新加载定时配置。操作期间服务暂时不可用，已启动的定时任务继续运行。",
     "unavailable": "更新与重启不可用。服务需要配置操作和状态查询 Job，并启用 token 认证。",
     "method": "操作方式",
-    "git": "源码仓库 · origin/main",
+    "git": "源码仓库 · 当前 upstream",
     "pip": "发布包 · 最新稳定版本",
-    "gitHint": "需要从 AxonX 源码仓库内启动服务，并安装 Git 和 Node.js。将丢弃源码改动和未跟踪的源码文件；保留忽略文件及运行数据目录。",
+    "gitHint": "使用 git pull --ff-only 快进当前分支，构建 Studio 并更新后端。本地修改冲突时保留修改并报错。",
     "pipHint": "在服务的 Python 环境中更新 axonx 和 axonx-studio。editable 源码安装需要使用源码更新。",
-    "force": "更新或重启前取消正在运行的受管理 Run",
-    "gitConfirm": "我同意丢弃本地源码改动，并重启这台机器的服务。",
+    "gitConfirm": "我同意更新源码并重启所选服务，重新加载定时配置。",
     "pipConfirm": "我同意更新安装包，并重启这台机器的服务。",
     "start": "更新并重启",
     "reconnecting": "正在更新或重启，等待服务恢复连接…",
     "reload": "重新加载 Studio",
     "phases": {
       "accepted": "已接受更新",
-      "fetching": "正在获取 main",
-      "cleaning": "正在替换源码",
+      "fetching": "正在拉取当前分支的上游更新",
       "building": "正在构建 Studio",
       "installing": "正在安装包",
       "verifying": "正在验证安装",
@@ -836,8 +771,7 @@
       "starting": "正在启动服务",
       "succeeded": "重启完成",
       "failed": "重启失败"
-    },
-    "scheduledBlocked": "当前服务的定时 Task 或 Job 正在执行，暂不能更新或重启。"
+    }
   },
   "nightly": {
     "workflowLog": "流程日志",
@@ -845,7 +779,7 @@
     "featureUpdate": "特征更新",
     "offlinePrediction": "离线预测",
     "signalComparison": "预测比对",
-    "noStageRun": "该环节尚无可用任务日志",
+    "noStageTask": "该环节尚无可用任务日志",
     "public": "公共准备",
     "scope": "公共准备与模型",
     "data": "数据准备",
@@ -898,8 +832,6 @@
     "buyable": "可买",
     "blocked": "不可买",
     "signalDate": "信号日期",
-    "revision": "修订版本",
-    "committed": "已提交",
     "stale": "后续修订改变了此报告的历史输入。原报告保留用于审计；请重放至此日期以更新组合。",
     "staleShort": "组合需要重放",
     "historyTitle": "每次已提交信号及其来源",
@@ -911,8 +843,6 @@
     "missingDates": "缺失信号日期",
     "strategy": "组合",
     "simulated": "模拟决策 · 非券商实际成交",
-    "buyableCount": "可买候选",
-    "selection": "分数选择",
     "netValue": "净值",
     "cashWeight": "现金比例",
     "positionCount": "持仓数",
@@ -923,7 +853,6 @@
     "provenance": "模型、策略与提交详情",
     "commitId": "提交 ID",
     "strategyId": "策略标识",
-    "signalTitle": "候选排名",
     "recordedPool": "策略股池",
     "viewPoolOnly": "仅查看筛选 · 已发布策略：{{pool}}",
     "unknownPool": "当前策略股池定义暂不支持，仅展示所选查看股池。",
@@ -984,11 +913,6 @@
     },
     "yes": "是",
     "no": "否",
-    "methods": {
-      "mean": "均值分数",
-      "rank_mean": "平均排名",
-      "seed": "单成员"
-    },
     "values": {
       "buy": "买入",
       "sell": "卖出",
@@ -1022,49 +946,13 @@
     "members": "{{count}} 个任务",
     "latest": "最近运行",
     "name": "任务名称",
-    "selectFiltered": "选择全部筛选出的终态任务",
-    "selectGroup": "选择 {{group}} 中筛选出的终态任务",
     "range": "第 {{start}}–{{end}} 条，共 {{count}} 个任务",
     "previous": "上一页任务",
     "next": "下一页任务",
     "matching": "{{count}} / {{total}} 个任务",
-    "matchingTotal": "{{groups}} 组 · {{count}} / {{total}} 个任务",
-    "terminalCount": "{{count}} 个匹配的终态任务",
-    "selectMembers": "选择该组终态任务",
-    "deleteMembers": "删除该组终态任务",
-    "deleteConfirm": "确定删除该组的 {{count}} 个终态任务？"
-  },
-  "schedules": {
-    "tabs": {
-      "scheduled": "定时任务",
-      "other": "非定时任务"
-    },
-    "sources": {
-      "submit": "主动提交",
-      "exec": "直接执行",
-      "unknown": "来源未知"
-    },
-    "scheduledSource": "定时：{{name}}",
-    "removed": "工作区任务 · 未关联当前调度实例",
-    "nextRun": "下次触发",
-    "lastJob": "最近一次 Job 结果",
-    "policy": "Job 并发策略",
-    "runningJobs": "当前服务执行中的 Job：{{count}}",
-    "policies": {
-      "allow": "允许重叠",
-      "forbid": "跳过重叠",
-      "replace": "替换上次 Job"
-    },
-    "noActiveTasks": "暂无排队或运行中的任务。",
-    "history": "已结束任务 · {{count}}",
-    "arguments": "Job 参数",
-    "emptyTitle": "暂无定时计划",
-    "emptyHint": "在选中服务的配置中添加 schedules，并重启服务加载。",
-    "total": "{{schedules}} 个计划 · {{count}} 个任务",
-    "search": "搜索计划、描述、Task ID、类型或 PID"
+    "matchingTotal": "{{groups}} 组 · {{count}} / {{total}} 个任务"
   },
   "quality": {
-    "filesTab": "文件",
     "checksTab": "质量检查",
     "viewSamples": "查看 {{count}} 条",
     "samplesTab": "问题样例",
@@ -1072,12 +960,10 @@
     "showRelevant": "仅显示重点检查",
     "showAll": "显示全部检查",
     "empty": "此记录暂无数据质量统计",
-    "samples": "查看问题样例",
     "details": "查看完整股票明细",
     "export": "导出明细 JSON",
     "debug": "调试产物",
     "jump": "{{time}} 区间价格跳变",
-    "previousSignal": "当前运行尚未产生成功信号，展示上一份提交：{{date}} {{time}}。当前诊断请查看运行页签。",
     "columns": {
       "stage": "阶段",
       "reason": "原因",
@@ -1151,7 +1037,6 @@
       "prediction": "预测"
     },
     "checkCount": "{{count}} 项检查",
-    "view": "查看内容",
     "resultCounts": "告警 {{warnings}} 项 · 通过 {{passed}} 项",
     "noDataCount": "{{count}} 项无可检查数据",
     "checkedCount": "检查 {{count}} 条",
@@ -1174,87 +1059,20 @@
       "bar": "{{time}} 当前行情"
     }
   },
-  "taskOwnership": {
-    "managed": "当前服务管理",
-    "workspace": "工作区记录"
-  },
   "operations": {
-    "historyLimited": "每个调度最多显示最近 {{limit}} 条触发记录，较早的保留记录未列出。",
-    "unsyncedItems": "本轮未同步项目",
-    "jobName": "Job 名称",
-    "triggerId": "执行 ID",
-    "schedulerId": "调度器 ID",
     "dataInterfaces": "数据接口",
     "dataResults": "数据结果",
     "noInterfaces": "暂无接口记录",
-    "activeJobs": "执行中的 Job",
-    "configuration": "调度配置",
-    "configurationShort": "配置",
-    "plan": {
-      "triggerFailed": "最近触发失败",
-      "title": "定时计划",
-      "time": "执行时间",
-      "weekdays": "工作日 {{time}}",
-      "daily": "每天 {{time}}",
-      "custom": "自定义时间",
-      "submissionHistory": "定时提交历史",
-      "conflict": "提交被拒绝：当时发现同名活动任务记录。",
-      "newerTask": "此后已创建当前任务。",
-      "states": {
-        "queued": "等待提交",
-        "running": "提交中",
-        "succeeded": "已提交",
-        "failed": "提交未成功，详见技术详情",
-        "cancelled": "提交已取消"
-      }
-    },
-    "lastSubmission": "最近提交",
-    "lastSubmissionFailed": "最近提交失败",
     "runHistory": "日常运行",
-    "loadError": "无法加载业务导航",
-    "unavailable": "此服务未配置该页面",
-    "search": "搜索调度或任务",
-    "noTriggers": "尚未触发",
-    "finished": "完成时间",
-    "result": "执行结果",
-    "empty": "暂无匹配的任务",
-    "metrics": {
-      "uploaded": "已上传",
-      "rejected": "已拒绝",
-      "oversized": "超出大小限制",
-      "deferred": "暂未同步",
-      "archives": "传输包数",
-      "rows": "数据行数",
-      "elapsed_seconds": "耗时（秒）",
-      "attempted_count": "处理总数",
-      "created_count": "新增",
-      "changed_count": "更新",
-      "unchanged_count": "无变化",
-      "rejected_count": "处理失败",
-      "empty_count": "空数据",
-      "selected_apis": "数据接口"
-    },
-    "taskRun": "Task 运行",
-    "jobRun": "Job 执行",
+    "comparison": "比对",
+    "unavailable": "页面不存在",
+    "search": "搜索任务",
+    "empty": "没有匹配的条目",
+    "taskRecord": "Task 记录",
     "triggered": "触发时间",
     "noResult": "尚无执行结果",
-    "nothingToSync": "本轮无待同步内容",
-    "incompleteResult": "有未完成或被拒绝的项目，请查看下方结果。",
-    "rawResult": "查看原始结果",
-    "items": "项目",
-    "technicalDetails": "技术信息",
     "step": "任务 / 步骤",
     "progress": "完成进度",
-    "fields": {
-      "flow": "更新流程",
-      "start_date": "起始日期",
-      "end_date": "结束日期",
-      "updated": "更新日期",
-      "error": "错误原因",
-      "error_type": "错误类型",
-      "task": "任务类型"
-    },
-    "lastExecution": "最近执行",
     "dataUpdate": "数据更新"
   },
   "onlineWorkbench": {
@@ -1262,42 +1080,22 @@
     "date": "交易日期",
     "historical": "历史结果",
     "submitted": "已提交时点",
-    "anomalies": "异常模型",
     "timezone": "上海时间",
-    "overview": "时点总览",
-    "results": "信号与组合",
-    "fields": "展开字段明细",
-    "diagnostics": "运行诊断",
     "slot": "时间点",
     "model": "模型",
-    "coverage": "当前 bar 覆盖率",
-    "history": "历史输入",
-    "models": "模型提交",
-    "state": "状态",
-    "action": "查看",
-    "inspect": "查看诊断",
-    "open": "查看信号",
     "unavailable": "暂无记录",
     "noSignal": "该日期与时间点暂无已提交信号。",
-    "noRun": "该交易日期没有可用的运行记录；已归档信号可在各时点的“信号结果”中查看。",
+    "noTaskRecord": "该交易日期没有可用的运行记录；已归档信号可在各时点的“信号结果”中查看。",
     "historyError": "信号历史读取失败；当前结果可能不是最新有效版本。",
-    "inference": "模型推理",
-    "runDetails": "运行记录",
     "oldRevision": "正在查看历史版本。",
     "returnEffective": "返回有效版本",
     "updated": "最近更新",
-    "partialCommit": "按阈值提交",
     "coveragePolicy": "100% 覆盖立即提交；信号时间后 {{seconds}} 秒起按 {{threshold}}% 阈值放行，低于阈值继续补采至截止。",
     "data": "运行准备",
     "baseCollection": "基础采集",
     "sharedEtl": "公共 ETL",
-    "features": "特征处理",
-    "scoring": "模型打分",
-    "signalResults": "信号结果",
-    "allModels": "全部模型",
     "scopeLabel": "数据与信号时间",
     "stageLabel": "处理环节",
-    "resultView": "结果视图",
     "states": {
       "done": "已完成",
       "failed": "失败",
@@ -1310,7 +1108,6 @@
       "unavailable": "暂无记录",
       "ready": "等待执行"
     },
-    "stockDetails": "股票明细",
     "qualitySources": {
       "snapshot": "开盘行情",
       "before": "时点前行情",
@@ -1364,5 +1161,53 @@
     "fieldCount": "{{count}} 个字段有差异",
     "noFieldDifferences": "数值及离散字段没有差异，可查看上方结构与样本覆盖情况。",
     "rowsPair": "在线 {{online}} / 离线 {{offline}} 行"
+  },
+  "taskDefinitionsTitle": "任务定义",
+  "taskDefinitionsLead": "配置已安装任务的参数，运行并查看结果。",
+  "taskDefinitions": {
+    "selectTask": "选择一个 Task",
+    "selectTaskHint": "配置任务参数或查看输入输出定义",
+    "loadingCatalog": "正在加载 Task 目录…"
+  },
+  "input": "输入",
+  "taskExecution": {
+    "parameters": "输入参数",
+    "parametersHint": "配置本次任务运行的输入",
+    "outputHint": "运行成功后返回的字段与类型",
+    "nameHint": "任务名称留空时自动生成；复用名称会替换已结束运行的结果。",
+    "target": "执行机器",
+    "connectionHint": "可在站内切换页面；刷新、关闭页面或连接中断可能终止执行。",
+    "reset": "重置参数",
+    "run": "运行任务",
+    "starting": "正在启动",
+    "invalidValue": "请输入有效的参数值",
+    "output": "执行日志",
+    "exitCode": "退出码",
+    "stop": "停止运行",
+    "waitingLog": "等待执行日志…",
+    "disconnectedHint": "连接已中断，请检查任务状态后再决定是否重新运行。",
+    "monitor": "运行记录",
+    "active_one": "{{count}} 个运行中",
+    "active_other": "{{count}} 个运行中",
+    "finished": "执行已结束",
+    "openTask": "打开任务详情",
+    "dismiss": "移除运行记录",
+    "states": {
+      "starting": "正在启动",
+      "running": "运行中",
+      "succeeded": "已完成",
+      "failed": "执行失败",
+      "disconnected": "连接中断"
+    },
+    "active": "{{count}} 个运行中",
+    "taskName": "任务名称",
+    "upstreamTasks": "上游任务 ID",
+    "upstreamHint": "填写直接上游任务的 ID，只记录依赖关系，不会自动执行上游任务。"
+  },
+  "schemaForm": {
+    "addItem": "添加一项",
+    "removeItem": "删除第 {{index}} 项",
+    "requiredOutput": "必有",
+    "optionalOutput": "可选"
   }
 }

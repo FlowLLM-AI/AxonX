@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from ....constants import TUSHARE_TIMEOUT_SECONDS
 from ...core.clock import DeadlineBudget
 
 if TYPE_CHECKING:
     import pandas as pd
 
 DEFAULT_BASE_URL = "http://api.waditu.com/dataapi"
+TUSHARE_TIMEOUT_SECONDS = 600
 IP_LIMIT_ERROR = "IP数量超限"
 RATE_LIMIT_ERROR = "频率超限"
 TRANSIENT_ERROR = "查询数据失败，请确认参数"
@@ -218,6 +218,8 @@ class TushareClient:
         for _page in range(max_pages):
             frame, has_more = self._request(api_name, fields, {**params, "offset": offset, "limit": limit}, budget)
             if frame.empty:
+                if has_more:
+                    raise RuntimeError("Tushare pagination made no progress: empty page with has_more=True")
                 break
             if previous is not None and frame.equals(previous):
                 raise RuntimeError("Tushare pagination made no progress")

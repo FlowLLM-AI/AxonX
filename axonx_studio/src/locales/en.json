@@ -9,7 +9,6 @@
     "filePreview": "File preview",
     "dataPreview": "Data preview",
     "apiCall": "API call",
-    "configureSubmit": "Configure & submit",
     "openSettings": "Open settings",
     "settings": "Settings",
     "expandNavigation": "Expand navigation",
@@ -27,7 +26,7 @@
       "tasks": "All tasks",
       "resources": "Machine resources",
       "agent": "Agent",
-      "taskDefs": "Submit task",
+      "taskDefs": "Task definitions",
       "apis": "API interfaces",
       "workspace": "Workspace",
       "etl": "ETL",
@@ -37,13 +36,11 @@
       "backtest": "Offline backtest",
       "compare": "Strategy comparison"
     },
-    "switchLanguageLabel": "中文"
-  },
-  "pages": {
-    "submit": "Submit Task"
+    "switchLanguageLabel": "中文",
+    "taskDefinitions": "Task definitions"
   },
   "taskTitle": "Task operations",
-  "taskLead": "Follow every compute run from queue to output.",
+  "taskLead": "Inspect Task records, status, progress, and logs.",
   "refresh": "Refresh",
   "refreshNow": "Refresh now",
   "autoRefresh": "Auto refresh",
@@ -53,8 +50,6 @@
   "allTypes": "All types",
   "active": "In progress",
   "succeeded": "Succeeded",
-  "attention": "Needs attention",
-  "taskId": "TASK ID",
   "type": "TYPE",
   "state": "STATUS",
   "progress": "PROGRESS",
@@ -69,52 +64,28 @@
     }
   },
   "details": "Details",
-  "cancel": "Terminate Task",
-  "cancelling": "Terminating",
   "copyTaskId": "Copy Task ID",
   "copied": "Copied",
-  "selectAll": "Select all deletable tasks",
-  "selectTask": "Select task {{taskId}}",
-  "enableMultiSelect": "Select multiple",
-  "finishSelection": "Done",
-  "selectedCount": "{{count}} selected",
-  "deleteConfirm": "Permanently delete {{count}} selected tasks?",
-  "deleteHint": "Task directories, status, artifacts, and dedicated logs will be removed.",
-  "confirmDelete": "Delete",
-  "deleting": "Deleting",
-  "deletePartial": "Deleted {{deleted}}/{{total}} records; the rest may still be running or no longer exist",
   "noTasks": "No task runs yet",
-  "noTasksHint": "Submit a Task and its status will appear here automatically.",
+  "noTasksHint": "Run a Task from Task definitions to see its record here.",
   "noMatches": "No tasks match these filters",
   "requestFailed": "Unable to load task status",
   "staleHint": "Showing the last successfully loaded data.",
   "retry": "Retry",
   "taskDetails": "Task details",
-  "close": "Close",
   "steps": "Execution steps",
   "result": "Output",
   "error": "Error",
   "notStarted": "Not started",
-  "cancelConfirm": "Terminate this running Task?",
-  "confirmCancel": "Terminate Task",
-  "cancelFailed": "Task termination failed: the process may have exited or is no longer managed by this service",
-  "submitTitle": "Launch a new task",
-  "submitLead": "Choose an installed Task, configure its inputs, and hand it to AxonX for isolated execution.",
   "taskCatalog": "INSTALLED TASKS",
   "tasksAvailable": "{{count}} available",
   "findTask": "Search installed Tasks",
   "nativeTasks": "Native tasks",
   "pluginTasks": "Plugin tasks",
-  "configure": "Run configuration",
   "output": "Expected output",
   "required": "Required",
   "optional": "Optional",
-  "choose": "Choose an option",
   "jsonHint": "Enter valid JSON",
-  "submit": "Submit run",
-  "submitting": "Submitting",
-  "submitted": "Task handed to AxonX",
-  "submittedHint": "Its runtime status will appear in Task management after the worker starts.",
   "viewTasks": "View task status",
   "catalogFailed": "Unable to load installed Tasks",
   "noInstalled": "No installed Tasks found",
@@ -125,36 +96,26 @@
   "memoryCapacity": "Total memory",
   "online": "Online",
   "onlinePipeline": {
-    "title": "Online pipeline",
-    "lead": "Follow data collection, model inference and logs for each trading day.",
     "refresh": "Refresh",
-    "demo": "Synthetic preview · all data and results are fictional.",
-    "search": "Search runs",
-    "empty": "No online pipelines yet. Run an online composite task to follow its progress.",
+    "empty": "No online pipelines yet. Run an online task to follow its progress.",
     "pending": "No window report has been published yet.",
     "openTask": "Task details",
-    "runState": "Task state",
-    "outcomes": "Reported outcomes",
-    "complete": "Complete / consistent",
-    "model": "Fixed model",
     "comparisons": "Prediction comparisons",
     "windows": "Execution windows",
     "coverage": "Coverage",
     "rows": "Rows",
     "elapsed": "Elapsed",
     "kinds": {
-      "all": "All runs",
+      "all": "All tasks",
       "api": "Collection",
       "inference": "Inference",
       "analysis": "Reconciliation",
-      "composite": "Online pipelines"
+      "base": "Tasks"
     },
     "status": {
-      "queued": "Queued",
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed",
-      "cancelled": "Cancelled",
       "done": "Complete",
       "skipped": "Skipped",
       "incomplete": "Incomplete",
@@ -200,20 +161,16 @@
       "source_data_revised": "Source data was revised"
     },
     "collection": "Data collection",
-    "models": "Model inference",
     "scheduled": "Scheduled (Shanghai)",
     "deadline": "Deadline (Shanghai)",
     "updated": "Updated (Shanghai)",
     "files": "Committed files",
     "logSource": "Log source",
     "chainLog": "Entire pipeline",
-    "replacedRun": "The selected task has a newer run. Select the run you want to inspect.",
-    "replacedChildRun": "This child task ran again; details and logs for its earlier run are unavailable.",
+    "restartedTask": "The selected task has a newer run. Select the run you want to inspect.",
+    "replacedChild": "This child task ran again; details and logs for its earlier run are unavailable.",
     "replacedChildren": "{{count}} child tasks ran again. Their earlier run details and logs are unavailable; committed results remain accessible.",
     "closed": "Market closed; collection and inference were skipped.",
-    "collectionHint": "Collection follows configured signal times. Request progress and valid coverage are separate; files appear after validation and commit.",
-    "published": "Signal published by this run: {{date}} {{time}}",
-    "previousPublication": "Showing an earlier publication: {{date}} {{time}}",
     "phases": {
       "download": "Downloading",
       "validation": "Validating",
@@ -239,15 +196,9 @@
       "stocks": "stocks"
     },
     "remaining": "{{seconds}} seconds until deadline",
-    "stageDetails": "Execution stages and signal results",
-    "currentAction": "Current activity",
-    "nextSignal": "Next signal",
     "refreshHint": "Refreshes every 60s",
     "changedSnapshot": "Synchronization changed the snapshot. Refreshing shortly.",
-    "history": "Historical inputs",
-    "download": "Shared data preparation",
-    "nightly": "Nightly comparison",
-    "modelStages": "Model stages"
+    "nightly": "Nightly comparison"
   },
   "offline": "Offline",
   "cpuUsage": "CPU usage",
@@ -264,15 +215,12 @@
   "gpuUtilization": "Compute usage",
   "gpuMemory": "Memory usage",
   "states": {
-    "queued": "Queued",
     "running": "Running",
     "succeeded": "Succeeded",
-    "failed": "Failed",
-    "cancelled": "Cancelled"
+    "failed": "Failed"
   },
   "types": {
     "base": "Base",
-    "composite": "Composite",
     "api": "API download",
     "etl": "ETL",
     "analysis": "Analysis",
@@ -280,15 +228,6 @@
     "predict": "Prediction",
     "inference": "Inference",
     "backtest": "Backtest"
-  },
-  "submitPage": {
-    "selectTask": "Select a Task",
-    "selectTaskHint": "Review its inputs and submit a run",
-    "submitAnother": "Submit another",
-    "loadingCatalog": "Loading Task catalog…"
-  },
-  "schemaForm": {
-    "sourceTasksPlaceholder": "Task IDs separated by commas (optional)"
   },
   "machine": {
     "cpuMemory": "CPU & memory"
@@ -310,18 +249,18 @@
     "loaded": "Loaded",
     "of": "/",
     "bounded": "The browser keeps about 512 KB; older content is discarded automatically.",
-    "back": "Back to task runs",
+    "back": "Back to tasks",
     "refreshing": "Refreshing",
     "taskMissing": "Unable to load task details",
     "config": "Task configuration",
     "configSummary": "{{count}} execution parameters",
     "noConfig": "This task has no additional configuration",
     "copyConfig": "Copy config",
-    "runDetails": "Run details",
+    "taskDetails": "Task details",
     "repeatedSteps": "{{count}} repetitions · completed",
     "noChildren": "No child tasks yet",
     "logs": "Logs",
-    "relations": "Relationships",
+    "relations": "Dependencies",
     "relationsSummary": "Inspect upstream and downstream lineage",
     "task": "Task",
     "snapshot": "Snapshot"
@@ -370,69 +309,68 @@
   "home": {
     "quantAria": "Agent research workflow",
     "quantTitle": "From questions to experiments",
-    "quantLead": "Research prompt + AxonX Skill guide Agent development and iteration",
+    "quantLead": "Use the AxonX Skill to guide Agent development, execution, and review",
     "brandAria": "AxonX agent-native quantitative research harness",
     "brandTitle": "Turn research prompts into quantitative code and traceable experiments",
-    "brandLead": "Unified tools and a runtime for Agents to develop plugins, execute experiments, and analyze results.",
-    "submitTask": "Submit",
+    "brandLead": "Develop factors, models, and strategies with Agents. Run experiments, analyze backtests, and track online predictions.",
     "manageTasks": "Manage Tasks",
-    "capabilitiesAria": "Harness framework capabilities",
-    "capabilitiesTitle": "Harness capabilities",
-    "capabilitiesLead": "Shared tools and a runtime connect code, execution, and evidence",
+    "capabilitiesAria": "Research and operations",
+    "capabilitiesTitle": "Research and operations",
+    "capabilitiesLead": "Connect development, execution, analysis, and daily operations",
     "steps": {
       "question": {
         "title": "Define the research question",
-        "detail": "Specify the hypothesis, baseline, data, and metrics"
+        "detail": "Specify the hypothesis, data scope, baseline, and metrics"
       },
       "agent": {
         "title": "Connect an Agent",
-        "detail": "Use an external or built-in Agent with the AxonX Skill"
+        "detail": "Use an external Agent or a built-in Studio session"
       },
       "plugin": {
         "title": "Develop research plugins",
-        "detail": "Build or improve factors, models, and portfolio strategies"
+        "detail": "Extend data processing, factors, models, and portfolio strategies"
       },
       "experiment": {
-        "title": "Run experiments",
-        "detail": "Install on the target service, submit and track Tasks"
+        "title": "Run research tasks",
+        "detail": "Run on the selected service through an Agent or CLI"
       },
       "evidence": {
-        "title": "Inspect the evidence",
-        "detail": "Review parameters, logs, metrics, and artifacts"
+        "title": "Inspect results",
+        "detail": "Review logs, data, training curves, and backtest performance"
       },
       "iterate": {
         "title": "Compare and iterate",
-        "detail": "Compare candidates and use results to guide changes"
+        "detail": "Compare candidate strategies, verify differences, and refine"
       }
     },
     "features": {
       "plugin": {
         "title": "Extensible research plugins",
-        "detail": "Reuse implementations and extend factors, models, and strategies"
+        "detail": "Extend ETL, factor analysis, training, prediction, and backtesting"
       },
       "job": {
         "title": "Unified tool interfaces",
-        "detail": "CLI, HTTP, MCP, and Studio share Jobs"
+        "detail": "Call tools and query results through CLI, HTTP, and MCP"
       },
       "task": {
-        "title": "Experiment task management",
-        "detail": "Inspect definitions, submit runs, follow logs, and cancel"
+        "title": "Task status and relationships",
+        "detail": "Inspect parameters, progress, logs, dependencies, and parent/child calls"
       },
       "machine": {
-        "title": "Local and remote execution",
-        "detail": "Run on a selected service and inspect resources and status"
+        "title": "Local and remote environments",
+        "detail": "Switch execution targets; inspect resources, configuration, and service status"
       },
       "evidence": {
-        "title": "Traceable experiment evidence",
-        "detail": "Preserve parameters, Task/Run IDs, dependencies, and artifacts"
+        "title": "Research results and artifacts",
+        "detail": "Browse workspace files; analyze training curves, backtests, and strategy differences"
       },
-      "agent": {
-        "title": "Agent and visual collaboration",
-        "detail": "Agents inspect results; researchers analyze them in Studio"
+      "online": {
+        "title": "Online predictions and checks",
+        "detail": "Track data updates, signals by time slot, and online/offline prediction differences"
       }
     },
     "openAgent": "Open Agent",
-    "journey": "You define the question · Agent implements · Harness manages execution and evidence",
+    "journey": "Question · Agent development · Task execution · Verification",
     "agentNote": "Use an external Agent or Studio’s built-in Agent"
   },
   "workspace": {
@@ -458,7 +396,7 @@
     "truncated": "Large file: showing the first 512 KiB",
     "invalidJson": "Invalid JSON",
     "invalidYaml": "Invalid YAML",
-    "frontmatter": "Frontmatter",
+    "frontmatter": "Document metadata",
     "rows": "rows",
     "previous": "Previous",
     "next": "Next",
@@ -466,7 +404,11 @@
     "list": "List",
     "dict": "Dict",
     "items": "items",
-    "keys": "keys"
+    "keys": "keys",
+    "markdownView": "Markdown view",
+    "preview": "Preview",
+    "source": "Source",
+    "sourceFailed": "Unable to read the original file"
   },
   "research": {
     "pages": {
@@ -508,7 +450,7 @@
     "refresh": "Refresh",
     "unable_to_load_artifacts": "Unable to load artifacts",
     "retry": "Retry",
-    "task_versions": "Task versions",
+    "task_list": "Tasks",
     "search_task_id": "Search task_id",
     "select": "Select",
     "metadata_unavailable": "Metadata unavailable",
@@ -517,12 +459,12 @@
     "deselect": "Deselect",
     "select_all": "Select all",
     "delete": "Delete",
-    "select_a_task_version": "Select a task version",
+    "select_a_task": "Select a task version",
     "its_data_and_artifacts_will": "Its data and artifacts will appear here.",
     "task_artifacts_will_appear_here": "Task artifacts will appear here automatically.",
     "cancel": "Cancel",
-    "delete_selected_task_versions": "Delete selected task versions?",
-    "delete_this_task_version": "Delete this task version?",
+    "delete_selected_task_list": "Delete selected tasks?",
+    "delete_this_task": "Delete this task?",
     "the_task_directories_and_all": "The task directories and all artifact files inside them will be permanently deleted. This cannot be undone.",
     "delete_failed": "Delete failed",
     "deleting": "Deleting…",
@@ -554,7 +496,6 @@
     "index_weight_decimal": "Index weight · decimal",
     "pred_is_a_ranking_score": "pred is a ranking score, not an expected return or probability.",
     "train_rows": "TRAIN ROWS",
-    "days_2": "DAYS",
     "prediction_rows": "PREDICTION ROWS",
     "rows": "ROWS",
     "feature_columns": "Feature columns",
@@ -570,7 +511,6 @@
     "left_axis_l2_mean_squared": "Left axis L2: mean squared error; right axis L1: mean absolute error. Solid lines show training, dashed lines validation. Do not compare heights across axes.",
     "output_files": "Output files",
     "input_directory": "Input directory",
-    "artifacts_2": "Artifacts",
     "model_members": "Model members",
     "score_columns": "Score columns"
   },
@@ -597,10 +537,10 @@
     "average_turnover": "Average turnover",
     "strategy_comparison": "Strategy comparison",
     "compare_backtests_on_shared_trading": "Compare backtests on shared trading days and portfolio size",
-    "task_versions": "Task versions",
+    "task_list": "Tasks",
     "refresh_tasks": "Refresh tasks",
     "search_task_id": "Search task_id",
-    "click_two_versions_to_compare": "Click two versions to compare; click again to remove",
+    "click_two_tasks_to_compare": "Click two tasks to compare; click again to remove",
     "loading_tasks": "Loading tasks",
     "no_backtests_available": "No backtests available",
     "metadata_unavailable": "Metadata unavailable",
@@ -609,7 +549,7 @@
     "swap_a_and_b": "Swap A and B",
     "select_two_backtests_to_compare": "Select two backtests to compare",
     "only_one_backtest_is_available": "Only one backtest is available; run another to compare",
-    "click_two_task_versions_on": "Click two task versions on the left to assign A and B",
+    "click_two_task_list_on": "Click two tasks on the left to assign A and B",
     "unable_to_load_backtests": "Unable to load backtests",
     "calculating_shared_window": "Calculating shared window",
     "no_shared_top_n": "No shared Top N",
@@ -674,11 +614,9 @@
       "rank_ic_mean": "RankIC mean",
       "rank_icir": "RankICIR"
     },
-    "marketAverage": "Market average",
     "errors": {
       "parquetRequired": "Backtest artifacts must be Parquet files",
       "missingDailySummary": "Backtest metadata is missing daily or summary artifacts",
-      "missingDaily": "Backtest metadata is missing the daily artifact",
       "signalsFormat": "Unsupported stock signals format; rerun the task with the current protocol",
       "missingUniverse": "Missing universe report; regenerate backtest"
     },
@@ -767,7 +705,6 @@
     "copy_task_id": "Copy task ID",
     "kinds": {
       "base": "Base task",
-      "composite": "Composite task",
       "api": "API",
       "etl": "ETL",
       "analysis": "Factor analysis",
@@ -776,8 +713,8 @@
       "inference": "Inference",
       "backtest": "Backtest"
     },
-    "loading_task_relationships": "Loading task relationships…",
-    "unable_to_load_relationships": "Unable to load relationships",
+    "loading_task_relationships": "Loading task dependencies…",
+    "unable_to_load_relationships": "Unable to load dependencies",
     "locate_current_task": "Locate current task",
     "some_tasks_use_provisional_relationships": "Some tasks have not succeeded yet; their lineage remains provisional.",
     "open_task": "Open task"
@@ -803,23 +740,21 @@
   },
   "update": {
     "title": "Update or restart service",
-    "description": "Update AxonX and Studio, or restart the selected service from disk. The service will be temporarily unavailable.",
+    "description": "Update AxonX and Studio, or restart the selected service to reload its schedules. The service is temporarily unavailable; running scheduled Tasks continue.",
     "unavailable": "Update and restart are unavailable. The service needs operation/status Jobs and token authentication.",
     "method": "Operation",
-    "git": "Source repository · origin/main",
+    "git": "Source repository · current upstream",
     "pip": "Published packages · stable releases",
-    "gitHint": "Requires a source installation started inside its AxonX repository, Git and Node.js. Source changes and untracked source files will be discarded. Ignored files and runtime directories are retained.",
+    "gitHint": "Fast-forward the current branch with git pull --ff-only, build Studio and update the backend. Conflicting local changes are retained and cause failure.",
     "pipHint": "Upgrade axonx and axonx-studio in the service’s Python environment. Editable installations must use source updates.",
-    "force": "Cancel active managed Runs before updating or restarting",
-    "gitConfirm": "I agree to discard local source changes and restart this machine’s service.",
+    "gitConfirm": "I agree to update the source and restart the selected service to reload its schedules.",
     "pipConfirm": "I agree to update packages and restart this machine’s service.",
     "start": "Update and restart",
     "reconnecting": "Updating / restarting. Waiting for the service to reconnect…",
     "reload": "Reload Studio",
     "phases": {
       "accepted": "Update accepted",
-      "fetching": "Fetching main",
-      "cleaning": "Replacing source",
+      "fetching": "Pulling the current branch’s upstream",
       "building": "Building Studio",
       "installing": "Installing packages",
       "verifying": "Verifying installation",
@@ -836,8 +771,7 @@
       "starting": "Starting service",
       "succeeded": "Restart completed",
       "failed": "Restart failed"
-    },
-    "scheduledBlocked": "Active scheduled Tasks or Jobs on this service prevent maintenance."
+    }
   },
   "nightly": {
     "workflowLog": "Workflow log",
@@ -845,7 +779,7 @@
     "featureUpdate": "Feature update",
     "offlinePrediction": "Offline prediction",
     "signalComparison": "Signal comparison",
-    "noStageRun": "No task log is available for this stage",
+    "noStageTask": "No task log is available for this stage",
     "public": "Preparation",
     "scope": "Preparation and models",
     "data": "Data preparation",
@@ -898,8 +832,6 @@
     "buyable": "Buyable",
     "blocked": "Blocked",
     "signalDate": "Signal date",
-    "revision": "Revision",
-    "committed": "Committed",
     "stale": "A later revision changed this report’s input history. The original report is retained for audit; replay through this date to refresh the portfolio.",
     "staleShort": "Portfolio replay required",
     "historyTitle": "Every committed signal, with provenance",
@@ -911,8 +843,6 @@
     "missingDates": "Missing signal dates",
     "strategy": "Portfolio",
     "simulated": "Simulated decisions · no broker executions",
-    "buyableCount": "Buyable candidates",
-    "selection": "Score selection",
     "netValue": "Net value",
     "cashWeight": "Cash weight",
     "positionCount": "Positions",
@@ -923,7 +853,6 @@
     "provenance": "Model, strategy and publication details",
     "commitId": "Commit ID",
     "strategyId": "Strategy identity",
-    "signalTitle": "Candidate ranking",
     "recordedPool": "Strategy pool",
     "viewPoolOnly": "Viewing only · published strategy: {{pool}}",
     "unknownPool": "This strategy pool definition is unsupported. Only the selected viewing pool is shown.",
@@ -984,11 +913,6 @@
     },
     "yes": "Yes",
     "no": "No",
-    "methods": {
-      "mean": "Mean score",
-      "rank_mean": "Mean rank",
-      "seed": "Single member"
-    },
     "values": {
       "buy": "Buy",
       "sell": "Sell",
@@ -1020,51 +944,15 @@
   "taskGroups": {
     "total": "{{groups}} groups · {{count}} tasks",
     "members": "{{count}} tasks",
-    "latest": "Latest run",
+    "latest": "Current task",
     "name": "Task name",
-    "selectFiltered": "Select all filtered terminal tasks",
-    "selectGroup": "Select filtered terminal tasks in {{group}}",
     "range": "{{start}}–{{end}} of {{count}} tasks",
     "previous": "Previous task page",
     "next": "Next task page",
     "matching": "{{count}} / {{total}} tasks",
-    "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks",
-    "terminalCount": "{{count}} matching terminal tasks",
-    "selectMembers": "Select terminal tasks in this group",
-    "deleteMembers": "Delete terminal tasks in this group",
-    "deleteConfirm": "Delete {{count}} terminal tasks in this group?"
-  },
-  "schedules": {
-    "tabs": {
-      "scheduled": "Scheduled tasks",
-      "other": "Other tasks"
-    },
-    "sources": {
-      "submit": "Submitted",
-      "exec": "Direct execution",
-      "unknown": "Unknown source"
-    },
-    "scheduledSource": "Schedule: {{name}}",
-    "removed": "Workspace tasks · not linked to this schedule instance",
-    "nextRun": "Next trigger",
-    "lastJob": "Last Job result",
-    "policy": "Job concurrency",
-    "runningJobs": "Active Jobs on this service: {{count}}",
-    "policies": {
-      "allow": "Allow overlap",
-      "forbid": "Skip overlap",
-      "replace": "Replace previous Job"
-    },
-    "noActiveTasks": "No queued or running Tasks.",
-    "history": "Finished Tasks · {{count}}",
-    "arguments": "Job arguments",
-    "emptyTitle": "No configured schedules",
-    "emptyHint": "Add schedules to the selected service configuration and restart it to load them.",
-    "total": "{{schedules}} schedules · {{count}} Tasks",
-    "search": "Search schedule, description, Task ID, type, or PID"
+    "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks"
   },
   "quality": {
-    "filesTab": "Files",
     "checksTab": "Quality checks",
     "viewSamples": "View {{count}}",
     "samplesTab": "Samples",
@@ -1072,12 +960,10 @@
     "showRelevant": "Show key checks only",
     "showAll": "Show all checks",
     "empty": "No data quality statistics for this record",
-    "samples": "View issue samples",
     "details": "View full security details",
     "export": "Export details as JSON",
     "debug": "Debug artifacts",
     "jump": "Price jump at {{time}}",
-    "previousSignal": "This run has not produced a successful signal. Showing the previous commit: {{date}} {{time}}. See Runtime for current diagnostics.",
     "columns": {
       "stage": "Stage",
       "reason": "Reason",
@@ -1151,7 +1037,6 @@
       "prediction": "Prediction"
     },
     "checkCount": "{{count}} checks",
-    "view": "View",
     "resultCounts": "Warnings: {{warnings}} · Passed: {{passed}}",
     "noDataCount": "{{count}} checks have no data",
     "checkedCount": "{{count}} rows checked",
@@ -1174,87 +1059,20 @@
       "bar": "At {{time}}"
     }
   },
-  "taskOwnership": {
-    "managed": "Managed by this service",
-    "workspace": "Workspace record"
-  },
   "operations": {
-    "historyLimited": "Showing up to {{limit}} recent triggers per schedule; older retained records are omitted.",
-    "unsyncedItems": "Items not synced this round",
-    "jobName": "Job name",
-    "triggerId": "Execution ID",
-    "schedulerId": "Scheduler ID",
     "dataInterfaces": "Data interfaces",
     "dataResults": "Data results",
     "noInterfaces": "No interface records",
-    "activeJobs": "Active Jobs",
-    "configuration": "Schedule configuration",
-    "configurationShort": "Configuration",
-    "plan": {
-      "triggerFailed": "Last trigger failed",
-      "title": "Schedule plan",
-      "time": "Runs",
-      "weekdays": "Weekdays at {{time}}",
-      "daily": "Daily at {{time}}",
-      "custom": "Custom schedule",
-      "submissionHistory": "Scheduled submission history",
-      "conflict": "Submission rejected: a same-name active Task record existed at that time.",
-      "newerTask": "The current Task was created afterward.",
-      "states": {
-        "queued": "Submission queued",
-        "running": "Submitting",
-        "succeeded": "Submitted",
-        "failed": "Submission failed; see technical details",
-        "cancelled": "Submission cancelled"
-      }
-    },
-    "lastSubmission": "Last submission",
-    "lastSubmissionFailed": "Last submission failed",
     "runHistory": "OPERATIONS",
-    "loadError": "Unable to load operations navigation",
-    "unavailable": "This page is not configured on this service",
-    "search": "Search schedules or tasks",
-    "noTriggers": "No triggers yet",
-    "finished": "Finished",
-    "result": "Execution result",
-    "empty": "No matching tasks",
-    "metrics": {
-      "uploaded": "Uploaded",
-      "rejected": "Rejected",
-      "oversized": "Oversized",
-      "deferred": "Not synced this round",
-      "archives": "Archives",
-      "rows": "Rows",
-      "elapsed_seconds": "Elapsed seconds",
-      "attempted_count": "Total processed",
-      "created_count": "Created",
-      "changed_count": "Updated",
-      "unchanged_count": "Unchanged",
-      "rejected_count": "Failed",
-      "empty_count": "Empty data",
-      "selected_apis": "Data APIs"
-    },
-    "taskRun": "Task run",
-    "jobRun": "Job execution",
+    "comparison": "Comparison",
+    "unavailable": "This page does not exist",
+    "search": "Search tasks",
+    "empty": "No matching entries",
+    "taskRecord": "Task record",
     "triggered": "Triggered",
     "noResult": "No execution result yet",
-    "nothingToSync": "Nothing to synchronize in this round",
-    "incompleteResult": "Some items remain incomplete or were rejected. Review the results below.",
-    "rawResult": "View raw result",
-    "items": "Items",
-    "technicalDetails": "Technical details",
     "step": "Task / step",
     "progress": "Progress",
-    "fields": {
-      "flow": "Update flow",
-      "start_date": "Start date",
-      "end_date": "End date",
-      "updated": "Updated date",
-      "error": "Error",
-      "error_type": "Error type",
-      "task": "Task type"
-    },
-    "lastExecution": "Latest execution",
     "dataUpdate": "Data updates"
   },
   "onlineWorkbench": {
@@ -1262,42 +1080,22 @@
     "date": "Trading date",
     "historical": "Historical results",
     "submitted": "Submitted slots",
-    "anomalies": "Models with issues",
     "timezone": "Shanghai time",
-    "overview": "Slot overview",
-    "results": "Signals & portfolio",
-    "fields": "Field details",
-    "diagnostics": "Diagnostics",
     "slot": "Signal time",
     "model": "Model",
-    "coverage": "Current bar coverage",
-    "history": "History input",
-    "models": "Model commits",
-    "state": "Status",
-    "action": "View",
-    "inspect": "Inspect",
-    "open": "View signals",
     "unavailable": "Unavailable",
     "noSignal": "No submitted signal for this date and time.",
-    "noRun": "No execution records are available for this trading date. Archived signals remain available under each time’s Signal results.",
+    "noTaskRecord": "No execution records are available for this trading date. Archived signals remain available under each time’s Signal results.",
     "historyError": "Signal history could not be loaded; the displayed result may not be the latest effective revision.",
-    "inference": "Model inference",
-    "runDetails": "Execution record",
     "oldRevision": "Viewing a historical revision.",
     "returnEffective": "Return to effective revision",
     "updated": "Last updated",
-    "partialCommit": "Submitted at threshold",
     "coveragePolicy": "Commit immediately at 100% coverage; after {{seconds}} seconds from the signal time, accept {{threshold}}% coverage. Below threshold, retry until the deadline.",
     "data": "Preparation",
     "baseCollection": "Base collection",
     "sharedEtl": "Shared ETL",
-    "features": "Features",
-    "scoring": "Model scoring",
-    "signalResults": "Signal results",
-    "allModels": "All models",
     "scopeLabel": "Data and signal times",
     "stageLabel": "Processing stages",
-    "resultView": "Result view",
     "states": {
       "done": "Completed",
       "failed": "Failed",
@@ -1310,7 +1108,6 @@
       "unavailable": "No records",
       "ready": "Ready to run"
     },
-    "stockDetails": "Stock details",
     "qualitySources": {
       "snapshot": "Opening quotes",
       "before": "Pre-signal quotes",
@@ -1364,5 +1161,53 @@
     "fieldCount": "{{count}} differing fields",
     "noFieldDifferences": "No numeric or discrete field differences. Check schema and sample coverage above.",
     "rowsPair": "Online {{online}} / offline {{offline}} rows"
+  },
+  "taskDefinitionsTitle": "Task definitions",
+  "taskDefinitionsLead": "Configure installed Tasks, run them, and inspect results.",
+  "taskDefinitions": {
+    "selectTask": "Select a Task",
+    "selectTaskHint": "Configure parameters or inspect input and output definitions",
+    "loadingCatalog": "Loading Task catalog…"
+  },
+  "input": "Input",
+  "taskExecution": {
+    "parameters": "Input parameters",
+    "parametersHint": "Configure the inputs for this run",
+    "outputHint": "Fields and types returned after a successful run",
+    "nameHint": "Leave the task name blank to generate one. Reusing a name replaces its finished run.",
+    "target": "Execution target",
+    "connectionHint": "Navigate within Studio freely. Reloading, closing the page, or losing the connection may stop execution.",
+    "reset": "Reset parameters",
+    "run": "Run task",
+    "starting": "Starting",
+    "invalidValue": "Enter a valid parameter value",
+    "output": "Execution logs",
+    "exitCode": "Exit code",
+    "stop": "Stop execution",
+    "waitingLog": "Waiting for execution logs…",
+    "disconnectedHint": "The connection was interrupted. Check the Task status before running it again.",
+    "monitor": "Executions",
+    "active_one": "{{count}} running",
+    "active_other": "{{count}} running",
+    "finished": "Execution finished",
+    "openTask": "Open Task details",
+    "dismiss": "Dismiss execution record",
+    "states": {
+      "starting": "Starting",
+      "running": "Running",
+      "succeeded": "Completed",
+      "failed": "Failed",
+      "disconnected": "Disconnected"
+    },
+    "active": "{{count}} running",
+    "taskName": "Task name",
+    "upstreamTasks": "Upstream Task IDs",
+    "upstreamHint": "List direct upstream Task IDs. This records dependencies without executing upstream Tasks."
+  },
+  "schemaForm": {
+    "addItem": "Add item",
+    "removeItem": "Remove item {{index}}",
+    "requiredOutput": "Required",
+    "optionalOutput": "Optional"
   }
 }

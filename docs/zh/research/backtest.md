@@ -33,12 +33,12 @@ ETL 发布四份独立产物：
 预测 Parquet 的必需列、可选列和 metadata 要求见[预测到股票回测的输入契约](../reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ```bash
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-来源任务自动解析行情、日历和标签产物。指定文件时使用 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`。`as_of_date` 为包含当天的评价截止日期，默认取行情最后日期。`top_ns` 是整数列表，各组合独立记账。日历日期必须是有效 YYYYMMDD，不能有空值或重复；计算标签期限和持有期前会拒绝非法日历。
+来源任务自动解析行情、日历和标签产物。指定文件时使用 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`。`as_of_date` 为包含当天的评价截止日期。共享基类默认取行情最后日期，Alpha158 插件覆盖为最后信号日，需要延长估值/结算时显式指定。`top_ns` 是整数列表，各组合独立记账。日历日期必须是有效 YYYYMMDD，不能有空值或重复；计算标签期限和持有期前会拒绝非法日历。
 
 | 参数                            | 默认值   | 含义                         |
 | ------------------------------- | -------- | ---------------------------- |

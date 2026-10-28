@@ -9,6 +9,12 @@ repos:
       - id: check-json
       - id: detect-private-key
       - id: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.2
+    hooks:
+      - id: ruff-check
+        types_or: [python, pyi]
+        args: [--fix]
   - repo: https://github.com/psf/black
     rev: 26.5.1
     hooks:
@@ -29,7 +35,8 @@ repos:
           - --persistent=n
           # Limit style constraints; keep errors enabled except optional-import/dynamic-member checks.
           - &pylint-disable-1 --disable=W0511,W0718,W1203,C0103,R0913,R0917,E0401,E1101
-          - &pylint-disable-2 --disable=C0415,W0603,R1705,R0914,R0801
+          # Ruff owns import ordering and grouping.
+          - &pylint-disable-2 --disable=C0411,C0412,C0415,W0603,R1705,R0914,R0801
           - &pylint-disable-3 --disable=R0902,R0903,R0904
           - &pylint-disable-4 --disable=R1702,R0912,C0114,C0115,C0116
           - --max-statements=120

@@ -1,30 +1,15 @@
 import { useTranslation } from "react-i18next";
-import { fmt } from "./format";
-import type { ResearchArtifact } from "./types";
+import { formatNumber as fmt } from "../../shared/lib/format";
+import type { ResearchTask } from "./types";
 
 export function PredictionOverview({
   meta,
 }: {
-  meta: ResearchArtifact<"predict">;
+  meta: ResearchTask<"predict">;
 }) {
   const { t } = useTranslation();
   const stats = meta.output_params.statistics;
-  const columns = meta.output_params.output_columns?.length
-    ? meta.output_params.output_columns
-    : [
-        "trade_date",
-        "trade_time",
-        "ts_code",
-        "pred",
-        "name",
-        "is_model_candidate",
-        "is_buyable_at_signal",
-        "signal_price",
-        "signal_adjustment_factor",
-        "rank",
-        "buyable_rank",
-        ...(meta.output_params.index_weight_columns || []),
-      ];
+  const columns = meta.output_params.output_columns || [];
   const rate = (count?: number) =>
     count === undefined || !meta.output_params.rows
       ? "—"

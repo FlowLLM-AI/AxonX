@@ -1,73 +1,63 @@
 # 服务部署与 Studio 托管
 
-最小部署是一台机器上的 Python 服务、工作区和可选 Studio 包。先让带鉴权的 API 可用，再安装 Studio 和配置进程托管。以下进程托管与 HTTPS 是部署示例，需要按自己的系统调整。
+使用 Python 3.12+，在独立环境安装后端和可选 Studio。daemon 监督一个 service；Cron 在 service 内运行。进程托管器应管理 `axonx app` 启动的 daemon，service 子进程由 daemon 管理。
 
 ## 安装与配置
-
-要求 Python 3.12 或更高版本。创建虚拟环境：
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install axonx
-axonx --help
+pip install 'axonx[studio]'
 ```
 
-创建 `server.yaml`：
+创建 `server.yaml`，按部署机器调整路径：
 
 ```yaml
 extends: default
 workspace_dir: /srv/axonx/workspace
 log_dir: /srv/axonx/logs
 service:
-  backend: http
   host: 127.0.0.1
   port: 1024
   token: ${AXONX_SERVICE_TOKEN}
   shutdown_timeout: 1
   cleanup_timeout: 15
-  web_enabled: true
+cron: []
 ```
-
-绝对目录是 Linux 示例，不是项目默认路径。确保服务用户可以读写工作区与日志，并在相同环境安装需要的插件。
 
 ```bash
 export AXONX_SERVICE_TOKEN='<独立服务 token>'
-axonx start --config server.yaml
+axonx app --config server.yaml
 ```
 
-若需要其他机器直连，可改 host 为 `0.0.0.0`，并配置网络入口。默认配置本来监听这个地址，示例选择回环地址用于外部反向代理。
+需要其他机器直连时可绑定 `0.0.0.0` 并配置网络入口。工作区、日志和启动目录应可读写；研究插件安装在同一 Python 环境。配置定时任务见[定时调度](scheduling.md)。
 
-## 验证 API
+## 验证
 
 ```bash
 curl -fsS 'http://127.0.0.1:1024/health' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 axonx version
-axonx list_installed_task_definitions
+axonx list_task_defs --include-schemas false
+axonx exec --task demo --task-name deployment-check --x 1 --y 2
+axonx status --task-id 'base#demo#deployment-check'
 ```
 
-设置 token 后，health 也需要 Bearer header。健康表示服务可响应，不证明模型 SDK、外部数据源或每个插件运行正常；继续用 demo 验证提交与等待。
-
-## 安装并托管 Studio
-
-执行 `pip install "axonx[studio]"`，然后重启服务。详见 [Studio 入门](../getting-started/studio.md)与[源码构建](../development/studio.md)。`web_enabled: false` 关闭页面托管，API 继续可用。
+health 表示服务就绪；demo 检查实际执行与观察。API 可在未安装 Studio 时运行；安装 Studio 后重启 service，打开 `http://127.0.0.1:1024/`。
 
 ## 从仓库部署
 
-准备 Python 3.12+ 和 Node/npm，并激活目标 Python 环境后，可以在任意目录执行 `bash /path/to/AxonX/scripts/deploy.sh`。脚本会切换到仓库根目录，从 `origin` 更新 `main`，执行 `npm ci` 并构建 Studio，从源码安装 AxonX 和 Studio 包，再以可编辑模式安装 `qlib_a158`、`qlib_factor`、`qlib_strategy` 三个插件。安装成功后，脚本停止监听 `1024` 端口的进程（必要时强制终止），最后在前台执行 `axonx start`。
+在激活的执行环境中运行 `./scripts/deploy.sh [应用选项]`，例如 `./scripts/deploy.sh --config server.yaml`。脚本切换到仓库根目录，相对配置路径以此为基准。要求 Git、Python 和 Studio 支持的 Node.js/npm。
 
-脚本已有执行权限，在仓库根目录可直接运行 `./scripts/deploy.sh`。所有参数都会原样传给 `axonx start`，例如 `./scripts/deploy.sh --config remote` 最后执行 `axonx start --config remote`。端口清理仍针对 `1024`，不会读取指定配置。
+脚本使用与 `axonx app` 相同的配置解析和服务标识，验证 daemon 锁、监督器命令及 service 父进程后，先停止所选 daemon 与 service。它随后快进当前分支的 upstream、构建 Studio、以 editable 模式安装后端和 Studio、执行 `pip check`，再安装三个研究插件，最后在前台运行 `axonx app` 并传入原应用选项。不会根据端口选择并终止任意监听者。
 
-macOS 下，脚本使用 `lsof` 查询监听进程，因为 `psutil` 的全系统连接查询需要 root 权限。请以普通用户运行脚本。查询结果受当前用户权限限制；空结果不保证没有高权限进程占用端口。查询失败时，脚本会中止部署并给出具体处理提示。停止进程时权限不足，脚本会发出警告、跳过该进程，继续执行 `axonx start`；如果端口仍被占用，启动可能失败。如果清理失败，或启动时提示 `1024` 端口被占用，请执行 `sudo lsof -nP -iTCP:1024 -sTCP:LISTEN`，确认列出的进程是旧服务，再用实际 PID 执行 `sudo kill -TERM <PID>`。端口释放后，在已激活的环境中运行 `axonx start` 即可，此时安装与构建已经完成。`sudo` 会要求输入登录密码，输入时不显示字符。不要使用 `sudo` 运行整个部署脚本。
+停止或身份核验失败时，脚本在更新源码前退出。拉取、构建或安装失败时停止部署，需要修复后重新启动；脚本不回滚源码或环境。通过 systemd/launchd 托管时，应先使用托管器停止 daemon，完成部署后仍通过托管器启动，避免两个监督器竞争。
 
-## 后台进程托管示例
-
-Linux 可使用 systemd，下面是最小 unit 示例。路径、账户和虚拟环境都需要替换：
+## 后台托管示例
 
 ```ini
 [Unit]
-Description=AxonX service
+Description=AxonX daemon
 After=network.target
 
 [Service]
@@ -75,34 +65,27 @@ Type=simple
 User=axonx
 WorkingDirectory=/srv/axonx/source
 EnvironmentFile=/etc/axonx/service.env
-ExecStart=/srv/axonx/source/.venv/bin/axonx start --config /etc/axonx/server.yaml
+ExecStart=/srv/axonx/source/.venv/bin/axonx app --config /etc/axonx/server.yaml
 Restart=on-failure
+KillMode=process
 TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-service.env 保存所需环境变量，应限制读取权限。macOS 可使用自己的 launchd 配置；仓库不提供完整系统服务安装器。
+替换账户和路径，限制环境文件权限。此示例的 `KillMode=process` 将 daemon 作为停止目标，由 daemon 关闭 service，避免托管器直接终止同组外的定时进程；独立定时进程可能在完整 daemon 停止后继续运行，需要按 Task 身份显式管理。macOS 可使用自行配置的 launchd；仓库没有完整系统服务安装器。
 
 ## HTTPS 与事件流
 
-内置 Uvicorn 服务没有 TLS 配置。可在 Caddy、Nginx 等外部入口终止 HTTPS，再代理到回环 HTTP 地址；客户端显式使用公开 HTTPS URL。
-
-代理应保留 Authorization、请求体和正确的路径；SSE 入口应允许长连接，并避免响应缓冲。MCP 与 `/files` 也需要到达同一后端，上传入口限制应符合实际制品大小需求。
-
-外部入口的超时、内置 shutdown_timeout、TaskManager 的 terminate_grace_seconds 和客户端 timeout 作用不同：分别控制代理等待、服务请求关闭、worker 停止宽限与调用等待。
+TLS 在外部反向代理终止。代理应保留 Authorization、请求体、重复头与正确路径，支持 `/mcp`、`/upload` 和长时间 SSE，并关闭事件流缓冲。代理与客户端超时、Uvicorn 请求收尾及 service 总关闭期限是不同预算。
 
 ## 更新与关闭
 
-配置、Job 和插件贡献在应用装配时加载。修改后应重启服务，核对 version、插件列表、Task Schema 与 Studio assets 是否同一版本。
+通过 `axonx restart_service` 重新加载源码、`.env`、Task 定义和 Cron 配置；`update_from_git`、`update_from_pip` 在更新后自动启动新 service。daemon PID 保持不变，service PID 改变。监督器源码或启动 argv 发生变化时，需要停止并重新启动整个 `axonx app`。详见[服务更新与重启](self-update.md)。
 
-服务正常关闭会停止管理的 worker，并把相应运行记为 cancelled。重启不自动续跑这些研究任务。长训练升级前应先等待结束，或确认插件有可用的恢复方式。
+正常 service 关闭会停止 Cron 接受新触发，清理组件并终止 service 创建的手动 CLI 子进程；daemon 持有的定时 exec 继续运行。首次 Ctrl+C 或 SIGTERM 开始关闭，`cleanup_timeout` 限制总时长，再次 Ctrl+C 或超时强制退出。强制终止可能留下 running metadata，观察查询不改写记录；后续执行前的身份检查或显式 kill 负责确认退出后的收尾。定时 Task 不因 service 重启而重跑，也不补跑停机期间的时刻。
 
-首次 Ctrl+C 或 SIGTERM 会阻止新 Task 提交，并在等待应用清理前向本服务跟踪的 worker 进程组发送 SIGTERM。正常清理保留资源关闭顺序并记录取消状态。`service.cleanup_timeout`（默认 15 秒）限制整个关闭过程，包括应用清理及 Python 线程池收尾；`shutdown_timeout` 仅限制 Uvicorn 请求收尾。再次 Ctrl+C 或总时限到期时，会向剩余受管 worker 进程组发送 SIGKILL，并以退出码 130 结束服务。强制退出可能留下未完成的生命周期记录，重启后需检查对应 Run。共享工作区的其他服务不会被终止。嵌入式 `Application.close()` 仍保留正常等待清理的语义。
+迁移前协调所有写入进程，再复制工作区、配置和必要日志并恢复相同插件环境。
 
-迁移时先停止写入，复制工作区、日志与配置，恢复匹配插件环境，再核对历史记录与产物。不要只复制 Python 包而忽略实验文件。
-
-[鉴权](authentication.md) · [运维与恢复](operations.md) · [配置参考](../reference/configuration.md) · [插件管理](../plugins/management.md)
-
-源码：[HTTP 服务](../../../axonx/components/service/http/service.py)、[Studio 目录发现](../../../axonx/components/service/http/studio.py)、[TaskManager 关闭](../../../axonx/components/task_manager/local/manager.py)。
+实现：[daemon](../../../axonx/daemon/supervisor.py)、[部署停止工具](../../../scripts/stop_daemon.py)、[HTTP 服务](../../../axonx/app/components/service/http/service.py)。

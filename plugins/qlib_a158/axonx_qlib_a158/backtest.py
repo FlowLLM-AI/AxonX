@@ -2,13 +2,13 @@
 
 import polars as pl
 
-from axonx.task.builtins.stock import (
-    BaseStockBacktestTask,
+from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
+from axonx.task.builtins.stock.data import KEYS
+from axonx.task.builtins.stock.models import (
     StockBacktestInput as Alpha158BacktestInputParams,
 )
-from axonx.task.builtins.stock.backtest import StockBacktestOutput
-from axonx.task.contracts import BacktestUniverse
-from axonx.task.builtins.stock.data import KEYS
+from axonx.task.builtins.stock.models import StockBacktestOutput
+from axonx.task.models.reports import BacktestUniverse
 
 from .internal.reference import DEVIATIONS, QLIB_REFERENCE
 
@@ -22,6 +22,13 @@ class Alpha158BacktestTask(BaseStockBacktestTask):
     """
 
     input_cls = Alpha158BacktestInputParams
+
+    def resolve_inputs(self):
+        super().resolve_inputs()
+        # The plugin evaluates through its final signal date by default. A caller
+        # can explicitly extend as_of_date to value or settle remaining positions.
+        if self.input_params.as_of_date is None:
+            self.input_params.as_of_date = self.state["signals"]["trade_date"].max()
 
     def build_universes(self):
         yield BacktestUniverse(key="all", label="全市场")

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { displayArtifacts } from "./replica";
-import { taskStatus } from "../../playground/fixtures";
+import { taskStatus } from "../../playground/data";
+import { displayArtifacts } from "../api/artifacts";
 
 it("uses actual sampled revisions and excludes omitted artifact links", () => {
   const metadata = taskStatus("etl", "etl#demo#test", "test");

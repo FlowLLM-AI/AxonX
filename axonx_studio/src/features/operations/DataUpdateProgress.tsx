@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { TaskMetadata } from "../tasks/types";
+import type { TaskMetadata } from "../../shared/api/contracts";
 
 export function DataUpdateProgress({ task }: { task: TaskMetadata }) {
   const { t } = useTranslation();

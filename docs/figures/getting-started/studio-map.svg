@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1136" height="650" viewBox="0 0 1136 650" role="img" aria-labelledby="title desc">
 <title id="title">Studio: research prompt to experiment evidence</title>
-<desc id="desc">A research prompt and AxonX Skill guide an Agent with source tools to develop a plugin. Install it in the selected service, verify schemas, submit Tasks and inspect evidence in Studio. Source changes, installation and submission are separate. Factor analysis branches from ETL independently of training.</desc>
+<desc id="desc">A research prompt and AxonX Skill guide an Agent with source tools to develop a plugin. Install it in the selected service, verify schemas, execute Tasks and inspect evidence in Studio. Source changes, installation and execution are separate. Factor analysis branches from ETL independently of training.</desc>
 <defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#247baf"/></marker></defs>
 <rect x="8" y="8" width="1120" height="634" rx="30" fill="#f7f9fc" stroke="#172c49" stroke-opacity="0.35"/>
 <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#172c49" data-diagram-content="true">
 <text x="44" y="52" font-size="30" font-weight="700">Studio: research prompt to experiment evidence</text>
-<text x="44" y="84" font-size="18">Develop code, install in the selected service, then submit and inspect Tasks.</text>
+<text x="44" y="84" font-size="18">Develop code, install in the selected service, then execute and inspect Tasks.</text>
 <rect x="44" y="130" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
 <text x="62" y="162" font-size="21" font-weight="700">Prompt + Skill</text>
 <text x="62" y="192" font-size="16">Question / baseline</text>
@@ -23,7 +23,7 @@
 <text x="836" y="192" font-size="16">Install / verify schemas</text>
 <text x="836" y="217" font-size="16">Select local / remote</text>
 <rect x="44" y="320" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
-<text x="62" y="352" font-size="21" font-weight="700">Submit</text>
+<text x="62" y="352" font-size="21" font-weight="700">Execute</text>
 <text x="62" y="382" font-size="16">Task Schema form</text>
 <text x="62" y="407" font-size="16">Wait for upstream</text>
 <rect x="302" y="320" width="216" height="110" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>

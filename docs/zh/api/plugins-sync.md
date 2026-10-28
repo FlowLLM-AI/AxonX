@@ -1,260 +1,62 @@
-# 插件与同步 API
+# 插件命令与同步 API
 
-这组接口改变服务 Python 环境或工作区 Task 目录。文件先上传暂存，再传返回路径给对应消费者。
+插件管理通过通用 `cli` Job 执行，同步保留专用 Job。
 
-![插件与同步 API调用示意](../../figures/api/plugin-sync.svg)
+所有下列 Job 使用 `POST /jobs/NAME` 和 `{"arguments": {...}}` 请求体。流式入口为 `/jobs/NAME/events`，MCP 使用相同 Job 名和业务参数。先调用 `help --job NAME` 获取目标服务实际 Schema。示例中的 Task/会话 ID 必须替换为实际值。
 
-## 调用约定
+![插件部署与展示同步](../../figures/api/plugin-sync.svg)
 
-以下均为 `POST /jobs/{name}`，请求体是 `{"arguments":{...}}`。远程转发时在封装顶层添加 `target`，不能放进 arguments。每个响应使用 [JobResponse](overview.md#响应与错误)，表格默认值依据当前内置配置和 Step。部署可修改 Job Schema，运行服务的 `/jobs` 是最终依据。
+## 接口列表
 
-所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskMetadata 字段见 [Task 协议](../reference/task-contracts.md)。
-
-## 接口清单
-
-| Job                | 用途                                                 |
-| ------------------ | ---------------------------------------------------- |
-| `list_plugins`     | 检查服务 Python 环境的全部 AxonX 插件。              |
-| `inspect_plugin`   | 检查一个已安装插件。                                 |
-| `install_plugin`   | 安装已上传且校验通过的 wheel。                       |
-| `uninstall_plugin` | 从服务环境卸载插件 distribution。                    |
-| `sync_tasks`       | 接收经过校验的展示副本归档并替换目录，或只应用删除。 |
-
-## list_plugins
-
-检查服务 Python 环境的全部 AxonX 插件。
-
-无公开业务参数；使用 `{"arguments":{}}`。
-
-**请求**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**响应**
-
-answer 为 PluginInfo 数组：distribution、version、plugins、tasks、components、jobs、requirements、content_sha256、sha256、error。
-
-```json
-{
-  "answer": [],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-error 非空表示发现或解析问题；不是所有 Python 安装包都属于 AxonX 插件。
-
-## inspect_plugin
-
-检查一个已安装插件。
-
-| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                        |
-| -------- | ------ | ---- | ----------- | ------------------------------------------------- |
-| `plugin` | string | 是   | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
-
-Schema 未禁止额外字段；不要据此假定额外字段会被使用。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "plugin": "axonx-example"
-  }
-}
-```
-
-**响应**
-
-answer 为单个 PluginInfo，与 list_plugins 每项同形。
-
-```json
-{
-  "answer": {
-    "distribution": "axonx-example",
-    "version": "0.1.0",
-    "plugins": ["example"],
-    "tasks": {},
-    "components": {},
-    "jobs": {},
-    "requirements": [],
-    "content_sha256": null,
-    "sha256": null,
-    "error": null
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-未知或歧义的插件名返回失败。不要混淆 distribution、entry-point 名和 Task 注册名。
-
-## install_plugin
-
-先在安装服务上通过二进制或 multipart `POST /files` 暂存 wheel，将返回的 `answer.path` 与原始 wheel 的 SHA-256 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
-
-安装已上传且校验通过的 wheel。
-
-| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                      |
-| -------- | ------ | ---- | ----------- | ----------------------------------------------- |
-| `path`   | string | 是   | `—（省略）` | 服务工作区相对路径；minLength=1                 |
-| `sha256` | string | 是   | `—（省略）` | 原始 wheel 的 SHA-256；正则 `^[0-9a-fA-F]{64}$` |
-
-只接受表中业务字段。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "path": "tmp/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/axonx_example-0.1.0-py3-none-any.whl",
-    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  }
-}
-```
-
-**响应**
-
-answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required。
-
-```json
-{
-  "answer": {
-    "distribution": "axonx-example",
-    "version": "0.1.0",
-    "plugins": ["example"],
-    "tasks": {},
-    "components": {},
-    "jobs": {},
-    "requirements": [],
-    "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "error": null,
-    "restart_required": true
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-示例哈希和路径仅说明格式，必须替换 POST /files 返回值。校验的是暂存 wheel，不能传本机 source 目录；成功或失败均尝试清理暂存文件。安装开始后取消请求，会等待环境操作结束再清理暂存文件；取消不会回滚安装。仅贡献 Task 的 wheel 更新会刷新插件导入，后续 Task 定义查询与提交无需重启。Component/Job 或已有依赖版本被替换时，仍按 `restart_required=true` 重启。不迁移运行中的 Task，也不隔离其版本。
-
-## uninstall_plugin
-
-从服务环境卸载插件 distribution。
-
-| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                        |
-| -------- | ------ | ---- | ----------- | ------------------------------------------------- |
-| `plugin` | string | 是   | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
-
-只接受表中业务字段。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "plugin": "axonx-example"
-  }
-}
-```
-
-**响应**
-
-answer 为 PluginUninstallResult：distribution、restart_required。
-
-```json
-{
-  "answer": {
-    "distribution": "axonx-example",
-    "restart_required": true
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-卸载会从后续查询与提交中移除 Task 注册信息，并清理缓存中的插件导入。已装配的 Component/Job 仍保留在运行中的 Application 内；按 `restart_required=true` 重启。取消请求时会等待已开始的卸载结束，不会回滚环境变更。
-
-## sync_tasks
-
-接收经过校验的展示副本归档并替换目录，或只应用删除。
-
-| 参数        | 类型   | 必填 | 默认值      | 约束与含义                         |
-| ----------- | ------ | ---- | ----------- | ---------------------------------- |
-| `path`      | string | 否   | `—（省略）` | 服务工作区相对路径；minLength=1    |
-| `deletions` | array  | 否   | `[]`        | 待删除的任务目录路径；maxItems=200 |
-
-只接受表中业务字段。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "deletions": []
-  }
-}
-```
-
-**响应**
-
-answer 为 SyncTasksReport：archive、applied、deleted、files。
-
-```json
-{
-  "answer": {
-    "archive": null,
-    "applied": [],
-    "deleted": [],
-    "files": 0
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-path 可省略，deletions 默认为 []，最多 200。path 只接受上传的暂存归档；deletions 是 类型/Task ID 任务目录，不是任意文件路径。接收失败 success=false，answer 是错误文本；归档随后清理。
-
-## 失败响应示例
-
-安装提交的 sha256 格式不合法会返回 HTTP 422；格式正确但制品与哈希不匹配，则安装消费者校验失败并清理暂存文件。再次尝试必须先重新上传。
-
-sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返回业务失败文本，例如一个暂存文件不存在：
-
-```json
-{ "answer": "Staged file does not exist", "success": false, "metadata": {} }
-```
-
-接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是包含所选发布产物的展示副本，不迁移进程、插件环境、Agent 会话、上游输入或原始数据树。
+| Job               | 用途                                                   |
+| ----------------- | ------------------------------------------------------ |
+| `task_sync_index` | 读取经核验的展示副本版本，供同步对账。                 |
+| `sync_tasks`      | 从已上传的同步归档替换 Task 目录，可同时应用删除操作。 |
 
 ## task_sync_index
 
-接收可选 `task_names`、`live_task_ids`，返回 `answer.transfer_budget_bytes`、统一的版本及 Run/文件记录映射 `answer.tasks`。`sync_tasks` 接收终态副本或完整在线父子任务组，须保留完整清单并校验差量基底。未标记的源任务归档直接拒绝。本机活跃任务不能被覆盖；在线副本接收同一来源的更新版本。发送端首次 flush 时对账普通任务，每次 flush 捕获在线任务组，不自动传播删除。参见[结果展示同步](../guides/task-sync.md)。
+读取经核验的展示副本版本，供同步对账。
+
+| 参数            | 类型    | 必填 | 默认/约束 |
+| --------------- | ------- | ---- | --------- |
+| `task_names`    | `array` | 否   | `—`       |
+| `live_task_ids` | `array` | 否   | `—`       |
+
+```json
+{
+  "arguments": {
+    "task_names": ["experiment"]
+  }
+}
+```
+
+返回用于对账的已核验展示快照修订。`task_names` 匹配 Task ID 末段（1–32 个字母、数字或连字符），空列表或省略时包含所有名称。`live_task_ids` 选择显式启用的活动父任务组，快照身份使用 `root_started_at` 和有序 revision。
+
+## sync_tasks
+
+从已上传的同步归档替换 Task 目录，可同时应用删除操作。
+
+| 参数        | 类型     | 必填 | 默认/约束                       |
+| ----------- | -------- | ---- | ------------------------------- |
+| `path`      | `string` | 否   | `{"minLength":1}`               |
+| `deletions` | `array`  | 否   | `{"maxItems":200,"default":[]}` |
+
+```json
+{
+  "arguments": {
+    "path": "tmp/ACTUAL_UPLOAD_PATH/archive.tar.gz"
+  }
+}
+```
+
+应用已上传同步归档和可选删除项。此处使用上传的相对 path，不是插件安装用的绝对 location；返回 `archive`、`applied`、`deleted` 和 `files`。gzip tar 归档必须在规范 Task 目录中包含经核验的展示副本 metadata 和普通文件，并受传输预算限制；应用时拒绝覆盖活动的原始 Task 目录。展示副本仅用于检查，不能执行或作为研究输入。
+
+## 插件命令
+
+通过 `cli` 传 argv `["plugin", "list"]`、`["plugin", "show", "DISTRIBUTION"]`、`["plugin", "install", "/absolute/upload/location.whl"]` 或 `["plugin", "uninstall", "DISTRIBUTION"]`。响应包含进程 stdout/stderr、exit_code 和截断标志，插件元数据是 stdout 中的 JSON。没有专用插件管理 Job，也不自动刷新常驻目录。从本地部署遵循显式[部署流程](../plugins/management.md)，上传使用 `/upload`。
 
 ## sync_flush 的可见性
 
-sync_flush 在 default.yaml 中默认被注释；启用示例中的 enable_serve=false 使其只用于内部调度。它不是默认对外 API，不能在 /jobs 中假定存在。结果 SyncReport 含 uploaded、rejected、oversized、deferred、archives，详见 [任务同步](../guides/task-sync.md)。
+默认配置注释掉 `sync_flush`，因为它依赖配置好的 sync 组件。仅当组件存在时，用 `backend: sync_flush_step` 暴露 pipeline Job。可手动或由自定义宿主流程调用；Cron 仅支持 Task exec 命令。详见[任务同步](../guides/task-sync.md)。
 
-## 相关文档
-
-- [协议、鉴权与错误](overview.md)
-- [插件管理](../plugins/management.md)
-- [CLI 参考](../reference/cli.md)
-- [事件协议](events.md)
-
-实现依据：`axonx/config/default.yaml`、`axonx/steps/plugin/` 与 `axonx/components/service/http/jobs.py`。
+源码：[默认 Job 契约](../../../axonx/app/config/default.yaml) · [Job 协议](overview.md)

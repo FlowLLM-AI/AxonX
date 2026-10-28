@@ -1,8 +1,8 @@
 import { GitFork, LoaderCircle, Pencil, Plus, Tag, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { AgentSessionInfo } from "../../shared/api/contracts";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import type { AgentSessionInfo } from "./types";
 
 interface SessionContextMenu {
   session: AgentSessionInfo;

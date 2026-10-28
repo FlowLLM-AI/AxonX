@@ -108,7 +108,7 @@ qlib_a158 保存完整预测截面，包含不可买或没有指数权重的样�
 
 不要直接修改已成功任务的模型或数据文件；它会使 metadata 的校验信息与实际内容分离。qlib_a158 预测会校验训练模型摘要，并检查模型特征名称与顺序。
 
-对于异常结果，保留 Task ID、run_id、输入参数、上游 ID、metadata 和日志。用[任务血缘](../concepts/task-lineage.md)核对依赖，再检查文件内容。
+对于异常结果，保留 Task ID、started_at、输入参数、上游 ID、metadata 和日志。用[任务血缘](../concepts/task-lineage.md)核对依赖，再检查文件内容。
 
 ## 相关文档与实现
 

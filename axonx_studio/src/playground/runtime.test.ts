@@ -5,67 +5,86 @@ import {
   fromHistory,
   optimisticUserBlock,
 } from "../features/agent/reducer";
-import type { AgentSession, AgentSessionInfo } from "../features/agent/types";
-import type { TaskGraph } from "../features/task-graph/types";
-import { taskStepProgress } from "../features/tasks/format";
-import type { TaskHandle, TaskMetadata } from "../features/tasks/types";
-import type {
-  WorkspaceListing,
-  WorkspacePreview,
-} from "../features/workspace/types";
+import { taskStepProgress } from "../features/tasks/model";
 import { AxonXClient } from "../shared/api/client";
-import { streamJob } from "../shared/api/event";
-import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import type {
+  AgentSession,
+  AgentSessionInfo,
+  TaskGraph,
+  TaskMetadata,
+  WorkspaceListing,
+} from "../shared/api/contracts";
+import type { WorkspacePreview } from "../shared/api/workspace";
+import { upstreamTaskIds } from "../shared/lib/tasks";
 import { createPlayground } from "./runtime";
+import { taskCommand } from "../features/tasks/execution";
+import { definitions } from "./data";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 const client = () => new AxonXClient(createPlayground(), false);
-const submit = (api: AxonXClient, extra = {}) =>
-  api.invoke<TaskHandle>("submit", { task: "playground.backtest", ...extra });
 
 describe("static Playground", () => {
-  it("keeps discovery and structured file previews bounded on explicit requests", async () => {
-    const api = client();
-    const schedules =
-      await api.invoke<import("../features/tasks/types").Schedule[]>(
-        "list_schedules",
-      );
-    expect(schedules.length).toBeGreaterThan(0);
-    expect(schedules[0]).not.toHaveProperty("history");
-    const history = await api.invoke<
-      import("../features/tasks/types").Schedule[]
-    >("list_schedules", {
-      name: schedules[0].name,
-      include_history: true,
-      history_limit: 1,
-    });
-    expect(history).toHaveLength(1);
-    expect(history[0].history!.length).toBeLessThanOrEqual(1);
-    const catalog = await api.invoke<Record<string, unknown>[]>(
-      "list_installed_task_definitions",
-      { include_schemas: false },
-    );
-    expect(catalog.length).toBeGreaterThan(0);
-    expect(catalog[0]).not.toHaveProperty("input_schema");
-    const handle = await submit(api);
-    const preview = await api.invoke<WorkspacePreview>("preview_file", {
-      path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
-      max_bytes: 32,
-    });
-    expect(preview).toMatchObject({ truncated: true, data: null });
-    expect(
-      "content" in preview && new TextEncoder().encode(preview.content).length,
-    ).toBeLessThanOrEqual(32);
-  });
+  it.each(["success", "failure"])(
+    "simulates a CLI Task with %s outcome and publishes a queryable record",
+    async (outcome) => {
+      const api = client();
+      const definition = definitions[0];
+      const name = `test-${outcome}`;
+      const taskId = `${definition.task_type}#${definition.name}#${name}`;
+      const logs: string[] = [];
+      const command = api
+        .stream(
+          "cli",
+          { argv: taskCommand(definition.name, { task_name: name, outcome }) },
+          {
+            onEvent: (event) => {
+              if (event.kind === "log") logs.push(event.content);
+            },
+          },
+        )
+        .then(
+          (result) => ({ result, error: null }),
+          (error) => ({ result: null, error }),
+        );
+      await vi.advanceTimersByTimeAsync(2_500);
+      const response = await command;
+      const task = await api.invoke<TaskMetadata>("status", {
+        task_id: taskId,
+      });
+      expect(task.state).toBe(outcome === "success" ? "succeeded" : "failed");
+      expect(Boolean(response.error)).toBe(outcome === "failure");
+      expect(logs.join("")).toContain("[simulation]");
+      expect(task.input_params.task_name).toBe(name);
+    },
+  );
 
+  it("stops a simulated command through the same CLI Job", async () => {
+    const api = client();
+    const definition = definitions[0];
+    const taskId = `${definition.task_type}#${definition.name}#stop-test`;
+    const command = api
+      .stream("cli", {
+        argv: taskCommand(definition.name, { task_name: "stop-test" }),
+      })
+      .catch((error) => error);
+    await vi.advanceTimersByTimeAsync(200);
+    await api.stream("cli", {
+      argv: ["kill", "--task-id", JSON.stringify(taskId)],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    await command;
+    expect(
+      (await api.invoke<TaskMetadata>("status", { task_id: taskId })).error,
+    ).toBe("Simulation stopped");
+  });
   it("defaults to summaries while preserving explicit full status and selected task details", async () => {
     const api = client();
     const full = await api.invoke<TaskMetadata[]>("list_task_statuses", {
       detail: "full",
     });
     const summaries =
-      await api.invoke<import("../features/tasks/types").TaskSummary[]>(
+      await api.invoke<import("../shared/api/contracts").TaskSummary[]>(
         "list_task_statuses",
       );
     expect(summaries.map((task) => task.task_id)).toEqual(
@@ -87,9 +106,9 @@ describe("static Playground", () => {
       await expect(
         api.invoke("read_task_log", {
           task_id: summary.task_id,
-          run_id: "replaced-run",
+          started_at: "2026-01-02T00:00:00Z",
         }),
-      ).rejects.toThrow("Task run changed");
+      ).rejects.toThrow("Task restarted");
       expect(summary.step_progress?.current ?? null).toBe(
         taskStepProgress(detail)?.current ?? null,
       );
@@ -118,9 +137,12 @@ describe("static Playground", () => {
         "predict",
         "backtest",
       ]) {
-        const runs = await api.invoke<WorkspaceListing>("list_task_runs", {
-          task_type,
-        });
+        const runs = await api.invoke<WorkspaceListing>(
+          "list_task_directories",
+          {
+            task_type,
+          },
+        );
         expect(runs.entries.length).toBeGreaterThan(0);
         for (const run of runs.entries) {
           const preview = await api.invoke<WorkspacePreview>("preview_file", {
@@ -135,34 +157,36 @@ describe("static Playground", () => {
               artifacts: Record<string, { path: string }>;
               protocol?: Record<string, unknown>;
             };
-            input_params: { source_tasks: string };
+            input_params: { upstream_task_ids: string[] };
           };
           const task = await api.invoke<TaskMetadata>("status", {
             task_id: metadata.task_id,
           });
           if (task.state !== "succeeded") continue;
           expect(metadata.state).toBe("succeeded");
-          const expectedSource: Record<string, string> = {
-            analysis: "etl#demo",
-            train: "etl#demo",
-            predict: "train#demo",
-            backtest: "predict#demo",
+          const expectedSource: Record<string, string[]> = {
+            analysis: ["etl#demo"],
+            train: ["etl#demo"],
+            predict: ["train#demo"],
+            backtest: ["predict#demo"],
           };
           if (
             metadata.task_id === `${task_type}#demo` ||
             metadata.task_id === "backtest#volatile"
           )
-            expect(metadata.input_params.source_tasks).toBe(
-              expectedSource[task_type] || "",
+            expect(metadata.input_params.upstream_task_ids).toEqual(
+              expectedSource[task_type] || [],
             );
-          expect(task.input_params.source_tasks).toBe(
-            metadata.input_params.source_tasks,
+          expect(task.input_params.upstream_task_ids).toEqual(
+            metadata.input_params.upstream_task_ids,
           );
           if (task_type !== "etl")
             expect(
-              parseSourceTasks(metadata.input_params.source_tasks),
+              upstreamTaskIds(metadata.input_params.upstream_task_ids),
             ).toHaveLength(1);
-          for (const id of parseSourceTasks(metadata.input_params.source_tasks))
+          for (const id of upstreamTaskIds(
+            metadata.input_params.upstream_task_ids,
+          ))
             await api.invoke("status", { task_id: id });
           expect(metadata.output_params).not.toHaveProperty("output_file");
           expect(metadata.output_params).not.toHaveProperty("result_file");
@@ -193,73 +217,6 @@ describe("static Playground", () => {
     }
   });
 
-  it("submits training and factor analysis as independent ETL branches", async () => {
-    const api = client();
-    for (const kind of ["train", "analysis"]) {
-      const handle = await api.invoke<TaskHandle>("submit", {
-        task: `playground.${kind}`,
-      });
-      const task = await api.invoke<TaskMetadata>("status", {
-        task_id: handle.task_id,
-      });
-      expect(task.input_params.source_tasks).toBe("etl#demo");
-      vi.advanceTimersByTime(7000);
-      const completed = await api.invoke<TaskMetadata>("status", {
-        task_id: handle.task_id,
-      });
-      expect(completed.state).toBe("succeeded");
-      const preview = await api.invoke<WorkspacePreview>("preview_file", {
-        path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
-      });
-      if (preview.kind !== "json") throw new Error("Missing metadata");
-      expect(preview.data).toMatchObject({
-        input_params: { source_tasks: "etl#demo" },
-      });
-    }
-  });
-
-  it("keeps return summaries and graph lineage consistent with rendered data", async () => {
-    const api = client();
-    const daily = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "backtest/backtest#demo/universes/all/daily.parquet",
-      limit: 100,
-    });
-    const summary = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "backtest/backtest#demo/universes/all/summary.parquet",
-      limit: 100,
-    });
-    if (daily.kind !== "parquet" || summary.kind !== "parquet")
-      throw new Error("Missing backtest tables");
-    const net = daily.columns.indexOf("top5_net_return");
-    const cumulative =
-      daily.rows.reduce(
-        (equity: number, row) => equity * (1 + Number(row[net])),
-        1,
-      ) - 1;
-    const overall = summary.rows.find(
-      (row) => row[summary.columns.indexOf("period_type")] === "overall",
-    )!;
-    expect(
-      overall[summary.columns.indexOf("top5_net_cumulative_return")],
-    ).toBeCloseTo(cumulative, 12);
-    const graph = await api.invoke<{
-      nodes: { task_id: string; missing: boolean }[];
-      edges: { from: string; to: string }[];
-    }>("get_task_graph", { task_id: "backtest#demo" });
-    expect(graph.nodes).toHaveLength(6);
-    expect(graph.edges).toContainEqual({
-      from: "predict#demo",
-      to: "backtest#volatile",
-    });
-    await api.invoke("delete_tasks", { task_ids: ["train#demo"] });
-    const missing = await api.invoke<typeof graph>("get_task_graph", {
-      task_id: "backtest#demo",
-    });
-    expect(
-      missing.nodes.find((node) => node.task_id === "train#demo")?.missing,
-    ).toBe(true);
-  });
-
   it("paginates rows and rejects unknown jobs, files and targets", async () => {
     const api = client();
     const page = await api.invoke<WorkspacePreview>("preview_file", {
@@ -282,121 +239,6 @@ describe("static Playground", () => {
     ).rejects.toThrow("demo browser");
   });
 
-  it("advances tasks without subscribers, writes artifacts, and isolates each browser runtime", async () => {
-    const api = client();
-    const handle = await submit(api, { strategy: "volatile" });
-    const status = () => api.invoke<TaskMetadata>("status", { ...handle });
-    expect((await status()).state).toBe("queued");
-    await vi.advanceTimersByTimeAsync(2000);
-    expect((await status()).state).toBe("running");
-    await vi.advanceTimersByTimeAsync(5000);
-    expect((await status()).state).toBe("succeeded");
-    await api.invoke("preview_file", {
-      path: `${handle.task_id.split("#")[0]}/${handle.task_id}/universes/all/daily.parquet`,
-    });
-    await expect(client().invoke("status", { ...handle })).rejects.toThrow(
-      "Unknown demo task",
-    );
-    await api.invoke("delete_tasks", { task_ids: [handle.task_id] });
-    await expect(status()).rejects.toThrow("Unknown demo task");
-    await expect(
-      api.invoke("preview_file", {
-        path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
-      }),
-    ).rejects.toThrow("not found");
-  });
-
-  it("cancels tasks permanently and models failures without success artifacts", async () => {
-    const api = client();
-    const cancelled = await submit(api);
-    expect(
-      await api.invoke("cancel", { ...cancelled, run_id: "stale-run" }),
-    ).toBe(false);
-    expect(
-      (await api.invoke<TaskMetadata>("status", { ...cancelled })).state,
-    ).toBe("queued");
-    expect(await api.invoke("cancel", { run_id: cancelled.run_id })).toBe(true);
-    const failed = await submit(api, { outcome: "failure" });
-    await vi.advanceTimersByTimeAsync(7000);
-    expect(
-      (await api.invoke<TaskMetadata>("status", { ...cancelled })).state,
-    ).toBe("cancelled");
-    expect(
-      (await api.invoke<TaskMetadata>("status", { ...failed })).state,
-    ).toBe("failed");
-    const preview = await api.invoke<WorkspacePreview>("preview_file", {
-      path: `${failed.task_id.split("#")[0]}/${failed.task_id}/metadata.json`,
-    });
-    expect(preview.kind).toBe("json");
-    if (preview.kind !== "json") throw new Error("Missing failed metadata");
-    expect(preview.data).toMatchObject({
-      state: "failed",
-      output_params: {},
-      children: [],
-    });
-  });
-
-  it("cancels a current task by Task ID and rejects an empty cancellation", async () => {
-    const api = client();
-    const handle = await submit(api);
-    await expect(api.invoke("cancel", {})).rejects.toThrow(
-      "Cancellation requires task_id or run_id",
-    );
-    expect(await api.invoke("cancel", { run_id: "unknown-run" })).toBe(false);
-    expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(true);
-    expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(false);
-    expect(
-      (await api.invoke<TaskMetadata>("status", { task_id: handle.task_id }))
-        .state,
-    ).toBe("cancelled");
-  });
-
-  it("streams progress through the real SSE parser and cleans up timers", async () => {
-    const api = client();
-    const handle = await submit(api);
-    const kinds: string[] = [];
-    const result = streamJob<TaskMetadata>(
-      api,
-      "stream_task",
-      { ...handle },
-      {
-        onEvent: (event) => kinds.push(event.kind),
-      },
-    );
-    await vi.advanceTimersByTimeAsync(7000);
-    expect((await result).state).toBe("succeeded");
-    expect(kinds).toContain("progress");
-    expect(kinds).toContain("log");
-    expect(kinds).toContain("artifact");
-    expect(kinds.at(-1)).toBe("result");
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it("aborts a subscription without cancelling its task", async () => {
-    const api = client();
-    const handle = await submit(api);
-    const controller = new AbortController();
-    const result = streamJob(
-      api,
-      "stream_task",
-      { ...handle },
-      {
-        signal: controller.signal,
-      },
-    );
-    const rejected = expect(result).rejects.toMatchObject({
-      name: "AbortError",
-    });
-    await vi.advanceTimersByTimeAsync(500);
-    controller.abort();
-    await rejected;
-    expect(vi.getTimerCount()).toBe(0);
-    await vi.advanceTimersByTimeAsync(7000);
-    expect(
-      (await api.invoke<TaskMetadata>("status", { ...handle })).state,
-    ).toBe("succeeded");
-  });
-
   it("streams Agent history consistently and supports turn cancellation", async () => {
     const api = client();
     const started = Date.now();
@@ -406,8 +248,7 @@ describe("static Playground", () => {
       "local-prompt",
     );
     let session_id = "";
-    const result = streamJob(
-      api,
+    const result = api.stream(
       "agent_chat",
       { message: "解释回测" },
       {
@@ -443,7 +284,7 @@ describe("static Playground", () => {
     expect(history.blocks[0].role).toBe("user");
     expect(history.blocks[1].block_type).toBe("tool");
     expect(history.blocks[2].text).toContain("没有调用 LLM");
-    const next = streamJob(api, "agent_chat", {
+    const next = api.stream("agent_chat", {
       session_id,
       message: "Compare",
     });
@@ -464,8 +305,7 @@ describe("static Playground", () => {
     const api = client();
     const controller = new AbortController();
     let session_id = "";
-    const result = streamJob(
-      api,
+    const result = api.stream(
       "agent_chat",
       { message: "Compare" },
       {
@@ -488,7 +328,7 @@ describe("static Playground", () => {
     expect(history.blocks.every((block) => block.status !== "running")).toBe(
       true,
     );
-    const resumed = streamJob(api, "agent_chat", {
+    const resumed = api.stream("agent_chat", {
       session_id,
       message: "继续",
     });

@@ -1,11 +1,16 @@
-"""Built-in Tasks shipped with AxonX."""
+"""Bundled Task implementations and reusable domain capabilities.
 
-from .demo import DemoTask
-from .dingtalk import SendDingTalkTask
-from .tushare import DownloadTushareTask
+demo: Arithmetic workflow demonstrating synchronous steps, progress and failure handling.
+dingtalk: Application-robot authentication, group notifications and the notification Task.
+tushare: Retrying API access, normalized dataset storage and the download Task.
+stock: Stock artifact protocols, portfolio accounting, backtest orchestration and reports.
+"""
+
+from . import demo, dingtalk, stock, tushare
 
 __all__ = [
-    "DemoTask",
-    "DownloadTushareTask",
-    "SendDingTalkTask",
+    "demo",
+    "dingtalk",
+    "stock",
+    "tushare",
 ]

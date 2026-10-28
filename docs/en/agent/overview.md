@@ -32,7 +32,7 @@ External integration does not require `CLAUDE_CODE_*` settings or built-in guide
 1. Define the research objective and controls; provide the Skill, source checkout, and code tools.
 2. Develop or optimize the plugin, validate the code, and install it in the selected execution service.
 3. Discover live Task schemas, check upstream compatibility, and submit the required stages.
-4. Keep the returned `task_id` and `run_id`, and wait for each upstream execution to succeed.
+4. Record each Task ID and metadata `started_at`, and verify upstream success before the next stage.
 5. Inspect artifacts and compare results; use the evidence to guide further code or parameter changes.
 
 Keep the same `--target` across stages when using direct CLI access. Studio forwards requests through its same-origin backend to the selected machine. Tasks, data, and plugins live in the execution service's environment; agent integration does not migrate them automatically.

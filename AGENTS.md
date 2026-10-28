@@ -1,67 +1,47 @@
-# AxonX
+# AGENTS.md
 
-Agent-native quantitative research harness providing tools and a runtime for code
-development, experiment execution, and result analysis. External or built-in Agents
-use the AxonX Skill and user research prompts to develop or improve plugins.
-Setup and contribution details: [CONTRIBUTING.md](CONTRIBUTING.md).
+AxonX is a Python framework for agent-driven quantitative research, with a React/TypeScript Studio.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflows and [module-dependencies.md](module-dependencies.md) for architecture.
 
-## Structure and Contracts
+## Repository map
 
-- `axonx/`: framework and runtime; `plugins/`: research Tasks and algorithms;
-  `axonx_studio/`: React/TypeScript UI; `tests/`: framework tests;
-  `docs/`: bilingual guides; `github-pages/`: site tooling.
-- Keep research algorithms in plugins; reuse framework extension points.
-- Preserve public CLI/API/configuration contracts, persisted task records,
-  task identity, lifecycle behavior, and artifact formats unless changing them
-  is requested. Document intentional compatibility changes.
-- Preserve ownership and cleanup of async resources, streams, and subprocesses.
+- `axonx/task/`: Task models, authoring bases, execution, storage, and built-ins.
+- `axonx/app/`, `axonx/client/`: Application components, Jobs, services, and client connections.
+- `axonx/cli/`, `axonx/daemon/`: Command routing, service supervision, and scheduled processes.
+- `axonx/plugin/`, `plugins/`: Plugin infrastructure and research implementations, respectively.
+- `axonx_studio/`: Frontend; `tests/`: framework tests; `docs/`, `github-pages/`: documentation and site tooling.
 
-## Agent Research Workflow
+## Development and checks
 
-- Use [AxonX Skill](skills/axonx/SKILL.md) and the user's research objective for
-  plugin development; Qlib Alpha158 is the reference workflow, and plugins can provide other methods.
-- Keep plugin source changes, execution-service installation, and Task submission
-  distinct. Verify the selected service's Task schemas and upstream artifact compatibility.
-- For experiments, retain code/version, data, windows, parameters, costs, and Task/Run IDs.
-  Distinguish implementation checks from evidence of research improvement.
-- Canonical development instructions live in `docs/en/dev_guide.md` and
-  `docs/zh/dev_guide.md`; keep the Skill's guide content aligned with the English source.
+Use Python 3.12+ on macOS/Linux. Studio requires Node.js 22.13+ within 22.x, 24.x, or 26+.
+Run Python commands from the repository root and npm commands from the indicated package.
 
-## Python and Plugins
+- Python setup: `python -m pip install -e '.[dev]'`.
+- Studio setup and development, in `axonx_studio/`: `npm ci`, then `npm run dev`.
+- Python: run affected tests first; use `python -m pytest tests` for the framework suite.
+- Plugins: run the affected plugin's tests, e.g. `python -m pytest plugins/qlib_factor/tests`.
+- Studio: `npm test`, `npm run lint`, `npm run format:check`, and `npm run build`.
+- Wire contract changes: in `axonx_studio/`, run `npm run contracts:generate` and `npm run contracts:check`; do not hand-edit generated contracts.
+- Documentation examples: `python -m pytest tests/unit/test_documentation_contracts.py`. Site checks: `npm --prefix github-pages test` and `npm --prefix github-pages run build`, after installing both frontend dependency sets.
+- Changed-file hooks: `pre-commit run --files <changed-files>`. Python uses Ruff import ordering and Black formatting.
 
-- Use Python 3.12+ on macOS/Linux; match existing typing and Black's 120-character lines.
-- Use temporary test workspaces and focused regression tests for fixes.
-- From the repository root, run affected tests, then `pytest` as appropriate.
-  Bare `pytest` excludes integration tests but includes factor and strategy plugin tests;
-  install relevant plugin dependencies first (see CONTRIBUTING).
-- Run `pytest -m integration` only with required credentials/services and reviewed external effects.
-- Task and extension contracts: [Task guide](docs/en/dev_guide.md),
-  [framework extensions](docs/en/development/framework-extensions.md).
+Bare `pytest` also collects plugin tests and requires their research dependencies.
+Integration tests are excluded by default; run `python -m pytest -m integration` only with the required services and credentials.
 
-## Studio
+## Code conventions
 
-- From `axonx_studio/`, use Node per `package.json` engines and npm; keep `package-lock.json` in sync.
-- Install: `npm ci`; dev: `npm run dev` (4173). Proxy: `http://127.0.0.1:1024`;
-  override with `AXONX_DEV_SERVER` and restart Vite.
-- Keep feature code in `src/features/`; reuse `src/shared/` API and SSE helpers.
-- Preserve same-origin URLs, authentication, Job response handling, and selected
-  machine `target`. Cancel obsolete requests and clean up polling and streams.
-- Wire new pages through routes, navigation, and outlets in `src/app/` as needed.
-- Use i18next; update both locale files with matching keys and placeholders.
-- Reuse existing design tokens. Check both languages, themes, narrow layouts,
-  empty data, and request failures for affected UI flows.
-- For code changes, run `npm run test`, `npm run lint`,
-  `npm run format:check`, and `npm run build`.
-- Build before Python packaging (it bundles existing `dist/`); npm `prepack` builds automatically.
-- API and UI details: [Studio development](docs/en/development/studio.md).
+- Keep code simple. Reuse existing logic, models, and concepts; extend them when needed. Remove unused code and merge duplicate implementations.
+- Organize by capability within existing directories. Keep files cohesive without excessive splitting or oversized modules.
+- Extend existing Component, Task, and Step contracts. Keep component base classes and concrete implementations; use classes for owned state and lifecycle, functions for simple transformations.
+- Keep generic mechanisms and minimal protocols in the framework; put business research logic in plugins. Keep CLI thin, Task execution independent of App/Plugin/CLI, and Client independent of App.
+- Use relative Python imports. Keep public exports and `__all__` in `__init__.py`, document direct submodules, and follow existing package entry points and explicit registration.
+- Reuse Task identities and contracts. Distinguish upstream/downstream data dependencies from parent/child calls. Preserve scheduled task processes across service restarts.
+- Breaking refactors are allowed: update affected callers together without legacy aliases or compatibility branches. Simplify redundant defensive logic while retaining necessary validation, cleanup, and consistency safeguards.
 
-## Documentation and Delivery
+## Completing a change
 
-- Update English and Chinese documentation together when behavior changes.
-- Edit canonical `docs/`, READMEs, or contribution guides;
-  navigation: `docs/.vitepress/navigation.mjs`.
-- For site content/theme changes, run `npm ci` and `npm run build` from `github-pages/`.
-- Do not hand-edit `axonx_studio/dist/`, `github-pages/.generated/`, or `github-pages/dist/`.
-- Keep credentials, private data, runtime `.axonx/` contents, logs, and generated
-  outputs out of commits. Format changed files without unrelated changes.
-- Run `pre-commit run --files <changed-files>`; report checks, results, and anything not run.
+- Respect the requested scope and preserve existing workspace changes. Map responsibilities and dependencies before broad refactoring; honor requests to analyze first.
+- Update affected code, configuration, tests, comments, bilingual documentation, examples, Skills, and diagrams together. Describe the current implementation concisely.
+- Run checks appropriate to the change and review the diff. Verify visible UI changes in a browser in both languages.
+- Use temporary test workspaces. Keep credentials, private data, `.axonx/`, logs, and generated research outputs out of commits.
+- Briefly report behavior changes, affected file responsibilities, checks run, and any remaining limitations.

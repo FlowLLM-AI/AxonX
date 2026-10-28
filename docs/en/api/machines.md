@@ -1,238 +1,177 @@
-# Machine API
+# Machine, Configuration and Maintenance API
 
-Query versions, the health of configured targets, and machine resources, or execute commands on the selected service machine. target belongs to the HTTP request envelope or CLI connection options, rather than these Jobs' business fields.
+Inspect the selected interpreter, machine and application. Diagnostic output reports credential presence rather than credential values.
 
-![Machine API call flow](../../figures/api/machine-target.svg)
+All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-## Calling conventions
-
-All endpoints below use `POST /jobs/{name}` with a `{"arguments":{...}}` request body. For remote forwarding, add `target` at the envelope's top level, outside arguments. Every response uses [JobResponse](overview.md#responses-and-errors). Table defaults come from the current built-in configuration and Steps. Deployments may change Job Schemas; the running service's `/jobs` is authoritative.
-
-All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskMetadata fields.
+![Machine targeting](../../figures/api/machine-target.svg)
 
 ## Endpoint list
 
-| Job              | Purpose                                                                        |
-| ---------------- | ------------------------------------------------------------------------------ |
-| `help`           | Discover public Jobs and inspect live schemas.                                 |
-| `diagnose`       | Inspect build, Python, workspace, resources, and installed plugins.            |
-| `version`        | Read the installed package version.                                            |
-| `list_machines`  | Check the health of all configured targets.                                    |
-| `machine_status` | Sample service-machine resources.                                              |
-| `python`         | Execute multiline Python code using the selected service’s Python environment. |
+| Job                 | Purpose                                                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `help`              | List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters. |
+| `diagnose`          | Inspect this service's build, Python, workspace disk, resources and resource usage. Credential values are never returned.                                  |
+| `version`           | Return the installed AxonX version.                                                                                                                        |
+| `get_config`        | Return this service's resolved application configuration, including schedules, execution defaults and environment. Execution directories are absolute.     |
+| `list_machines`     | Check the health of all configured remote AxonX machines.                                                                                                  |
+| `machine_status`    | Get local or remote AxonX machine status.                                                                                                                  |
+| `python`            | Execute multiline Python code on the selected AxonX machine using the service's interpreter and installed packages in a fresh process.                     |
+| `update_from_git`   | Stop the service, fast-forward the current branch from its upstream, build and install AxonX and Studio, then restart. Running scheduled Tasks continue.   |
+| `update_from_pip`   | Stop the service, upgrade axonx and axonx-studio from the package index, then restart. Running scheduled Tasks continue.                                   |
+| `restart_service`   | Restart the application and reload its configuration and schedules; stop manual commands and preserve scheduled Tasks.                                     |
+| `get_update_status` | Read an update record and log tail; omit update_id for the latest update.                                                                                  |
 
 ## help
 
-List public Jobs on the selected service with `{"arguments":{}}`. The answer contains `usage` (CLI syntax) and `jobs` (name/description summaries). Inspect one Job with `{"arguments":{"job":"python"}}`; the answer contains `usage` and `job`, a JobInfo with `name`, `description`, `input_schema`, and `output_schema`. Schemas come from the runtime Job catalog, including configured and plugin-contributed Jobs. Hidden Jobs and protected Jobs unavailable on a service without authentication are excluded; unknown names return `success=false`.
+List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters.
 
-```bash
-axonx help --target node-b:1024
-axonx help --job python --target node-b:1024
-```
-
-`help` defaults to `requires_auth=false`, so it remains discoverable on a service without a token; `diagnose` retains the protected default. A configured service token is still required for all HTTP/MCP calls, including help. This is also an ordinary HTTP/MCP Job. CLI `--target` selects its service; it is not a help business field. Offline syntax remains available through `axonx --help`.
-
-## diagnose
-
-No business parameters; use `{"arguments":{}}`. This read-only Job returns:
-
-- `axonx`, `cpu`, `memory`, `gpus`: the same build identity and resources as `machine_status`.
-- `python`: interpreter `version` and `executable`; `platform` and `cwd`: service operating system and working directory.
-- `workspace`: resolved `path`, `exists`, and `disk` (`path`, `total_bytes`, `used_bytes`, `free_bytes`). Disk statistics use the closest existing ancestor if the workspace does not exist; no directory is created.
-- `plugins`: installed distribution/version, plugin names, content and wheel SHA-256 when available, and discovery error. This does not assert all code is loaded.
-- `restart_required`: pending process restart after plugin/dependency changes; `service_auth_enabled`: whether the service has a token.
-- `credentials_configured`: presence booleans for `AXONX_SERVICE_TOKEN`, `AXONX_TARGET_TOKEN`, and `AXONX_TUSHARE_TOKEN` in the service process environment. Values are never returned; configuration presence does not establish credential validity.
-
-Plugin discovery errors remain visible in `plugins`; they do not turn a completed diagnostic query into a failed Task result. If filesystem or resource inspection fails, the Job returns a failure rather than fabricating measurements. It neither installs packages nor restarts the service.
-
-```bash
-axonx diagnose --target node-b:1024
-```
-
-## version
-
-Read the installed package version.
-
-No public business parameters; use `{"arguments":{}}`.
-
-**Request**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**Response**
-
-answer is a version string; metadata.version also provides that version.
-
-```json
-{
-  "answer": "0.1.0",
-  "success": true,
-  "metadata": { "version": "0.1.0" }
-}
-```
-
-**Behavior and failure cases**
-
-The version value is only an example; use machine_status to inspect build branch/commit information.
-
-## list_machines
-
-Check the health of all configured targets.
-
-No public business parameters; use `{"arguments":{}}`.
-
-**Request**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**Response**
-
-answer is an array of MachineHealth, each containing address and healthy.
-
-```json
-{
-  "answer": [
-    {
-      "address": "http://node-b:1024",
-      "healthy": true
-    }
-  ],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-The default targets=[] produces an empty result. healthy=false may indicate a network, token, or service problem; it does not imply insufficient resources.
-
-## machine_status
-
-Sample service-machine resources.
-
-No public business parameters; use `{"arguments":{}}`.
-
-**Request**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**Response**
-
-answer is MachineInfo: axonx, cpu, memory, and gpus.
-
-```json
-{
-  "answer": {
-    "axonx": {
-      "version": "0.1.0",
-      "git_commit": null,
-      "git_branch": null
-    },
-    "cpu": {
-      "total_cores": 8,
-      "physical_cores": 4,
-      "usage_percent": 12.0
-    },
-    "memory": {
-      "total_bytes": 16000000000,
-      "used_bytes": 4000000000,
-      "available_bytes": 12000000000,
-      "usage_percent": 25.0
-    },
-    "gpus": []
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-The cpu fields total_cores/physical_cores may be null; memory is measured in bytes. GPU vendor is limited to nvidia/amd. The list may be empty when detection commands are unavailable or no devices exist; Apple GPU detection is not guaranteed.
-
-## python
-
-Execute Python source on the selected service machine in a fresh subprocess using the service's interpreter (`sys.executable`) and installed packages. Source is sent through stdin without command-line length limits. Each call has independent Python variables, inherits the service's working directory and environment, and runs with the service user's permissions.
-
-| Parameter | Type   | Required | Default       | Constraints and meaning                                                  |
-| --------- | ------ | -------- | ------------- | ------------------------------------------------------------------------ |
-| `code`    | string | Yes      | `— (omitted)` | Python source, including newlines; minLength=1. Print results to stdout. |
-| `timeout` | number | No       | `30`          | Execution timeout in seconds; exclusiveMinimum=0, maximum=300.           |
-
-Call `POST /jobs/python` with:
+| Argument | Type     | Required | Default / constraints |
+| -------- | -------- | -------- | --------------------- |
+| `job`    | `string` | no       | `{"minLength":1}`     |
 
 ```json
 {
   "arguments": {
-    "code": "from pathlib import Path\nprint(Path.cwd())",
+    "job": "cli"
+  }
+}
+```
+
+## diagnose
+
+Inspect this service's build, Python, workspace disk, resources and resource usage. Credential values are never returned.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## version
+
+Return the installed AxonX version.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## get_config
+
+Return this service's resolved application configuration, including schedules, execution defaults and environment. Execution directories are absolute.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+Returns resolved application/execution configuration, including absolute execution directories and environment. It can contain environment values. Authentication is required.
+
+## list_machines
+
+Check the health of all configured remote AxonX machines.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## machine_status
+
+Get local or remote AxonX machine status.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## python
+
+Execute multiline Python code on the selected AxonX machine using the service's interpreter and installed packages in a fresh process.
+
+| Argument  | Type     | Required | Default / constraints                               |
+| --------- | -------- | -------- | --------------------------------------------------- |
+| `code`    | `string` | yes      | `{"minLength":1}`                                   |
+| `timeout` | `number` | no       | `{"exclusiveMinimum":0,"maximum":300,"default":30}` |
+
+```json
+{
+  "arguments": {
+    "code": "print(1 + 2)",
     "timeout": 30
   }
 }
 ```
 
-MCP clients pass `code` as an ordinary multiline string using the discovered schema. JSON requires its usual string escaping. CLI example: `axonx python --code 'print(1 + 1)' --timeout 30`. Use the `target` envelope field or CLI `--target` for remote execution.
+Executes source in a fresh service-side interpreter process, not a persistent Python session. Returns stdout/stderr, exit_code and truncation information. Restrict source to the requested operation.
 
-**Response**
+## update_from_git
 
-`answer` is PythonOutput: stdout, stderr, exit_code, stdout_truncated, and stderr_truncated. `success` is true when execution completes within the timeout with exit code zero.
+Stop the service, fast-forward the current branch from its upstream, build and install AxonX and Studio, then restart. Running scheduled Tasks continue.
 
-```json
-{
-  "answer": {
-    "stdout": "/srv/axonx\n",
-    "stderr": "",
-    "exit_code": 0,
-    "stdout_truncated": false,
-    "stderr_truncated": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-Each output stream retains at most 1 MiB; excess output is discarded and the corresponding truncation flag is set. Python exceptions and syntax errors return `success=false`, a nonzero `exit_code`, and an error in `stderr`. Timeout returns `success=false`, `exit_code=null`, and a timeout explanation in `stderr`, preserving captured output. Timeout or cancellation kills the process group, closes the input/output pipes, and reaps the main process without waiting for detached descendants to close inherited pipes.
-
-The default built-in Agent's `job_tools` list does not expose `python`. Add it to `components.agent.default.job_tools` when enabling Python execution for that Agent; external MCP exposure follows the service's Job catalog.
-
-## Failure response examples
-
-A nonzero Python exit or timeout is a business failure returned through the normal protocol. For `code="import sys; sys.exit(3)"`:
+No business arguments.
 
 ```json
 {
-  "answer": {
-    "stdout": "",
-    "stderr": "",
-    "exit_code": 3,
-    "stdout_truncated": false,
-    "stderr_truncated": false
-  },
-  "success": false,
-  "metadata": {}
+  "arguments": {}
 }
 ```
 
-On timeout, exit_code=null and stderr includes `Command timed out after ... seconds`. timeout=0 or timeout>300 returns HTTP 422 during Schema validation. One target with healthy=false in list_machines does not automatically fail the entire query; interpret each machine's result separately.
+## update_from_pip
 
-## Related documentation
+Stop the service, upgrade axonx and axonx-studio from the package index, then restart. Running scheduled Tasks continue.
 
-- [Protocol, authentication, and errors](overview.md)
-- [Remote machines](../guides/remote-machines.md)
-- [CLI reference](../reference/cli.md)
-- [Event protocol](events.md)
+No business arguments.
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/machine/` and `axonx/components/service/http/jobs.py`.
+```json
+{
+  "arguments": {}
+}
+```
+
+## restart_service
+
+Restart the application and reload its configuration and schedules; stop manual commands and preserve scheduled Tasks.
+
+No business arguments.
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## get_update_status
+
+Read an update record and log tail; omit update_id for the latest update.
+
+| Argument    | Type     | Required | Default / constraints          |
+| ----------- | -------- | -------- | ------------------------------ |
+| `update_id` | `string` | no       | `{"pattern":"^[0-9a-f]{32}$"}` |
+
+```json
+{
+  "arguments": {}
+}
+```
+
+## Maintenance results
+
+Update/restart responses report acceptance and an update_id. Query get_update_status after reconnection; successful acceptance is not completion. Manual service-owned commands stop with the service, daemon-owned scheduled Tasks continue. No force input is accepted. See [Self-update](../guides/self-update.md).
+
+Source: [Default Job contracts](../../../axonx/app/config/default.yaml) · [Job protocol](overview.md)

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { taskStatus } from "../../playground/data";
 import { axonx } from "../../shared/api/client";
-import { taskStatus } from "../../playground/fixtures";
 import { getResearchTask, listResearchTasks } from "./api";
 
 afterEach(() => vi.restoreAllMocks());
@@ -9,7 +9,10 @@ it("queries only successful results of the selected category and reuses the wire
   const task = taskStatus("train", "train#sample", "sample");
   const invoke = vi.spyOn(axonx, "invoke").mockResolvedValue([task]);
   const controller = new AbortController();
-  const result = await listResearchTasks("train", "remote", controller.signal);
+  const result = await listResearchTasks("train", {
+    target: "remote",
+    signal: controller.signal,
+  });
   expect(invoke).toHaveBeenCalledOnce();
   expect(invoke).toHaveBeenCalledWith(
     "list_task_statuses",
@@ -26,14 +29,16 @@ it("rejects a result cancelled while the request was pending", async () => {
     return [];
   });
   await expect(
-    listResearchTasks("etl", undefined, controller.signal),
+    listResearchTasks("etl", { signal: controller.signal }),
   ).rejects.toMatchObject({ name: "AbortError" });
 });
 
 it("checks selected task identity and category before exposing a research output", async () => {
   const task = taskStatus("train", "train#sample", "sample");
   const invoke = vi.spyOn(axonx, "invoke").mockResolvedValue(task);
-  expect(await getResearchTask("train", task.task_id, "remote")).toBe(task);
+  expect(
+    await getResearchTask("train", task.task_id, { target: "remote" }),
+  ).toBe(task);
   expect(invoke).toHaveBeenLastCalledWith(
     "status",
     { task_id: task.task_id },

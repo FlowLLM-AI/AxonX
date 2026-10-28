@@ -14,7 +14,7 @@
 | 托管服务，按需启用 Studio             | [部署](deployment.md)                |
 | CLI 直连或通过 Studio 转发            | [远程机器](remote-machines.md)       |
 | 转发配置的 HTTP 请求                  | [HTTP 代理](http-proxy.md)           |
-| 定时执行 Job                          | [调度](scheduling.md)                |
+| 定时执行本地 Task 命令                | [调度](scheduling.md)                |
 | 通过钉钉发送任务通知                  | [通知](../research/notifications.md) |
 | 定位故障、备份与恢复记录              | [排障与恢复](operations.md)          |
 
@@ -22,8 +22,8 @@
 
 远程服务拥有自己的插件、数据、工作进程与工作区。CLI 直连使用目标服务令牌；Studio 使用本机令牌，通过同源后端转发到配置的目标。提交、等待、日志与产物查询应使用同一执行目标。
 
-任务同步复制已结束的 Task 目录。原始行情、插件依赖、模型凭据与 Agent 会话环境需要单独准备。存储边界见[工作区概念](../concepts/workspace.md)，连接优先级见[客户端配置](../reference/client-configuration.md)。
+任务同步复制终态展示快照，也可显式启用父子任务组的实时快照；副本不能作为研究输入。原始行情、插件依赖、模型凭据与 Agent 会话环境需要单独准备。存储边界见[工作区概念](../concepts/workspace.md)，连接优先级见[客户端配置](../reference/client-configuration.md)。
 
 ## 维护服务时保留证据
 
-实验使用不同 Task 身份。同名重跑会替换已结束目录，删除会移除记录与产物。取消和服务关闭会影响工作进程，但不提供执行续跑能力。清理或恢复前先阅读[任务生命周期](../concepts/task-lifecycle.md)。
+实验使用不同 Task 身份。同名重跑会替换已结束目录，删除会移除记录与产物。显式停止 Task 或取消服务拥有的命令会结束执行，不提供续跑能力。Daemon 拥有的定时命令在服务重启期间继续运行。清理或恢复前先阅读[任务生命周期](../concepts/task-lifecycle.md)。

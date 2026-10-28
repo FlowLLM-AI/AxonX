@@ -21,7 +21,7 @@ components:
 ```bash
 export AXONX_PROXY_UPSTREAM='https://data.example/api'
 export AXONX_SERVICE_TOKEN='<service token>'
-axonx start --config proxy.yaml
+axonx app --config proxy.yaml
 ```
 
 The upstream address is a placeholder; replace it with an actual compatible interface. This example uses the separate environment variable AXONX_PROXY_UPSTREAM to avoid confusion with the data Task's AXONX_TUSHARE_BASE_URL. The commented example in the default configuration uses the latter; when running a proxy and Task in the same service, set the upstream address and client proxy address separately to avoid forwarding back to itself. The default proxy is disabled, and requests to that name return Unknown proxy.
@@ -90,4 +90,4 @@ The source service handles the fixed upstream connection; the data Task remains 
 
 [Authentication](authentication.md) · [Remote machines](remote-machines.md) · [Deployment](deployment.md)
 
-Source: [HTTP proxy](../../../axonx/components/proxy/http.py), [Proxy routes](../../../axonx/components/service/http/proxy.py), [Proxy errors](../../../axonx/components/proxy/base.py).
+Source: [HTTP proxy](../../../axonx/app/components/proxy/http.py), [Proxy routes](../../../axonx/app/components/service/http/proxy.py), [Proxy errors](../../../axonx/app/components/proxy/base.py).

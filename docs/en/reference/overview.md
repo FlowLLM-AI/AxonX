@@ -22,7 +22,7 @@ External agents discover service tools through [MCP integration](../agent/mcp-in
 
 ## Read responses at the right layer
 
-HTTP transport status, JobResponse `success`, and Task terminal state answer different questions. A successful `submit` returns a TaskHandle; use its `task_id` and `run_id` to wait for that execution and inspect its final state. Discover schemas on the connected service because installed plugins and configured Jobs determine available capabilities.
+HTTP status, JobResponse.success, command exit_code and Task state answer different questions. Native exec waits and returns business output; remote cli returns stdout/stderr/exit_code. Observe Task ID and started_at separately and discover actual schemas on the selected service.
 
 ## Extension contracts
 

@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import json
-import os
 from collections.abc import Iterable
-from typing import Literal
 
 from pydantic import Field
 
-from ....components.registry import provider
-from ....enums import TaskType
-from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from .client import DingTalkClient
+from ...core.base import BaseTask, TaskStep
+from ...models.identity import TaskType
+from ...models.params import BaseInputParams, BaseOutputParams
+from .client import DingTalkMessageType, send_dingtalk_message
 
 
 class DingTalkInputParams(BaseInputParams):
@@ -20,7 +17,7 @@ class DingTalkInputParams(BaseInputParams):
 
     title: str = Field(min_length=1)
     text: str = Field(min_length=1)
-    message_type: Literal["markdown", "text"] = "markdown"
+    message_type: DingTalkMessageType = "markdown"
     timeout: float = Field(default=10.0, gt=0)
 
 
@@ -31,47 +28,6 @@ class DingTalkOutputParams(BaseOutputParams):
     process_query_keys: list[str]
 
 
-def _required_env(name: str) -> str:
-    value = os.environ.get(name, "").strip()
-    if not value:
-        raise ValueError(f"Missing required environment variable: {name}")
-    return value
-
-
-def _conversation_ids(value: str) -> tuple[str, ...]:
-    try:
-        conversations = json.loads(value)
-    except json.JSONDecodeError as exc:
-        raise ValueError("DINGTALK_CONVERSATIONS must be a JSON object") from exc
-    if not isinstance(conversations, dict) or not conversations:
-        raise ValueError("DINGTALK_CONVERSATIONS must be a non-empty JSON object")
-    if any(not isinstance(key, str) or not key.strip() for key in conversations):
-        raise ValueError("DINGTALK_CONVERSATIONS keys must be non-empty strings")
-    identifiers = tuple(conversations.values())
-    if any(not isinstance(item, str) or not item.strip() for item in identifiers):
-        raise ValueError("DINGTALK_CONVERSATIONS values must be non-empty strings")
-    return tuple(dict.fromkeys(item.strip() for item in identifiers))
-
-
-def send_dingtalk_message(
-    title: str,
-    text: str,
-    message_type: Literal["markdown", "text"] = "markdown",
-    *,
-    timeout: float = 10.0,
-) -> tuple[str, ...]:
-    """Send using the same validated environment configuration as the built-in Task."""
-    conversations = _conversation_ids(_required_env("DINGTALK_CONVERSATIONS"))
-    client = DingTalkClient(
-        _required_env("DINGTALK_CLIENT_ID"),
-        _required_env("DINGTALK_CLIENT_SECRET"),
-        conversations,
-        timeout=timeout,
-    )
-    return client.send(title, text, message_type)
-
-
-@provider("send_dingtalk_task")
 class SendDingTalkTask(BaseTask):
     """Send one text or Markdown message to every configured DingTalk group."""
 

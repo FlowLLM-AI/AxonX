@@ -6,26 +6,33 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { readTaskLog } from "./api";
-import { useRefresh } from "../../shared/hooks/useRefresh";
+import type { TaskMetadata } from "../../shared/api/contracts";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import { errorMessage } from "../../shared/lib/errors";
 import { formatBytes } from "../../shared/lib/format";
-import type { TaskMetadata } from "./types";
+import { readTaskLog } from "./api";
 
 const LIMIT = 65_536;
 const MAX = 524_288;
 
-/** Bounded, cancellable log viewer shared by task and pipeline details. */
-export function TaskLogPanel({
-  task,
-  target,
-  toolbar,
-}: {
+type TaskLogProps = {
   task: TaskMetadata;
   target?: string;
   toolbar?: ReactNode;
-}) {
+};
+
+/** Bounded, cancellable log viewer shared by task and pipeline details. */
+export function TaskLogPanel(props: TaskLogProps) {
+  return (
+    <TaskLogContent
+      key={`${props.target}:${props.task.task_id}:${props.task.started_at}`}
+      {...props}
+    />
+  );
+}
+
+function TaskLogContent({ task, target, toolbar }: TaskLogProps) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -45,7 +52,7 @@ export function TaskLogPanel({
   const requests = useRef(new Set<AbortController>());
   const viewport = useRef<HTMLPreElement>(null);
   const clipboard = useCopyFeedback();
-  const { task_id: id, run_id: run } = task;
+  const { task_id: id, started_at: startedAt } = task;
   const path = task.log_path || task.replica?.log?.path;
   const load = useCallback(
     async (signal: AbortSignal, offset?: number, prepend = false) => {
@@ -60,7 +67,10 @@ export function TaskLogPanel({
         const limit = prepend ? Math.min(LIMIT, boundary.current - at) : LIMIT;
         if (limit <= 0) return;
         for (;;) {
-          const chunk = await readTaskLog(id, at, limit, target, signal, run);
+          const chunk = await readTaskLog(
+            { task_id: id, offset: at, limit, started_at: startedAt },
+            { target, signal },
+          );
           if (signal.aborted) return;
           const replace = at < 0 || chunk.reset;
           const combined = replace
@@ -96,7 +106,7 @@ export function TaskLogPanel({
         if (!signal.aborted) setBusy(false);
       }
     },
-    [id, run, path, target],
+    [id, startedAt, path, target],
   );
   useEffect(() => {
     const controller = new AbortController();

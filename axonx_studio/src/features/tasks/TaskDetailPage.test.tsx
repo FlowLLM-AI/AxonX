@@ -3,15 +3,20 @@ import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { taskStatus } from "../../playground/fixtures";
-import { cancelTask, getTaskStatus } from "./api";
+import { taskStatus } from "../../playground/data";
+import { getTaskStatus } from "./api";
+import { useTaskExecutions, type TaskExecution } from "./execution";
 import { TaskDetailPage } from "./TaskDetailPage";
 
-vi.mock("./api", () => ({ getTaskStatus: vi.fn(), cancelTask: vi.fn() }));
+vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
+vi.mock("./execution", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./execution")>()),
+  useTaskExecutions: vi.fn(() => []),
+}));
 vi.mock("./TaskLogPanel", () => ({
   TaskLogPanel: () => <div>log viewer</div>,
 }));
-vi.mock("../task-graph/TaskGraphPage", () => ({
+vi.mock("./TaskGraph", () => ({
   TaskGraphPanel: () => <div>task graph</div>,
 }));
 
@@ -20,7 +25,105 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it.each(["task", "machine", "cancellation"] as const)(
+it("reloads when execution disconnects and lets backend refreshes replace cached metadata", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  await i18n.changeLanguage("en");
+  const task = {
+    ...taskStatus("base", "base#demo#stream", "demo"),
+    state: "running" as const,
+  };
+  let run: TaskExecution = {
+    id: "stream",
+    taskId: task.task_id,
+    definition: "demo",
+    machineId: "local",
+    state: "running",
+    task,
+    log: "live output",
+    error: "",
+    stopping: false,
+  };
+  vi.mocked(useTaskExecutions).mockImplementation(() => [run]);
+  vi.mocked(getTaskStatus)
+    .mockResolvedValueOnce(task)
+    .mockResolvedValueOnce({ ...task, state: "failed" })
+    .mockResolvedValueOnce({ ...task, state: "succeeded" });
+  const callbacks = {
+    onBack: vi.fn(),
+    onOpenTask: vi.fn(),
+    onInterpretTask: vi.fn(),
+    onOpenResearch: vi.fn(),
+    onConnection: vi.fn(),
+  };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const render = () =>
+    root.render(<TaskDetailPage {...callbacks} taskId={task.task_id} />);
+  const status = () =>
+    container.querySelector(".task-detail-subtitle")?.textContent;
+  try {
+    await act(async () => render());
+    expect(status()).toContain("Running");
+    run = { ...run, state: "disconnected" };
+    await act(async () => render());
+    expect(status()).toContain("Failed");
+    expect(getTaskStatus).toHaveBeenCalledTimes(2);
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          ".task-detail-heading-actions button",
+        )!
+        .click(),
+    );
+    expect(status()).toContain("Succeeded");
+    expect(
+      container.querySelector(".task-execution-output")?.textContent,
+    ).toContain("live output");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it("does not show logs from an older execution after the same Task ID is restarted", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const task = taskStatus("base", "base#demo#reused", "demo");
+  vi.mocked(getTaskStatus).mockResolvedValue(task);
+  vi.mocked(useTaskExecutions).mockReturnValue([
+    {
+      id: "previous",
+      taskId: task.task_id,
+      definition: "demo",
+      machineId: "local",
+      state: "succeeded",
+      task: { ...task, started_at: "2020-01-01T00:00:00Z" },
+      log: "old output",
+      error: "",
+      stopping: false,
+    },
+  ]);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <TaskDetailPage
+          taskId={task.task_id}
+          onBack={vi.fn()}
+          onOpenTask={vi.fn()}
+          onInterpretTask={vi.fn()}
+          onOpenResearch={vi.fn()}
+          onConnection={vi.fn()}
+        />,
+      ),
+    );
+    expect(container.querySelector("h1")?.textContent).toBe(task.task_id);
+    expect(container.querySelector(".task-execution-output")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it.each(["task", "machine"] as const)(
   "discards the previous selection and late %s responses",
   async (change) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -32,7 +135,6 @@ it.each(["task", "machine", "cancellation"] as const)(
       "previous-machine",
     );
     previous.state = "running";
-    previous.managed_run_id = previous.run_id;
     const next = {
       ...previous,
       task_id: change === "task" ? "base#demo#next" : previous.task_id,
@@ -40,22 +142,15 @@ it.each(["task", "machine", "cancellation"] as const)(
     };
     let finishPrevious!: (value: typeof previous) => void;
     let finishNext!: (value: typeof next) => void;
-    let finishCancel!: (value: boolean) => void;
     vi.mocked(getTaskStatus).mockResolvedValueOnce(previous);
-    if (change !== "cancellation")
-      vi.mocked(getTaskStatus).mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishPrevious = resolve;
-        }),
-      );
+    vi.mocked(getTaskStatus).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishPrevious = resolve;
+      }),
+    );
     vi.mocked(getTaskStatus).mockReturnValueOnce(
       new Promise((resolve) => {
         finishNext = resolve;
-      }),
-    );
-    vi.mocked(cancelTask).mockReturnValue(
-      new Promise((resolve) => {
-        finishCancel = resolve;
       }),
     );
     const callbacks = {
@@ -80,9 +175,7 @@ it.each(["task", "machine", "cancellation"] as const)(
       await act(async () =>
         container
           .querySelector<HTMLButtonElement>(
-            change === "cancellation"
-              ? ".task-detail-cancel"
-              : ".task-detail-heading-actions button",
+            ".task-detail-heading-actions button",
           )!
           .click(),
       );
@@ -97,23 +190,18 @@ it.each(["task", "machine", "cancellation"] as const)(
       );
       expect(container.querySelector(".task-detail-heading")).toBeNull();
       expect(container.querySelector(".task-detail-loading")).not.toBeNull();
-      if (change !== "cancellation")
-        expect(vi.mocked(getTaskStatus).mock.calls[1][2]?.aborted).toBe(true);
+      expect(vi.mocked(getTaskStatus).mock.calls[1][1]?.signal?.aborted).toBe(
+        true,
+      );
       await act(async () => finishNext(next));
       await act(async () => {
-        if (change === "cancellation") finishCancel(true);
-        else finishPrevious(previous);
+        finishPrevious(previous);
       });
       expect(container.querySelector(".config-source code")?.textContent).toBe(
         "next-machine",
       );
-      expect(
-        container.querySelector<HTMLButtonElement>(".task-detail-cancel")
-          ?.disabled,
-      ).toBe(false);
-      expect(getTaskStatus).toHaveBeenCalledTimes(
-        change === "cancellation" ? 2 : 3,
-      );
+      expect(container.querySelector(".task-detail-cancel")).toBeNull();
+      expect(getTaskStatus).toHaveBeenCalledTimes(3);
       expect(callbacks.onConnection).toHaveBeenCalledTimes(2);
     } finally {
       await act(async () => root.unmount());
@@ -167,7 +255,7 @@ it("keeps loading after StrictMode aborts the first request, then switches all f
   const pending = new Promise<typeof task>((done) => {
     resolve = done;
   });
-  vi.mocked(getTaskStatus).mockImplementation((_id, _target, signal) => {
+  vi.mocked(getTaskStatus).mockImplementation((_id, { signal } = {}) => {
     if (vi.mocked(getTaskStatus).mock.calls.length === 1) {
       return new Promise((_resolve, reject) => {
         signal?.addEventListener(
@@ -224,8 +312,8 @@ it("keeps loading after StrictMode aborts the first request, then switches all f
   }
 });
 
-it.each(["base", "composite"] as const)(
-  "shows only the %s runtime view in both languages",
+it.each(["base", "train"] as const)(
+  "shows steps and children together for %s Tasks in both languages",
   async (kind) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const task = taskStatus(kind, `${kind}#demo`, "demo");
@@ -246,9 +334,9 @@ it.each(["base", "composite"] as const)(
     };
     const child = {
       node_name: "history",
-      task: "history",
-      task_id: "composite#history",
-      run_id: "old-run-marker",
+      reg_name: "history",
+      child_task_id: "base#history",
+      started_at: "2026-01-13T00:00:00Z",
       attempt: 1,
       state: "failed" as const,
       exit_code: 1,
@@ -258,7 +346,7 @@ it.each(["base", "composite"] as const)(
       child,
       {
         ...child,
-        run_id: "new-run-marker",
+        started_at: "2026-01-14T00:00:00Z",
         attempt: 2,
         state: "succeeded",
         error: "",
@@ -266,8 +354,8 @@ it.each(["base", "composite"] as const)(
       {
         ...child,
         node_name: "invalid",
-        task_id: null,
-        run_id: "invalid-run",
+        child_task_id: null,
+        started_at: "2026-01-15T00:00:00Z",
         error: "invalid inputs",
       },
     ];
@@ -293,32 +381,25 @@ it.each(["base", "composite"] as const)(
             />,
           ),
         );
-        const card = container.querySelector(".task-run-card")!;
+        const card = container.querySelector(".task-execution-card")!;
         expect(card.textContent).not.toContain("raw-output-marker");
         expect(card.textContent).not.toContain("data.csv");
         expect(
           card.querySelector(
-            ".pipeline-step, .task-run-meta, .task-current-step, pre",
+            ".pipeline-step, .task-execution-meta, .task-current-step, pre",
           ),
         ).toBeNull();
-        if (kind === "composite") {
-          expect(card.textContent).not.toContain("execute");
-          expect(card.textContent).not.toContain("Open snapshot");
-          expect(card.textContent).not.toContain("old-error-marker");
-          expect(card.textContent).not.toContain("new-run-marker");
-          expect(card.textContent).toContain("invalid inputs");
-          expect(card.querySelectorAll(".step-item")).toHaveLength(2);
-          const links =
-            card.querySelectorAll<HTMLButtonElement>(".child-task-link");
-          expect(links).toHaveLength(1);
-          await act(async () => links[0].click());
-          expect(onOpenTask).toHaveBeenLastCalledWith("composite#history");
-        } else {
-          expect(card.textContent).toContain("execute");
-          expect(card.textContent).toContain("Open snapshot");
-          expect(card.querySelectorAll(".step-substep")).toHaveLength(1);
-          expect(card.querySelector(".child-task-link")).toBeNull();
-        }
+        expect(card.textContent).toContain("execute");
+        expect(card.textContent).toContain("Open snapshot");
+        expect(card.textContent).not.toContain("old-error-marker");
+        expect(card.textContent).toContain("invalid inputs");
+        expect(card.querySelectorAll(".step-item")).toHaveLength(4);
+        expect(card.querySelectorAll(".step-substep")).toHaveLength(1);
+        const links =
+          card.querySelectorAll<HTMLButtonElement>(".child-task-link");
+        expect(links).toHaveLength(1);
+        await act(async () => links[0].click());
+        expect(onOpenTask).toHaveBeenLastCalledWith("base#history");
       }
     } finally {
       await act(async () => root.unmount());
@@ -326,10 +407,11 @@ it.each(["base", "composite"] as const)(
   },
 );
 
-it("shows a child empty state before any children are invoked", async () => {
+it("shows step progress without a child section before any children are invoked", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("zh");
-  const task = taskStatus("composite", "composite#empty", "empty");
+  const task = taskStatus("base", "base#empty", "empty");
+  task.steps = [];
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -346,9 +428,10 @@ it("shows a child empty state before any children are invoked", async () => {
         />,
       ),
     );
-    expect(container.querySelector(".task-run-card")?.textContent).toContain(
-      "暂无子任务",
-    );
+    expect(
+      container.querySelector(".task-execution-card")?.textContent,
+    ).toContain(i18n.t("notStarted"));
+    expect(container.textContent).not.toContain(i18n.t("taskDetail.children"));
     expect(container.querySelector(".step-item")).toBeNull();
   } finally {
     await act(async () => root.unmount());

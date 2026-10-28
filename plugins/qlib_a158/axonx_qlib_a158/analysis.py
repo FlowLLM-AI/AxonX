@@ -9,16 +9,13 @@ from pathlib import Path
 import polars as pl
 from pydantic import Field
 
-from axonx.enums import TaskType
-from axonx.task.contracts import (
-    BaseAnalysisOutputParams,
-    BaseAnalysisTask,
-    BaseInputParams,
-)
-from axonx.task.core import TaskStep
-from axonx.task.storage import artifact_record, read_metadata
-from axonx.task.storage.inputs import pin_source_artifacts
-from axonx.utils.fs import atomic_write
+from axonx.task.core.base import TaskStep
+from axonx.task.core.research import BaseAnalysisTask
+from axonx.task.models.identity import TaskType
+from axonx.task.models.params import BaseAnalysisOutputParams, BaseInputParams
+from axonx.task.storage.artifacts import artifact_record
+from axonx.task.storage.files import atomic_write
+from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
 
 from .internal.analysis import FactorMetricsCalculator
 from .internal.etl_pipeline import LABELS
@@ -71,11 +68,10 @@ class FactorAnalysisTask(BaseAnalysisTask):
         yield self.write_outputs
 
     def resolve_upstream_task(self) -> None:
-        etl_task_id = self.input_params.source_task(TaskType.ETL)
-        source_dir = self.source_task_dir(etl_task_id)
+        etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
+        source_dir, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(source_metadata_path)
-        dataset_path, labels_path = pin_source_artifacts(
+        dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir

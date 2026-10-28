@@ -1,25 +1,28 @@
-import {
-  AxonXError,
-  readJobResponse,
-  type AxonXClient,
-  type RequestOptions,
-} from "./client";
-import type { LogEvent } from "./contracts";
+import type { RequestOptions } from "./client";
+import type {
+  AgentMessageEvent,
+  ArtifactEvent,
+  LogEvent,
+  ProgressEvent,
+  TaskStepStatus as StepContract,
+} from "./contracts";
+import { AxonXError, jobAnswer, readJobResponse } from "./response";
 import type { JobResponse } from "./types";
 
-import type { TaskStepStatus as StepContract } from "./contracts";
+export type {
+  AgentBlockPatch,
+  AgentMessageEvent,
+  ArtifactEvent,
+  LogEvent,
+  ProgressEvent,
+} from "./contracts";
+
 /** Presentation also accepts partial live progress snapshots. */
 export type TaskStepStatus = Pick<
   StepContract,
   "name" | "started_at" | "finished_at" | "percentage"
 > &
   Partial<StepContract>;
-
-export type { ProgressEvent, ArtifactEvent, LogEvent } from "./contracts";
-import type { ProgressEvent, ArtifactEvent } from "./contracts";
-
-export type { AgentBlockPatch, AgentMessageEvent } from "./contracts";
-import type { AgentMessageEvent } from "./contracts";
 
 export interface ResultEvent<T = unknown> extends JobResponse<T> {
   kind: "result";
@@ -35,26 +38,15 @@ export interface StreamOptions<T> extends RequestOptions {
 function eventData(frame: string): string {
   return frame
     .split(/\r?\n/)
-    .filter((line) => line.startsWith("data: "))
-    .map((line) => line.slice(6))
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).replace(/^ /, ""))
     .join("\n");
 }
 
-export async function streamJob<T>(
-  client: AxonXClient,
-  name: string,
-  arguments_: Record<string, unknown>,
-  options: StreamOptions<T> = {},
+export async function readJobEvents<T>(
+  response: Response,
+  onEvent?: StreamOptions<T>["onEvent"],
 ): Promise<T> {
-  const response = await client.request(client.eventsUrl(name), {
-    method: "POST",
-    headers: client.requestHeaders({
-      Accept: "text/event-stream",
-      "Content-Type": "application/json",
-    }),
-    body: JSON.stringify(client.invocation(arguments_, options.target)),
-    signal: options.signal,
-  });
   if (!response.ok) await readJobResponse(response);
   if (!response.body)
     throw new AxonXError("Event stream returned no body", response.status);
@@ -74,10 +66,9 @@ export async function streamJob<T>(
         const data = eventData(frame);
         if (!data) continue;
         const event = JSON.parse(data) as JobEvent<T>;
-        options.onEvent?.(event);
+        onEvent?.(event);
         if (event.kind === "result") {
-          if (!event.success) throw new AxonXError(String(event.answer));
-          return event.answer;
+          return jobAnswer<T>(event, response.status);
         }
       }
     }

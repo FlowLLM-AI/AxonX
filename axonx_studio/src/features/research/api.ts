@@ -1,35 +1,30 @@
-import { axonx } from "../../shared/api/client";
-import { previewWorkspaceFile } from "../workspace/api";
-import { taskDirectory } from "../../shared/lib/tasks";
+import { displayArtifacts, loadJsonArtifact } from "../../shared/api/artifacts";
+import { axonx, type RequestOptions } from "../../shared/api/client";
+import type { TaskMetadata, TaskSummary } from "../../shared/api/contracts";
 import { isRecord } from "../../shared/lib/values";
-import { displayArtifacts } from "../../shared/lib/replica";
 import { getTaskStatus } from "../tasks/api";
-import type { TaskMetadata } from "../../shared/api/contracts";
-import type { TaskSummary } from "../tasks/types";
-import type { ResearchArtifact, ResearchKind } from "./types";
+import type { ResearchKind, ResearchTask } from "./types";
 
 export async function listResearchTasks(
   kind: ResearchKind,
-  target?: string,
-  signal?: AbortSignal,
+  options: RequestOptions = {},
 ): Promise<TaskSummary[]> {
   const records = await axonx.invoke<TaskSummary[]>(
     "list_task_statuses",
     { detail: "summary", task_type: kind, state: "succeeded" },
-    { target, signal },
+    options,
   );
-  signal?.throwIfAborted();
+  options.signal?.throwIfAborted();
   return records;
 }
 
 export async function getResearchTask<K extends ResearchKind>(
   kind: K,
   taskId: string,
-  target?: string,
-  signal?: AbortSignal,
-): Promise<ResearchArtifact<K>> {
-  const metadata: TaskMetadata = await getTaskStatus(taskId, target, signal);
-  signal?.throwIfAborted();
+  options: RequestOptions = {},
+): Promise<ResearchTask<K>> {
+  const metadata: TaskMetadata = await getTaskStatus(taskId, options);
+  options.signal?.throwIfAborted();
   if (
     metadata.task_id !== taskId ||
     metadata.task_type !== kind ||
@@ -46,36 +41,25 @@ export async function getResearchTask<K extends ResearchKind>(
           },
         }
       : metadata
-  ) as ResearchArtifact<K>;
+  ) as ResearchTask<K>;
 }
 
 export async function countTrainingMembers(
-  meta: ResearchArtifact<"train">,
-  target?: string,
-  signal?: AbortSignal,
+  meta: ResearchTask<"train">,
+  options: RequestOptions = {},
 ): Promise<number | null> {
   const artifact = meta.output_params.artifacts.model_manifest;
   // A display replica may intentionally omit the model collection.
   if (!artifact) return null;
-  const preview = await previewWorkspaceFile(
-    `${taskDirectory(meta.task_id)}/${artifact.path}`,
-    0,
-    1,
-    target,
-    signal,
-  );
-  signal?.throwIfAborted();
+  const data = await loadJsonArtifact(meta.task_id, artifact, options);
   if (
-    preview.kind !== "json" ||
-    preview.parse_error ||
-    preview.truncated ||
-    !isRecord(preview.data) ||
-    preview.data.version !== 1 ||
-    preview.data.task_type !== "train" ||
-    !isRecord(preview.data.members)
+    !isRecord(data) ||
+    data.version !== 1 ||
+    data.task_type !== "train" ||
+    !isRecord(data.members)
   )
     throw new Error("Invalid model collection");
-  const members = Object.values(preview.data.members);
+  const members = Object.values(data.members);
   if (
     !members.length ||
     !members.every(

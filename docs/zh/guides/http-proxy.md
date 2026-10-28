@@ -21,7 +21,7 @@ components:
 ```bash
 export AXONX_PROXY_UPSTREAM='https://data.example/api'
 export AXONX_SERVICE_TOKEN='<服务 token>'
-axonx start --config proxy.yaml
+axonx app --config proxy.yaml
 ```
 
 上游地址是占位示例，替换为实际兼容接口。本例使用独立环境变量 AXONX_PROXY_UPSTREAM，避免与数据 Task 的 AXONX_TUSHARE_BASE_URL 混淆。默认配置的注释示例使用后者；同一服务运行代理和 Task 时，应分别设置上游地址与客户端代理地址，避免转发回自身。默认 proxy 未启用，该名字请求返回 Unknown proxy。
@@ -90,4 +90,4 @@ download_tushare_task 的客户端读取环境变量 `AXONX_TUSHARE_BASE_URL`。
 
 [鉴权](authentication.md) · [远程机器](remote-machines.md) · [部署](deployment.md)
 
-源码：[HTTP proxy](../../../axonx/components/proxy/http.py)、[proxy 路由](../../../axonx/components/service/http/proxy.py)、[proxy 错误](../../../axonx/components/proxy/base.py)。
+源码：[HTTP proxy](../../../axonx/app/components/proxy/http.py)、[proxy 路由](../../../axonx/app/components/service/http/proxy.py)、[proxy 错误](../../../axonx/app/components/proxy/base.py)。

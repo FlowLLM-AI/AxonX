@@ -39,7 +39,7 @@ Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bag
 
 ## 安装与检查
 
-要求 Python 3.12+ 和 AxonX `>=0.2.1`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
+要求 Python 3.12+ 和 AxonX `>=0.3.0`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
 插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，再从仓库根目录安装固定版本的 wheel：
 
@@ -59,34 +59,30 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
 
-editable 仅适用于当前 Python 环境的本机源码开发，不能与 `--target` 或 `--output` 同用。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
+editable 需要选定 Python 环境中的源码目录，不能与 `--output` 同用；指定 `--target` 时源码目录属于目标机器。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
 
 本机 CLI 的环境不一定是远程服务的环境。远程部署先配置目标服务 token，再明确指定目标：
 
 ```bash
 export AXONX_TARGET_TOKEN='<service token>'
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-通过远程安装 Job 更新仅贡献 Task 的 wheel，会刷新后续 Task 查询和提交，无需重启。仅在 `restart_required=true` 时重启，再查询 Task 定义核对字段。直接 `pip install` 和 editable 源码变更仍要求重启服务。核心与插件版本应满足插件包声明的兼容要求。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
 
 ## 数据准备
 
 在执行服务环境配置 `AXONX_TUSHARE_TOKEN`，使用内置 `download_tushare_task` 准备工作区下的 Tushare Parquet 数据。默认 ETL 输入目录是工作区中的 `tushare/`，不是当前 shell 目录。
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20140101 --end-date 20261008 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-保存返回的 `task_id` 和 `run_id`，等待下载成功后再提交 ETL：
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<download_task_id>' --run-id '<download_run_id>'
-```
+`axonx exec` 返回最终退出码；下载成功后再执行 ETL。
 
 | 文件                                                             | 用途                                 |
 | ---------------------------------------------------------------- | ------------------------------------ |
@@ -101,6 +97,25 @@ axonx --client-timeout 86400 wait_task \
 
 ETL 从输出起始日前读取最长滚动窗口所需的市场日；更早且不参与本次计算的分区不会阻断任务。参与计算的行情和复权因子仍需通过完整校验。
 
+## 一次执行研究流程
+
+`qlib_a158_research` 使用普通子 Task 执行 ETL → Train → Predict → Backtest；提供 `analysis` 时还会从 ETL 分支运行因子分析。每个子任务有独立状态、日志和产物，父任务记录 `stage_task_ids`。
+
+```bash
+axonx exec --task qlib_a158_research --task-name baseline \
+  --etl '{"start_date":"20150101","end_date":"20261008"}' \
+  --train '{"train_start":"20150101","train_end":"20230101","parameter_preset":"axonx"}' \
+  --predict '{"pred_end":"20261008"}' \
+  --backtest '{"top_ns":[5,10,20,30]}' \
+  --analysis '{}'
+```
+
+未指定预测起点时使用训练截止日；不传 `analysis` 则跳过因子诊断。研究参数属于插件，不放入服务 YAML。历史数据需提前准备；流程不会自动下载历史行情。子任务名称和依赖由父任务管理。
+
+回测默认截至最后信号日。需要继续估值或结算末期持仓时，在 `backtest.as_of_date` 中明确指定截止日。
+
+叶子预测任务可同时指定一个 Train 和一个 ETL 上游，用已有模型预测新数据；插件检查特征语义一致性。只指定 Train 时使用它的训练 ETL。
+
 ## 任务与执行
 
 | Task                 | 上游             | 产物                                 |
@@ -114,31 +129,23 @@ ETL 从输出起始日前读取最长滚动窗口所需的市场日；更早且�
 因子分析从 ETL 分支执行，不是训练的前置任务。按以下顺序提交；每一步都使用实际返回的 Task ID，等待任务成功后再提交下游。
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # ETL 成功后
-axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --upstream-task-ids '["<etl_task_id>"]'
+axonx exec --task qlib_a158_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101
 
 # 训练成功后
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008
 
 # 预测成功后
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-每次等待都同时提供本次运行的两个标识：
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<task_id>' --run-id '<run_id>'
-axonx get_task_definition --task qlib_a158_train
-```
-
-远程执行时，上述提交、等待和定义查询命令都加上同一个 `--target`。不要只远程安装插件后又在本机环境执行任务。
+使用 `axonx get_task_def --task qlib_a158_train` 检查输入输出 schema。远程执行和定义查询都加上同一个 `--target`，使用目标服务的 Python 环境。
 
 ## 关键参数
 
@@ -158,13 +165,13 @@ axonx get_task_definition --task qlib_a158_train
 | Backtest `sell_cost_rate`                         | `0.0015`                | 卖出成交金额费用率                 |
 | Backtest `annualization_days`                     | `252`                   | 年化交易日数                       |
 
-完整参数以执行环境中 `get_task_definition` 返回的 Schema 为准。
+完整参数以执行环境中 `get_task_def` 返回的 Schema 为准。
 
 ## 特征、标签与回测口径
 
 158 个基础特征使用 `f_alpha158_*` 名称，包含 13 个当日价形特征以及 5、10、20、30、60 日窗口的 29 组滚动特征。行情使用复权价格，并保留交易日历和上市状态信息。
 
-ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。rank 使用平均排名并归一化到 `[0,1]`；csz 使用截尾后的日截面总体标准差（`ddof=0`）。早停按验证 L2 选轮数。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
+ETL 使用当前统一协议 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。rank 使用平均排名并归一化到 `[0,1]`；csz 使用截尾后的日截面总体标准差（`ddof=0`）。早停按验证 L2 选轮数。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
 
 回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`buy_cost_rate=0.0005` 和 `sell_cost_rate=0.0015` 默认使用 Qlib 参考费率，即买入 0.05% / 卖出 0.15%，归一化资金账本不设最低 5 元费用。费用按实际成交金额收取，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
 
@@ -178,8 +185,7 @@ ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 
 
 ```bash
 python -m pytest \
-  tests/unit/test_qlib_a158.py tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
-  tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
+  plugins/qlib_a158/tests tests/unit/test_stock_backtest.py -q
 ```
 
 覆盖特征边界、标签时点、四组参数对照、分侧费用、延迟退出与持仓资金记账规则。

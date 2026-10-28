@@ -13,6 +13,8 @@
 
 默认 `minimum_holding_days=10`、`replacement_fraction=0.2`、`rank_buffer=1`。Top5/10/20/30 的每日数量上限为 1/2/4/6 只；它不是资金换手上限。不提供固定到期参数，`planned_exit_date` 为空。
 
+要求 AxonX 0.3.0 和当前版本的上游研究插件；框架与插件同步升级，不转换旧接口和旧产物格式。
+
 ## 安装与执行
 
 研究插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
@@ -26,16 +28,19 @@ axonx plugin install -e plugins/qlib_strategy
 修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。固定版本实验去掉 `-e`。远程部署使用普通安装，在同一目标服务按顺序安装上游插件；先配置 `AXONX_TARGET_TOKEN`，并替换以下示例地址：
 
 ```bash
-axonx plugin install plugins/qlib_a158 --target http://research.example:1024
-axonx plugin install plugins/qlib_factor --target http://research.example:1024
-axonx plugin install plugins/qlib_strategy --target http://research.example:1024
-axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+axonx exec --task qlib_strategy_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[20,30]' --as-of-date 20261008 \
   --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-可复用成功的基础或增强预测。提交后保存 Task / Run ID，等待成功再读取结果。上游 `qlib_strategy_etl`、`qlib_strategy_analysis`、`qlib_strategy_train`、`qlib_strategy_predict` 注册因子层实现；策略比较直接复用已有预测。通过远程安装 Job 更新仅贡献 Task 的 wheel 无需重启；按 `restart_required=true` 重启并核对 Task 定义。直接 pip/源码变更仍要求重启；核心与插件版本应满足插件包声明的兼容要求。
+可复用成功的基础或增强预测。提交后保存 Task ID 和开始时间，等待成功再读取结果。上游 `qlib_strategy_etl`、`qlib_strategy_analysis`、`qlib_strategy_train`、`qlib_strategy_predict` 注册因子层实现；策略比较直接复用已有预测。安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。
 
 ## 实验记录
 

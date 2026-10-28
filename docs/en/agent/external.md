@@ -27,7 +27,7 @@ The default local service reads its token from `AXONX_SERVICE_TOKEN`:
 axonx version
 axonx machine_status
 axonx plugin list
-axonx get_task_definition --task demo
+axonx get_task_def --task demo
 ```
 
 Without a target, `plugin list` queries the current Python environment. If CLI and service environments differ, specify the service address explicitly to query its plugins and configure the corresponding `AXONX_TARGET_TOKEN`.
@@ -39,7 +39,7 @@ export AXONX_TARGET_TOKEN='<target service token>'
 axonx version --target 192.0.2.10:1024
 axonx machine_status --target 192.0.2.10:1024
 axonx plugin list --target 192.0.2.10:1024
-axonx get_task_definition --task demo --target 192.0.2.10:1024
+axonx get_task_def --task demo --target 192.0.2.10:1024
 ```
 
 Replace the example address. Direct access does not require a local service. An explicit `--target` defaults to `AXONX_TARGET_TOKEN` even when it points to the local machine. See [client configuration](../reference/client-configuration.md) for full connection rules.
@@ -47,22 +47,11 @@ Replace the example address. Direct access does not require a local service. An 
 ## Complete an execution and inspect evidence
 
 ```bash
-axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
+axonx exec --task demo --task-name agent-check --x 2 --y 3 --target 192.0.2.10:1024
+axonx status --task-id 'base#demo#agent-check' --detail full --target 192.0.2.10:1024
 ```
 
-Keep the actual `answer.task_id` and `answer.run_id`, check `success`, and wait for that execution:
-
-```bash
-axonx wait_task --task-id '<task_id>' --run-id '<run_id>' \
-  --client-timeout 120 --target 192.0.2.10:1024
-axonx status --task-id '<task_id>' --target 192.0.2.10:1024
-axonx read_task_log --task-id '<task_id>' --target 192.0.2.10:1024
-axonx get_task_context --task-id '<task_id>' --target 192.0.2.10:1024
-```
-
-Confirm the terminal state is `succeeded`, then inspect metadata and its declared artifacts. A successful query means the query worked; a successful submission means it was accepted. Neither replaces Task success. Use [workspace-relative paths](../guides/workspace-files.md) for files; paginated previews do not represent the complete dataset.
-
-Omit `task_name` by default so the framework generates an instance name. Reusing an explicit name replaces a finished task's records and artifacts; see [task lifecycle](../concepts/task-lifecycle.md).
+Exec waits and prints business output. Verify process exit code, Task state, started_at and output. Keep the same target for logs, lineage and artifact inspection. The remote cli Job owns the execution connection; cancellation can stop its process group. Before retrying an uncertain request inspect the Task record. Remote plugin deployment follows the explicit [build/upload/install/cleanup flow](../plugins/management.md).
 
 ## Give the agent a concrete research goal
 
@@ -74,6 +63,6 @@ Define controls and confirmation windows with [experiment design and confirmatio
 
 ## What to report on completion
 
-Report the execution target, actual Task/Run IDs, terminal state, parameters, artifact locations, and metrics and definitions supporting the conclusion. For failures, report actual errors and completed stages. State the inspection scope when execution is pending or complete artifacts were unavailable.
+Report the execution target, actual Task IDs and start times, terminal state, parameters, artifact locations, and metrics and definitions supporting the conclusion. For failures, report actual errors and completed stages. State the inspection scope when execution is pending or complete artifacts were unavailable.
 
 Follow the [contribution guide](../../../CONTRIBUTING.md) and [Task contracts](../reference/task-contracts.md) during implementation. See the [CLI reference](../reference/cli.md) for command fields and [MCP integration](mcp-integration.md) for tool discovery and response handling.

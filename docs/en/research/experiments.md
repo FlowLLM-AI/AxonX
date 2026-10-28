@@ -20,7 +20,7 @@ Before execution, record the hypothesis, baseline, candidates, selection rule, a
 | Samples and model                     | Keep labels, filters, training and validation windows, hyperparameters, and random seeds                |
 | Execution and costs                   | Keep universe, fill proxy, delayed exits, cost rate, annualization, and risk-free settings              |
 | Selection rule                        | Specify candidates, primary metrics, constraints, and tie handling beforehand                           |
-| Experiment evidence                   | Keep Task/Run IDs, inputs, metadata, logs, and key artifacts                                            |
+| Experiment evidence                   | Keep Task IDs and metadata `started_at`, inputs, metadata, logs, and key artifacts                      |
 
 A fixed random seed does not replace fixed data and dependencies. Feature timing must respect information available at prediction time; future labels or future tradability must not determine features.
 
@@ -37,7 +37,7 @@ The documented experiments fix the risk group and a 3-day strategy, train on `[2
 
 ## Preserve ablation chains with Tasks
 
-Reuse compatible upstream data where possible, giving each candidate distinct Train, Predict, and Backtest identities. Keep the actual returned Task/Run IDs and wait for success before submitting downstream stages. The framework records lineage but does not run an entire DAG automatically.
+Reuse compatible upstream data where possible, giving each candidate distinct Train, Predict, and Backtest identities. Record the actual Task IDs and metadata `started_at` and wait for success before submitting downstream stages. The framework records lineage but does not run an entire DAG automatically.
 
 ```text
 Shared ETL

@@ -1,12 +1,12 @@
 import { lazy, Suspense, type Dispatch, type SetStateAction } from "react";
-import type { ResearchPageId } from "../features/research/types";
-import type { ContextOption } from "./types";
 import { useTranslation } from "react-i18next";
-import type { MachineNode } from "../features/machines/types";
+import { operationPages } from "../features/operations/pages";
+import type { ResearchPageId } from "../features/research/types";
+import type { MachineNode } from "../features/runtime/machine";
 import { researchSections } from "./navigation";
-import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";
-import type { StudioPage } from "../shared/api/contracts";
+import { defaultRoute } from "./routes";
+import type { ContextOption } from "./types";
 
 const OperationPage = lazy(
   () => import("../features/operations/OperationPage"),
@@ -24,12 +24,12 @@ const StrategyComparePage = lazy(
   () => import("../features/research/compare/StrategyComparePage"),
 );
 const ApiWorkspace = lazy(() => import("../features/api-catalog/ApiWorkspace"));
-const SubmitPage = lazy(() => import("../features/task-submit/SubmitPage"));
+const TaskDefinitionsPage = lazy(
+  () => import("../features/tasks/TaskDefinitionsPage"),
+);
 const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 
 interface PageOutletProps {
-  operationPages: StudioPage[];
-  operationPagesError: string;
   route: AppRoute;
   machine: MachineNode;
   target?: string;
@@ -40,8 +40,6 @@ interface PageOutletProps {
 }
 
 export function PageOutlet({
-  operationPages,
-  operationPagesError,
   route,
   machine,
   target,
@@ -58,7 +56,7 @@ export function PageOutlet({
       <HomePage
         onNavigate={(target) =>
           navigate(
-            target === "submit"
+            target === "task-defs"
               ? defaultRoute("task-defs")
               : target === "tasks"
                 ? { section: "runtime", view: "tasks" }
@@ -98,7 +96,6 @@ export function PageOutlet({
         onNavigate={(nextView, resource) =>
           navigate({ section: "runtime", view: nextView, resource })
         }
-        onSubmit={() => navigate(defaultRoute("task-defs"))}
         onInterpretTask={(taskId) =>
           navigate({ section: "agent", view: "task", resource: taskId })
         }
@@ -119,6 +116,7 @@ export function PageOutlet({
       <WorkspaceBrowserPage
         key={target || "local"}
         target={target}
+        machineId={machine.id}
         initialPath={route.resource}
         onConnection={setServiceOnline}
         onPathChange={(path) =>
@@ -150,9 +148,7 @@ export function PageOutlet({
       />
     ) : (
       <div className="empty-research">
-        <p role="status">
-          {operationPagesError || t("operations.unavailable")}
-        </p>
+        <p role="status">{t("operations.unavailable")}</p>
       </div>
     );
   } else if (route.section === "report" && route.resource) {
@@ -215,14 +211,18 @@ export function PageOutlet({
     );
   } else if (route.section === "task-defs") {
     page = (
-      <SubmitPage
+      <TaskDefinitionsPage
+        key={machine.id}
         target={target}
+        machineId={machine.id}
+        onOpenTask={(resource) =>
+          navigate({ section: "runtime", view: "task", resource })
+        }
         initialName={route.resource}
         onSelected={(resource) =>
           navigate({ section: "task-defs", view: "catalog", resource })
         }
         onOptionsChange={setResourceOptions}
-        onViewTasks={() => navigate({ section: "runtime", view: "tasks" })}
         onConnection={setServiceOnline}
       />
     );

@@ -30,7 +30,7 @@
       <path d="M 780 176 H 845 V 225 H 910" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M 780 330 H 845 V 255 H 910" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <text x="600.0" y="442" font-size="17" font-weight="400" text-anchor="middle">A closed connection without a terminal result does not establish success.</text>
-      <text x="600.0" y="468" font-size="17" font-weight="400" text-anchor="middle">For a submit Job, successful acceptance still requires a separate check of Task completion.</text>
+      <text x="600.0" y="468" font-size="17" font-weight="400" text-anchor="middle">For a cli Job, inspect command exit status and persisted Task evidence.</text>
     </g>
     <path d="M 44 414 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>

@@ -1,66 +1,39 @@
 # Frequently Asked Questions
 
-When investigating a problem, first distinguish service connectivity, Job calls, and background Task execution. A successful HTTP request does not mean background computation succeeded; see [Troubleshooting](guides/operations.md) for the full process.
+## Studio opens but data does not load
 
-## Why Do Lists Fail to Load Even Though Studio Opens?
+Static UI availability does not prove service/API availability. Check selected machine, token, /health and public Job catalog. A service without a token hides authenticated capabilities.
 
-The static frontend can load independently, but APIs still require an online backend. Check `/health`, the development proxy address, and server logs. With Vite, restart after changing `AXONX_DEV_SERVER`. See [Getting Started with Studio](getting-started/studio.md).
+## Exec prints output but where is the Task record?
 
-## Why Do /health or /jobs Return 401?
+Exec waits for completion and prints business output. Find metadata under workspace/type/task_id/metadata.json, or query status with full detail. Retain task_id, started_at and target. A connection error alone does not establish whether a remote command started.
 
-After a service token is configured, these protocol endpoints also require a Bearer token. Enter the local service token in Studio settings; use the corresponding client configuration for the CLI. Do not confuse a remote machine token with the local service token. See [Client Configuration](reference/client-configuration.md).
+## How do I distinguish a same-name rerun?
 
-## Why Can I See the Catalog but Not Find a Particular Job?
+Task ID names the current directory; started_at changes per execution. wait_task captures that value and rejects a replacement during its wait. Use distinct names to preserve independent experiments.
 
-The public catalog comes from configured Jobs, rather than all Python methods. Jobs requiring authentication may be filtered out when no service token is configured; functionality may also be unavailable if an optional component is disabled. Consult `/jobs` and the [Configuration Reference](reference/configuration.md).
+## Do upstream IDs execute a dependency chain?
 
-## Why Are There No Results After submit Returns?
+No. upstream_task_ids declares input dependencies. Execute each stage explicitly, check success, then pass actual IDs. Parent/child invocations are a separate relationship.
 
-`submit` returns `task_id`, `run_id`, and `task`, indicating that submission was accepted. Then call `wait_task`, `status`, or check the runtime center. Bind waiting to this run_id to avoid reading another execution after a fixed-name rerun. See [Submission and Observation](guides/task-management.md).
+## Why is an installed plugin missing in Studio?
 
-## What Is the Difference Between Task ID and run_id?
+Confirm the target interpreter and plugin list. Native remote commands do not upload local source. After installation, restart the persistent service to refresh its startup catalog and cached schemas; new exec processes already rediscover installed metadata. Follow the [multi-step deployment flow](plugins/management.md).
 
-Task ID identifies a task directory in the workspace; run_id identifies one execution. Rerunning a terminal task with the same name replaces its directory, so the directory is not an immutable historical archive. See [Task Concepts](concepts/task-lifecycle.md).
+## Why does stopping an Agent not stop research?
 
-## Does Setting source_tasks Automatically Execute Upstream Tasks?
+An Agent turn and independent Task execution have separate ownership. cancel_agent_turn interrupts the model session. CLI kill stops a verified Task process; children share the root process. Cancelling an owned remote cli request can also stop that request's child process group.
 
-No. It records source relationships for context and relationship graphs. Upstream tasks must still run first and produce the files required downstream. Separate multiple Task IDs with commas; see [Task Relationship Graphs](concepts/task-lineage.md).
+## How do I remove a Task?
 
-## Why Are Alpha158 Training or Backtest Tasks Missing?
+Stop writers, verify state/process ownership, then delete its workspace-relative directory through delete_entries. It deletes persistent data too and does not protect active Task processes. File deletion is not termination.
 
-Research plugins provide them; installing the core package alone does not guarantee their availability. Check installed plugins and task definitions first, then prepare data using the [Research Workflow](research/workflow.md). An enumerated type does not imply an implementation is currently available.
+## Why is a running record stale?
 
-## Why Does a Local Python Change Not Take Effect in the Worker?
+Observation is read-only. Startup or explicit kill can reconcile confirmed dead local processes; foreign or inaccessible processes remain unverified. Use the source service, execution_target and workspace.
 
-Check how the plugin is installed and which Python environment it uses. Use editable installation during development; restart persistent services as required by your changes to refresh registrations. Background workers are separate processes. See the [Plugin Guide](plugins/management.md).
+## What if a preview or replica is incomplete?
 
-## Why Do Backtest Returns and Curve Interpretations Differ?
+Inspect response truncation, sampling and omitted-file metadata. A display replica is observation evidence, not an executable backup. Missing market data can make a backtest provisional even when Task execution succeeded.
 
-First check whether you are using net or gross returns, transaction costs, and common valid trading days. A plugin's open positions, signal targets, and actual holdings also use different definitions. See [Backtesting](research/backtest.md) and [Strategy Comparison](research/strategy-comparison.md).
-
-## What If File Preview Fails or Does Not Show All Content?
-
-Confirm that the path is relative to the workspace, then check file existence, format, and preview row limits. Preview is a bounded read, rather than a complete download. Obtain complete artifacts from the execution machine's workspace; continue table previews with supported pagination parameters. See the [Workspace Guide](guides/workspace-files.md).
-
-## Why Does Remote Execution Report Connection or Permission Errors?
-
-When forwarding through Studio or the outer HTTP target, check that the target is in the server's targets configuration; direct CLI --target connections do not require this configuration. Then check remote service reachability and target token matching. Studio forwards through the local backend rather than managing all remote credentials directly from the page. See the [Machine Guide](guides/remote-machines.md).
-
-## Why Are Raw Data or Agent Sessions Still Missing After Task Synchronization?
-
-Synchronization is an optional component. Task synchronization focuses on terminal task directories; it does not copy raw data, plugin environments, or Agent workspaces. Prepare the target environment separately; see the [Synchronization Guide](guides/task-sync.md).
-
-## Why Can I Not Chat on the Agent Page?
-
-Check the Agent component, SDK, model environment, and available tools. Agent sessions are distinct from Tasks; the end of a request does not necessarily mean a background Task it triggered has completed. See [Agent Configuration](agent/configuration.md) and the [Usage Guide](agent/usage.md).
-
-## What Is the Difference Between Cancellation and Deletion?
-
-Cancellation stops a task that is executing; deletion removes task records and artifacts. Use task_id to cancel the current execution, or run_id to cancel one exact execution. Run-based cancellation never targets a newer execution. Supplying both IDs checks that they match; a mismatched pair returns false. Do not delete directories as a substitute for runtime cancellation. See [Submission and Observation](guides/task-management.md).
-
-## Next Steps
-
-- Verify an environment from scratch: [Quickstart](getting-started/quickstart.md)
-- Look up complete fields: [Task Protocol](reference/task-contracts.md)
-- Look up API errors: [API Overview](api/overview.md)
-- Contribute to development: [Development Guide](dev_guide.md)
+[Quickstart](getting-started/quickstart.md) · [Operations](guides/operations.md) · [Task contracts](reference/task-contracts.md)

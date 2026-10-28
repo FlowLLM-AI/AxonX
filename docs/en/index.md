@@ -8,7 +8,7 @@ The reference research plugins adapt [Microsoft Qlib](https://github.com/microso
 
 | Goal                         | Start here                                                                                     | Outcome                                                         |
 | ---------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Use AxonX for the first time | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)              | Submit a demo, wait for success, and inspect records            |
+| Use AxonX for the first time | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)              | Execute Demo and inspect its completed record                   |
 | Develop with an Agent        | [Agent development](agent/overview.md) → [Skill and research prompt](agent/research-prompt.md) | Prepare source, tools, and an objective for plugin development  |
 | Run a research baseline      | [Research](research/overview.md) → [Alpha158 workflow](research/workflow.md)                   | Connect data, training, prediction, and backtesting             |
 | Implement a research plugin  | [Development and operations guide](dev_guide.md) → [Plugin management](plugins/management.md)  | Implement Tasks, install and discover the plugin                |
@@ -31,6 +31,6 @@ Each page has one navigation owner and cross-links to related steps. How-to guid
 
 English and Chinese pages use matching paths and share screenshots and diagrams. Replace example addresses, credentials, and Task IDs with actual values. Use the Job and Task schemas discovered on the connected service.
 
-Accepted submission still requires waiting for a terminal Task state. Lineage records do not automatically schedule a DAG. Reusing a name replaces a finished task directory; preserve distinct identities for experiment comparisons.
+`exec` waits for the Task and returns business output plus a process exit code. Record its Task ID and metadata `started_at` for later observation. Lineage records do not automatically schedule a DAG. Reusing a name replaces a finished task directory; preserve distinct identities for experiment comparisons.
 
 Start with the [FAQ](faq.md) when something fails, then use [troubleshooting and recovery](guides/operations.md) to locate the failure in the service, Job, or Task layer.

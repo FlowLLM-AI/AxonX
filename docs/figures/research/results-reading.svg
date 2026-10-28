@@ -49,7 +49,7 @@
         <tspan x="850.625" dy="28">summary</tspan>
       </text>
       <text x="50" y="402.0" font-size="19">
-        <tspan x="50" dy="0">Accepted submission is not success. Research views read published metadata and artifacts.</tspan>
+        <tspan x="50" dy="0">Verify Task state and business quality. Research views read published metadata and artifacts.</tspan>
       </text>
     </g>
     <path d="M 44 374 H 956" fill="none" stroke="#163450" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />

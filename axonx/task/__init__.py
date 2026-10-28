@@ -1,20 +1,11 @@
-"""Task authoring, execution, persistence, and built-in capabilities."""
+"""Task capabilities and their public package namespaces.
 
-from .core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from .core.composite import BaseCompositeTask, ChildTaskError, ChildTaskResult
-from .schemas.lifecycle import TaskMetadata
-from ..progress import TaskStepStatus
-from . import builtins
+models: Shared data contracts, identity rules, parameters and validation.
+storage: Task directories, records, artifacts, snapshots, journals and histories.
+core: Synchronous Task authoring, composition, research bases and execution windows.
+runtime: Task execution, progress, lifecycle, process control and replay drivers.
+builtins: Bundled demo, notification, data-download and stock research implementations.
 
-__all__ = [
-    "BaseInputParams",
-    "BaseOutputParams",
-    "BaseTask",
-    "BaseCompositeTask",
-    "ChildTaskError",
-    "ChildTaskResult",
-    "TaskMetadata",
-    "TaskStepStatus",
-    "TaskStep",
-    "builtins",
-]
+This package is a namespace. Import models, Task authoring, storage, execution
+and built-in implementations from their owning modules.
+"""

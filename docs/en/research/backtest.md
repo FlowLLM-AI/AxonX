@@ -33,12 +33,12 @@ Keys are `trade_date` (YYYYMMDD string), `trade_time` (HHMM string), and `ts_cod
 For required prediction columns, optional columns and metadata requirements, see [Prediction inputs for stock backtesting](../reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ```bash
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-Source tasks resolve market, calendar and label artifacts. Explicit files use `input_file`, `market_file`, `calendar_file` and optional `labels_file`. `as_of_date` is the inclusive evaluation cutoff, defaulting to the latest market date. `top_ns` is an integer list; each size has an independent portfolio. Calendar dates must be valid YYYYMMDD values without nulls or duplicates; malformed calendars are rejected before computing label or holding horizons.
+Source tasks resolve market, calendar and label artifacts. Explicit files use `input_file`, `market_file`, `calendar_file` and optional `labels_file`. `as_of_date` is the inclusive evaluation cutoff. The shared base defaults to the latest market date; the Alpha158 plugin overrides this to the last signal date. Set it explicitly to extend valuation/settlement. `top_ns` is an integer list; each size has an independent portfolio. Calendar dates must be valid YYYYMMDD values without nulls or duplicates; malformed calendars are rejected before computing label or holding horizons.
 
 | Parameter                       | Default  | Meaning                                          |
 | ------------------------------- | -------- | ------------------------------------------------ |

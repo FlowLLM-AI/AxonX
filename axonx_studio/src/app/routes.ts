@@ -1,4 +1,4 @@
-export const sectionIds = [
+const sectionIds = [
   "home",
   "runtime",
   "agent",
@@ -23,7 +23,7 @@ export interface AppRoute {
   resource?: string;
 }
 
-export interface AppLocation {
+interface AppLocation {
   machineId: string;
   route: AppRoute;
 }
@@ -42,7 +42,7 @@ const defaultViews: Record<SectionId, string> = {
   predict: "runs",
   backtest: "runs",
   compare: "strategies",
-  operations: "",
+  operations: "online",
   report: "task",
 };
 

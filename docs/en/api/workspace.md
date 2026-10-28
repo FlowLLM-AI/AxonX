@@ -1,262 +1,122 @@
-# Workspace and file-transfer API
+# Workspace and Upload API
 
-Workspace Jobs handle directories, metadata, and data previews. File transfer uses separate HTTP routes to stage wheels and synchronization archives.
+File Jobs operate on the selected workspace. Artifact paths come from current Task metadata.
 
-![Workspace and file-transfer API call flow](../../figures/api/upload.svg)
+All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-## Calling conventions
-
-All endpoints below use `POST /jobs/{name}` with a `{"arguments":{...}}` request body. For remote forwarding, add `target` at the envelope's top level, outside arguments. Every response uses [JobResponse](overview.md#responses-and-errors). Table defaults come from the current built-in configuration and Steps. Deployments may change Job Schemas; the running service's `/jobs` is authoritative.
-
-All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskMetadata fields.
+![Upload, consume and clean up](../../figures/api/upload.svg)
 
 ## Endpoint list
 
-| Job              | Purpose                                         |
-| ---------------- | ----------------------------------------------- |
-| `list_entries`   | List one directory level within the workspace.  |
-| `list_task_runs` | List task directories containing metadata.json. |
-| `preview_file`   | Preview supported file types.                   |
-| `delete_entries` | Delete files or directories in the workspace.   |
+| Job                     | Purpose                                                               |
+| ----------------------- | --------------------------------------------------------------------- |
+| `list_entries`          | List one directory inside the configured workspace.                   |
+| `list_task_directories` | List Task directories containing metadata.json.                       |
+| `preview_file`          | Preview one supported file inside the configured workspace.           |
+| `delete_entries`        | Delete multiple files or directories inside the configured workspace. |
 
 ## list_entries
 
-List one directory level within the workspace.
+List one directory inside the configured workspace.
 
-| Parameter | Type    | Required | Default | Constraints and meaning                       |
-| --------- | ------- | -------- | ------- | --------------------------------------------- |
-| `path`    | string  | No       | `""`    | Path relative to the service workspace        |
-| `offset`  | integer | No       | `0`     | Non-negative number of sorted entries to skip |
-
-Only the business fields listed in the table are accepted.
-
-**Request**
-
-```json
-{
-  "arguments": {}
-}
-```
-
-**Response**
-
-answer is WorkspaceListing: path, entries, and truncated. Each entry contains name, path, kind, preview_kind, supported, size, and modified_at.
-
-```json
-{
-  "answer": {
-    "path": "",
-    "entries": [],
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-path defaults to an empty string, representing the root directory; directories sort first. At most 5000 entries are returned. truncated=true indicates another page is available. Set offset to the number of entries already read to continue. Pagination reflects the current directory contents; refresh from offset=0 after files change.
-
-## list_task_runs
-
-List task directories containing metadata.json.
-
-| Parameter   | Type   | Required | Default       | Constraints and meaning                                               |
-| ----------- | ------ | -------- | ------------- | --------------------------------------------------------------------- |
-| `task_type` | string | Yes      | `— (omitted)` | Task type directory; minLength=1, regex `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
-
-Only the business fields listed in the table are accepted.
-
-**Request**
+| Argument | Type      | Required | Default / constraints       |
+| -------- | --------- | -------- | --------------------------- |
+| `path`   | `string`  | no       | `{"default":""}`            |
+| `offset` | `integer` | no       | `{"minimum":0,"default":0}` |
 
 ```json
 {
   "arguments": {
-    "task_type": "train"
+    "path": ""
   }
 }
 ```
 
-**Response**
+`answer` contains `path`, absolute `workspace_root`, `entries` and `truncated`. Entries are sorted directory-first, then by case-insensitive name and exact name, with at most 5000 entries after `offset`. Continue with `offset + entries.length` when truncated. Entries expose name, relative path, kind, preview_kind, supported, size and modified_at; symlinks may be listed but cannot be traversed.
 
-answer has the same structure as WorkspaceListing, retaining only task-result directories.
+## list_task_directories
+
+List Task directories containing metadata.json.
+
+| Argument    | Type     | Required | Default / constraints                                     |
+| ----------- | -------- | -------- | --------------------------------------------------------- |
+| `task_type` | `string` | yes      | `{"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9_-]*$"}` |
 
 ```json
 {
-  "answer": {
-    "path": "train",
-    "entries": [],
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
+  "arguments": {
+    "task_type": "base"
+  }
 }
 ```
 
-**Behavior and failure cases**
-
-All lifecycle states have metadata; inspect `state` rather than file existence to select successful research results. task_type is a directory name, rather than a Task registration name.
+Lists directories of the selected task_type that contain metadata.json. This is file discovery, not an immutable execution history.
 
 ## preview_file
 
-Preview supported file types.
+Preview one supported file inside the configured workspace.
 
-| Parameter   | Type    | Required | Default       | Constraints and meaning                                                                     |
-| ----------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------------- |
-| `path`      | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                      |
-| `offset`    | integer | No       | `0`           | Number of data rows to skip in CSV/JSONL/Parquet previews; minimum=0                        |
-| `limit`     | integer | No       | `200`         | Maximum number of data rows returned in CSV/JSONL/Parquet previews; minimum=1, maximum=5000 |
-| `max_bytes` | integer | No       | Omitted       | Text/Markdown/JSON/YAML byte budget, 1–33554432; CLI defaults to 8192.                      |
-
-Only the business fields listed in the table are accepted.
-
-**Request**
+| Argument    | Type      | Required | Default / constraints                        |
+| ----------- | --------- | -------- | -------------------------------------------- |
+| `max_bytes` | `integer` | no       | `{"minimum":1,"maximum":33554432}`           |
+| `path`      | `string`  | yes      | `—`                                          |
+| `offset`    | `integer` | no       | `{"minimum":0,"default":0}`                  |
+| `limit`     | `integer` | no       | `{"minimum":1,"maximum":5000,"default":200}` |
 
 ```json
 {
   "arguments": {
-    "path": "base/base#demo#api-demo/metadata.json"
+    "path": "base/base#demo#api-check/metadata.json",
+    "limit": 20,
+    "max_bytes": 8192
   }
 }
 ```
-
-**Response**
-
-answer is discriminated by kind: text/markdown/json/jsonl/yaml/csv/parquet/unsupported; every type includes size.
-
-```json
-{
-  "answer": {
-    "kind": "json",
-    "size": 1200,
-    "content": "",
-    "data": {},
-    "parse_error": null,
-    "truncated": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-offset/limit apply only to CSV, JSONL, and Parquet data rows, default to 0/200, and have a maximum limit of 5000. text/markdown reads at most 512 KiB; JSON/YAML larger than 32 MiB returns parse_error. Parsing failure can still have success=true; always inspect parse_error.
-
-`preview_file` accepts optional `max_bytes` (1–33554432) for text, Markdown, JSON and YAML. When the file exceeds it, the response contains a UTF-8 prefix with `truncated=true`; structured previews have `data=null` and an explanatory `parse_error`. CSV/JSONL/Parquet remain row-limited. CLI defaults to `limit=20` and `max_bytes=8192`; HTTP/MCP retain existing limits unless explicitly overridden.
 
 ## delete_entries
 
-Delete files or directories in the workspace.
+Delete multiple files or directories inside the configured workspace.
 
-| Parameter | Type  | Required | Default       | Constraints and meaning                                              |
-| --------- | ----- | -------- | ------------- | -------------------------------------------------------------------- |
-| `paths`   | array | Yes      | `— (omitted)` | List of workspace-relative paths to delete; maxItems=200, minItems=1 |
-
-Only the business fields listed in the table are accepted.
-
-**Request**
+| Argument | Type    | Required | Default / constraints           |
+| -------- | ------- | -------- | ------------------------------- |
+| `paths`  | `array` | yes      | `{"minItems":1,"maxItems":200}` |
 
 ```json
 {
   "arguments": {
-    "paths": ["tmp/example.txt"]
+    "paths": ["base/base#demo#api-check"]
   }
 }
 ```
 
-**Response**
-
-answer is an array of DeletedEntry; deleted is a relative path and kind is file/directory for each item.
-
-```json
-{
-  "answer": [
-    {
-      "deleted": "tmp/example.txt",
-      "kind": "file"
-    }
-  ],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-At most 200 paths are allowed; the root directory and paths escaping the workspace cannot be deleted. Prefer delete_tasks for task directories to preserve task-status and log-management constraints.
-
-## Related documentation
-
-- [Protocol, authentication, and errors](overview.md)
-- [Workspace operations](../guides/workspace-files.md)
-- [CLI reference](../reference/cli.md)
-- [Event protocol](events.md)
-
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/workspace/` and `axonx/components/service/http/jobs.py`.
+Deletes workspace-relative paths. It is a general file operation without active-Task process protection. Verify the Task is stopped and serialize against execution before deleting a directory.
 
 ## File upload and cleanup
 
-`POST /files` accepts a raw binary request body or `multipart/form-data`. Both formats return the same FileCopy and stage only the file bytes; uploading a Python script does not execute it.
-
-For raw binary uploads, `x-file-name` is required. Optional `x-file-directory` specifies a workspace-relative subdirectory beginning with tmp; it cannot target an arbitrary workspace location. Existing clients can continue using this format:
+`POST /upload` accepts a raw binary body with `x-file-name`, or multipart fields `file` and optional `directory`. Optional `x-file-directory` overrides the multipart directory. The destination is confined to workspace `tmp`; a UUID directory avoids collisions. The transfer budget defaults to 512 MiB, with 64 KiB extra multipart framing.
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
-  -H 'Content-Type: application/octet-stream' \
-  -H 'x-file-name: axonx_example-0.1.0-py3-none-any.whl' \
-  -H 'x-file-directory: tmp/plugins' \
-  --data-binary @dist/axonx_example-0.1.0-py3-none-any.whl
+curl --fail-with-body 'http://HOST:1024/upload' \
+  -H "Authorization: Bearer $AXONX_TARGET_TOKEN" \
+  -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-For multipart uploads, send exactly one file in the `file` field and optionally a text `directory` field. The file part supplies the filename. If supplied, `x-file-name` and a nonempty `x-file-directory` override the filename and directory. Other fields and multiple files are rejected. Omit the Content-Type header when using `curl -F`; curl supplies the multipart boundary automatically.
-
-```bash
-curl -s -X POST http://127.0.0.1:1024/files \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
-  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
-  -F 'directory=tmp/plugins'
-```
-
-The runtime dependency `python-multipart` is declared in `pyproject.toml`; no service configuration switch is needed to enable either format.
-
-FileCopy has the response structure below; use the actual returned path and byte size:
-
-```json
-{
-  "answer": {
-    "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
-    "size": 4096
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-Each upload receives a unique staging directory; uploads do not calculate content hashes or deduplicate identical content. The default per-file limit is 512 MiB. The service checks both Content-Length and actual streamed bytes. Multipart requests allow an additional 64 KiB of request framing; the file itself must still fit the per-file limit. Multipart temporary files are closed after storage or on failure, including request cancellation. An invalid Content-Length or malformed multipart body (including too many parts) returns 400; exceeding the limit returns 413. Missing/invalid filenames, missing `file` uploads, unsupported fields, directory escapes, and similar errors return 422; symbolic links and escaping paths are rejected.
-
-Consumers install_plugin and sync_tasks use the returned path. Installation also requires the SHA-256 of the original wheel, supplied by the installation caller and verified by the plugin consumer. Completing an upload does not mean the plugin has been installed or the task snapshot applied. Consumers clean up staged artifacts; unconsumed uploads can be cleaned up explicitly:
-
-```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
-```
-
-The example path is a placeholder; replace it with the actual path. The cleanup response answer is `{"path":"returned path"}`. Repeated cleanup of a valid path already consumed is harmless. This route cleans only staged files and cannot delete arbitrary workspace files. Backend path rules reject absolute paths, escaping paths, and paths outside tmp.
+The JobResponse answer is `StagedFile`: `{ "path": "tmp/UUID/file.whl", "location": "/absolute/workspace/tmp/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `sync_tasks` or `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
 
 ## Preview response types
 
-| kind        | Specific fields                                                 | Consumption guidance                                         |
-| ----------- | --------------------------------------------------------------- | ------------------------------------------------------------ |
-| text        | content, truncated                                              | Do not infer the complete file from truncated content        |
-| markdown    | content, frontmatter, frontmatter_error, truncated              | Read frontmatter separately and report its errors separately |
-| json / yaml | content, data, parse_error, truncated                           | Do not analyze data when parse_error is nonempty             |
-| csv         | columns, rows, offset, limit, has_more                          | Add the number of returned rows to offset for the next page  |
-| parquet     | CSV-style fields plus column_schema, row_count, row_group_count | schema supplies column types and nullable                    |
-| unsupported | size                                                            | The endpoint provides no preview content for this format     |
+All preview variants include `kind` and byte `size`. Limits depend on the format:
 
-Raw file size in bytes, row-pagination offset, and log-byte offset are distinct information. Text previews have no general character pagination. Parquet row counts and row-group information come from file metadata; returned rows represent only the current window.
+| Format         | Response fields and limits                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text           | `content`, `truncated`; default prefix 512 KiB, overridden by `max_bytes`                                                                                |
+| Markdown       | Body `content`, parsed `frontmatter`, `frontmatter_error`, `truncated`; same prefix budget as text                                                       |
+| JSON / YAML    | Parsed `data` or source `content` with `parse_error`; without `max_bytes`, parse up to 32 MiB and return an error for larger files                       |
+| CSV            | `columns`, row arrays, `offset`, `limit`, `has_more`; header excluded from row offset                                                                    |
+| JSONL / NDJSON | `rows` with line, content, data, parse_error and per-row truncated; 512 KiB page budget independent of `max_bytes`, plus page `truncated` and `has_more` |
+| Parquet        | `columns`, `column_schema`, row arrays, `row_count`, `row_group_count`, `offset`, `limit`, `has_more`                                                    |
+| Unsupported    | `kind="unsupported"`, `size`; no payload preview                                                                                                         |
 
-JSONL/NDJSON previews return `rows` (`line`, `content`, `data`, `parse_error`), `offset`, `limit`, `has_more`, and `truncated`. Offsets count physical lines, including malformed records. Pages are bounded to 512 KiB; individual row errors do not reject the whole preview.
+Row formats default to 200 rows per page, up to 5000. `max_bytes` applies only to text, Markdown, JSON and YAML and accepts at most 32 MiB. Partial JSON/YAML returns a marked source prefix and a parse error rather than a parsed object. CLI adds defaults of 20 rows and 8192 bytes; ordinary HTTP/MCP Job calls use the server defaults above. Use `has_more` for row pagination and inspect replica sampling/omissions before treating a preview as full evidence.
+
+Source: [Default Job contracts](../../../axonx/app/config/default.yaml) · [Job protocol](overview.md)

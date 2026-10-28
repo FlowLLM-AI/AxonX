@@ -4,4 +4,5 @@ export interface ContextOption {
   value: string;
   label: string;
   detail?: string;
+  kind?: "file" | "directory";
 }

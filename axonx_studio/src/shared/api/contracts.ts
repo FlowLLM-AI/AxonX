@@ -148,9 +148,9 @@ export type BuildInfo = {
 export type ChildTaskRecord = {
   node_name: string;
   attempt: number;
-  task: string;
-  task_id: string | null;
-  run_id: string;
+  reg_name: string;
+  child_task_id: string | null;
+  started_at: string | null;
   state: TaskState;
   exit_code: number;
   error: string;
@@ -177,6 +177,13 @@ export type DeletedEntry = {
   kind: "directory" | "file";
 };
 
+export type DiskInfo = {
+  path: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+};
+
 export type DisplayReplica = {
   purpose: "display";
   source_revision: string;
@@ -186,11 +193,6 @@ export type DisplayReplica = {
   source_log_path: string;
   snapshot: LiveSnapshot | null;
   log: ReplicaLog | null;
-};
-
-export type FileCopy = {
-  path: string;
-  size: number;
 };
 
 export type GpuInfo = {
@@ -244,7 +246,7 @@ export type JsonlRow = {
 export type LiveSnapshot = {
   source_id: string;
   root_task_id: string;
-  root_run_id: string;
+  root_started_at: string;
   captured_at: string;
   revision: number;
 };
@@ -269,6 +271,19 @@ export type LogEvent = {
   reset: boolean;
   kind: "log";
   channel: string;
+};
+
+export type MachineDiagnostics = {
+  axonx: BuildInfo;
+  cpu: CpuInfo;
+  memory: MemoryInfo;
+  gpus: Array<GpuInfo>;
+  python: PythonRuntimeInfo;
+  platform: string;
+  cwd: string;
+  workspace: WorkspaceDiagnostics;
+  credentials_configured: Record<string, boolean>;
+  service_auth_enabled: boolean;
 };
 
 export type MachineInfo = {
@@ -297,7 +312,7 @@ export type MemoryInfo = {
 export type OnlineCommit = {
   commit_id: string;
   task_id: string;
-  run_id: string;
+  started_at: string;
   trade_date: string;
   trade_time: string;
   revision: number;
@@ -372,6 +387,11 @@ export type ProgressEvent = {
   kind: "progress";
 };
 
+export type PythonRuntimeInfo = {
+  version: string;
+  executable: string;
+};
+
 export type ReplicaFile = {
   size: number;
   revision: string;
@@ -392,26 +412,6 @@ export type ResultEvent = {
   success: boolean;
   metadata: Record<string, unknown>;
   kind: "result";
-};
-
-export type ScheduleRun = {
-  name: string;
-  job: string;
-  trigger_id: string;
-  triggered_at: string;
-  scheduler_id: string | null;
-  state: TaskState;
-  error: string;
-  finished_at: string | null;
-  result: unknown;
-};
-
-export type ScheduleTrigger = {
-  name: string;
-  job: string;
-  trigger_id: string;
-  triggered_at: string;
-  scheduler_id: string | null;
 };
 
 export type StagedFile = {
@@ -469,21 +469,18 @@ export type StructuredPreview = {
   truncated: boolean;
 };
 
-export type StudioPage = {
-  title: Record<string, string>;
-  view: "schedules" | "tasks" | "pipeline";
-  schedules: Array<string>;
-  category: TaskCategory | null;
-  id: string;
+export type TaskContextSnapshot = {
+  task_id: string;
+  status: TaskMetadata;
+  metadata_path: string;
+  graph: TaskGraph;
+  relations: TaskRelations;
 };
-
-export type TaskCategory = "data_update" | "online_prediction" | "comparison";
 
 export type TaskDefinition = {
   name: string;
   source: "native" | "plugin";
   plugin: string | null;
-  category: TaskCategory | null;
   task_type: TaskType;
   description: string;
   input_schema: Record<string, unknown>;
@@ -507,33 +504,26 @@ export type TaskGraphNode = {
   kind: TaskType;
   task_name: string | null;
   created_at: string | null;
-  parent_ids: Array<string>;
+  upstream_task_ids: Array<string>;
   state: TaskState | null;
   missing: boolean;
   provisional: boolean;
 };
 
-export type TaskHandle = {
-  task_id: string;
-  run_id: string;
-  task: string;
-};
-
 export type TaskMetadata = {
   task_id: string;
-  run_id: string;
   task_type: TaskType;
   reg_name: string;
-  source: TaskSource;
-  parent_run_id: string | null;
-  category: TaskCategory | null;
+  parent_task_id: string | null;
   report_kind: string | null;
   state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
+  pid: number;
+  machine_id: string;
+  execution_target: string | null;
+  workspace_dir: string | null;
+  process_started_at: string;
   created_at: string | null;
-  started_at: string | null;
+  started_at: string;
   finished_at: string | null;
   error: string;
   exit_code: number;
@@ -546,13 +536,15 @@ export type TaskMetadata = {
   replica: DisplayReplica | null;
 };
 
-export type TaskSource = {
-  kind: "submit" | "exec" | "unknown";
-  schedule: ScheduleTrigger | null;
+export type TaskRelations = {
+  direct_upstream: Array<string>;
+  all_upstream: Array<string>;
+  direct_downstream: Array<string>;
+  missing: Array<string>;
+  provisional: Array<string>;
 };
 
-export type TaskState =
-  "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export type TaskState = "running" | "succeeded" | "failed";
 
 export type TaskStepStatus = {
   name: string;
@@ -584,33 +576,29 @@ export type TaskStepStatus = {
 
 export type TaskSummary = {
   task_id: string;
-  run_id: string;
   task_type: TaskType;
   reg_name: string;
-  source: TaskSource;
-  parent_run_id: string | null;
-  category: TaskCategory | null;
+  parent_task_id: string | null;
   report_kind: string | null;
   state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
+  pid: number;
+  machine_id: string;
+  execution_target: string | null;
+  workspace_dir: string | null;
+  process_started_at: string;
   created_at: string | null;
-  started_at: string | null;
+  started_at: string;
   finished_at: string | null;
   error: string;
   exit_code: number;
   log_path: string;
   display_name: string;
-  is_online: boolean;
   is_replica: boolean;
   step_progress: StepProgress | null;
-  managed_run_id: string | null;
 };
 
 export type TaskType =
   | "base"
-  | "composite"
   | "api"
   | "etl"
   | "analysis"
@@ -618,34 +606,6 @@ export type TaskType =
   | "predict"
   | "inference"
   | "backtest";
-
-export type TaskView = {
-  task_id: string;
-  run_id: string;
-  task_type: TaskType;
-  reg_name: string;
-  source: TaskSource;
-  parent_run_id: string | null;
-  category: TaskCategory | null;
-  report_kind: string | null;
-  state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
-  created_at: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  error: string;
-  exit_code: number;
-  log_path: string;
-  version: 1;
-  input_params: Record<string, unknown>;
-  output_params: Record<string, unknown>;
-  children: Array<ChildTaskRecord>;
-  steps: Array<TaskStepStatus>;
-  replica: DisplayReplica | null;
-  managed_run_id: string | null;
-};
 
 export type TextPreview = {
   kind: "text";
@@ -681,6 +641,12 @@ export type WindowResult = {
   coverage: number | null;
   artifacts: Record<string, ArtifactRecord>;
   metrics: Record<string, unknown>;
+};
+
+export type WorkspaceDiagnostics = {
+  path: string;
+  exists: boolean;
+  disk: DiskInfo;
 };
 
 export type WorkspaceEntry = {

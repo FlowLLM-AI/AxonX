@@ -1,74 +1,80 @@
-# 任务 API
+# Task 执行与观察 API
 
-任务提交、状态、日志和血缘查询共用 Job 协议。先查询注册定义，再提交输入；对特定执行使用 task_id 与 run_id 等待。
+执行通过原生 CLI 或服务拥有的 `cli` 命令 Job，观察读取持久化 Task 记录。
 
-![任务 API调用示意](../../figures/api/task-call.svg)
+所有下列 Job 使用 `POST /jobs/NAME` 和 `{"arguments": {...}}` 请求体。流式入口为 `/jobs/NAME/events`，MCP 使用相同 Job 名和业务参数。先调用 `help --job NAME` 获取目标服务实际 Schema。示例中的 Task/会话 ID 必须替换为实际值。
 
-## 调用约定
+![Task 执行与观察](../../figures/api/task-call.svg)
 
-以下均为 `POST /jobs/{name}`，请求体是 `{"arguments":{...}}`。远程转发时在封装顶层添加 `target`，不能放进 arguments。每个响应使用 [JobResponse](overview.md#响应与错误)，表格默认值依据当前内置配置和 Step。部署可修改 Job Schema，运行服务的 `/jobs` 是最终依据。
+## 接口列表
 
-所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskMetadata 字段见 [Task 协议](../reference/task-contracts.md)。
+| Job                  | 用途                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| `cli`                | 在本服务机器的子进程中执行 AxonX CLI 命令。路径属于目标机器，不支持启动服务或嵌套远程转发。 |
+| `list_task_defs`     | 列出本服务 Python 环境中注册的 Task，可省略 Schema 以减少响应体积。                         |
+| `get_task_def`       | 查询本服务中某个注册 Task 的说明及输入输出 Schema。                                         |
+| `wait_task`          | 等待当前 Task 执行结束；等待期间发现重跑则报错。                                            |
+| `list_task_ids`      | 列出索引中具有有效 metadata.json 的 Task ID。                                               |
+| `list_task_statuses` | 按类型和状态筛选 Task，返回轻量摘要或完整元数据快照。                                       |
+| `status`             | 读取一个 Task 的当前状态。                                                                  |
+| `read_task_log`      | 按字节范围读取一个 Task 的日志。                                                            |
+| `stream_task`        | 持续传输一个 Task 的进度和日志，直到执行结束。                                              |
+| `get_task_graph`     | 返回包含所选 Task 的输入依赖连通图。                                                        |
+| `get_task_context`   | 返回当前 Task 元数据、元数据路径、输入依赖图与上下游关系。                                  |
 
-## 接口清单
+## cli
 
-| Job                               | 用途                                      |
-| --------------------------------- | ----------------------------------------- |
-| `list_installed_task_definitions` | 枚举当前 Python 环境中的内置与插件 Task。 |
-| `get_task_definition`             | 查询一个注册定义及输入输出 Schema。       |
-| `submit`                          | 启动独立子进程运行 Task。                 |
-| `wait_task`                       | 等待提交返回的特定执行结束。              |
-| `list_task_ids`                   | 列出存在生命周期元数据记录的任务身份。    |
-| `list_task_statuses`              | 列出状态快照。                            |
-| `status`                          | 读取一个任务的当前状态。                  |
-| `read_task_log`                   | 按有界字节窗口读取日志。                  |
-| `stream_task`                     | 持续跟踪进度与日志直到任务停止。          |
-| `get_task_graph`                  | 读取包含所选 Task 的依赖图。              |
-| `get_task_context`                | 为 Agent 提供任务路径、状态与关系上下文。 |
-| `cancel`                          | 请求取消本服务管理的活跃 worker。         |
-| `delete_tasks`                    | 删除终态或 Task 与关联文件。              |
+在本服务机器的子进程中执行 AxonX CLI 命令。路径属于目标机器，不支持启动服务或嵌套远程转发。
 
-## list_installed_task_definitions
-
-枚举当前 Python 环境中的内置与插件 Task。
-
-可选 `include_schemas`（布尔值，HTTP/MCP 默认 `true`）控制是否生成输入/输出 schema。CLI 默认 `--include-schemas false`；选定 Task 后通过 `get_task_definition` 获取单个定义，或显式传 `--include-schemas true` 获取完整目录。
-
-**请求**
+| 参数   | 类型    | 必填 | 默认/约束        |
+| ------ | ------- | ---- | ---------------- |
+| `argv` | `array` | 是   | `{"minItems":1}` |
 
 ```json
 {
-  "arguments": {}
+  "arguments": {
+    "argv": [
+      "exec",
+      "--task",
+      "demo",
+      "--task-name",
+      "api-check",
+      "--x",
+      "1",
+      "--y",
+      "2"
+    ]
+  }
 }
 ```
 
-**响应**
+在服务工作区不经 shell 执行 argv，使用配置的命令/解释器并拥有子进程组。返回 stdout、stderr、exit_code 和各通道截断标志（各通道在结果中最多保留前 1 MiB），日志事件区分 stdout/stderr。断开/取消可能终止所属进程组，拒绝嵌套转发和启动服务。安装已上传 wheel 使用 argv `["plugin", "install", absolute_location]`。
 
-`answer` 按名称排序，每项包含 `name`、`source`（`native`/`plugin`）、`plugin`、`category`、`task_type` 和 `description`。仅 `include_schemas=true` 时返回 `input_schema`、`output_schema`；轻量查询不会生成 schema。
+## list_task_defs
+
+列出本服务 Python 环境中注册的 Task，可省略 Schema 以减少响应体积。
+
+| 参数              | 类型      | 必填 | 默认/约束          |
+| ----------------- | --------- | ---- | ------------------ |
+| `include_schemas` | `boolean` | 否   | `{"default":true}` |
 
 ```json
 {
-  "answer": [],
-  "success": true,
-  "metadata": {}
+  "arguments": {
+    "include_schemas": false
+  }
 }
 ```
 
-**行为与失败情况**
+读取常驻服务目录，`include_schemas=false` 省略 Schema，但仍解析已注册类。安装新插件不重建启动快照。
 
-输出按注册名排序。某个插件类型错误可能使完整目录查询失败。缺少或仅含空白的类 docstring 返回空 description，当前 Task 和其他任务列表项仍可正常展示。
+## get_task_def
 
-## get_task_definition
+查询本服务中某个注册 Task 的说明及输入输出 Schema。
 
-查询一个注册定义及输入输出 Schema。
-
-| 参数   | 类型   | 必填 | 默认值      | 约束与含义                             |
-| ------ | ------ | ---- | ----------- | -------------------------------------- |
-| `task` | string | 是   | `—（省略）` | Task 注册名，不是 Task ID；minLength=1 |
-
-只接受表中业务字段。
-
-**请求**
+| 参数   | 类型     | 必填 | 默认/约束         |
+| ------ | -------- | ---- | ----------------- |
+| `task` | `string` | 是   | `{"minLength":1}` |
 
 ```json
 {
@@ -78,637 +84,164 @@
 }
 ```
 
-**响应**
-
-answer 是一个 TaskDefinition；Schema 是 JSON Schema，不是任务执行结果。
-
-```json
-{
-  "answer": {
-    "name": "demo",
-    "source": "native",
-    "plugin": null,
-    "task_type": "base",
-    "description": "Demonstrate synchronous Task execution with a small arithmetic workflow.",
-    "input_schema": {
-      "type": "object",
-      "required": ["x", "y"]
-    },
-    "output_schema": {
-      "type": "object"
-    }
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-上面的 Schema 为节选；完整 Schema 以接口返回为准。未知注册名返回业务失败。
-
-## submit
-
-启动独立子进程运行 Task。
-
-| 参数   | 类型   | 必填 | 默认值      | 约束与含义                |
-| ------ | ------ | ---- | ----------- | ------------------------- |
-| `task` | string | 是   | `—（省略）` | Task 注册名，不是 Task ID |
-
-submit 的 Schema 允许额外字段；除 task 外的字段作为 Task 输入传递，由对应 input_cls 校验，未知输入字段会失败。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "task": "demo",
-    "task_name": "api-demo",
-    "x": 1,
-    "y": 2
-  }
-}
-```
-
-**响应**
-
-answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成功。
-
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task": "demo"
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-所有 Task 输入字段跟 task 同级传入；demo 的 x、y 必填，fail=false。
-
-通用 Task 输入由具体 Task 的 input_schema 一并公布：
-
-| 输入            | 类型        | 默认值   | 规则                                                             |
-| --------------- | ----------- | -------- | ---------------------------------------------------------------- |
-| task_name       | string/null | null     | 省略或空字符串产生匿名名；固定名为 1–32 个英文字母、数字或连字符 |
-| source_tasks    | string      | 空字符串 | 完整上游 Task ID，以英文逗号分隔；不是字符串数组                 |
-| demo.x / demo.y | integer     | 必填     | 两个运算输入；提交时字段名是 x/y，没有 demo 前缀                 |
-| demo.fail       | boolean     | false    | 内置失败演示开关；不是全部 Task 的通用参数                       |
-
-插件 Task 的研究参数以 get_task_definition 返回为准，不能把 demo 字段套到其他注册名上。通用 task_name 可省略，source_tasks 默认为空字符串。固定名称只能替换已结束任务，活跃目录产生 FileExistsError；必须保存 run_id。
+返回一个注册的 name、source、plugin、task_type、description、input_schema 和 output_schema。
 
 ## wait_task
 
-等待提交返回的特定执行结束。
+等待当前 Task 执行结束；等待期间发现重跑则报错。
 
-| 参数            | 类型   | 必填 | 默认值      | 约束与含义                                    |
-| --------------- | ------ | ---- | ----------- | --------------------------------------------- |
-| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1                     |
-| `run_id`        | string | 是   | `—（省略）` | 提交返回的本次执行 ID；minLength=1            |
-| `poll_interval` | number | 否   | `1`         | 轮询间隔，单位秒；exclusiveMinimum=0          |
-| `detail`        | string | 否   | `full`      | `summary` 或 `full`；CLI 默认请求 `summary`。 |
-
-只接受表中业务字段。
-
-**请求**
+| 参数            | 类型     | 必填 | 默认/约束                                      |
+| --------------- | -------- | ---- | ---------------------------------------------- |
+| `task_id`       | `string` | 是   | `{"minLength":1}`                              |
+| `poll_interval` | `number` | 否   | `{"exclusiveMinimum":0,"default":1}`           |
+| `detail`        | `string` | 否   | `{"enum":["summary","full"],"default":"full"}` |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23"
+    "task_id": "base#demo#api-check",
+    "poll_interval": 1,
+    "detail": "full"
   }
 }
 ```
 
-**响应**
-
-`detail=summary` 使用与 `list_task_statuses` 相同的有界摘要，保留 Task/Run ID、生命周期状态和管理器归属；输入、输出、子任务和完整错误需 `detail=full`。返回摘要时，`wait_task.success` 仍由 Task 的终态决定。
-
-`detail=full` 时，`answer` 是终态 TaskMetadata；只有 state=succeeded 时 success=true。
-
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task_type": "base",
-    "state": "succeeded",
-    "created_at": "2026-10-02T00:00:00Z",
-    "started_at": null,
-    "finished_at": null,
-    "pid": null,
-    "exit_code": 0,
-    "error": "",
-    "steps": [],
-    "log_path": "",
-    "input_params": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
-    "output_params": {},
-    "reg_name": "demo",
-    "children": []
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-poll_interval 默认 1 秒，没有业务超时参数。客户端 timeout 应覆盖等待时间。run_id 与目录当前执行不一致时失败，不能用旧 run_id 等待新任务。
+捕获当前 started_at，等待期间若重跑则拒绝继续。返回摘要或完整 metadata，只有 succeeded 时 success 为 true。没有业务超时入参，应设置足够的客户端超时。
 
 ## list_task_ids
 
-列出存在生命周期元数据记录的任务身份。
+列出索引中具有有效 metadata.json 的 Task ID。
 
-无公开业务参数；使用 `{"arguments":{}}`。
-
-**请求**
+无业务参数。
 
 ```json
 {
   "arguments": {}
 }
 ```
-
-**响应**
-
-answer 是字符串 Task ID 数组。
-
-```json
-{
-  "answer": ["base#demo#api-demo"],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-只索引有效的统一 metadata 记录；列表不是全历史执行清单。
 
 ## list_task_statuses
 
-列出完整状态快照或轻量摘要。
+按类型和状态筛选 Task，返回轻量摘要或完整元数据快照。
 
-可选参数 `detail`：`summary`（默认）或 `full`（显式获取完整快照）。Studio 列表使用 `summary`。
-
-```json
-{ "arguments": { "detail": "summary" } }
-```
-
-**请求**
+| 参数        | 类型     | 必填 | 默认/约束                                               |
+| ----------- | -------- | ---- | ------------------------------------------------------- |
+| `detail`    | `string` | 否   | `{"enum":["summary","full"],"default":"summary"}`       |
+| `task_type` | `string` | 否   | `—`                                                     |
+| `state`     | `string` | 否   | `{"enum":["running","succeeded","failed","cancelled"]}` |
 
 ```json
 {
-  "arguments": {}
+  "arguments": {
+    "detail": "summary"
+  }
 }
 ```
 
-**响应**
-
-`answer` 按 `created_at` 与 `task_id` 倒序。`full` 返回原有完整 TaskMetadata；`summary` 返回 `task_id`、`run_id`、`task_type`、`reg_name`、`state`、`pid`、`created_at`、`started_at`、`finished_at`、`exit_code`、`log_path` 和 `error`（最多 1,000 字符）。
-
-摘要省略 `input_params`、`output_params`、`children` 和 `steps`，增加 `display_name`（配置中的任务名称或注册名称，最多 256 字符）、`is_online`（是否属于在线流水线）和 `step_progress`：无步骤时为 `null`，否则为 `{current, total, name, percentage}`。步骤序号从 1 开始，选择首个未完成步骤，全部完成时选择最后一步。名称最多 256 字符，百分比可以为 `null`。完整详情通过 `status` 读取。
-
-```json
-{
-  "answer": [],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-不提供服务器分页与筛选参数。客户端可以按类型和状态筛选；按配置筛选需要使用 `full`。无效的 `detail` 值会被参数校验拒绝。
+两种 detail 都返回按创建时间倒序、以 Task ID 作为次排序键的列表，完整记录在筛选后才复制。`summary` 包含 TaskStatus 字段，以及 `display_name`、`is_replica` 和可选 `step_progress`（`current`、`total`、`name`、`percentage`），省略输入、输出、步骤和子调用数组。摘要错误最多 1000 字符，显示名称和步骤名最多 256 字符。列表使用周期刷新的索引（默认 5 秒）；`status` 和 `wait_task` 直接读取所选 metadata。
 
 ## status
 
-读取一个任务的当前状态。
+读取一个 Task 的当前状态。
 
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义                                    |
-| --------- | ------ | ---- | ----------- | --------------------------------------------- |
-| `task_id` | string | 是   | `—（省略）` | 完整 Task ID                                  |
-| `detail`  | string | 否   | `full`      | `summary` 或 `full`；CLI 默认请求 `summary`。 |
-
-Schema 未禁止额外字段；不要据此假定额外字段会被使用。
-
-**请求**
+| 参数      | 类型     | 必填 | 默认/约束                                      |
+| --------- | -------- | ---- | ---------------------------------------------- |
+| `detail`  | `string` | 否   | `{"enum":["summary","full"],"default":"full"}` |
+| `task_id` | `string` | 是   | `—`                                            |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo"
+    "task_id": "base#demo#api-check",
+    "detail": "full"
   }
 }
 ```
 
-**响应**
-
-`detail=summary` 使用与 `list_task_statuses` 相同的有界摘要，保留 Task/Run ID、生命周期状态和管理器归属；输入、输出、子任务和完整错误需 `detail=full`。查询成功与 Task 成功仍是不同概念。
-
-answer 是 TaskMetadata：身份、input_params、output_params、children、state、时间、pid、exit_code、error、steps、log_path。
-
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task_type": "base",
-    "state": "queued",
-    "created_at": "2026-10-02T00:00:00Z",
-    "started_at": null,
-    "finished_at": null,
-    "pid": null,
-    "exit_code": 0,
-    "error": "",
-    "steps": [],
-    "log_path": "",
-    "input_params": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
-    "output_params": {},
-    "reg_name": "demo",
-    "children": []
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-没有有效统一 metadata 的任务返回 KeyError 业务失败。queued/running 不是终态。
+读取当前 metadata 或摘要。查询不修正失效 running 记录，应将 started_at 与所观察执行比较。
 
 ## read_task_log
 
-按有界字节窗口读取日志。
+按字节范围读取一个 Task 的日志。
 
-| 参数      | 类型    | 必填 | 默认值      | 约束与含义                                    |
-| --------- | ------- | ---- | ----------- | --------------------------------------------- |
-| `task_id` | string  | 是   | `—（省略）` | 完整 Task ID                                  |
-| `run_id`  | string  | 否   | —           | 可选的准确 Run ID；读取前拒绝已替换的运行。   |
-| `offset`  | integer | 否   | `-1`        | 日志读取起始字节偏移；-1 读取尾部；minimum=-1 |
-| `limit`   | integer | 否   | `8192`      | 最多读取的字节数；minimum=1, maximum=262144   |
-
-Schema 未禁止额外字段；不要据此假定额外字段会被使用。
-
-**请求**
+| 参数         | 类型      | 必填 | 默认/约束                                       |
+| ------------ | --------- | ---- | ----------------------------------------------- |
+| `task_id`    | `string`  | 是   | `—`                                             |
+| `started_at` | `string`  | 否   | `{"format":"date-time"}`                        |
+| `offset`     | `integer` | 否   | `{"minimum":-1,"default":-1}`                   |
+| `limit`      | `integer` | 否   | `{"minimum":1,"maximum":262144,"default":8192}` |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo",
+    "task_id": "base#demo#api-check",
     "offset": -1,
-    "limit": 65536
+    "limit": 8192
   }
 }
 ```
 
-**响应**
-
-answer 是 LogChunk：content、start_offset、next_offset、file_size、has_more_before、has_more_after、reset。
-
-```json
-{
-  "answer": {
-    "content": "Demo result=3\n",
-    "start_offset": 0,
-    "next_offset": 14,
-    "file_size": 14,
-    "has_more_before": false,
-    "has_more_after": false,
-    "reset": false
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行数。UTF-8 解码后字符串长度不能代替 next_offset；持续读取用返回的 next_offset。
+返回 content、start_offset、next_offset、file_size、has_more_before、has_more_after、reset，并发布 log 事件。可选 started_at 在读取前拒绝替换执行，游标按字节计。
 
 ## stream_task
 
-持续跟踪进度与日志直到任务停止。
+持续传输一个 Task 的进度和日志，直到执行结束。
 
-| 参数            | 类型   | 必填 | 默认值      | 约束与含义                           |
-| --------------- | ------ | ---- | ----------- | ------------------------------------ |
-| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1            |
-| `poll_interval` | number | 否   | `0.5`       | 轮询间隔，单位秒；exclusiveMinimum=0 |
-
-只接受表中业务字段。
-
-**请求**
+| 参数            | 类型     | 必填 | 默认/约束                              |
+| --------------- | -------- | ---- | -------------------------------------- |
+| `task_id`       | `string` | 是   | `{"minLength":1}`                      |
+| `poll_interval` | `number` | 否   | `{"exclusiveMinimum":0,"default":0.5}` |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo"
+    "task_id": "base#demo#api-check"
   }
 }
 ```
 
-**响应**
-
-普通调用 answer 是终态 TaskMetadata；SSE 有 progress/log，最终 result 携带相同状态。success 按 exit_code==0 设置。
-
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task_type": "base",
-    "state": "succeeded",
-    "created_at": "2026-10-02T00:00:00Z",
-    "started_at": null,
-    "finished_at": null,
-    "pid": null,
-    "exit_code": 0,
-    "error": "",
-    "steps": [],
-    "log_path": "",
-    "input_params": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
-    "output_params": {},
-    "reg_name": "demo",
-    "children": []
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-默认 poll_interval=0.5 秒。普通 HTTP 调用也会等待到终态，日志事件不会全部装进 answer；实时显示应使用 /events。
+传输进度/日志，终态 result 返回当前 metadata，观察到重跑会报错；订阅不会启动 Task。
 
 ## get_task_graph
 
-读取包含所选 Task 的依赖图。
+返回包含所选 Task 的输入依赖连通图。
 
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
-| --------- | ------ | ---- | ----------- | ------------ |
-| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
-
-只接受表中业务字段。
-
-**请求**
+| 参数      | 类型     | 必填 | 默认/约束 |
+| --------- | -------- | ---- | --------- |
+| `task_id` | `string` | 是   | `—`       |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo"
+    "task_id": "base#demo#api-check"
   }
 }
 ```
 
-**响应**
-
-answer 含 root_id、selected_id、nodes、edges；节点区分 missing、provisional。
-
-```json
-{
-  "answer": {
-    "root_id": "base#demo#api-demo",
-    "selected_id": "base#demo#api-demo",
-    "nodes": [
-      {
-        "task_id": "base#demo#api-demo",
-        "kind": "base",
-        "task_name": "demo",
-        "created_at": "2026-10-02T00:00:00+00:00",
-        "parent_ids": [],
-        "state": "queued",
-        "missing": false,
-        "provisional": true
-      }
-    ],
-    "edges": []
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-图来自 metadata.input_params.source_tasks，只呈现记录关系，不会执行 DAG。节点结构详见任务血缘文档；此例仅展示顶层形状。
+返回输入依赖连通图的 `root_id`、`selected_id`、`nodes` 和有向 `edges`（`from` → `to`）。边仅来自 `input_params.upstream_task_ids`；父子调用保存在 Task metadata 中。`missing` 表示引用记录不可用，`provisional` 表示记录存在但状态不是 `succeeded`。查询不执行依赖。
 
 ## get_task_context
 
-为 Agent 提供任务路径、状态与关系上下文。
+返回当前 Task 元数据、元数据路径、输入依赖图与上下游关系。
 
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义                |
-| --------- | ------ | ---- | ----------- | ------------------------- |
-| `task_id` | string | 是   | `—（省略）` | 完整 Task ID；minLength=1 |
-
-只接受表中业务字段。
-
-**请求**
+| 参数      | 类型     | 必填 | 默认/约束         |
+| --------- | -------- | ---- | ----------------- |
+| `task_id` | `string` | 是   | `{"minLength":1}` |
 
 ```json
 {
   "arguments": {
-    "task_id": "base#demo#api-demo"
+    "task_id": "base#demo#api-check"
   }
 }
 ```
 
-**响应**
+返回 `task_id`、完整 `status`（TaskMetadata）、工作区相对 `metadata_path`、`graph` 和 `relations`。关系包含 `direct_upstream`、`all_upstream`、`direct_downstream`、`missing`、`provisional`。所选记录实时读取，其余图节点来自当前索引快照。输入、输出与子调用记录完整返回，接口不提供按字节截断的上下文摘要。
 
-answer 含 task_id、status、metadata_exists、metadata_path、log_path、graph、relations。relations 包括 direct_upstream、ancestors、direct_downstream、missing、provisional。
+## 结果与生命周期
 
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "status": {
-      "task_id": "base#demo#api-demo",
-      "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-      "task_type": "base",
-      "state": "queued",
-      "created_at": "2026-10-02T00:00:00Z",
-      "started_at": null,
-      "finished_at": null,
-      "pid": null,
-      "exit_code": 0,
-      "error": "",
-      "steps": [],
-      "log_path": "",
-      "input_params": {
-        "task_name": "api-demo",
-        "source_tasks": "",
-        "x": 1,
-        "y": 2,
-        "fail": false
-      },
-      "output_params": {},
-      "reg_name": "demo",
-      "children": []
-    },
-    "metadata_exists": true,
-    "metadata_path": "base/base#demo#api-demo/metadata.json",
-    "log_path": null,
-    "graph": {
-      "root_id": "base#demo#api-demo",
-      "selected_id": "base#demo#api-demo",
-      "nodes": [
-        {
-          "task_id": "base#demo#api-demo",
-          "kind": "base",
-          "task_name": "demo",
-          "created_at": "2026-10-02T00:00:00+00:00",
-          "parent_ids": [],
-          "state": "queued",
-          "missing": false,
-          "provisional": true
-        }
-      ],
-      "edges": []
-    },
-    "relations": {
-      "direct_upstream": [],
-      "ancestors": [],
-      "direct_downstream": [],
-      "missing": [],
-      "provisional": ["base#demo#api-demo"]
-    }
-  },
-  "success": true,
-  "metadata": {}
-}
-```
+TaskMetadata 包含 task_id、task_type、reg_name、parent_task_id、report_kind、state、进程身份、started_at、输入输出、步骤、子任务及可选展示副本信息。实际 Task 状态为 running/succeeded/failed；状态筛选 Schema 还声明了当前 Task 模型不产生的取消状态值。摘要省略较大的业务输入输出。
 
-**行为与失败情况**
+停止使用 `cli` 的 `["kill", "--task-id", "ID"]`。执行停止后通过通用 `delete_entries` 清理目录，没有专门的 Task 删除 Job。详见 [Task 契约](../reference/task-contracts.md)。
 
-metadata_exists 表示当前有效生命周期记录存在；研究是否成功应另行检查 state 和产物。
-
-## cancel
-
-请求取消本服务管理的活跃 worker。
-
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
-| --------- | ------ | ---- | ----------- | ------------ |
-| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
-
-Schema 未禁止额外字段；不要据此假定额外字段会被使用。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "task_id": "base#demo#api-demo"
-  }
-}
-```
-
-**响应**
-
-answer 是布尔值；true 表示本次完成取消，false 表示没有取消。
-
-```json
-{
-  "answer": false,
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-已终态或没有可取消的管理进程返回 false；success=true 与 answer=false 可同时出现。取消研究任务不等于取消 Agent 轮次。
-
-## delete_tasks
-
-删除终态或 Task 与关联文件。
-
-| 参数       | 类型  | 必填 | 默认值      | 约束与含义                                              |
-| ---------- | ----- | ---- | ----------- | ------------------------------------------------------- |
-| `task_ids` | array | 是   | `—（省略）` | 待删除的完整 Task ID 列表；minItems=1, uniqueItems=True |
-
-Schema 未禁止额外字段；不要据此假定额外字段会被使用。
-
-**请求**
-
-```json
-{
-  "arguments": {
-    "task_ids": ["base#demo#api-demo"]
-  }
-}
-```
-
-**响应**
-
-answer 是实际删除成功的 Task ID 列表。
-
-```json
-{
-  "answer": ["base#demo#api-demo"],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**行为与失败情况**
-
-活跃任务、非法 ID、不存在任务或受管理的执行会被跳过；比较请求与返回列表，不能将 success=true 理解为全部已删。
-
-## 失败响应示例
-
-Schema 失败在执行前返回 HTTP 422，例如 wait_task 缺 run_id；Task 执行或查询异常通常返回 HTTP 200 与 success=false。未知 Task 注册名示例：
-
-```json
-{
-  "answer": "ValueError: Unknown Task: missing. Available: demo",
-  "success": false,
-  "metadata": {}
-}
-```
-
-Available 列表由实际安装环境生成。wait_task 返回失败任务状态时 answer 仍是 TaskMetadata，state=failed/cancelled，并保留 error 与 exit_code；不能假定失败 answer 永远是字符串。
-
-删除和取消存在“请求有效但没有变更”的结果：delete_tasks 的 answer=[]、cancel 的 answer=false 可以与 success=true 同时出现，客户端应显示实际变更数量。
-
-## 相关文档
-
-- [协议、鉴权与错误](overview.md)
-- [任务提交与管理](../guides/task-management.md)
-- [CLI 参考](../reference/cli.md)
-- [事件协议](events.md)
-
-实现依据：`axonx/config/default.yaml`、`axonx/steps/task/` 与 `axonx/components/service/http/jobs.py`。
-
-## Studio 查询投影
-
-`detail: summary` 返回生成的 `TaskSummary` 契约。摘要只在查询时投影，
-不会另存一份 Task 记录。研究和策略比较列表请求摘要，仅对选中的 Task
-通过 `status` 加载详情。完整输出、训练曲线和产物注册表属于详情响应。
-任务图在仓库索引锁内构建，不复制 Task 的完整输出。
-
-Studio 的传输类型从 Python 契约生成，覆盖摘要、任务图、Job 事件和
-Agent 会话展示。研究输出按 `task_type` 区分；在线执行窗口与预测比较
-保留各自的状态枚举。修改接口时更新 Python 契约，再从 `axonx_studio/`
-运行 `npm run contracts:generate`。
+源码：[默认 Job 契约](../../../axonx/app/config/default.yaml) · [Job 协议](overview.md)

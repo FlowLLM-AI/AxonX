@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it } from "vitest";
 import i18n from "../i18n";
 import { ReplicaNotice } from "./ReplicaNotice";
-import type { DisplayReplica } from "./lib/replica";
+import type { DisplayReplica } from "./api/contracts";
 
 const replica: DisplayReplica = {
   purpose: "display",

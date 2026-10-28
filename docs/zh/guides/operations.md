@@ -1,108 +1,32 @@
-# 日志排障与备份恢复
-
-排障时先确认执行机器、Task ID 和 run_id，再区分协议连接、worker 执行与研究展示。备份恢复应同时考虑文件、插件环境与外部凭据；恢复历史记录不等于恢复已中断进程。
+# 运维与恢复
 
 ## 建立基本状态
 
 ```bash
 axonx version
-axonx machine_status
-axonx list_plugins
-axonx list_task_statuses
+axonx diagnose
+axonx plugin list
+axonx list_task_statuses --detail summary
 ```
 
-记录服务和插件版本。远程任务的命令应带原目标地址；从本机读到相同 Task ID 也不证明正在查看同一台机器。
-
-带 token 查询 `/health` 可检查协议连通性。缺少 token 时的 401 不表示 worker 故障，见[鉴权指南](authentication.md)。
+一起记录执行机器、工作区、Task ID 和 started_at。本地 plugin list 描述 CLI 解释器，查询服务环境需添加 --target。
 
 ## 日志来源
 
-| 来源                     | 用于判断                                  |
-| ------------------------ | ----------------------------------------- |
-| 服务控制台与 log_dir     | 启动、配置、转发、watcher、调度与组件异常 |
-| status.error / exit_code | 某轮 Task 最终错误                        |
-| read_task_log            | worker 中步骤、插件与模型库的详细日志     |
-| events.jsonl             | 进度事件回放，不等于文本日志              |
-| metadata.json            | 当前输入输出、状态、错误与子调用          |
+连接、启动、更新问题检查服务/Daemon 日志。Task metadata.log_path 指向执行日志，read_task_log 返回有限字节块。定时 stdout/stderr 还记录在日志目录的 cron/entry-N.log。文件存在不代表业务评价成功。
 
-```bash
-axonx status --task-id '<Task ID>'
-axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
-```
+## 执行失败或断开
 
-日志窗口使用字节偏移。先读尾部找到异常，再根据需要扩大或指定窗口。若 status.log_path 指向外部日志目录，迁移工作区后可能需要同时恢复日志。
+分别检查原生命令 exit_code、Task state/error、进程身份和业务输出。断开后重试前确认 Task 是否已启动、started_at 是否改变。手动远程 CLI 请求拥有进程，取消请求或服务关闭可能终止其进程组。
 
-## 提交成功但 Task 失败
+## 失效记录
 
-1. 核对 handle 中的 run_id，排除固定名称重跑。
-2. 查看最终 state、error、exit_code。
-3. 查看最后失败步骤及 Task 日志。
-4. 检查插件输入、上游文件、外部数据权限与模型依赖。
-5. 使用新 task_name 重跑，保留失败记录用于对照。
+观察不改写 running 记录。运行时启动和显式 kill 按机器/PID/进程启动时间修正确认已退出的本机执行。无法访问和异机进程保持未验证，需使用源服务及工作区。共享工作区不把执行所有权交给观察服务。
 
-`submit.success=true` 只表示受理成功。`wait_task` 的 success 对应最终 succeeded；不应仅根据 HTTP 200 判断研究成功。
+## 备份与恢复
 
-## worker 异常与状态对账
+需要时一起备份 Task 目录、persistent/、源码/插件版本、配置、凭据、独立日志和 Agent 状态。复制关联文件前暂停写入。恢复记录不会恢复进程；重装匹配插件、恢复环境配置、启动目标服务，并在新执行前核验数据/模型修订。
 
-正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 读取或写入失败时会重试。
+展示同步是有大小限制的证据复制，不是完整备份；省略/采样文件和环境需另行保存。索引可由有效 metadata 重建，不要通过删除活动目录修复执行。
 
-新 Task 记录包含根据操作系统机器标识生成的稳定 `machine_id`，以及进程启动时间 `process_started_at`。机器 ID 在服务和机器重启后保持不变，不依赖服务端口、工作区、IP 地址或主机名。queued 阶段记录提交服务的进程身份，worker 启动后发布自身身份；进程内子任务记录与父任务相同的机器及进程实例。
-
-如果长时间显示 running，先确认进程是否仍在运行、当前服务是否管理这轮运行、日志是否持续增长，以及磁盘是否可写。不要只根据文件中的 pid 跨机器判断进程生死。
-
-所属服务仍运行时，强制 kill worker 会由 supervisor 检测退出。启动时及同名 Task 重提前，本地 TaskManager 检查尚未终态且不是展示副本的记录。对于 `machine_id` 与本机一致的记录，只有获取执行锁、重新读取并核对同一 Run、确认记录的进程实例已退出后，才将其标为 failed；进程启动时间用于识别 PID 复用。对应的未完成子任务也检查执行锁后收尾，成功子任务和已有文件保留。仍存活或无法确认的本机进程、其他机器记录和展示副本保持不变；恢复不会接管或终止仍存活的 worker。
-
-没有 `machine_id` 的旧记录复用已有执行锁判断，不依赖无法确定所属机器的 PID。旧 Run 未持有锁时自动标为 failed。创建时间与当前时间相差不到 5 分钟的旧 queued 记录保留交接宽限，后续同名提交会再次检查；缺失或远期异常的创建时间不会让旧 Run 一直保持活动。Runner 持锁直至清理结束，进程退出后由操作系统释放锁。
-
-恢复修正遗留生命周期状态，不恢复 Python 内存执行、不自动重提 Task，也不补放错过的 cron 触发。检查中断产物后，可按需提交新 Run。原有 reaper_interval_seconds 配置保持移除，不执行周期性进程扫描。读取旧记录时新字段可缺省；拒绝未知字段的旧版本需要先升级，才能共享新写入的记录。
-
-## 文件存在但页面未更新
-
-Repository 默认监听并轮询记录变化，debounce 等参数使短时间延迟正常。检查 JSON 合法性、task_id/type 与目录是否一致，以及服务是否使用预期工作区。
-
-watcher 出现监视窗口缺失时，Repository/同步会重新检查记录。索引可由有效 metadata 重建，但不会修复损坏 JSON 或缺失产物。
-
-研究页面使用含 metadata 的目录。失败任务、base demo 或 metadata 缺失任务不保证出现在研究结果页；metadata 有效也不保证所有图表字段齐全。
-
-## 备份清单
-
-| 内容                   | 为什么需要                                 |
-| ---------------------- | ------------------------------------------ |
-| 完整工作区             | Task 记录、研究产物、原始数据与 Agent 状态 |
-| log_dir                | 独立于任务目录的执行日志                   |
-| 服务配置与环境变量清单 | targets、路径、调度和连接参数              |
-| 插件源码/wheel 与版本  | 重跑时还原相同算法                         |
-| Python 与模型依赖信息  | 还原数据格式、设备库和模型加载条件         |
-| 外部凭据               | 按独立安全方式保存，不能靠文档示例恢复     |
-
-Linux/macOS 下可在停止写入后使用自己的备份工具。例如工作区和日志在当前目录时：
-
-```bash
-# 确认服务与 exec 进程都已停止写入后执行
-mkdir -p ./backup
-cp -a ./.axonx ./backup/workspace
-cp -a ./logs ./backup/logs
-```
-
-重复执行前选择新的备份目的目录，避免产生嵌套路径或覆盖未知备份。大数据应采用快照或增量备份工具，命令只是文件复制示例。
-
-## 恢复顺序
-
-1. 停止接收新的任务与文件写入。
-2. 在目标位置恢复工作区、日志和配置，核对权限与绝对路径。
-3. 安装匹配 AxonX、插件和模型依赖。
-4. 启动服务，让 Repository 重新扫描有效记录。
-5. 对照备份检查任务数量、metadata、artifact size/sha256。
-6. 用独立名称运行 demo，再小范围验证研究插件。
-
-旧 status 的 pid 和 log_path 是当时环境信息，不代表目标机有对应活跃进程。恢复文件后不会自动恢复正在训练的内存状态。
-
-## 同步与备份的区别
-
-任务同步以终态目录为单位，可能替换目标同名目录并传播删除。它不保留任意时点的完整历史，也不包含工作区原始数据、Agent 会话、外部日志和插件环境。
-
-需要可撤销恢复时，应单独保存版本化备份。具体同步预算、回滚和重试见[任务同步](task-sync.md)。
-
-[部署](deployment.md) · [工作区](../concepts/workspace.md) · [任务生命周期](../concepts/task-lifecycle.md)
-
-源码：[管理器](../../../axonx/components/task_manager/local/manager.py)、[worker supervisor](../../../axonx/components/task_manager/local/supervisor.py)、[记录读取](../../../axonx/task/storage/workspace.py)。
+[任务管理](task-management.md) · [同步](task-sync.md) · [自更新](self-update.md)

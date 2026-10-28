@@ -18,7 +18,7 @@
       <rect x="40" y="320" width="350" height="144" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="64.0" y="352" font-size="23" font-weight="700" text-anchor="start">Studio browser</text>
       <text x="64.0" y="384" font-size="18" font-weight="400" text-anchor="start">Same-origin local backend</text>
-      <text x="64.0" y="411" font-size="18" font-weight="400" text-anchor="start">Configured target name</text>
+      <text x="64.0" y="411" font-size="18" font-weight="400" text-anchor="start">Configured target address</text>
       <rect x="510" y="226" width="250" height="144" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="534.0" y="258" font-size="23" font-weight="700" text-anchor="start">Selected service</text>
       <text x="534.0" y="290" font-size="18" font-weight="400" text-anchor="start">Authenticate + dispatch</text>

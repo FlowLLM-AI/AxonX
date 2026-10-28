@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TaskMetadata } from "./types";
-import { formatDate } from "./format";
+import type { TaskMetadata } from "../../shared/api/contracts";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
 
 export function ExecutionSteps({ task }: { task: TaskMetadata }) {
   const { t } = useTranslation();

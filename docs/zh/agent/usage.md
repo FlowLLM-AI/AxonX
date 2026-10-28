@@ -58,7 +58,7 @@ AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完�
 
 Studio 显示文本、思考和工具块，并根据增量事件更新。工具输入和输出说明 Agent 查询了什么，最终文本说明它如何解释证据。
 
-- 状态显示 queued/running 时，结果仍未完成。
+- running 表示 Task 尚未结束，应检查终态和业务输出。
 - 任务成功不代表所有研究结论可靠；继续核对协议和样本。
 - 工具报错时，模型应明确数据缺口；不能把没有取到的文件内容当成事实。
 - 最终 `result` 才表示本轮 Job 的终态；连接显示完成不能替代业务成功字段。
@@ -109,10 +109,10 @@ curl -N 'http://127.0.0.1:1024/jobs/agent_chat/events' \
 axonx cancel_agent_turn --session-id '<正在运行的 UUID>'
 ```
 
-这不会自动取消已由其他工具或操作提交的独立研究 Task。取消研究任务要使用 `cancel` Job：
+独立研究执行使用 CLI kill；中断轮次不能代替管理 Task 进程。
 
 ```bash
-axonx cancel --task-id '<要取消的研究 Task ID>'
+axonx kill --task-id '<要取消的研究 Task ID>'
 ```
 
 取消轮次后会话历史可继续使用；取消任务则改变对应 Task 的执行状态。两者不能互相替代。
@@ -137,5 +137,5 @@ axonx cancel --task-id '<要取消的研究 Task ID>'
 ## 相关文档与实现
 
 - [Agent 配置](configuration.md)、[MCP 接入](mcp-integration.md)
-- [`Claude 会话实现`](../../../axonx/components/agent/claude/backend.py)
-- [`流式轮次 Step`](../../../axonx/steps/agent/run.py)
+- [`Claude 会话实现`](../../../axonx/app/components/agent/claude/backend.py)
+- [`流式轮次 Step`](../../../axonx/app/steps/agent.py)

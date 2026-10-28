@@ -58,7 +58,7 @@ provides an exploration prompt. Retain code changes and Task evidence separately
 
 Studio displays text, thinking, and tool blocks, updating them from incremental events. Tool inputs and outputs show what the Agent queried; the final text explains how it interprets the evidence.
 
-- When status is queued/running, the result is incomplete.
+- A running Task has not completed; inspect its final state and business output.
 - Task success does not guarantee that all research conclusions are reliable; continue checking protocols and samples.
 - When a tool fails, the model should identify the data gap explicitly; it must not treat unavailable file contents as facts.
 - Only the final `result` represents the terminal state of this Job turn; a completed connection does not replace the business success field.
@@ -109,13 +109,13 @@ Stopping in the Agent UI, or calling `cancel_agent_turn`, interrupts the current
 axonx cancel_agent_turn --session-id '<running UUID>'
 ```
 
-This does not automatically cancel independent research Tasks submitted through other tools or operations. Use the `cancel` Job to cancel a research task:
+Use CLI kill for an independent research execution; a turn interrupt does not replace Task process management.
 
 ```bash
-axonx cancel --task-id '<research Task ID to cancel>'
+axonx kill --task-id '<research Task ID to cancel>'
 ```
 
-Session history remains usable after a turn is cancelled. Cancelling a task changes that Task's execution status. These operations are not interchangeable.
+Session history remains usable after a turn is cancelled. Terminating an execution is recorded as a failed Task when reconciled. These operations are not interchangeable.
 
 ## Default tools and permission boundaries
 
@@ -137,5 +137,5 @@ However, the Claude SDK's own tools, project settings, plugins, and `permission_
 ## Related documentation and implementation
 
 - [Agent configuration](configuration.md), [MCP integration](mcp-integration.md)
-- [Claude session implementation](../../../axonx/components/agent/claude/backend.py)
-- [Streaming turn Step](../../../axonx/steps/agent/run.py)
+- [Claude session implementation](../../../axonx/app/components/agent/claude/backend.py)
+- [Streaming turn Step](../../../axonx/app/steps/agent.py)

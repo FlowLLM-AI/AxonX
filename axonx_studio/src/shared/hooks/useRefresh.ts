@@ -8,69 +8,77 @@ type Subscriber = {
   pending?: Promise<unknown>;
   onSeconds?: (seconds: number) => void;
 };
-const subscribers = new Set<Subscriber>();
-let stop: (() => void) | undefined;
-/** Deduplicate each subscriber without letting an obsolete request block new pages. */
-function run(subscriber: Subscriber) {
-  subscriber.pending ??= Promise.resolve()
-    .then(() =>
-      subscriber.controller.signal.aborted
-        ? undefined
-        : subscriber.callback(subscriber.controller.signal),
-    )
-    .finally(() => {
-      subscriber.pending = undefined;
-    });
-  return subscriber.pending;
+class RefreshScheduler {
+  private readonly subscribers = new Set<Subscriber>();
+  private stop?: () => void;
+  private run(subscriber: Subscriber) {
+    subscriber.pending ??= Promise.resolve()
+      .then(() =>
+        subscriber.controller.signal.aborted
+          ? undefined
+          : subscriber.callback(subscriber.controller.signal),
+      )
+      .finally(() => {
+        subscriber.pending = undefined;
+      });
+    return subscriber.pending;
+  }
+  readonly refresh = async (automatic = false) => {
+    await Promise.allSettled(
+      [...this.subscribers]
+        .filter((s) => !automatic || s.enabled)
+        .map((s) => this.run(s)),
+    );
+  };
+  subscribe(
+    callback: Subscriber["callback"],
+    enabled: boolean,
+    immediate: boolean,
+    onSeconds?: Subscriber["onSeconds"],
+  ) {
+    const subscriber: Subscriber = {
+      callback,
+      enabled,
+      onSeconds,
+      controller: new AbortController(),
+    };
+    this.subscribers.add(subscriber);
+    onSeconds?.(60);
+    if (!this.stop && enabled)
+      this.stop = startPolling(
+        async () => {
+          void this.refresh(true);
+        },
+        60,
+        (seconds) => {
+          for (const listener of this.subscribers)
+            listener.onSeconds?.(seconds);
+        },
+        false,
+        false,
+      );
+    if (enabled && immediate) void this.run(subscriber).catch(() => {});
+    return () => {
+      subscriber.controller.abort();
+      this.subscribers.delete(subscriber);
+      if (![...this.subscribers].some((s) => s.enabled)) {
+        this.stop?.();
+        this.stop = undefined;
+      }
+    };
+  }
 }
-
-/** Every mounted page and log viewer shares this single 60-second clock. */
-async function refresh(automatic = false) {
-  await Promise.allSettled(
-    [...subscribers]
-      .filter((subscriber) => !automatic || subscriber.enabled)
-      .map(run),
-  );
-}
-
+const scheduler = new RefreshScheduler();
+/** Mounted pages and log viewers share one visible-page clock and manual refresh. */
 export function useRefresh(
   callback: Subscriber["callback"],
   enabled = true,
   immediate = false,
   onSeconds?: Subscriber["onSeconds"],
 ) {
-  useEffect(() => {
-    const subscriber = {
-      callback,
-      controller: new AbortController(),
-      enabled,
-      onSeconds,
-    };
-    subscribers.add(subscriber);
-    onSeconds?.(60);
-    if (!stop && enabled)
-      stop = startPolling(
-        async () => {
-          void refresh(true);
-        },
-        60,
-        (seconds) => {
-          for (const listener of subscribers) listener.onSeconds?.(seconds);
-        },
-        false,
-        false,
-      );
-    if (enabled && immediate) void run(subscriber).catch(() => {});
-    return () => {
-      subscriber.controller.abort();
-      subscribers.delete(subscriber);
-      if (![...subscribers].some((subscriber) => subscriber.enabled)) {
-        stop?.();
-        stop = undefined;
-      }
-    };
-  }, [callback, enabled, immediate, onSeconds]);
-  return refreshNow;
+  useEffect(
+    () => scheduler.subscribe(callback, enabled, immediate, onSeconds),
+    [callback, enabled, immediate, onSeconds],
+  );
+  return scheduler.refresh;
 }
-
-const refreshNow = () => refresh();

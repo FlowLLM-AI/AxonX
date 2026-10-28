@@ -14,7 +14,7 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 - Complete the [quickstart](../getting-started/quickstart.md), with a working service token and connection.
 - Install the qlib_a158 plugin in the service environment executing tasks. Installing it in the local CLI environment does not automatically change a remote machine's environment.
 - Have Tushare history covering the training and prediction periods, plus necessary master data, in the workspace.
-- Keep research tasks and upstream artifacts in the same workspace, or prepare complete upstream directories using [task synchronization](../guides/task-sync.md).
+- Keep complete upstream research artifacts in the source workspace. Display synchronization can sample or omit files and is not suitable for execution inputs.
 
 Run from the AxonX source checkout root (plugins are not published to PyPI):
 
@@ -22,9 +22,9 @@ Run from the AxonX source checkout root (plugins are not published to PyPI):
 axonx plugin install ./plugins/qlib_a158
 ```
 
-For local Agent development, use `axonx plugin install -e ./plugins/qlib_a158`. For remote execution, use ordinary installation with `--target <host:port>`; see [plugin management](../plugins/management.md) for source setup, dependency order, and installation modes.
+For local development use plugin install -e. Remote deployment requires local build, upload, target-side install and cleanup; --target alone does not transfer source. See [Plugin management](../plugins/management.md).
 
-Local installation or editable source changes require a persistent service restart. Remote `axonx plugin install` refreshes Task definitions; restart only when `restart_required=true`. Query the task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
+Restart the persistent service after installation or editable source changes to refresh its Task registration snapshot and cached definitions. Query the task catalog with `axonx list_task_defs`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, `qlib_a158_backtest`, and the parent Task `qlib_a158_research`.
 
 ## What each research stage produces
 
@@ -37,46 +37,40 @@ Local installation or editable source changes require a persistent service resta
 | Prediction      | `qlib_a158_predict`     | One Train Task                 | Full cross-sectional prediction Parquet        |
 | Backtest        | `qlib_a158_backtest`    | One Predict Task               | Daily and summary Parquet                      |
 
-Factor analysis is an independent downstream stage of ETL; training does not depend on its success. Prediction resolves the ETL upstream through training metadata, so retain both the training directory and ETL data.
+Factor analysis is an independent downstream stage of ETL; training does not depend on its success. Prediction uses an explicitly declared ETL upstream when present, otherwise resolves it through training metadata. It snapshots the verified model collection and pins the selected dataset; retain the source records and artifacts for reproducibility.
 
-## Submitting and waiting for a stage
+## Execute and verify a stage
 
-Replace Task IDs in the following commands with actual values returned by the previous stage. Registered names cannot replace Task IDs.
-
-```bash
-axonx submit --task qlib_a158_etl --start-date 20150101
-```
-
-The returned `answer` is a TaskHandle. Save its `task_id` and `run_id`. Accepted submission only means a worker was created; then wait for that execution:
+Choose an explicit instance name when you need a predictable Task ID:
 
 ```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<returned task_id>' --run-id '<returned run_id>'
+axonx exec --task qlib_a158_etl --task-name experiment --start-date 20150101
+axonx status --task-id 'etl#qlib_a158_etl#experiment' --detail full
 ```
 
-Pass it downstream only after confirming final success. See [task management](../guides/task-management.md) for full submission and query methods. A client timeout does not mean the background task was cancelled.
+Exec waits for completion, prints business output and returns the Task exit code. Retain Task ID, started_at and input/artifact revisions from metadata. Pass the ID downstream only after checking success. For observations in another terminal, use wait_task with the Task ID; it rejects a restart during the wait. A dropped remote command connection requires inspecting metadata before retrying.
 
 ## From ETL to out-of-sample prediction
 
 ```bash
 # After ETL succeeds, factor analysis can run independently
-axonx submit --task qlib_a158_factor --source-tasks '<ETL Task ID>'
+axonx exec --task qlib_a158_factor --upstream-task-ids '<ETL Task ID>'
 
 # The training end date is excluded from the training interval
-axonx submit --task qlib_a158_train --source-tasks '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # After training succeeds, prediction must start no earlier than train_end
-axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # After prediction succeeds, generate backtest artifacts
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-Perform the wait from the previous section between each submission. `source_tasks` uses ASCII commas to separate Task IDs. Each qlib_a158 stage requires a single upstream task of the corresponding type; do not arbitrarily add tasks of that type.
+Each exec waits. Check its exit code and metadata before the next stage. upstream_task_ids is a JSON array; CLI exec also accepts comma-separated IDs. Validate each stage against its actual definition.
 
 Training reserves the final dates in trading-day order for validation, with a default validation ratio of 10%. Validation and early stopping first select the iteration count, then all valid samples in the training window fit the final model. Saved training curves come from tuning; they are not the final model's performance on an independent test set.
 
@@ -102,13 +96,22 @@ A completed execution provides parameters and artifacts. Evaluating improvements
 
 ## Using the repository script
 
-[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) implements submission, handle reading, stage-by-stage waiting, and failure exits. Use it as a reference for connecting commands:
+[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) delegates directly to the registered `qlib_a158_research` parent Task. Install the plugin and prepare historical data first:
 
 ```bash
 bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
 ```
 
-The script installs the plugin, refreshes the latest 7 days of raw data, and uses existing historical partitions for multi-year research. It does not automatically download all missing history. Prepare data before running it and check whether its fixed dates suit your research interval.
+The script forwards arguments to synchronous `exec`; it does not install packages or download market data. Configure each stage with nested options:
+
+```bash
+axonx get_task_def --task qlib_a158_research
+axonx exec --task qlib_a158_research --task-name pipeline-01 \
+  --etl.start-date 20150101 --train.train-end 20230101 \
+  --predict.pred-end 20231231 --backtest.top-ns '[20,30]'
+```
+
+The parent owns child instance names and `upstream_task_ids`, runs ETL → Train → Predict → Backtest, and returns `stage_task_ids`. Set `--analysis '{}'` to add factor analysis after ETL; it is disabled by default. `predict.pred_start` defaults to `train.train_end`. Nested stage names, dependencies and explicit backtest input-file overrides are rejected; use leaf Tasks to reuse existing upstreams. Children share the parent process and inherit its name. See [Composing Tasks](../guides/composite-tasks.md).
 
 ## Common failures and actions
 

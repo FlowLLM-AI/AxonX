@@ -1,12 +1,4 @@
 import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
@@ -21,20 +13,29 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
-import { RailResizer } from "../../shared/ui/RailResizer";
-import { formatBytes } from "../../shared/lib/format";
-import type { ContextOption } from "../../app/types";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import type { ContextOption } from "../../app/types";
 import type {
-  WorkspaceListing,
   WorkspaceEntry,
-  WorkspacePreview,
-} from "./types";
+  WorkspaceListing,
+} from "../../shared/api/contracts";
+import type { WorkspacePreview } from "../../shared/api/workspace";
 import {
   getWorkspaceRoot,
   listWorkspaceEntries,
   previewWorkspaceFile,
-} from "./api";
+  readWorkspaceText,
+} from "../../shared/api/workspace";
+import { formatBytes } from "../../shared/lib/format";
+import { RailResizer } from "../../shared/ui/RailResizer";
 
 const FilePreview = lazy(() =>
   import("./FilePreview").then((module) => ({ default: module.FilePreview })),
@@ -59,12 +60,14 @@ function iconFor(entry: WorkspaceEntry) {
 
 export default function WorkspaceBrowserPage({
   target,
+  machineId = "local",
   initialPath = ROOT,
   onConnection,
   onPathChange,
   onOptionsChange,
 }: {
   target?: string;
+  machineId?: string;
   initialPath?: string;
   onConnection: (online: boolean) => void;
   onPathChange: (path: string) => void;
@@ -86,6 +89,17 @@ export default function WorkspaceBrowserPage({
   const [pageOffsets, setPageOffsets] = useState([0]);
   const offset = pageOffsets[pageOffsets.length - 1];
   const [revision, setRevision] = useState(0);
+  const readSource = useCallback(
+    (signal: AbortSignal) => {
+      const root = cache.current.get(ROOT)?.workspace_root;
+      if (!selected || !root) throw new Error("Workspace file is unavailable");
+      return readWorkspaceText(
+        { path: selected.path, workspaceRoot: root },
+        { target, signal },
+      );
+    },
+    [selected, target],
+  );
 
   const loadDirectory = useCallback(
     async (path: string, signal: AbortSignal, append = false) => {
@@ -94,10 +108,8 @@ export default function WorkspaceBrowserPage({
       setLoading((current) => new Set(current).add(path));
       try {
         const result = await listWorkspaceEntries(
-          path,
-          target,
-          signal,
-          append ? existing?.entries.length : 0,
+          { path, offset: append ? existing?.entries.length : 0 },
+          { target, signal },
         );
         signal.throwIfAborted();
         const directory = {
@@ -139,7 +151,7 @@ export default function WorkspaceBrowserPage({
       if (initialPath.startsWith("/")) {
         const workspaceRoot =
           directory.workspace_root ||
-          (await getWorkspaceRoot(target, controller.signal));
+          (await getWorkspaceRoot({ target, signal: controller.signal }));
         controller.signal.throwIfAborted();
         const root = workspaceRoot?.replace(/\/+$/, "");
         if (!root || !initialPath.startsWith(`${root}/`))
@@ -197,11 +209,8 @@ export default function WorkspaceBrowserPage({
     setPreviewLoading(selected?.kind === "file");
     if (selected?.kind === "file") {
       void previewWorkspaceFile(
-        selected.path,
-        offset,
-        200,
-        target,
-        controller.signal,
+        { path: selected.path, offset, limit: 200 },
+        { target, signal: controller.signal },
       )
         .then((result) => {
           if (!controller.signal.aborted) {
@@ -279,6 +288,7 @@ export default function WorkspaceBrowserPage({
         .filter((entry) => entry.kind !== "symlink")
         .map((entry) => ({
           value: entry.path,
+          kind: entry.kind === "directory" ? "directory" : "file",
           label: entry.name,
           detail:
             entry.kind === "directory"
@@ -444,7 +454,11 @@ export default function WorkspaceBrowserPage({
                     }
                   >
                     <FilePreview
+                      key={`${selected.path}:${revision}`}
                       preview={preview}
+                      path={selected.path}
+                      machineId={machineId}
+                      onReadSource={readSource}
                       previousOffset={pageOffsets[pageOffsets.length - 2] ?? 0}
                       onPage={(nextOffset) =>
                         setPageOffsets((pages) =>

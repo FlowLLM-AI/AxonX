@@ -1,73 +1,63 @@
 # Service deployment and Studio hosting
 
-A minimal deployment consists of a Python service, workspace, and optional Studio package on one machine. Make the authenticated API available first, then install Studio and configure process supervision. The process supervision and HTTPS examples below require adaptation to your system.
+Use Python 3.12+ and a dedicated environment for the backend and optional Studio package. A daemon supervises one service; Cron runs inside the service. External process managers should own the `axonx app` daemon and let it manage the service child.
 
 ## Installation and configuration
-
-Requires Python 3.12 or later. Create a virtual environment:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install axonx
-axonx --help
+pip install 'axonx[studio]'
 ```
 
-Create `server.yaml`:
+Create `server.yaml`, adjusting paths for the deployment machine:
 
 ```yaml
 extends: default
 workspace_dir: /srv/axonx/workspace
 log_dir: /srv/axonx/logs
 service:
-  backend: http
   host: 127.0.0.1
   port: 1024
   token: ${AXONX_SERVICE_TOKEN}
   shutdown_timeout: 1
   cleanup_timeout: 15
-  web_enabled: true
+cron: []
 ```
-
-The absolute directories are Linux examples, not the project's default paths. Ensure the service user can read and write the workspace and logs, and install required plugins in the same environment.
 
 ```bash
-export AXONX_SERVICE_TOKEN='<separate service token>'
-axonx start --config server.yaml
+export AXONX_SERVICE_TOKEN='<dedicated-service-token>'
+axonx app --config server.yaml
 ```
 
-For direct connections from other machines, change host to `0.0.0.0` and configure network access. The default configuration already listens on this address; the example uses loopback for an external reverse proxy.
+Bind `0.0.0.0` and configure network access for direct remote connections. Workspace, logs and startup directories must be accessible. Install research plugins in the same Python environment. See [Scheduling](scheduling.md) for periodic Tasks.
 
-## Verify the API
+## Verification
 
 ```bash
 curl -fsS 'http://127.0.0.1:1024/health' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 axonx version
-axonx list_installed_task_definitions
+axonx list_task_defs --include-schemas false
+axonx exec --task demo --task-name deployment-check --x 1 --y 2
+axonx status --task-id 'base#demo#deployment-check'
 ```
 
-After configuring a token, health also requires a Bearer header. Health means the service responds; it does not prove the model SDK, external data sources, or every plugin works. Continue with demo to verify submission and waiting.
+Health verifies readiness; demo checks execution and observation. The API can run without Studio. Restart the service after installing Studio and open `http://127.0.0.1:1024/`.
 
-## Install and host Studio
+## Deploying from a checkout
 
-Install with `pip install "axonx[studio]"`, then restart the service. See [Studio setup](../getting-started/studio.md) or [building from source](../development/studio.md). `web_enabled: false` disables page hosting while keeping the API available.
+Run `./scripts/deploy.sh [application options]` in the activated execution environment, for example `./scripts/deploy.sh --config server.yaml`. The script changes to the repository root, which is the base for relative configuration paths. Git, Python and Studio-supported Node.js/npm are required.
 
-## Deploy from the repository
+Using the same configuration resolution and service identity as `axonx app`, the script verifies the daemon lock, supervisor command and service parentage, then stops the selected daemon and service before changing source. It fast-forwards the current branch from its upstream, builds Studio, installs backend and Studio in editable mode, runs `pip check`, installs all three research plugins, then runs `axonx app` in the foreground with the supplied application options. It never selects arbitrary listeners by port for termination.
 
-With Python 3.12+ and Node/npm available and the intended Python environment activated, run `bash /path/to/AxonX/scripts/deploy.sh` from any directory. The script switches to the repository root, updates `main` from `origin`, runs `npm ci` and builds Studio, installs AxonX and the Studio package from source, and installs the `qlib_a158`, `qlib_factor` and `qlib_strategy` plugins in editable mode. After installation succeeds, it stops processes listening on port `1024` (forcibly if necessary) and runs `axonx start` in the foreground.
+Shutdown or identity-check failure aborts before updating source. Pull/build/install failure stops deployment; repair the failure and start again. There is no automatic rollback. For systemd/launchd deployments, stop the daemon with that manager first and restart through the manager after deployment, so supervisors do not compete.
 
-The script is executable: from the repository root, you can run `./scripts/deploy.sh`. All arguments are passed unchanged to `axonx start`, for example `./scripts/deploy.sh --config remote` starts with `axonx start --config remote`. Port cleanup still targets `1024`; it does not read the selected configuration.
-
-On macOS, the script uses `lsof` to query listeners because system-wide `psutil` connection queries require root privileges. Run the script as your normal user. Queries are limited by the current user's permissions; an empty result does not guarantee that a privileged process is not using the port. Query failures abort deployment with actionable messages. If the script lacks permission to stop a listener, it warns, skips that process, and continues to `axonx start`; startup may still fail if the port remains occupied. If cleanup fails or startup reports that port `1024` is occupied, run `sudo lsof -nP -iTCP:1024 -sTCP:LISTEN`, confirm that the listed process is the old service, then run `sudo kill -TERM <PID>` using its actual PID. Once the port is free, run `axonx start` in the activated environment; installation and building have already finished. `sudo` prompts for your login password without displaying typed characters. Do not run the entire deployment script with `sudo`.
-
-## Example background process supervision
-
-Linux can use systemd. This is a minimal unit example; replace paths, account, and virtual environment:
+## Process supervision example
 
 ```ini
 [Unit]
-Description=AxonX service
+Description=AxonX daemon
 After=network.target
 
 [Service]
@@ -75,34 +65,27 @@ Type=simple
 User=axonx
 WorkingDirectory=/srv/axonx/source
 EnvironmentFile=/etc/axonx/service.env
-ExecStart=/srv/axonx/source/.venv/bin/axonx start --config /etc/axonx/server.yaml
+ExecStart=/srv/axonx/source/.venv/bin/axonx app --config /etc/axonx/server.yaml
 Restart=on-failure
+KillMode=process
 TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-service.env stores required environment variables and should have restricted read permissions. On macOS, use your own launchd configuration; the repository does not provide a complete system-service installer.
+Replace paths and account, and restrict environment-file access. This example targets the daemon with `KillMode=process`, allowing it to close the service without the manager terminating independent scheduled processes. Such Tasks can survive a full daemon stop and must be managed explicitly by Task identity. macOS can use a custom launchd configuration; the repository does not ship a complete system-service installer.
 
 ## HTTPS and event streams
 
-The built-in Uvicorn service has no TLS configuration. Terminate HTTPS at an external entry such as Caddy or Nginx, then proxy to the loopback HTTP address; clients should explicitly use the public HTTPS URL.
-
-The proxy should preserve Authorization, request bodies, and correct paths; SSE entry points should allow long-lived connections and avoid response buffering. MCP and `/files` must also reach the same backend, and upload entry limits should match actual artifact sizes.
-
-External entry timeouts, built-in shutdown_timeout, TaskManager terminate_grace_seconds, and client timeout serve different purposes: proxy waiting, service request shutdown, worker termination grace, and call waiting, respectively.
+Terminate TLS at an external reverse proxy. Preserve Authorization, bodies, duplicate headers and paths; support `/mcp`, `/upload` and long-lived SSE without buffering. Proxy/client timeouts, Uvicorn draining and total service cleanup are separate budgets.
 
 ## Updates and shutdown
 
-Configuration, Jobs, and plugin contributions load during application assembly. Restart the service after changes and check that version, plugin list, Task Schemas, and Studio assets have matching versions.
+`axonx restart_service` reloads source, `.env`, Task definitions and Cron configuration. `update_from_git` and `update_from_pip` start a fresh service after updating. The daemon PID stays the same and the service PID changes. Supervisor-source or startup-argv changes require stopping and relaunching the whole `axonx app`. See [Service updates](self-update.md).
 
-Normal service shutdown stops managed workers and records the corresponding runs as cancelled. Restarting does not automatically resume these research tasks. Before upgrades during long training, wait for completion or confirm that the plugin provides usable recovery.
+Normal service shutdown stops Cron admission, closes components and terminates service-owned manual CLI children; daemon-owned scheduled exec processes continue. The first Ctrl+C or SIGTERM begins shutdown; `cleanup_timeout` bounds the total duration. Another Ctrl+C or timeout forces exit. Forced termination may leave running metadata: observation does not rewrite it; subsequent execution identity checks or explicit kill settle confirmed exited processes. Service restarts do not rerun existing scheduled Tasks or replay missed slots.
 
-On the first Ctrl+C or SIGTERM, the service stops admitting Tasks and sends SIGTERM to its tracked worker process groups before waiting for application cleanup. Normal cleanup preserves resource ordering and records cancelled Tasks. `service.cleanup_timeout` (default 15 seconds) bounds the entire shutdown, including application cleanup and Python thread-executor draining; `shutdown_timeout` only bounds Uvicorn request draining. A second Ctrl+C, or expiration of the total deadline, sends SIGKILL to remaining tracked worker groups and exits the service with code 130. Forced exit can leave incomplete lifecycle records; inspect the exact Runs after restarting. Other services sharing the workspace are not terminated. Embedded `Application.close()` retains its normal awaited cleanup semantics.
+Coordinate all writers before migration, then copy the workspace, configuration and required logs and restore the plugin environment.
 
-For migration, stop writes first, copy the workspace, logs, and configuration, restore a matching plugin environment, then check historical records and artifacts. Do not copy only Python packages while overlooking experiment files.
-
-[Authentication](authentication.md) · [Operations and recovery](operations.md) · [Configuration reference](../reference/configuration.md) · [Plugin management](../plugins/management.md)
-
-Source: [HTTP service](../../../axonx/components/service/http/service.py), [Studio directory discovery](../../../axonx/components/service/http/studio.py), [TaskManager shutdown](../../../axonx/components/task_manager/local/manager.py).
+Implementation: [daemon](../../../axonx/daemon/supervisor.py), [deployment stop tool](../../../scripts/stop_daemon.py), [HTTP service](../../../axonx/app/components/service/http/service.py).

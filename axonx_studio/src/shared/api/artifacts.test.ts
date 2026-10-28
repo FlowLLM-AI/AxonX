@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
-import { isArtifactRecord } from "./artifacts";
-import { displayArtifacts } from "../lib/replica";
-import { taskStatus } from "../../playground/fixtures";
+import { taskStatus } from "../../playground/data";
+import { displayArtifacts, isArtifactRecord } from "./artifacts";
 
 it("accepts sampled replica revisions for artifact loading", () => {
   const task = taskStatus("etl", "etl#demo#test", "test");

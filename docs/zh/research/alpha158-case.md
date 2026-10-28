@@ -85,35 +85,35 @@ IC/RankIC 为信号日合格股票预测与有效次日标签的每日 Pearson/S
 
 ## 复现
 
-固定同一份数据快照，每次提交后保存 Task/Run ID，等待成功再提交下游。远程命令使用同一 `--target`。固定持有回测分别对基础与因子预测执行一次；基础版使用 `qlib_a158_backtest`。
+固定同一份数据快照，每次提交后保存 Task ID 与 metadata `started_at`，等待成功再提交下游。远程命令使用同一 `--target`。固定持有回测分别对基础与因子预测执行一次；基础版使用 `qlib_a158_backtest`。
 
 ```bash
 # 基础模型：158 个特征
-axonx submit --task qlib_a158_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_a158_train --source-tasks '<base_etl_task_id>' \
+axonx exec --task qlib_a158_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_train --upstream-task-ids '<base_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
   --parameter-preset axonx --feature-fraction 0.9 --random-seed 42 --num-threads 8
-axonx submit --task qlib_a158_predict --source-tasks '<base_train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '<base_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # 因子模型：158 个基础特征加两个风险因子
-axonx submit --task qlib_factor_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_factor_train --source-tasks '<factor_etl_task_id>' \
+axonx exec --task qlib_factor_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_factor_train --upstream-task-ids '<factor_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
   --parameter-preset axonx --context-groups risk --context-windows '[10]' \
   --feature-fraction 1.0 --random-seed 42 --num-threads 8
-axonx submit --task qlib_factor_predict --source-tasks '<factor_train_task_id>' \
+axonx exec --task qlib_factor_predict --upstream-task-ids '<factor_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # 固定持有：分别对基础和因子预测执行一次
-axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
+axonx exec --task qlib_factor_backtest --upstream-task-ids '<factor_predict_task_id>' \
   --top-ns '[20,30]' --holding-days 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
 
 # 策略版本：复用因子预测，采用选中的 3 日策略
-axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
+axonx exec --task qlib_strategy_backtest --upstream-task-ids '<factor_predict_task_id>' \
   --top-ns '[20,30]' --minimum-holding-days 3 \
   --replacement-fraction 0.2 --rank-buffer 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
@@ -124,6 +124,8 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_
 ## 任务来源
 
 执行工作区：45 机器 `/nas/jinli.yl/data/axon`；原始产物保存在该工作区。仅列本次实验记录。
+
+以下记录来自历史 0.1.1 运行时，保留当时的 Run ID 和 SHA-256 输入摘要作为案例证据。当前 Task metadata 使用 `started_at` 区分执行，文件产物使用 `revision="<size>:<mtime_ns>"`；不提供 `run_id` 或按 Run ID 等待的参数。重新执行会产生新的执行身份。
 
 | 阶段              | Task ID                                                       | Run ID                             |
 | ----------------- | ------------------------------------------------------------- | ---------------------------------- |

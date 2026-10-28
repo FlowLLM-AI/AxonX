@@ -1,163 +1,56 @@
-"""Task discovery and definition queries share submission resolution."""
+"""Task registration snapshots, lazy resolution and definition queries."""
 
-from pathlib import Path
+from types import SimpleNamespace
 
-import httpx
 import pytest
-import yaml
 
-from axonx.components.client import HttpClient, RemoteServiceError
-from axonx.components.service import HttpService
-from axonx.core import Application
-from axonx.plugin_kit.models import PluginInfo
-from axonx.task.builtins import DemoTask
-from axonx.task.catalog import (
-    get_task_definition,
-    installed_tasks,
-    list_installed_task_definitions,
-    resolve_task,
-    resolver,
-)
+from axonx.task.builtins.demo import DemoTask
+from axonx.task.runtime import catalog
 
 
-@pytest.fixture
-def plugins(monkeypatch):
-    items = [
-        PluginInfo(
-            distribution="example",
-            version="1",
-            tasks={"example_task": "axonx.task.builtins.demo:DemoTask"},
-        )
-    ]
-    monkeypatch.setattr(resolver, "list_installed_plugins", lambda: items)
-    return items
-
-
-def test_single_and_list_definitions_match_execution(plugins):
-    definitions = list_installed_task_definitions()
-    assert [item.name for item in definitions] == sorted(item.name for item in definitions)
-    tasks = installed_tasks()
-    for definition in definitions:
-        assert get_task_definition(definition.name) == definition
-        assert resolve_task(definition.name) is tasks[definition.name]
-    native = get_task_definition("demo")
-    assert native.source == "native"
-    assert native.plugin is None
-    assert native.input_schema == DemoTask.input_cls.model_json_schema()
-    assert native.output_schema == DemoTask.output_cls.model_json_schema()
-    plugin = get_task_definition("example_task")
-    assert plugin.source == "plugin"
-    assert plugin.plugin == "example"
-    assert plugin.name == "example_task"
-
-
-def test_single_query_does_not_load_unrelated_task(plugins):
-    plugins.append(
-        PluginInfo(
-            distribution="broken",
-            version="1",
-            tasks={"broken_task": "nonexistent_axonx_plugin:Task"},
-        )
+def test_catalog_snapshots_registrations_loads_on_demand_and_keeps_ownership(monkeypatch):
+    imports = []
+    registrations = [("research", "package:Task", "example"), ("unrelated", "missing:Task", "example")]
+    monkeypatch.setattr(
+        catalog, "import_module", lambda module: imports.append(module) or SimpleNamespace(Task=DemoTask)
     )
-    assert get_task_definition("example_task").name == "example_task"
-    assert get_task_definition("demo").name == "demo"
-    assert resolve_task("example_task") is DemoTask
+    tasks = catalog.TaskCatalog(registrations)
+    registrations.clear()
+    assert not imports
+    assert tasks.resolve("research") is DemoTask
+    assert tasks.resolve("research") is DemoTask
+    assert tasks.definition("research").plugin == "example"
+    assert imports == ["package"]
+    with pytest.raises(ValueError, match="Unknown Task: absent.*Available:"):
+        tasks.resolve("absent")
+
+
+def test_catalog_omits_schema_generation_when_listing_task_info(monkeypatch):
+    monkeypatch.setattr(catalog, "BUILTIN_TASKS", {"demo": DemoTask})
+    monkeypatch.setattr(DemoTask.input_cls, "model_json_schema", lambda: pytest.fail("Generated an input schema"))
+    monkeypatch.setattr(DemoTask.output_cls, "model_json_schema", lambda: pytest.fail("Generated an output schema"))
+    assert catalog.TaskCatalog().definitions(include_schemas=False)[0].name == "demo"
+
+
+def test_catalog_rejects_duplicate_plugin_tasks():
+    registrations = [("same", "missing:Task", name) for name in ("one", "two")]
+    with pytest.raises(ValueError, match="plugins 'one' and 'two'"):
+        catalog.TaskCatalog(registrations)
+
+
+@pytest.mark.parametrize("target", ["invalid", ":Task", "package:", "builtins:dict"])
+def test_catalog_rejects_invalid_task_targets(target):
+    with pytest.raises((TypeError, ValueError), match="Task target"):
+        catalog.TaskCatalog([("research", target, "example")]).resolve("research")
+
+
+def test_catalog_only_loads_the_requested_task():
+    tasks = catalog.TaskCatalog([("unrelated", "missing_package:Task", "example")])
+    assert tasks.definition("demo").name == "demo"
     with pytest.raises(ModuleNotFoundError):
-        list_installed_task_definitions()
+        tasks.resolve("unrelated")
 
 
-@pytest.mark.parametrize(
-    ("doc", "expected"),
-    [
-        (None, ""),
-        ("", ""),
-        (" \n\t ", ""),
-        ("\n    Run a task.\n\n    Produce an artifact.\n    ", "Run a task.\n\nProduce an artifact."),
-    ],
-)
-def test_description_preserves_task_and_catalog(plugins, monkeypatch, doc, expected):
-    class CatalogTask(DemoTask):
-        pass
-
-    CatalogTask.__doc__ = doc
-    monkeypatch.setattr("axonx.task.builtins.demo.CatalogTask", CatalogTask, raising=False)
-    plugins[0].tasks["catalog_task"] = "axonx.task.builtins.demo:CatalogTask"
-
-    definitions = {item.name: item for item in list_installed_task_definitions()}
-    definition = definitions["catalog_task"]
-    assert definition.description == expected
-    assert definition.input_schema == DemoTask.input_cls.model_json_schema()
-    assert definition.output_schema == DemoTask.output_cls.model_json_schema()
-    assert get_task_definition("catalog_task") == definition
-    assert resolve_task("catalog_task") is CatalogTask
-    assert installed_tasks()["catalog_task"] is CatalogTask
-    assert definitions["demo"] == get_task_definition("demo")
-    assert definitions["example_task"] == get_task_definition("example_task")
-
-
-@pytest.mark.parametrize("query", [get_task_definition, resolve_task])
-def test_unknown_registration_has_clear_error(plugins, query):
-    with pytest.raises(ValueError, match="Unknown Task: missing.*example_task"):
-        query("missing")
-
-
-@pytest.mark.parametrize("query", [get_task_definition, resolve_task, list_installed_task_definitions, installed_tasks])
-def test_native_plugin_name_conflicts_are_rejected(plugins, query):
-    plugins.append(
-        PluginInfo(
-            distribution="collision",
-            version="1",
-            tasks={"demo": "axonx.task.builtins.demo:DemoTask"},
-        )
-    )
-    with pytest.raises(ValueError, match="Plugin Task names conflict with built-ins: demo"):
-        if query in (get_task_definition, resolve_task):
-            query("demo")
-        else:
-            query()
-
-
-async def test_definition_jobs_over_http(tmp_path, plugins):
-    defaults = yaml.safe_load(Path("axonx/config/default.yaml").read_text(encoding="utf-8"))["jobs"]
-    app = Application(
-        workspace_dir=str(tmp_path),
-        enable_logo=False,
-        log_to_console=False,
-        log_to_file=False,
-        jobs={name: defaults[name] for name in ("get_task_definition", "list_installed_task_definitions")},
-    )
-    server = HttpService(token="secret", web_enabled=False).build_service(app)
-    async with (
-        server.router.lifespan_context(server),
-        HttpClient(token="secret", transport=httpx.ASGITransport(app=server)) as client,
-    ):
-        response = await client.run_job("get_task_definition", {"task": "example_task"})
-        assert response.success is True
-        assert response.answer == get_task_definition("example_task").model_dump(mode="json")
-        listed = await client.run_job("list_installed_task_definitions")
-        assert listed.success is True
-        assert response.answer in listed.answer
-        compact = await client.run_job("list_installed_task_definitions", {"include_schemas": False})
-        assert compact.success
-        assert {item["name"] for item in compact.answer} == {item["name"] for item in listed.answer}
-        assert all("input_schema" not in item and "output_schema" not in item for item in compact.answer)
-        for arguments in ({}, {"task": ""}, {"task": "demo", "extra": True}):
-            with pytest.raises(RemoteServiceError, match="Invalid arguments"):
-                await client.run_job("get_task_definition", arguments)
-        invalid = await client.run_job("get_task_definition", {"task": "missing"})
-        assert invalid.success is False
-        assert "Unknown Task: missing" in str(invalid.answer)
-
-
-def test_lightweight_catalog_does_not_generate_any_schema(plugins, monkeypatch):
-    full = list_installed_task_definitions()
-
-    def unexpected_schema(*_args, **_kwargs):
-        raise AssertionError("Schema generation must be opt-in for lightweight discovery")
-
-    monkeypatch.setattr(DemoTask.input_cls, "model_json_schema", unexpected_schema)
-    monkeypatch.setattr(DemoTask.output_cls, "model_json_schema", unexpected_schema)
-    summaries = list_installed_task_definitions(include_schemas=False)
-    assert [item.model_dump() for item in summaries] == [
-        item.model_dump(exclude={"input_schema", "output_schema"}) for item in full
-    ]
+def test_catalog_rejects_plugin_names_that_shadow_builtins():
+    with pytest.raises(ValueError, match="conflict"):
+        catalog.TaskCatalog([("demo", "missing_package:Task", "example")])

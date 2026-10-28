@@ -22,7 +22,7 @@
 
 ## 分层理解响应
 
-HTTP 传输状态、JobResponse 的 `success` 与 Task 终态分别回答不同问题。成功的 `submit` 返回 TaskHandle；使用其中的 `task_id` 与 `run_id` 等待本次执行，再检查最终状态。已安装插件与配置的 Job 决定实际能力，因此应在所连接服务上发现 Schema。
+HTTP 状态、JobResponse.success、命令 exit_code 和 Task 状态分别回答不同问题。原生 exec 等待完成并输出业务结果，远程 cli 返回 stdout/stderr/exit_code。独立观察 Task ID 和 started_at，并在所选服务发现实际 Schema。
 
 ## 扩展契约
 

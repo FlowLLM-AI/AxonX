@@ -1,184 +1,82 @@
-# Server configuration reference
+# Configuration Reference
 
-Service configuration describes an Application's workspace, components, Jobs, schedules, and HTTP service. CLI `start` uses ConfigResolver to resolve YAML/JSON first, then validates it with ApplicationConfig. Constructing an Application directly in Python does not automatically read default.yaml; explicitly call the resolver or supply complete configuration.
-
-![Configuration resolution and overrides](../../figures/reference/config-resolution.svg)
+![Configuration resolution](../../figures/reference/config-resolution.svg)
 
 ## Minimal override configuration
 
 ```yaml
 extends: default
-workspace_dir: .axonx
-log_dir: logs
+workspace_dir: /srv/axonx/workspace
+log_dir: /srv/axonx/logs
+timezone: Asia/Shanghai
+language: en
 service:
-  host: 127.0.0.1
   port: 1024
   token: ${AXONX_SERVICE_TOKEN}
+cron: []
 ```
 
 ```bash
-axonx start --config app.yaml
-axonx start --config app.yaml --service.port 2024
+axonx app --config app.yaml --service.host 127.0.0.1
 ```
-
-extends is not a persistent ApplicationConfig field; the resolver removes it first. See [Python reference](python.md) for Python usage.
 
 ## ApplicationConfig
 
-The table lists model defaults, which differ from the expanded built-in default.yaml. For example, model components/jobs are empty, while default.yaml configures task components, an Agent, and multiple Jobs.
+Application fields are `workspace_dir`, `log_dir`, `timezone`, `execution_target`, `environment`, `command`, `app_name`, `bind_host`, `transfer_budget_bytes`, `language`, `enable_logo`, `log_to_console`, `log_to_file`, `targets`, `cron`, `components`, `jobs`, and optional `service`. Unknown top-level fields are rejected. Default transfer budget is 512 MiB; default language is `en` and timezone `Asia/Shanghai`. The startup layer provides `command` for service-owned CLI children.
 
-| Field                 | Type                                      | Model default | Meaning and constraints                                             |
-| --------------------- | ----------------------------------------- | ------------- | ------------------------------------------------------------------- |
-| app_name              | string                                    | AxonX         | Display name in logs and protocols                                  |
-| workspace_dir         | string                                    | .axonx        | Root directory for tasks, artifacts, and application state          |
-| transfer_budget_bytes | integer                                   | 536870912     | One budget for uploads and uncompressed display replicas (512 MiB). |
-| log_dir               | string                                    | logs          | Service and task log directory                                      |
-| timezone              | string                                    | Asia/Shanghai | Default application/task timezone                                   |
-| language              | `en` / `zh`                               | en            | Built-in Agent guide language                                       |
-| enable_logo           | boolean                                   | true          | CLI start prints the startup logo                                   |
-| log_to_console        | boolean                                   | true          | Console logging                                                     |
-| log_to_file           | boolean                                   | true          | File logging                                                        |
-| plugins               | PluginConfig                              | sources=[]    | Startup plugin sources                                              |
-| targets               | TargetConfig[]                            | []            | Service targets to which the backend may forward                    |
-| environment           | dict[string,string]                       | {}            | Application environment injected into workers and Agents            |
-| components            | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                              |
-| jobs                  | dict[public_name,JobConfig]               | {}            | Job definitions                                                     |
-| schedules             | dict[name,ScheduleConfig]                 | {}            | Schedulers                                                          |
-| service               | ComponentConfig/null                      | null          | Service component; CLI start requires service                       |
-
-The model prohibits unknown top-level fields. Normalized target addresses must not be duplicated. environment values must be strings, rather than numbers or nested objects.
-
-`timezone` also controls service and task worker log timestamps, the startup timestamp in log filenames, and midnight rotation, independently of the host's system timezone. Log lines include the UTC offset (for example, `2026-10-12 15:47:25 +08:00`). Direct `LoggingConfig` users default to `Asia/Shanghai` and can override its `timezone`. Loguru-generated archive suffixes still use the host's system timezone. Existing log files are unchanged.
-
-Process logs, independent Run logs, and rotated archives are retained for 7 days based on their last modification time. The service owns cleanup: it runs once in the background after startup and then hourly. Configuring logging in CLI processes, Task workers and GPU workers only opens their sinks; it does not scan the shared log directory. Standalone execution without a service does not start periodic cleanup. Active process logs and locked Run logs are skipped, even during quiet periods. Cleanup only removes AxonX-generated log files directly inside `log_dir`; Task metadata and artifacts remain available. Log queries report that logs are unavailable after expiration or removal, and terminal streams still replay retained progress events.
+Execution CLI options override the service's resolved `get_config`, then `ExecutionSettings` defaults. `get_config` includes absolute workspace/log directories, execution environment and resolved application configuration. It requires authentication and can contain environment values; treat its response as configuration data, not a public diagnostic report.
 
 ## Configuration discovery and inheritance
 
-`--config default` and `--config remote` locate built-in named configurations. Packages may contribute other names through the `axonx.configs` entry point; collisions between built-in and external names, or among external names, are rejected. File paths support .yaml/.yml/.json. Relative file paths are tried against the current working directory first, then the built-in configuration directory.
+`ConfigLoader` supports YAML, YML and JSON. `--config` accepts a path, a bundled name (`default`, `remote`), or an installed `axonx.configs` entry point. A file with an extension resolves from the current working directory, then the built-in config directory. Named providers must be unique; ambiguity with built-ins is rejected.
 
-```yaml
-extends:
-  - default
-  - ./research-base.yaml
-service:
-  port: 2024
-```
-
-Parent configurations merge from left to right in the list; the current file overrides parents, and explicit CLI/Python overrides apply last. Dictionaries merge recursively and lists are replaced in full; two steps or targets arrays are not concatenated. Relative extends files are sought first in the current configuration file's directory. Cyclic inheritance raises an error.
-
-```yaml
-# The parent's targets are replaced in full; other names in jobs are retained.
-extends: default
-targets:
-  - address: http://node-b:1024
-    token: ${NODE_B_TOKEN}
-jobs:
-  version:
-    enable_stream: false
-```
+`extends` accepts a parent name/path or ordered list. Existing relative parent files resolve against the declaring file. Mappings merge recursively; lists and scalar values replace inherited values. Cycles are rejected. A selected custom file does not implicitly inherit `default`; declare `extends: default` when needed.
 
 ## Environment expansion and paths
 
-`${VAR}` requires the variable to exist; `${VAR:-default}` uses the default text when the variable is absent. An existing but empty variable does not use default. Each file is recursively expanded before inheritance merging. Only strings whose content changes during environment substitution are then converted from true/false, null, numbers, or JSON to natural values; unchanged strings retain their original type.
-
-```yaml
-workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
-service:
-  token: ${AXONX_SERVICE_TOKEN:-null}
-  web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
-  shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
-  cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
-```
-
-The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
-
-CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
-
-Local Task workers inherit `PATH`, `HOME`, and `LD_LIBRARY_PATH` from the AxonX process when present. `LD_LIBRARY_PATH` is now inherited automatically so Linux workers can find native shared libraries configured in the startup environment. Application `environment` values override inherited values; framework-injected Task variables take precedence over both. Other parent-process variables require explicit configuration in `environment`.
-
-Relative plugins.sources paths resolve to absolute paths against the configuration file that declares them. Ordinary paths such as workspace_dir/log_dir do not receive this special conversion; at runtime, they are usually relative to the process working directory and support user-directory expansion. The configuration file's directory is not the base for all paths.
+CLI startup loads `.env` from the working directory or parents without overriding existing environment variables. Configuration interpolation supports `${NAME}` and `${NAME:-default}`. General workspace/log paths resolve in the executing process; do not assume they are relative to the YAML file. Named configuration entry points locate data in their target package.
 
 ## ComponentConfig and named components
 
-ComponentConfig requires a nonempty backend and allows extra fields, interpreted or validated by the corresponding implementation constructor.
-
 ```yaml
 components:
-  task_repository:
+  task_index:
     default:
       backend: local
-      poll_interval: 1
-  task_manager:
+      poll_interval: 5
+  machine:
     default:
       backend: local
-      task_repository: default
-      terminate_grace_seconds: 5
 ```
 
-The local repository reads Task metadata once during startup, then polls only category directories, Task directories, and their `metadata.json` files in a worker thread. It rereads records only when file attributes change; it never recursively watches artifacts or logs. `poll_interval` is the delay in seconds between completed polls (default `1`, finite and positive). Failed scans retain the previous index and retry; invalid records retain their last valid value until repaired or deleted. Closing the repository waits for an in-flight scan. The former `recursive`, `force_polling`, `debounce`, `step`, and `poll_delay_ms` options are removed; replace them with `poll_interval`.
-
-task_repository is the category, default is the instance name, and local is the implementation backend. TaskManager declares a dependency on the repository. Composition checks instance existence and type; dependencies start first and close last. See [Framework extensions](../development/framework-extensions.md).
+The category selects a capability domain, `default` is an instance name, `backend` selects a provider. Current domains include agent, task_index, machine, proxy, sync and updater. Dependencies are declared with a typed base and an instance name. Jobs, service and steps are configured through their own fields. Configure Cron with the top-level `cron` field.
 
 ## JobConfig
 
-| Field         | Type               | Default                   | Meaning                                                     |
-| ------------- | ------------------ | ------------------------- | ----------------------------------------------------------- |
-| backend       | Nonempty string    | pipeline                  | Job implementation                                          |
-| description   | string             | Empty string              | Public description                                          |
-| parameters    | JSON Schema object | type=object,properties={} | Must describe an object; missing type is filled with object |
-| enable_serve  | boolean            | true                      | Eligible for the HTTP/MCP public catalog                    |
-| enable_stream | boolean            | true                      | Allow live HTTP streaming                                   |
-| requires_auth | boolean            | true                      | Exclude this Job when no service token is configured        |
-| steps         | ComponentConfig[]  | []                        | Execute asynchronous Steps sequentially                     |
-| defaults      | object             | {}                        | Default Job context values                                  |
+Jobs support `backend` (default `pipeline`), `description`, JSON object `parameters`, `enable_serve`, `enable_stream`, `requires_auth`, `steps`, and `defaults`. Step provider options remain separate from public arguments. System-injected fields are validated separately and cannot be supplied by callers. Extra backend options are retained by ComponentConfig. Public availability depends on both serving flags and authentication configuration.
 
-PipelineJob also supports event_buffer_size (default 64, a positive integer) as a backend-specific extra field. JSON Schema default in parameters is descriptive; do not assume the framework injects it uniformly. Actual defaults must be handled by defaults or a Step. System-injected values are isolated from public parameters.
+## CronConfig
 
-PipelineJob recursively merges `defaults` → caller arguments → system and deep-copies the result per invocation. Nested objects retain unspecified fields, including when an override is empty; lists and scalar values are replaced. Public arguments are validated before merging. See [framework extensions](../development/framework-extensions.md#parameters-defaults-and-system).
+```yaml
+cron:
+  - expression: "0 16 * * 1-5"
+    command: "axonx exec --task download_tushare_task --days-back 7"
+```
 
-## ScheduleConfig
+Only five numeric cron fields and local `axonx exec --task NAME` commands are supported by CLI startup. Commands are tokenized without a shell; client options are rejected. Lists replace inherited schedules. Triggers use application timezone, do not replay missed occurrences and require restart to reload. See [Scheduling](../guides/scheduling.md).
 
-| Field              | Type                 | Default  | Meaning                                              |
-| ------------------ | -------------------- | -------- | ---------------------------------------------------- |
-| backend            | Nonempty string      | cron     | Scheduler implementation                             |
-| description        | string               | ""       | Schedule description; empty uses the Job description |
-| job                | Nonempty string      | Required | Job name to invoke                                   |
-| cron               | Nonempty string      | Required | Cron expression                                      |
-| arguments          | object               | {}       | Job arguments                                        |
-| timezone           | Nonempty string/null | null     | null uses the application timezone                   |
-| concurrency_policy | forbid/allow/replace | forbid   | Overlap policy for the same scheduled Job            |
+## TargetConfig
 
-The default is schedules={}. Policies apply to execution of the scheduled Job; after submit returns, the background Task may still be running. See [Scheduling](../guides/scheduling.md) for an enabling example.
+```yaml
+targets:
+  - address: http://node-b:1024
+    token: ${NODE_B_TOKEN}
+```
 
-## PluginConfig and TargetConfig
-
-plugins accepts only sources, an array of nonempty strings defaulting to []. Plugins already installed in the environment are also discovered; sources is not an exclusive enablement allowlist. Startup sources may trigger installation; confirm the source code and dependencies being used first.
-
-TargetConfig strictly prohibits extra fields: address is required and nonempty; token defaults to null or is a nonempty string. Addresses accept host:port or HTTP(S) URLs with explicit ports. User/password credentials, subpaths, query, and fragment are prohibited; normalization removes trailing slashes. See [Client connections](client-configuration.md) for complete usage.
+Addresses require an explicit port and are normalized. Duplicates and unknown fields are rejected. Backend forwarding resolves only configured targets and their credentials. Explicit CLI targets connect directly using CLI credentials; they need not appear in the local service's list.
 
 ## HTTP service
 
-| Field            | Default        | Explanation                                                            |
-| ---------------- | -------------- | ---------------------------------------------------------------------- |
-| backend          | Required: http | HTTP service implementation                                            |
-| host             | 0.0.0.0        | Bind address                                                           |
-| port             | 1024           | Listening port                                                         |
-| shutdown_timeout | 1              | Request-drain seconds; nonnegative; excludes application cleanup       |
-| cleanup_timeout  | 15             | Total service shutdown deadline in seconds; finite and positive        |
-| web_enabled      | true           | Whether to mount the Studio static build                               |
-| token            | null           | Nonempty Bearer token; null filters the catalog according to Job rules |
+`service.backend: http` exposes Jobs, events, MCP, `/upload` and optionally Studio. Common fields include `host` (falling back to `bind_host`), `port`, `token`, `web_enabled`, `shutdown_timeout` and `cleanup_timeout`. Configure a token to expose authenticated capabilities. Proxy routes use upstream authentication. See [Authentication](../guides/authentication.md) and [Deployment](../guides/deployment.md).
 
-The built-in `default` and inherited `remote` configurations read `AXONX_SERVICE_CLEANUP_TIMEOUT` (default `15`); an explicit `service.cleanup_timeout` overrides it. The deadline starts at the first shutdown signal or service shutdown request and includes request draining, application cleanup, and thread-executor draining. Set it above the worker termination grace plus expected cleanup time. A second Ctrl+C or deadline expiry forces exit with code `130`; lifecycle records may be incomplete. The deadline applies to `HttpService.run_app()`, while embedded ASGI lifespans and `Application.close()` await normal cleanup. See [Deployment](../guides/deployment.md#updates-and-shutdown).
-
-The service has no TLS configuration by default. A missing Studio build is logged as unavailable; the API can still run. Configuration updates do not recompose the application live; restart and verify the catalog again.
-
-## Topic-specific configuration and validation
-
-- [Claude Agent](../agent/configuration.md): models, permissions, tools, and session state.
-- [Task synchronization](../guides/task-sync.md): sync components and schedules disabled by default.
-- [HTTP proxy](../guides/http-proxy.md): named fixed upstreams.
-- [Service deployment](../guides/deployment.md): process supervision and static resources.
-
-When startup raises ValidationError, first check top-level spelling, strict TargetConfig token types, environment strings, and registered backend names. Missing or conflicting dependencies are composition errors and cannot be resolved by skipping Schema validation.
-
-Implementation references: `axonx/config/models.py`, `resolver.py`, `default.yaml`, `core/composition.py`, `components/service/http/service.py`.
+Sources: [models](../../../axonx/app/config/models.py), [loader](../../../axonx/app/config/loader.py), [defaults](../../../axonx/app/config/default.yaml).

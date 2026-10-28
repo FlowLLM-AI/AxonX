@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
   GitBranch,
   GitCommitHorizontal,
@@ -7,16 +6,17 @@ import {
   Server,
   SlidersHorizontal,
 } from "lucide-react";
-import { UpdatePanel } from "../update/UpdatePanel";
-import { MachineDashboard } from "../machines/MachineDashboard";
-import { useMachineInfo } from "../machines/useMachineInfo";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import type { ContextOption } from "../../app/types";
+import { formatMachineAddress } from "../../shared/lib/format";
 import { listTaskStatuses } from "../tasks/api";
 import { TaskDetailPage } from "../tasks/TaskDetailPage";
 import { TasksPage } from "../tasks/TasksPage";
-import type { ContextOption } from "../../app/types";
-import type { MachineNode } from "../machines/types";
-import { useTranslation } from "react-i18next";
-import { formatMachineAddress } from "../../shared/lib/format";
+import type { MachineNode } from "./machine";
+import { MachineDashboard } from "./MachineDashboard";
+import { UpdatePanel } from "./UpdatePanel";
+import { useMachineInfo } from "./useMachineInfo";
 
 export default function RuntimeWorkspace({
   machine,
@@ -24,7 +24,6 @@ export default function RuntimeWorkspace({
   view,
   taskId,
   onNavigate,
-  onSubmit,
   onInterpretTask,
   onOpenResearch,
   onOptionsChange,
@@ -38,7 +37,6 @@ export default function RuntimeWorkspace({
     view: "resources" | "tasks" | "environment" | "task",
     resource?: string,
   ) => void;
-  onSubmit: () => void;
   onInterpretTask: (taskId: string) => void;
   onOpenResearch: (taskType: string, taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
@@ -47,7 +45,7 @@ export default function RuntimeWorkspace({
   useEffect(() => {
     if (view !== "task" || !taskId || !onOptionsChange) return;
     const controller = new AbortController();
-    listTaskStatuses(target, controller.signal)
+    listTaskStatuses({ target, signal: controller.signal })
       .then((tasks) =>
         onOptionsChange(
           tasks.map((task) => ({
@@ -89,7 +87,6 @@ export default function RuntimeWorkspace({
         ) : (
           <TasksPage
             target={target}
-            onSubmit={onSubmit}
             onOpenTask={(id) => onNavigate("task", id)}
             onTasksChange={onOptionsChange}
             onConnection={onConnection}

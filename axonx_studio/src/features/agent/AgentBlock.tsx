@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
   CircleEllipsis,
   XCircle,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { DisplayBlock } from "./reducer";

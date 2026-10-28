@@ -1,207 +1,81 @@
-"""CLI connection options must route to the client, not to Jobs."""
-
-import importlib
+"""Scheduled commands use the CLI's argument grammar and execution policy."""
 
 import pytest
 
-from axonx.cli.main import _load_client_options, _run_plugin, _run_remote_job
-from axonx.cli.parser import parse_command
-from axonx.components.client import ClientOptions
-from axonx.components.job import JobResponse
+from axonx.cli.parser import parse_command, validate_cron_command
 
 
-def test_wait_task_accepts_client_timeout():
-    """Keep client timeout outside wait-task arguments."""
-    command, client = parse_command(
-        [
-            "wait_task",
-            "--task-id",
-            "etl#qlib_a158_etl#demo",
-            "--run-id",
-            "run-001",
-            "--client-timeout",
-            "86400",
-        ],
-    )
-    assert client.timeout == 86400
-    assert command.arguments["task_id"] == "etl#qlib_a158_etl#demo"
-    assert "timeout" not in command.arguments
+@pytest.mark.parametrize("argv", [[], ["--token", "token"]])
+def test_parser_requires_a_command(argv):
+    with pytest.raises(ValueError, match="Missing command"):
+        parse_command(argv)
 
 
-def test_remote_job_accepts_trailing_connection_options():
-    """Route trailing connection options to the remote client."""
-    command, client = parse_command(
-        [
-            "status",
-            "--task-id",
-            "etl#qlib_a158_etl#demo",
-            "--target",
-            "192.0.2.10:1024",
-            "--token",
-            "secret",
-        ],
-    )
-    assert (client.target, client.token) == ("http://192.0.2.10:1024", "secret")
-    assert "target" not in command.arguments
+@pytest.mark.parametrize("value", ["3", "true", "null", "01"])
+def test_execution_environment_values_remain_strings(value):
+    command, _ = parse_command(["exec", "--environment.VALUE", value])
+    assert command.arguments == {"environment": {"VALUE": value}}
 
 
-def test_plugin_accepts_trailing_connection_options():
-    """Separate plugin arguments from connection options."""
-    command, client = parse_command(
-        ["plugin", "install", "plugins/qlib_a158", "--target", "192.0.2.10:1024"],
-    )
-    assert command.arguments["_axonx_argv"] == ["install", "plugins/qlib_a158"]
-    assert client.target == "http://192.0.2.10:1024"
-
-
-def test_python_timeout_remains_job_parameter():
-    """Preserve multiline Python source and its execution timeout."""
-    code = "from pathlib import Path\nprint(Path.cwd())"
-    command, client = parse_command(["python", "--code", code, "--timeout", "30"])
-    assert command.arguments["code"] == code
-    assert command.arguments["timeout"] == 30
-    assert client.timeout == 60
-
-
-def test_client_timeout_is_separate_from_job_timeout():
-    """Allow independent transport and execution timeouts."""
-    command, client = parse_command(
-        ["python", "--code", "print(1)", "--timeout", "30", "--client-timeout", "180"],
-    )
-    assert command.arguments["timeout"] == 30
-    assert client.timeout == 180
-
-
-def test_custom_job_timeout_remains_business_argument():
-    """Preserve custom Job timeout arguments."""
-    command, client = parse_command(
-        ["custom_job", "--timeout", "5", "--client-timeout", "30"],
-    )
-    assert command.arguments["timeout"] == 5
-    assert client.timeout == 30
-
-
-def test_agent_client_timeout_is_not_sent_as_job_argument():
-    """Keep client timeout out of Agent arguments."""
-    command, client = parse_command(
-        ["agent_chat", "--message", "hi", "--client-timeout", "180"],
-    )
-    assert "timeout" not in command.arguments
-    assert client.timeout == 180
-
-
-def test_rejects_repeated_client_option():
-    """Reject ambiguous repeated connection options."""
-    with pytest.raises(ValueError, match="Duplicate client option"):
-        parse_command(
-            ["status", "--target", "127.0.0.1:1024", "--target", "192.0.2.10:1024"],
-        )
-
-
-def test_rejects_target_for_local_command():
-    """Reject remote targets for local-only commands."""
-    with pytest.raises(ValueError, match="local command"):
-        parse_command(["start", "--target", "127.0.0.1:1024"])
+def test_scheduled_exec_uses_the_cli_argument_contract():
+    argv = ("axonx", "exec", "--task", "demo", "--x", "3", "--nested.enabled", "true", "--label", "01")
+    validate_cron_command(argv)
+    command, _ = parse_command(argv[1:])
+    assert command.arguments == {"task": "demo", "x": 3, "nested": {"enabled": True}, "label": "01"}
 
 
 @pytest.mark.parametrize(
-    ("target", "expected_token"),
-    [(None, "local-secret"), ("192.0.2.10:1024", "remote-secret")],
-)
-def test_job_defaults_to_token_for_target(monkeypatch, target, expected_token):
-    """Choose the environment token for the Job destination."""
-    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
-    monkeypatch.setenv("AXONX_TARGET_TOKEN", "remote-secret")
-    received = {}
-
-    async def run_remote_job(_name, _arguments, **options):
-        received.update(options)
-        return JobResponse()
-
-    cli_main = importlib.import_module("axonx.cli.main")
-    monkeypatch.setattr(cli_main, "run_remote_job", run_remote_job)
-    command, client = parse_command(
-        ["status", *(["--target", target] if target else [])],
-    )
-    assert _run_remote_job(command, client) == 0
-    assert received["token"] == expected_token
-
-
-@pytest.mark.parametrize(
-    ("target", "expected_token"),
-    [(None, "local-secret"), ("192.0.2.10:1024", "remote-secret")],
-)
-def test_plugin_defaults_to_token_for_target(monkeypatch, target, expected_token):
-    """Choose the environment token for the plugin destination."""
-    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
-    monkeypatch.setenv("AXONX_TARGET_TOKEN", "remote-secret")
-    received = {}
-
-    def plugin_cli(_argv, options):
-        received["token"] = options.token
-        return 0
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.plugin_cli", plugin_cli)
-    command, _ = parse_command(["plugin", "list"])
-    assert _run_plugin(command, ClientOptions(target=target)) == 0
-    assert received["token"] == expected_token
-
-
-@pytest.mark.parametrize("target", [None, "192.0.2.10:1024"])
-@pytest.mark.parametrize("explicit_token", [None, "explicit-secret"])
-def test_cli_loads_token_from_env_file(monkeypatch, tmp_path, target, explicit_token):
-    """Load dotenv defaults while preserving explicit tokens."""
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("AXONX_SERVICE_TOKEN", raising=False)
-    monkeypatch.delenv("AXONX_TARGET_TOKEN", raising=False)
-    (tmp_path / ".env").write_text(
-        "AXONX_SERVICE_TOKEN=local-secret\nAXONX_TARGET_TOKEN=remote-secret\n",
-    )
-    options = _load_client_options(
-        ClientOptions(target=target, token=explicit_token),
-    )
-    assert options.token == (explicit_token or ("remote-secret" if target else "local-secret"))
-
-
-def test_remote_token_does_not_fall_back_to_local_token(monkeypatch, tmp_path):
-    """Avoid sending the local service token to remote targets."""
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
-    monkeypatch.delenv("AXONX_TARGET_TOKEN", raising=False)
-    (tmp_path / ".env").write_text("")
-    options = _load_client_options(ClientOptions(target="192.0.2.10:1024"))
-    assert options.token is None
-
-
-@pytest.mark.parametrize(
-    ("action", "defaults"),
+    "argv",
     [
-        ("status", {"detail": "summary"}),
-        ("wait_task", {"detail": "summary"}),
-        ("preview_file", {"limit": 20, "max_bytes": 8192}),
-        ("list_installed_task_definitions", {"include_schemas": False}),
-        ("list_agent_sessions", {"limit": 20}),
-        ("get_agent_session", {"limit": 20}),
+        ("worker", "--task", "demo"),
+        ("axonx", "app"),
+        ("axonx", "exec"),
+        ("axonx", "exec", "--task", "true"),
+        ("axonx", "exec", "--task", "demo", "--x"),
+        ("axonx", "exec", "--task", "demo", "--task", "other"),
+        ("axonx", "exec", "--task", "demo", "--nested", "1", "--nested.enabled", "true"),
+        ("axonx", "exec", "--task", "demo", "--target", "remote:1024"),
+        ("axonx", "exec", "--task", "demo", "--stream", "false"),
     ],
 )
-@pytest.mark.parametrize("explicit", [False, True])
-def test_cli_query_defaults_are_lightweight_and_overridable(monkeypatch, action, defaults, explicit):
-    received = {}
+def test_scheduled_exec_rejects_invalid_or_nonlocal_commands(argv):
+    with pytest.raises(ValueError):
+        validate_cron_command(argv)
 
-    async def run_remote_job(_name, arguments, **_options):
-        received.update(arguments)
-        return JobResponse()
 
-    monkeypatch.setattr(importlib.import_module("axonx.cli.main"), "run_remote_job", run_remote_job)
-    options = {"detail": "full"} if "detail" in defaults else {"limit": 100}
-    if action == "preview_file":
-        options["max_bytes"] = 65536
-    if action == "list_installed_task_definitions":
-        options = {"include_schemas": True}
-    argv = [action]
-    if explicit:
-        for name, value in options.items():
-            argv.extend(["--" + name.replace("_", "-"), str(value)])
-    command, client = parse_command(argv)
-    assert _run_remote_job(command, client) == 0
-    assert received == (options if explicit else defaults)
+@pytest.mark.parametrize("token", ["123", "true", "null", "01", " value "])
+def test_credentials_are_preserved_as_text(token):
+    command, options = parse_command(["--token", token, "status", "--client-timeout", "3", "--timeout", "5"])
+    assert options.token == token
+    assert options.timeout == 3
+    assert command.arguments == {"timeout": 5}
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--task-name", "one", "--task_name", "two"],
+        ["--nested", "1", "--nested.enabled", "true"],
+        ["--nested.enabled", "true", "--nested", "1"],
+        ["--stream-format", "json", "--stream_format", "blocks"],
+        ["--stream", "true", "--stream", "false"],
+        ["--target"],
+        ["--stream", "--task", "demo"],
+        ["--value"],
+        ["--value", "--unknown"],
+        ["--nested..field", "1"],
+    ],
+)
+def test_invalid_or_conflicting_options_are_rejected(arguments):
+    with pytest.raises(ValueError):
+        parse_command(["exec", *arguments])
+
+
+def test_target_and_plugin_commands_keep_unparsed_positional_arguments():
+    argv = ["plugin", "install", "-e", "./source", "--target", "remote:1024"]
+    command, options = parse_command(argv)
+    assert options.target == "http://remote:1024"
+    assert command.arguments == {}
+    assert command.raw_arguments == ("install", "-e", "./source")
+    local, _ = parse_command(argv[:-2])
+    assert local == command

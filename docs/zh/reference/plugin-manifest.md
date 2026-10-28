@@ -1,175 +1,73 @@
-# 插件包与贡献协议
+# 插件 Manifest
 
-插件是带 `axonx.plugins` entry point 与包内 plugin.yaml 的 Python distribution。manifest 声明 Task、托管组件后端与 Job；安装和运行装配是两个阶段。先检查包元数据与声明，再启动应用核对注册定义和公开 Job。
+![Task 注册发现](../../figures/reference/plugin.svg)
 
-![插件发现与贡献](../../figures/reference/plugin.svg)
+## 名称与包布局
 
-## 三种名称
-
-| 名称               | 示例          | 使用位置                              |
-| ------------------ | ------------- | ------------------------------------- |
-| distribution       | axonx-example | pip 元数据、安装与卸载                |
-| plugin entry point | example       | 插件发现与 manifest 所属包            |
-| Task 注册名        | example_task  | submit.task、get_task_definition.task |
-
-这些名字不要求相同。Task ID 另由任务类型、注册名与实例名称组成，不能用 distribution 代替注册名执行任务。
-
-## 最小包布局
+distribution 发布 `axonx.plugins` 入口，值为含 `plugin.yaml` 的 Python 包。注册名是映射键，类目标使用 `module:Class`。
 
 ```text
-example-project/
+example/
   pyproject.toml
-  axonx_example/
+  example_plugin/
     __init__.py
     plugin.yaml
-    tasks.py
+    task.py
 ```
 
-pyproject.toml：
-
 ```toml
-[build-system]
-requires = ["setuptools>=84.0.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "axonx-example"
 version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = ["axonx>=0.1.0"]
+dependencies = ["axonx>=0.3.0"]
 
 [project.entry-points."axonx.plugins"]
-example = "axonx_example"
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["axonx_example*"]
+example = "example_plugin"
 
 [tool.setuptools.package-data]
-axonx_example = ["plugin.yaml"]
+example_plugin = ["plugin.yaml"]
 ```
-
-entry point 指向一个 Python package；plugin.yaml 必须被包含进 wheel。只写源码 manifest 而未包含 package-data，会导致安装后发现失败。
-
-## manifest 字段
 
 ```yaml
 tasks:
-  example_task: axonx_example.tasks:ExampleTask
-components: {}
-jobs: {}
+  example_add: example_plugin.task:AddTask
 ```
 
-| 字段       | 类型                              | 默认值 | 契约                                    |
-| ---------- | --------------------------------- | ------ | --------------------------------------- |
-| tasks      | dict[非空名,非空符号目标]         | {}     | 符号必须为 BaseTask 子类                |
-| components | dict[类别,dict[backend,符号目标]] | {}     | 符号必须为 BaseComponent 子类且类别匹配 |
-| jobs       | dict[非空名,JobConfig]            | {}     | JobConfig 使用服务配置同一模型          |
+Task 类使用[开发指南](../dev_guide.md)中的完整示例。注册名必须在所有已安装 distribution 和内置 Task 中唯一。
 
-顶层禁止额外字段；根必须是 YAML mapping。名称与字符串目标去掉首尾空白并要求非空。`module:Class` 目标先导入模块，再逐级取属性；字符串不满足格式、属性不存在或不是目标基类均失败。 Task 可以从同一 wheel 内额外的包或独立模块导入辅助代码；通过服务安装时，这些模块会与入口包一起刷新。
+## Manifest 字段
 
-Task 必须声明固定 TaskType、input_cls 和 output_cls，建议添加详细的类 docstring。查询定义时从类 docstring 提取 description；缺少或仅含空白时返回空字符串。Task 最小开发流程见 [已有开发指南](../dev_guide.md)。
+唯一接受的字段是 `tasks`，将非空注册名映射到非空类目标，其他字段会被拒绝。发现阶段只读取 manifest，不加载 Task 代码；TaskCatalog 按需导入并校验子类。Task 类 docstring 作为定义描述，输入输出来自 Pydantic 模型 Schema。
 
-所有注册的 Task 都必须遵守 [`BaseTask`](../../../axonx/task/core/task.py) 的公共开发协议。
-[`axonx.task.contracts`](../../../axonx/task/contracts/) 中的研究基类是可选标准契约；采用后必须保留其参数字段与校验规则。
-核心协议与标准研究契约的适用范围及实现要求见[必须遵守的开发协议](../dev_guide.md#必须遵守的开发协议)。
+## 框架扩展
 
-## Job 与组件贡献
-
-下面的 Job 使用内置 version_step，无需新增 Step：
-
-```yaml
-tasks: {}
-components: {}
-jobs:
-  example_version:
-    description: Return version through the plugin job.
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
-    steps:
-      - backend: version_step
-```
-
-JobConfig 全部字段见 [配置参考](configuration.md#jobconfig)。插件 Job 与应用配置同名会报错，不会自动让配置覆盖插件。
-
-组件贡献只声明 backend 实现，实例仍由 ApplicationConfig.components 配置：
-
-```yaml
-# plugin.yaml 的声明片段
-components:
-  proxy:
-    example_proxy: axonx_example.proxy:ExampleProxy
-```
-
-```yaml
-# app.yaml 的实例片段；ExampleProxy 需继承 BaseProxyComponent
-components:
-  proxy:
-    reports:
-      backend: example_proxy
-```
-
-当前 loader 使用 BaseComponent 作为 components 的基类约束。BaseStep 继承 ComponentBase 而不是 BaseComponent，因此不能直接把自定义 BaseStep 放进 manifest 的 components.step；此类局部扩展示例使用 Application(providers=...)，见 [框架扩展](../development/framework-extensions.md)。不要仅凭类别名称推断所有 Provider 都可从 manifest 加载。
+Component 和 Job 通过应用配置以及 `Application(providers=...)` 显式装配，Task manifest 不注册它们。已安装包可独立提供 `axonx.configs` 配置入口，该入口不是 Task manifest 字段。
 
 ## 发现、安装与装配
 
-启动时 sources 为空则检查当前环境已安装插件；sources 非空则先准备这些源的安装/构建，再返回环境插件目录。sources 不是简单的启用名称列表，也不是“只加载这些插件”的白名单。
+将 distribution 安装到实际执行解释器。启动层在服务启动时固定 Task 注册快照，每次新 `exec` 构造新目录；类在各目录内部缓存。安装和卸载不刷新现有目录，也不串行协调环境变更。注册、Schema 或已加载依赖变化后重启常驻服务。
 
-```yaml
-extends: default
-plugins:
-  sources:
-    - ./plugins/example
-```
+远程原生命令中的源码路径属于目标机。本地到远程部署显式构建、上传 `/upload`、安装 `location`、清理 `path`，重启后验证，详见[插件管理](../plugins/management.md)。
 
-上述路径按声明配置文件所在目录解析。远程部署用 CLI build/install 或上传 wheel；不能让远端解释客户端的源目录路径。
+## Wheel 与内容指纹
 
-Application 使用局部 registry，发现后的贡献按所有权合并。两个插件相同 Task 注册名、Job 名或相同类别/backend 都拒绝；Task 与内置重名也拒绝。registry 冻结后不能随意新增 provider。
+| 字段             | 含义                           |
+| ---------------- | ------------------------------ |
+| `sha256`         | wheel 的确切字节               |
+| `content_sha256` | 规范化插件内容                 |
+| `requirements`   | 声明依赖元数据                 |
+| `tasks`          | 注册名 → 类目标                |
+| `wheel`          | build/inspect 输出中的制品位置 |
 
-远程安装时，即使相同 wheel 已安装，也会刷新接收服务的插件导入，无需重复运行 pip。这也适用于其他服务更新共享 site-packages、而本进程仍缓存旧模块的情况。已有 Task 对象保留原有类；提交前应重新查询 Task 定义。服务贡献仍遵循重启要求。
-
-## wheel 与内容指纹
-
-| 字段             | 含义                     | 用途               |
-| ---------------- | ------------------------ | ------------------ |
-| sha256           | wheel 文件字节的 SHA-256 | 安装制品校验       |
-| content_sha256   | 插件内容指纹             | 构建缓存与内容身份 |
-| requirements     | wheel 的依赖元数据       | 安装环境需求       |
-| restart_required | 安装/卸载结果提示        | 服务贡献重新装配   |
-
-相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代本地构建 wheel 的 SHA256。远程 install 必须接收 POST /files 返回的 path 与该本地 wheel 的 SHA256。editable 只适用于本地源码环境，不能远程部署。
-
-```bash
-axonx plugin inspect ./plugins/example
-axonx plugin build ./plugins/example --output ./dist
-axonx plugin install ./plugins/example
-axonx plugin list
-```
-
-这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；通过服务安装仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启；已装配的 Component/Job 仍需重启。详见[插件管理](../plugins/management.md#校验和与重启)。
+安装器安装 AxonX 自身之外的声明依赖，以 force-reinstall/no-deps 安装插件，再核验安装后来源和内容与目标 wheel 一致。接口不接收调用方预期哈希；验证传输时将返回的 `sha256` 与本地 wheel 比较。editable 导入钩子需要新解释器，常驻服务也可能需要重启。
 
 ## 命名配置贡献
 
-同一个包还可以发布 axonx.configs entry point：
-
 ```toml
 [project.entry-points."axonx.configs"]
-example = "axonx_example.config:example"
-
-[tool.setuptools.package-data]
-axonx_example = ["plugin.yaml", "config/*.yaml"]
+example = "example_plugin.config:service"
 ```
 
-如果 attr 是已存在对象，resolver 加载它，若可调用则调用并取得 YAML/JSON 路径；否则把目标包作为目录，按 attr/name 取对应配置文件。必须定位到一个实际配置文件。同名配置歧义会拒绝，不静默选一个。
+该入口在目标包目录定位 `service.yaml`、`.yml` 或 `.json`。配置文件应作为包数据发布。名称不得与内置或其他已安装提供方冲突。继承规则见[配置参考](configuration.md)。
 
-仓库 qlib_a158 使用独立 distribution axonx-qlib-a158、插件 entry-point qlib_a158 与 axonx_qlib_a158 包，可作为真实包结构参考。
-
-## 相关文档
-
-- [插件管理](../plugins/management.md)
-- [插件 API](../api/plugins-sync.md)
-- [CLI 参考](cli.md)
-
-实现依据：`plugin_kit/manifest.py`、`loading.py`、`contributions.py`、`runtime.py`、`wheel.py`、`config/resolver.py`。
+源码：[manifest](../../../axonx/plugin/manifest.py)、[发现](../../../axonx/plugin/discovery.py)、[wheel 工具](../../../axonx/plugin/wheel.py)。

@@ -1,75 +1,45 @@
-# 架构概述
+# 架构总览
 
-AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外部 Agent 调用 Job；Job 的异步 Step 访问组件；耗时研究工作由同步 Task 在 worker 进程中执行。结果落到工作区后，任务查询和 Studio 使用同一批记录。
+AxonX 分离应用能力、同步研究执行和文件证据。
 
-![AxonX 架构分层](../../figures/concepts/architecture.svg)
+![架构](../../figures/concepts/architecture.svg)
 
 ## 各层职责
 
-| 层     | 负责什么                                 | 典型对象                                  |
-| ------ | ---------------------------------------- | ----------------------------------------- |
-| 客户端 | 组织参数、凭据，消费 JSON 或事件         | CLI、Studio、HttpClient、McpClient        |
-| 协议   | HTTP、MCP、SSE、上传与 Bearer 鉴权       | HttpService                               |
-| 编排   | 参数校验、执行异步步骤、形成 JobResponse | Dispatcher、Job、BaseStep                 |
-| 组件   | 管理可复用能力和生命周期                 | TaskManager、TaskRepository、Agent、Proxy |
-| 任务   | 执行具体研究步骤，生成校验后的结果       | BaseTask 和插件 Task                      |
-| 存储   | 保存生命周期元数据、进度与研究产物       | 工作区和独立日志目录                      |
+| 层     | 职责                                 | 所属模块       |
+| ------ | ------------------------------------ | -------------- |
+| 客户端 | JSON、SSE、上传、MCP                 | `axonx.client` |
+| 应用   | 配置、分发、provider、受管理生命周期 | `axonx.app`    |
+| Daemon | 监督服务、定时进程和更新             | `axonx.daemon` |
+| 插件   | 已安装 Task 注册和 wheel             | `axonx.plugin` |
+| Task   | 类型化开发、执行、记录和产物         | `axonx.task`   |
 
-HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公开 Job 映射为工具，返回普通响应。SSE 是另一个 HTTP 入口，提供实时事件；两者不应作为同一种传输理解。
+## 查询执行链
 
-## 查询能力的执行链
+客户端向 `/jobs/status` 提交 `task_id`。认证和 Dispatcher 校验请求，Job Step 通过 `task_index` 读取并返回 `JobResponse`。索引观察文件，读取记录不会执行或修复 Task。
 
-以 `status` 为例：
+## 研究执行链
 
-1. 客户端提交 `task_id` 到 `/jobs/status`。
-2. 协议校验服务凭据，Dispatcher 找到 Job 并验证参数。
-3. Job 执行 `get_status` Step。
-4. Step 从 TaskManager / Repository 查询记录。
-5. 返回包含状态的 `JobResponse.answer`。
+本地 CLI `exec` 发现 Task 注册并解析执行配置，构造 Task 后调用 `TaskExecutor`。同步步骤和子任务在该进程执行。执行器保存 metadata/进度、关闭资源、校验输出并发布终态。CLI 等待完成并返回输出及退出码。
 
-查询不会重新执行 Task。Repository 监听工作区记录变化，向调用者提供当前索引；观察文件变化和执行 worker 是不同职责。
+远程原生命令通过目标的 `cli` Job，在服务工作区启动配置的 AxonX 命令新进程，传输 stdout/stderr 并清理其进程组。定时 `exec` 由 Daemon 启动，在应用服务替换后继续执行。两者的进程所有者不同。
 
-## 研究能力的执行链
+## 应用装配
 
-以 `submit --task demo` 为例：
+`Application` 在局部 registry 中装配 provider，注入有类型的依赖，按拓扑顺序启动受管理组件并逆序关闭。框架扩展通过 `providers=...` 提供。启动层显式注入 TaskCatalog、更新后端和定时命令启动器。嵌入式应用可省略产品适配器，Cron 需要宿主启动器。
 
-1. `submit_task` Step 将结构化参数编码成 Task 命令参数。
-2. 本机 TaskManager 校验任务定义与身份，创建 queued 记录，启动独立子进程。
-3. Job 返回含 `task_id`、`run_id`、注册名的 TaskHandle。
-4. worker 解析 typed input，顺序执行同步步骤并写进度、状态和日志。
-5. 在 `metadata.json` 中原子发布 typed output 与终态。
-6. 客户端通过 `wait_task` 确认终态，通过文件或研究页面读取结果。
+## 插件与 Agent
 
-`axonx exec` 直接在当前 CLI 进程运行同一种 Task，不走 HTTP 或常驻 TaskManager。进程隔离方便取消和异常对账，并不等于代码安全沙箱。
+插件 manifest 只注册 Task。安装修改所选 Python 环境，不刷新常驻服务的注册快照或已缓存类。远程部署显式构建、上传、安装、清理，然后重启验证。
 
-## Application 装配
-
-Application 根据配置与注册表创建 Component、Job 和 Scheduler。组件通过 `depend` 声明依赖，由应用按拓扑顺序启动；正常退出按依赖反序关闭，启动中失败会回滚已启动对象。
-
-这意味着配置中的组件名称具有实际引用意义。例如 TaskManager 的 `task_repository: default` 绑定同名 Repository；同步组件也可依赖这份 Repository。把组件删掉却保留引用会导致启动失败，而不是自动采用其他后端。
-
-常驻服务在 ASGI lifespan 中管理 Application。服务退出会进入关闭流程，TaskManager 停止它管理的 worker；文件保存了状态，但没有通用的断点续跑机制。
-
-## 插件与 Agent 的位置
-
-插件通过已安装 Python distribution 的入口点和 `plugin.yaml` 提供 Task、Component 和 Job。Task 类型及其输入输出 Schema 来自插件类，具体量化算法由插件实现。Component 和 Job 在应用装配时加载；通过安装 Job 更新仅含 Task 的 wheel 可刷新实际定义与后续提交，直接 pip／源码改动及标记 `restart_required` 的变更需重启服务。
-
-AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询。模型／工具循环与会话上下文由外部 Agent 宿主或内置 Claude Agent SDK 后端管理。具备 Skill 或开发指南、源码访问及代码工具时，两条 Agent 路径均可开发插件，并以 Task 证据驱动迭代。内置 Agent 是组件能力之一，实际能力取决于 Job 工具、SDK 工具、运行目录和权限模式。研究任务可独立于 Agent 执行。
-
-远程服务是另一个完整 Application，拥有自己的插件环境、worker 和工作区。Studio 的远程操作经本机后端转发，CLI 的显式 `--target` 则直接连接目标。
+Agent 通过 CLI 或已配置的 Job 工具检查相同证据。内置 Claude 后端管理 SDK 会话并附加规范开发指南。研究执行独立于 Agent 对话轮次。
 
 ## 设计边界
 
-- `source_tasks` 表示记录中的上游关系；框架不会据此自动执行整条 DAG。
-- Repository 的索引可从记录重建，产物文件和插件环境必须另外保留。
-- 同步复制终态 Task 目录，不迁移活跃 worker，也不复制整个工作区。
-- 资源查询提供机器读数，不负责自动选机或 GPU 调度。
+- `upstream_task_ids` 声明输入依赖，`parent_task_id`/`children` 记录调用，都不自动执行整个 DAG。
+- Task 查询属于观察，运行时启动和停止负责修正确认已退出的本机进程。
+- 同名写入由调用方协调，metadata 原子替换不是锁。
+- 展示同步复制有大小限制的证据，不迁移活动进程、环境或整个工作区。
+- 每个目标有独立解释器、文件和配置。显式 CLI target 直接连接，Studio 可通过已配置的后端转发。
 
-## 继续阅读
-
-- [Job 与 Task](jobs-and-tasks.md)：两种执行抽象与选择原则。
-- [工作区](workspace.md)：文件格式和恢复边界。
-- [远程机器](../guides/remote-machines.md)：两条远程调用路径。
-- [框架扩展](../development/framework-extensions.md)：组件与编排扩展。
-
-实现入口：[Application](../../../axonx/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/components/service/http/app.py)。
+[Job 与 Task](jobs-and-tasks.md) · [Task 契约](../reference/task-contracts.md) · [框架扩展](../development/framework-extensions.md)

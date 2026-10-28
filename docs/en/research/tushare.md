@@ -48,13 +48,13 @@ Select `download_tushare_task` in **Submit task**. The form displays dates, cale
 Dates accept `YYYYMMDD` and ISO formats; eight-digit integer dates from the CLI are converted back to strings. Date ranges enumerate calendar days. No file is written when a holiday request returns empty data. `days_back` counts calendar days, not trading days.
 
 ```bash
-axonx submit --task download_tushare_task --days-back 7
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task --days-back 7
+axonx exec --task download_tushare_task \
   --start-date 20230101 --end-date 20231231 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-Retain the TaskHandle after submission and call `wait_task` to confirm completion. Long ranges may require many requests. Set client wait timeout and individual API timeout separately; see the [research workflow](workflow.md).
+Exec waits for completion. Inspect its exit code and full metadata; for separate observation use wait_task with the Task ID. Long downloads require independent API and client timeout settings.
 
 ## Dataset groups
 
@@ -73,7 +73,7 @@ Weight queries call the API for covered months; month boundaries may extend beyo
 To update only market data:
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20240101 --end-date 20240131 \
   --datasets 'daily,adj_factor'
 ```

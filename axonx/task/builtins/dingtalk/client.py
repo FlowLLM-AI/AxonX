@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from contextlib import nullcontext
 from typing import Literal
 
 import httpx
@@ -46,6 +48,17 @@ class DingTalkClient:
         self.timeout = timeout
         self.client = client
 
+    @classmethod
+    def from_env(cls, *, timeout: float = 10.0) -> DingTalkClient:
+        """Read application credentials and named conversations from the environment."""
+        conversations = _conversation_ids(_required_env("DINGTALK_CONVERSATIONS"))
+        return cls(
+            _required_env("DINGTALK_CLIENT_ID"),
+            _required_env("DINGTALK_CLIENT_SECRET"),
+            conversations,
+            timeout=timeout,
+        )
+
     def send(
         self,
         title: str,
@@ -60,9 +73,7 @@ class DingTalkClient:
         if message_type not in messages:
             raise ValueError(f"Unsupported message type: {message_type}")
 
-        client = self.client or httpx.Client(timeout=self.timeout)
-        owned = self.client is None
-        try:
+        with nullcontext(self.client) if self.client is not None else httpx.Client(timeout=self.timeout) as client:
             token = self._access_token(client)
             msg_key, msg_param = messages[message_type]
             keys: list[str] = []
@@ -89,9 +100,6 @@ class DingTalkClient:
             if failures:
                 raise RuntimeError("Failed to send DingTalk message: " + "; ".join(failures))
             return tuple(keys)
-        finally:
-            if owned:
-                client.close()
 
     def _access_token(self, client: httpx.Client) -> str:
         try:
@@ -106,3 +114,36 @@ class DingTalkClient:
         if not isinstance(token, str) or not token:
             raise RuntimeError("DingTalk access token response did not contain a token")
         return token
+
+
+def _required_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ValueError(f"Missing required environment variable: {name}")
+    return value
+
+
+def _conversation_ids(value: str) -> tuple[str, ...]:
+    try:
+        conversations = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError("DINGTALK_CONVERSATIONS must be a JSON object") from exc
+    if not isinstance(conversations, dict) or not conversations:
+        raise ValueError("DINGTALK_CONVERSATIONS must be a non-empty JSON object")
+    if any(not isinstance(key, str) or not key.strip() for key in conversations):
+        raise ValueError("DINGTALK_CONVERSATIONS keys must be non-empty strings")
+    identifiers = tuple(conversations.values())
+    if any(not isinstance(item, str) or not item.strip() for item in identifiers):
+        raise ValueError("DINGTALK_CONVERSATIONS values must be non-empty strings")
+    return tuple(dict.fromkeys(item.strip() for item in identifiers))
+
+
+def send_dingtalk_message(
+    title: str,
+    text: str,
+    message_type: DingTalkMessageType = "markdown",
+    *,
+    timeout: float = 10.0,
+) -> tuple[str, ...]:
+    """Send a message using validated environment configuration."""
+    return DingTalkClient.from_env(timeout=timeout).send(title, text, message_type)

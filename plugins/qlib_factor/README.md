@@ -25,6 +25,8 @@ Global moments are available after T close and shared by every stock that day; m
 
 Beta uses the preceding 60 market dates through T−1, with at least 30 paired stock/market returns. Stock daily returns use contemporaneous 2%/98% winsorization; the market return is their equal-weight mean. Beta is covariance divided by market variance, clipped to [−3,3]; variance ≤1e−12 leaves it undefined. Neutral momentum subtracts prior beta times compounded market returns from the stock's 5/10/20-day return. Residual volatility is the 20-day sample standard deviation of stock return minus prior beta × market return; downside risk is sqrt(mean(min(stock return,0)²)). Both risk windows require 16 valid observations out of 20. All stock features remain null when the current quote is invalid.
 
+Requires AxonX 0.3.0 and the current upstream research plugins. Upgrade them together; old interfaces and artifact formats are not converted.
+
 ## Install and run
 
 Research plugins are not published to PyPI. Install the AxonX core and clone the repository; run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
@@ -37,28 +39,30 @@ axonx plugin install -e plugins/qlib_factor
 Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes. Omit `-e` for fixed-version experiments. Deploy remotely with ordinary installation, installing upstream plugins in order on the same target service; configure `AXONX_TARGET_TOKEN` first and replace the example address below:
 
 ```bash
-axonx plugin install plugins/qlib_a158 --target http://research.example:1024
-axonx plugin install plugins/qlib_factor --target http://research.example:1024
-axonx get_task_definition --task qlib_factor_train --target http://research.example:1024
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+axonx get_task_def --task qlib_factor_train --target http://research.example:1024
 
-axonx submit --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
-axonx submit --task qlib_factor_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
+axonx exec --task qlib_factor_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank --parameter-preset axonx \
   --context-groups risk --feature-fraction 1.0 --target http://research.example:1024
-axonx submit --task qlib_factor_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_factor_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_factor_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --as-of-date 20261008 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes require restart. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
+Save each returned Task ID and start time and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task IDs and start times and stop on installation or verification failures. [Qlib Alpha158](../qlib_a158/README.md)
 
 ## Experiments
 
 Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
 
-AxonX owns protocol v1 in `axonx.task.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
+AxonX owns protocol v1 in `axonx.task.models.artifacts`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Plugins own feature contracts and semantic fingerprints; AxonX provides verified model snapshots. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
 
 Backtests now publish **all market** (`all`) and **CSI 300** (`hs300`) as independent reports in one Task. Studio provides a universe dropdown, including independent selections in strategy comparison. Positive signal-time `index_weight_hs300` defines CSI 300 membership. The backtest schema uses `default_universe`, `universes` and a shared artifact registry; regenerate old backtests.

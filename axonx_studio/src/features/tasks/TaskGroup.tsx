@@ -1,74 +1,26 @@
-import { useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ACTIVE, STATES, type TaskGroupData } from "./groups";
-import { formatDate } from "./format";
+import type { TaskSummary } from "../../shared/api/contracts";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
+import { STATES, type TaskGroupData } from "./model";
 import { TaskRow } from "./TaskRow";
-import type { TaskSummary } from "./types";
 
 interface GroupProps {
   group: TaskGroupData;
   filterKey: string;
-  selectionMode: boolean;
-  selected: Set<string>;
-  onToggle: (ids: string[]) => void;
   onOpenTask: (taskId: string) => void;
-  onGroupContextMenu: (event: React.MouseEvent<HTMLElement>) => void;
-  onContextMenu: (
-    task: TaskSummary,
-    event: React.MouseEvent<HTMLTableRowElement>,
-  ) => void;
-}
-
-export function GroupSelection({
-  ids,
-  selected,
-  onToggle,
-  label,
-}: {
-  ids: string[];
-  selected: Set<string>;
-  onToggle: (ids: string[]) => void;
-  label: string;
-}) {
-  const count = ids.filter((id) => selected.has(id)).length;
-  return (
-    <input
-      type="checkbox"
-      aria-label={label}
-      checked={ids.length > 0 && count === ids.length}
-      disabled={!ids.length}
-      ref={(input) => {
-        if (input) input.indeterminate = count > 0 && count < ids.length;
-      }}
-      onChange={() => onToggle(ids)}
-    />
-  );
 }
 
 export function TaskGroup(props: GroupProps) {
-  const { group, filterKey, selectionMode, selected, onToggle } = props;
+  const { group, filterKey } = props;
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(group.active > 0);
   const latest = group.tasks[0];
   const label = group.label || group.key;
-  const ids = group.tasks
-    .filter((task) => !ACTIVE.has(task.state))
-    .map((task) => task.task_id);
   return (
     <section className={`task-group ${expanded ? "expanded" : ""}`}>
-      <header
-        className="task-group-header"
-        onContextMenu={props.onGroupContextMenu}
-      >
-        {selectionMode && (
-          <GroupSelection
-            ids={ids}
-            selected={selected}
-            onToggle={onToggle}
-            label={t("taskGroups.selectGroup", { group: label })}
-          />
-        )}
+      <header className="task-group-header">
         <button
           className="task-group-toggle"
           aria-expanded={expanded}
@@ -123,14 +75,9 @@ export function TaskGroup(props: GroupProps) {
 
 const PAGE_SIZE = 50;
 
-export function TaskTableColumns({
-  selectionMode,
-}: {
-  selectionMode: boolean;
-}) {
+export function TaskTableColumns() {
   return (
     <colgroup>
-      {selectionMode && <col className="select-column" />}
       <col className="task-id-column" />
       <col className="state-column" />
       <col className="progress-column" />
@@ -140,18 +87,11 @@ export function TaskTableColumns({
   );
 }
 
-export function TaskTableHeading({
-  selectionMode,
-  className,
-}: {
-  selectionMode: boolean;
-  className?: string;
-}) {
+export function TaskTableHeading({ className }: { className?: string }) {
   const { t } = useTranslation();
   return (
     <thead className={className}>
       <tr>
-        {selectionMode && <th className="select-column" />}
         <th className="task-id-column" scope="col">
           {t("taskGroups.name")}
         </th>
@@ -175,11 +115,7 @@ export function TaskTableHeading({
 function GroupTable({
   group,
   tasks: members,
-  selectionMode,
-  selected,
-  onToggle,
   onOpenTask,
-  onContextMenu,
   expanded,
 }: GroupProps & { expanded: boolean; tasks: TaskSummary[] }) {
   const { t } = useTranslation();
@@ -192,21 +128,14 @@ function GroupTable({
     <div className="task-group-members">
       <div className="table-wrap">
         <table aria-label={group.label || group.key}>
-          <TaskTableColumns selectionMode={selectionMode} />
-          <TaskTableHeading
-            selectionMode={selectionMode}
-            className="task-member-heading"
-          />
+          <TaskTableColumns />
+          <TaskTableHeading className="task-member-heading" />
           <tbody>
             {tasks.map((task) => (
               <TaskRow
                 key={task.task_id}
                 task={task}
-                selectionMode={selectionMode}
-                selected={selected.has(task.task_id)}
-                onSelect={() => onToggle([task.task_id])}
                 onOpen={() => onOpenTask(task.task_id)}
-                onContextMenu={(event) => onContextMenu(task, event)}
               />
             ))}
           </tbody>

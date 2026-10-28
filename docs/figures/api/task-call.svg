@@ -1,32 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="373" viewBox="0 0 1056 373" role="img" aria-labelledby="title desc" aria-label="Task acceptance and Task completion">
-  <title id="title">Task acceptance and Task completion</title>
-  <desc id="desc">Save task_id and run_id on acceptance, wait for final Task status, then read successful metadata and artifacts.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1040.0" height="357.0" rx="30" fill="#f4f8fc" stroke="#173653" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#173653">
-      <text text-anchor="start" x="44" y="52" font-size="32" font-weight="700">Task acceptance and Task completion</text>
-      <rect x="50.0" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="149.375" y="137" text-anchor="middle" font-size="20">submit</text>
-      <text x="149.375" y="169" text-anchor="middle" font-size="20">TaskHandle</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M252.75 155H278.75" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="283.75" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="383.125" y="137" text-anchor="middle" font-size="20">Keep both IDs</text>
-      <text x="383.125" y="169" text-anchor="middle" font-size="20">task_id + run_id</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M486.5 155H512.5" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="517.5" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="616.875" y="137" text-anchor="middle" font-size="20">wait_task</text>
-      <text x="616.875" y="169" text-anchor="middle" font-size="20">Terminal status</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M720.25 155H746.25" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="751.25" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="850.625" y="137" text-anchor="middle" font-size="20">Read artifacts</text>
-      <text x="850.625" y="169" text-anchor="middle" font-size="20">metadata.json</text>
-      <text x="500.0" y="260.0" font-size="19" text-anchor="middle">Task ID names the directory; run_id identifies this execution.</text>
-    </g>
-    <path d="M 44 232 H 956" fill="none" stroke="#173653" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="380" viewBox="0 0 1320 380" role="img" aria-labelledby="title desc">
+<title id="title">Execute, observe and verify a Task</title>
+<desc id="desc">Remote execution uses the cli Job; queries read the current metadata.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L8 5 L1 9" fill="none" stroke="#526176" stroke-width="1.7"/></marker></defs>
+<rect x="8" y="8" width="1304" height="364" rx="22" fill="#faf9f5" stroke="#364152" stroke-width="2"/>
+<g font-family="Comic Sans MS, Chalkboard SE, Comic Neue, cursive" fill="#243349">
+<text x="36" y="51" font-size="28">Execute, observe and verify a Task</text>
+<rect x="36.0" y="91" width="295.5" height="205" rx="16" fill="#e8f2f4" stroke="#687587" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="53.0" y="125" font-size="21" font-weight="bold">Discover schema</text>
+<text x="53.0" y="167" font-size="16">get_task_def reads the</text>
+<text x="53.0" y="191" font-size="16">service catalog; choose a</text>
+<text x="53.0" y="215" font-size="16">Task registration.</text>
+<path d="M334.5 193 H349.5" fill="none" stroke="#526176" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="353.5" y="91" width="295.5" height="205" rx="16" fill="#f1ebf8" stroke="#687587" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="370.5" y="125" font-size="21" font-weight="bold">Execute command</text>
+<text x="370.5" y="167" font-size="16">cli argv starts exec; wait</text>
+<text x="370.5" y="191" font-size="16">for output and process exit</text>
+<text x="370.5" y="215" font-size="16">code.</text>
+<path d="M652.0 193 H667.0" fill="none" stroke="#526176" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="671.0" y="91" width="295.5" height="205" rx="16" fill="#eaf3e8" stroke="#687587" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="688.0" y="125" font-size="21" font-weight="bold">Observe Task</text>
+<text x="688.0" y="167" font-size="16">status, logs and wait_task</text>
+<text x="688.0" y="191" font-size="16">read task_id and guard</text>
+<text x="688.0" y="215" font-size="16">execution start time.</text>
+<path d="M969.5 193 H984.5" fill="none" stroke="#526176" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="988.5" y="91" width="295.5" height="205" rx="16" fill="#fff0dd" stroke="#687587" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="1005.5" y="125" font-size="21" font-weight="bold">Read evidence</text>
+<text x="1005.5" y="167" font-size="16">Inspect output_params,</text>
+<text x="1005.5" y="191" font-size="16">artifact revisions and</text>
+<text x="1005.5" y="215" font-size="16">business quality results.</text>
+<text x="36" y="329" font-size="16">Record target, workspace, task_id and started_at. A dropped execution connection requires inspection before retrying.</text>
+</g></svg>

@@ -1,8 +1,6 @@
-import { assetUrl, playground } from "./environment";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  ChevronRight,
   ChevronDown,
+  ChevronRight,
   Languages,
   Menu,
   Moon,
@@ -11,28 +9,26 @@ import {
   Settings2,
   Sun,
 } from "lucide-react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
+import type { MachineNode } from "../features/runtime/machine";
 import { changeLanguage } from "../i18n";
-import { RailResizer } from "../shared/ui/RailResizer";
 import { formatMachineAddress } from "../shared/lib/format";
-import type { ContextOption, ThemePreference } from "./types";
-import type { MachineNode } from "../features/machines/types";
+import { RailResizer } from "../shared/ui/RailResizer";
+import { assetUrl, playground } from "./environment";
 import {
-  configuredNavigation,
+  navigationGroups,
   navigationItemForRoute,
+  navigationItems,
   researchSections,
 } from "./navigation";
-import { defaultRoute } from "./routes";
-import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
 import type { AppRoute } from "./routes";
+import { defaultRoute } from "./routes";
+import type { ContextOption, ThemePreference } from "./types";
 import type { SidebarState } from "./useStudio";
 
-import type { StudioPage } from "../shared/api/contracts";
-
 interface AppShellProps {
-  operationPages: StudioPage[];
-  operationPagesError: string;
-  reloadOperationPages: () => unknown;
   children: ReactNode;
   route: AppRoute;
   theme: ThemePreference;
@@ -53,9 +49,6 @@ interface AppShellProps {
 export function AppShell(props: AppShellProps) {
   const {
     children,
-    operationPages,
-    operationPagesError,
-    reloadOperationPages,
     route,
     theme,
     setTheme,
@@ -93,9 +86,7 @@ export function AppShell(props: AppShellProps) {
     }
     return {};
   });
-  const navigationGroups = configuredNavigation(operationPages, language);
-  const navigationItems = navigationGroups.flatMap((group) => group.items);
-  const section = navigationItemForRoute(route, navigationItems);
+  const section = navigationItemForRoute(route);
   const activeGroup = navigationGroups.find((group) =>
     group.items.some(
       (item) => item.id === section.id && item.route.section === route.section,
@@ -133,7 +124,7 @@ export function AppShell(props: AppShellProps) {
   const workspaceFileSelected =
     route.section === "workspace" &&
     resourceOption &&
-    resourceOption.detail !== t("workspace.folder");
+    resourceOption.kind === "file";
   const taskDetail = route.section === "runtime" && route.view === "task";
   const finalLabel =
     route.resource &&
@@ -146,7 +137,7 @@ export function AppShell(props: AppShellProps) {
           : route.section === "apis"
             ? t("shell.apiCall")
             : route.section === "task-defs"
-              ? t("shell.configureSubmit")
+              ? t("shell.taskDefinitions")
               : undefined);
 
   return (
@@ -304,15 +295,6 @@ export function AppShell(props: AppShellProps) {
           className={`primary-rail ${sidebar.mobileOpen ? "mobile-open" : ""}`}
         >
           <nav>
-            {operationPagesError && (
-              <button
-                className="error-state"
-                onClick={() => void reloadOperationPages()}
-                title={operationPagesError}
-              >
-                {t("operations.loadError")} · {t("retry")}
-              </button>
-            )}
             {navigationGroups.map((group) => (
               <div
                 className={`primary-nav-group group-${group.id}`}

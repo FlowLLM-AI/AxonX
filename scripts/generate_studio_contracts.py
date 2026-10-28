@@ -6,65 +6,72 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from axonx.config.models import StudioPage
-from axonx.components.scheduler.history import ScheduleRun
-from axonx.components.agent.contracts import AgentHistoryBlock, AgentMutationResult, AgentSession, AgentSessionInfo
-from axonx.components.job.contracts import JobResponse, JobInfo, JobCatalog
-from axonx.components.job.events import (
-    AgentBlockPatch,
-    AgentMessageEvent,
-    LogEvent,
-    ProgressEvent,
-    ArtifactEvent,
-    ResultEvent,
+from axonx.app.components.agent.models import (
+    AgentHistoryBlock,
+    AgentMutationResult,
+    AgentSession,
+    AgentSessionInfo,
 )
-from axonx.task.query.summary import TaskSummary, TaskView
-from axonx.task.query.graph import TaskGraph
-from axonx.task.contracts.compare import PredictionComparison, BasePredictionCompareOutputParams
-from axonx.task.contracts.windows import WindowOutputParams
-from axonx.task.contracts.inference import BaseInferenceOutputParams
-from axonx.task.builtins.stock.backtest import StockBacktestOutput
-from axonx.task.builtins.stock.data import StockETLOutput
-from axonx.logs import LogChunk
-from axonx.progress import TaskStepStatus
-from axonx.steps.machine.contracts import MachineInfo
-from axonx.task.artifact import ArtifactRecord
-from axonx.task.catalog.resolver import TaskDefinition
-from axonx.task.contracts import (
-    BaseAnalysisOutputParams,
-    BaseBacktestOutputParams,
-    BaseETLOutputParams,
-    BasePredictOutputParams,
-    BaseTrainOutputParams,
-    OnlineCommit,
-    OnlineHistory,
-    StockOnlineReport,
-    StockReportSettings,
-    TrainingCurve,
-    WindowResult,
+from axonx.app.components.machine.models import (
+    BuildInfo,
+    MachineDiagnostics,
+    MachineInfo,
 )
-from axonx.task.contracts.submission import TaskHandle
-from axonx.task.storage.workspace import TaskMetadata
-from axonx.utils.build_info import BuildInfo
-from axonx.workspace.models import (
+from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
-    FileCopy,
     JsonlPreview,
     MarkdownPreview,
     ParquetPreview,
-    StagedFile,
     StructuredPreview,
     TextPreview,
     UnsupportedPreview,
     WorkspaceListing,
 )
+from axonx.client.events import (
+    AgentBlockPatch,
+    AgentMessageEvent,
+    ArtifactEvent,
+    ResultEvent,
+)
+from axonx.client.models import JobCatalog, JobInfo, JobResponse, StagedFile
+from axonx.task.builtins.stock.models import (
+    StockBacktestOutput,
+    StockETLOutput,
+    StockOnlineReport,
+    StockReportSettings,
+)
+from axonx.task.models.artifacts import ArtifactRecord
+from axonx.task.models.events import LogChunk, LogEvent, ProgressEvent
+from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
+from axonx.task.models.params import (
+    BaseAnalysisOutputParams,
+    BaseBacktestOutputParams,
+    BaseETLOutputParams,
+    BaseInferenceOutputParams,
+    BasePredictionCompareOutputParams,
+    BasePredictOutputParams,
+    BaseTrainOutputParams,
+    WindowOutputParams,
+)
+from axonx.task.models.query import (
+    TaskContextSnapshot,
+    TaskDefinition,
+    TaskGraph,
+    TaskSummary,
+)
+from axonx.task.models.reports import (
+    OnlineCommit,
+    OnlineHistory,
+    PredictionComparison,
+    TrainingCurve,
+    WindowResult,
+)
 
 MODELS = [
-    StudioPage,
-    ScheduleRun,
+    TaskContextSnapshot,
+    MachineDiagnostics,
     TaskSummary,
-    TaskView,
     TaskGraph,
     JobResponse,
     JobInfo,
@@ -82,13 +89,11 @@ MODELS = [
     BaseInferenceOutputParams,
     StockBacktestOutput,
     StockETLOutput,
-    TaskHandle,
     TaskMetadata,
     TaskDefinition,
     MachineInfo,
     WorkspaceListing,
     DeletedEntry,
-    FileCopy,
     StagedFile,
     UnsupportedPreview,
     TextPreview,
@@ -142,9 +147,13 @@ def typescript(schema):
             additional = schema.get("additionalProperties", {})
             result = f"Record<string, {typescript(additional) if isinstance(additional, dict) else 'unknown'}>"
         return result
-    return {"string": "string", "integer": "number", "number": "number", "boolean": "boolean", "null": "null"}.get(
-        kind, "unknown"
-    )
+    return {
+        "string": "string",
+        "integer": "number",
+        "number": "number",
+        "boolean": "boolean",
+        "null": "null",
+    }.get(kind, "unknown")
 
 
 def render():

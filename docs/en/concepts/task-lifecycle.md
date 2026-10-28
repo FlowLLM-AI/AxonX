@@ -1,85 +1,31 @@
-# Task Identity and Lifecycle
+# Task Lifecycle
 
-A Task ID identifies a task directory in the workspace; `run_id` identifies one execution. Submission acceptance, a terminal execution state, and publication of successful artifacts are separate stages. To determine the outcome correctly, save the handle returned by submission and check the final status.
+![Current Task lifecycle](../../figures/concepts/lifecycle.svg)
 
-![Task lifecycle](../../figures/concepts/lifecycle.svg)
+## Names and execution identity
 
-## Three Names and One Execution Identifier
+`task_type`, registration and `task_name` form `type#registration#instance`. The current execution is identified by metadata `started_at`. Runtime ownership uses `machine_id`, `pid`, `process_started_at`, optional reachable `execution_target`, and source `workspace_dir`.
 
-| Field                | Meaning                                                 | Example                 |
-| -------------------- | ------------------------------------------------------- | ----------------------- |
-| Registered Task name | Finds the definition and input schema                   | `demo`                  |
-| input.task_name      | Instance name specified by the user                     | `trial-01`              |
-| task_id              | Combination of type, registered name, and instance name | `base#demo#trial-01`    |
-| run_id               | Identifier generated independently for each execution   | UUID hexadecimal string |
+## State meanings
 
-`task_name` allows 1–32 English letters, digits, or hyphens. If omitted or passed as an empty string, the framework uses a name with an hourly timestamp prefix and random suffix. Keep the `#` characters in Task IDs and quote them in the shell.
+Task states are `running`, `succeeded`, `failed`. A successful result has exit code 0. Process termination and exceptions lead to failure; individual step states also include pending, waiting, done, missed and skipped. A business window can be incomplete without the entire Task failing.
 
-The unified record stores the definition registration in `metadata.reg_name`, and the resolved instance name in `metadata.input_params.task_name`. New records also persist the execution machine's stable `machine_id` and the process instance's `process_started_at`; queued records identify the launcher until the worker takes over. At service startup and before named submission, this machine's confirmed interrupted Runs are settled as failed. Legacy records without machine identity are failed when their execution lock is free, with a five-minute handoff grace period for recently created queued records. Other-machine records are left unchanged. See [Logs and recovery](../guides/operations.md) for recovery boundaries.
+## Step progress
 
-## State Meanings
+The executor runs synchronous callables from `build_task_steps()`, records their progress and timings, and closes resources before building final output. `report_progress()` supports named substeps; stop background producers before lifecycle completion. `publish_output()` persists a validated partial output.
 
-| state     | Meaning                                               | Terminal? |
-| --------- | ----------------------------------------------------- | --------- |
-| queued    | Accepted, awaiting worker handoff or execution        | No        |
-| running   | Executing synchronous steps                           | No        |
-| succeeded | Steps and output completed; exit code is 0            | Yes       |
-| failed    | Exception, nonzero exit code, or abnormal worker exit | Yes       |
-| cancelled | Stopped by cancellation or manager shutdown           | Yes       |
+## Lifecycle record publication
 
-The typical transition is queued → running → succeeded. Both queued and running can transition to cancelled; step exceptions, output validation failures, or nonzero exits can lead to failed.
+`metadata.json` is the current lifecycle document. Atomic replacement publishes complete snapshots; a step event journal supports observation. Final metadata contains typed business output and terminal state together. There is no directory coordination lock: callers serialize same-name execution and concurrent mutations.
 
-`submit` does not implement a resource queue scheduler: queued is an acceptance and handoff state, so it does not imply scheduling by GPU, priority, or quota.
+## Rerunning a fixed name
 
-## Step Progress
+The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer.
 
-The `steps` field in status stores the name, start/end times, and percentage of each step that has started. A Task can call `report_progress(percentage)` within a step:
+## Waiting and termination
 
-- The value must be between 0 and 100.
-- Progress cannot go backward within the same step.
-- Normal step completion automatically records 100.
-- A failed step has an end time, but may not reach 100.
+`wait_task` captures the current `started_at` internally and fails if it changes. Queries do not reconcile stale running states. Startup checks and explicit `kill` can settle confirmed dead local records. Permission errors and foreign processes remain unverified.
 
-The step generator can dynamically yield subsequent steps based on intermediate state, so the current number of steps may not be the final total. “Executed steps / current step count” is not a reliable overall task percentage.
+`axonx kill --task-id ID --timeout 5 --force false` verifies identity, stops descendants and the root execution, and rereads records. Children share the root's process. Remote kill uses the source machine and workspace, not a replica observer's mount path. No observation or deletion should be treated as process termination.
 
-## Lifecycle Record Publication
-
-The queued record is created in `metadata.json` when execution is accepted. The Runner updates the same record as it starts steps, reports progress, and records child invocations. Once synchronous steps and resource cleanup complete, it prepares `output_params`, determines the exit code, and atomically publishes the terminal state and output together.
-
-Failed and cancelled tasks retain this same metadata record, including errors and child snapshots. Before output preparation, `output_params` is empty; a nonzero exit may retain constructed output. Studio research pages select `state=succeeded`, while status queries include every state. Progress events are appended before the matching metadata snapshot is published.
-
-## Rerunning a Fixed Name
-
-```bash
-axonx submit --task demo --task-name trial-01 --x 1 --y 2
-# Submit the same experiment name only after the previous run reaches a terminal state
-axonx submit --task demo --task-name trial-01 --x 2 --y 3
-```
-
-A fixed name corresponds to the same Task ID. A new execution can replace a finished task: run-owned artifacts are cleared while `persistent/` is retained. An active task cannot be overwritten.
-
-Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; display synchronization atomically replaces the target Task directory with selected outputs. `persistent/` must be a regular directory, not a symlink.
-
-Use different names such as `trial-01` and `trial-02`, or generated default names, when comparing experiments with different parameters. Rerunning the same name does not preserve a complete history in one directory; recovery requires a prior backup.
-
-## Waiting and Cancellation
-
-`wait_task` requires `task_id` and `run_id` to avoid reading another execution's result after a directory has been reused. `stream_task` continuously follows status and logs by Task ID and suits live observation; keep the handle when you need to confirm a specific execution's identity.
-
-```bash
-axonx status --task-id 'base#demo#trial-01'
-axonx cancel --task-id 'base#demo#trial-01'
-axonx cancel --run-id '<run_id>'
-```
-
-Cancellation accepts either ID: `task_id` cancels the current execution selected under the manager lock; `run_id` cancels exactly the execution returned by submission or status, without targeting a replacement Run. Supplying both checks the current Task/Run pair; a mismatch returns false. Unknown IDs also return false. An active Run that the selected manager does not own raises an error because termination cannot be confirmed. If a task finishes quickly, cancellation may return false; this is normal under a race condition. Service shutdown also stops its managed workers and records affected runs as cancelled.
-
-File records can restore query information, but cannot automatically restore the in-memory state of an interrupted Python process.
-
-[Composite Tasks](../guides/composite-tasks.md) run children synchronously in the parent's worker. Children inherit the parent's instance name; repeated calls of the same registration reuse its Task ID and replace terminal outputs, while each invocation has a new run ID. Cancel the parent to stop that worker; the manager settles its active children as cancelled, while an unexpected worker exit settles them as failed. Successful children retain their metadata even when the parent fails, until a later invocation replaces it. Continuing after a child failure still makes the parent fail, and a later successful attempt does not erase an earlier failed invocation record.
-
-## Related Documentation
-
-[Task Management](../guides/task-management.md) · [Workspace](workspace.md) · [Logs and Recovery](../guides/operations.md) · [Task Contracts](../reference/task-contracts.md)
-
-Source: [Identity rules](../../../axonx/task/core/identity.py), [TaskRunner](../../../axonx/task/runtime/runner.py), [TaskManager](../../../axonx/components/task_manager/local/manager.py).
+[Task contracts](../reference/task-contracts.md) · [Task management](../guides/task-management.md)

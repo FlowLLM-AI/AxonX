@@ -22,7 +22,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 替换为可用提供方的凭据、Claude 兼容地址和模型名。CLI 会发现当前目录或父目录中的 `.env`，已有环境变量优先。配置完整示例见 [example.env](../../../example.env)。
 
-运行 `axonx start`，在 Studio 设置本机服务 token，再进入 **Agent**。服务已经运行时，修改 `.env` 后需重启。默认配置已启用 Agent 组件，无需先创建 YAML。后续章节用于调整工具、指南、存储和 SDK 选项。
+运行 `axonx app`，在 Studio 设置本机服务 token，再进入 **Agent**。服务已经运行时，修改 `.env` 后需重启。默认配置已启用 Agent 组件，无需先创建 YAML。后续章节用于调整工具、指南、存储和 SDK 选项。
 
 外部 Agent 由宿主管理模型环境，见[外部 Agent](external.md)。
 
@@ -69,7 +69,7 @@ components:
       load_dev_guide: false
 ```
 
-`load_dev_guide` 默认是 `true`，关闭时不读取也不注入指南。开启后，Agent 在启动时读取一次对应语言的完整[开发指南](../dev_guide.md)。修改语言、开关或指南后需重启服务。没有应用上下文时使用 `en`；不支持的语言值会被拒绝。
+`load_dev_guide` 默认是 `true`，关闭时不读取也不注入指南。开启后，Agent 在启动时读取一次对应语言的完整[开发指南](../dev_guide.md)。修改语言、开关或指南后需重启服务。指南语言来自必需的应用上下文。
 
 Claude 后端将指南追加到已有系统提示词，保留 preset 的其他选项和原有 `append` 内容。字符串提示词在原文后追加；未配置提示词时使用 Claude Code preset。对于 `type: file` 提示词，后端以 UTF-8 读取文件并在原文后追加指南；相对路径基于 Agent 的 `cwd` 解析。新建和恢复会话的每一轮都使用启动时加载的同一份指南，不会累积重复内容。
 
@@ -140,7 +140,7 @@ AxonX 把名单中的 Job 映射为 `mcp__axonx__<job-name>`，追加到 SDK `al
 
 可选的八个 Job 示例用于任务和文件查询。`job_tools` 为空时不会注册进程内 AxonX MCP server。`allowed_tools` 的桥接名单不等于 SDK 整体安全策略。SDK 自身文件、命令工具及 project/plugins 可能具备其他能力，尤其默认 `bypassPermissions` 不会把所有动作变成只读。
 
-如果增加 `submit` 或 `cancel`，会改变 Agent 可调用的工作区操作。配置名单是能力授权，需要结合服务账号权限、cwd、SDK 工具和项目设置一起审查实际效果。
+增加 `cli`、`delete_entries` 或维护 Job 会扩大 Agent 可调用的工作区操作；名称以实际目录为准。配置名单是能力授权，需要结合服务账号权限、cwd、SDK 工具和项目设置一起审查实际效果。
 
 ## 会话字段由框架管理
 
@@ -171,6 +171,6 @@ jobs:
 ## 相关文档与实现
 
 - [Agent 使用](usage.md)、[鉴权](../guides/authentication.md)
-- [`默认配置`](../../../axonx/config/default.yaml)
-- [`Claude backend`](../../../axonx/components/agent/claude/backend.py)
-- [`Job 工具桥接`](../../../axonx/components/agent/claude/tools.py)
+- [`默认配置`](../../../axonx/app/config/default.yaml)
+- [`Claude backend`](../../../axonx/app/components/agent/claude/backend.py)
+- [`Job 工具桥接`](../../../axonx/app/components/agent/claude/tools.py)

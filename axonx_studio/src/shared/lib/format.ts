@@ -37,3 +37,44 @@ export function formatDateTime(
     hour12: false,
   }).format(new Date(value));
 }
+
+export const toNumber = (value: unknown): number =>
+  value == null || value === "" ? NaN : Number(value);
+export const formatFixed = (value: unknown, digits = 2): string =>
+  Number.isFinite(toNumber(value)) ? toNumber(value).toFixed(digits) : "—";
+export const formatPercent = (value: unknown): string =>
+  Number.isFinite(toNumber(value))
+    ? `${(toNumber(value) * 100).toFixed(2)}%`
+    : "—";
+export const dateInput = (value: string): string =>
+  `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+export const compactDate = (value: string): string => value.replaceAll("-", "");
+
+export const formatNumber = (value: unknown, digits = 2) => {
+  if (value === null || value === undefined || value === "") return "—";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  if (Math.abs(number) >= 1_000_000)
+    return new Intl.NumberFormat(resolvedLocale(), {
+      notation: "compact",
+      maximumFractionDigits: 2,
+    }).format(number);
+  return number.toLocaleString(resolvedLocale(), {
+    maximumFractionDigits: digits,
+  });
+};
+
+export type ValueFormat = "percent" | "score" | "integer" | "boolean";
+
+export const formatTableValue = (value: unknown, format?: ValueFormat) => {
+  if (value == null || value === "") return "—";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return "—";
+    return format === "percent"
+      ? `${(value * 100).toFixed(2)}%`
+      : format === "score"
+        ? value.toFixed(4)
+        : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+  }
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+};

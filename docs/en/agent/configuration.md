@@ -22,7 +22,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 Use your provider's credentials, Claude-compatible URL, and available model name. The CLI discovers `.env` in the current directory or its parents; existing environment variables take precedence. See [example.env](../../../example.env) for complete settings.
 
-Run `axonx start`, set the local service token in Studio, and open **Agent**. Restart an existing service after changing `.env`. The default configuration already enables the agent component, so a custom YAML file is optional. The following sections customize tools, guide loading, storage, and SDK options.
+Run `axonx app`, set the local service token in Studio, and open **Agent**. Restart an existing service after changing `.env`. The default configuration already enables the agent component, so a custom YAML file is optional. The following sections customize tools, guide loading, storage, and SDK options.
 
 External agents use their host's model environment; see [external agents](external.md).
 
@@ -54,7 +54,7 @@ components:
 
 This example explicitly enables eight optional query Job tools. The default configuration leaves `job_tools` commented out and uses the CLI described in the development guide. Ensure `axonx` is executable from the Agent environment and configure the selected service address and token.
 
-This configuration shows the field structure; model and permission settings still inherit their defaults. At service startup, Job names are checked against configured Jobs. The list cannot contain empty strings or duplicates, and a string cannot replace the list.
+Configured Job names must exist in the application. The backend normalizes duplicate tool names; use an explicit list of valid names.
 
 ## Built-in development guide
 
@@ -69,7 +69,7 @@ components:
       load_dev_guide: false
 ```
 
-`load_dev_guide` defaults to `true`; disabled Agents do not read or inject the guide. Enabled Agents read the complete matching [development guide](../dev_guide.md) once at startup. Restart the service after changing the language, switch, or guide. Without an application context, the guide language defaults to `en`. Unsupported language values are rejected.
+`load_dev_guide` defaults to `true`; disabled Agents do not read or inject the guide. Enabled Agents read the complete matching [development guide](../dev_guide.md) once at startup. Restart the service after changing the language, switch, or guide. The guide language comes from the required application context. Unsupported language values are rejected.
 
 The Claude backend appends the guide to the configured system prompt, preserving preset options and existing `append` text. A string prompt receives the guide after its existing content; an omitted prompt uses the Claude Code preset. For a `type: file` prompt, the backend reads the file as UTF-8 and appends the guide to its content; relative paths resolve from the Agent's `cwd`. New and resumed turns receive the same startup-loaded guide without accumulating duplicate text.
 
@@ -140,7 +140,7 @@ AxonX maps listed Jobs to `mcp__axonx__<job-name>` and appends them to the SDK's
 
 The optional eight-Job example queries tasks and files. With an empty `job_tools` list, no in-process AxonX MCP server is registered. The bridge list in `allowed_tools` is not the SDK's overall security policy. The SDK's own file and command tools, along with project/plugins, may provide other capabilities. In particular, the default `bypassPermissions` does not make all actions read-only.
 
-Adding `submit` or `cancel` changes the workspace operations the Agent can call. The configured list grants capabilities; review its actual effect together with service account permissions, cwd, SDK tools, and project settings.
+Adding `cli`, `delete_entries` or maintenance Jobs expands the workspace operations the Agent can call; use names from the live catalog. The configured list grants capabilities; review its actual effect together with service account permissions, cwd, SDK tools, and project settings.
 
 ## Session fields are framework-managed
 
@@ -171,6 +171,6 @@ This page is based on the repository's default configuration and adapter layer; 
 ## Related documentation and implementation
 
 - [Agent usage](usage.md), [Authentication](../guides/authentication.md)
-- [Default configuration](../../../axonx/config/default.yaml)
-- [Claude backend](../../../axonx/components/agent/claude/backend.py)
-- [Job tool bridge](../../../axonx/components/agent/claude/tools.py)
+- [Default configuration](../../../axonx/app/config/default.yaml)
+- [Claude backend](../../../axonx/app/components/agent/claude/backend.py)
+- [Job tool bridge](../../../axonx/app/components/agent/claude/tools.py)
