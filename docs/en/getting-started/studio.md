@@ -8,11 +8,11 @@ Install axonx[studio] or build/install axonx_studio from source, then start `axo
 
 ## Research and development entry points
 
-Current navigation groups are System, Operations, Research and Development. System contains Tasks, machine resources, environment and Workspace. Development contains Task definitions and API interfaces. Research contains Agent and research result pages; Operations groups online, comparison and data-update reports.
+Current navigation groups are System management, Daily operations, Research, and Development tools. System management contains All tasks, Machine resources, Environment, and Workspace. Development tools contains Task definitions and API interfaces. Research contains Agent, research results, and Strategy comparison; Daily operations groups online, comparison, and data-update reports.
 
 ## Execute a Task and inspect details
 
-Open Task definitions, select demo, read its schema and fill x/y plus an optional task_name. Execute launches the service's cli command and displays output. The command connection and persisted metadata are tracked separately. Successful process creation is not success: inspect the terminal command result, Task state and business output. A connection failure is reported separately and should be investigated before retrying.
+Open **Development tools → Task definitions**, select demo, read its schema and fill x/y plus an optional task_name. Execute launches the service's cli command and displays output. The command connection and persisted metadata are tracked separately. Successful process creation is not success: inspect the terminal command result, Task state and business output. A connection failure is reported separately and should be investigated before retrying.
 
 Task details show started_at, steps, logs, children, inputs/outputs and relationships. Stop uses CLI kill after checking the current start identity. Children share the root execution process. Deleting a directory does not stop its writers.
 

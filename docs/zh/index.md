@@ -8,7 +8,7 @@ AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验�
 
 | 目标            | 从这里开始                                                                           | 完成结果                           |
 | --------------- | ------------------------------------------------------------------------------------ | ---------------------------------- |
-| 第一次使用      | [快速开始](getting-started/quickstart.md) → [Studio 入门](getting-started/studio.md) | 提交 demo、等待成功并检查记录      |
+| 第一次使用      | [快速开始](getting-started/quickstart.md) → [Studio 入门](getting-started/studio.md) | 执行 Demo，核对结果、退出码与记录  |
 | 使用 Agent 开发 | [Agent 开发](agent/overview.md) → [Skill 与研究 Prompt](agent/research-prompt.md)    | 准备源码、工具与目标，开始插件开发 |
 | 运行研究基线    | [量化研究](research/overview.md) → [Alpha158 流程](research/workflow.md)             | 从数据到训练、预测与回测           |
 | 实现研究插件    | [开发与运行指南](dev_guide.md) → [插件管理](plugins/management.md)                   | 实现 Task，安装并发现插件          |

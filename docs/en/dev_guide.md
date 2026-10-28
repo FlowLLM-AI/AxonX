@@ -18,6 +18,8 @@ axonx app --service.host 127.0.0.1
 
 Keep that terminal open; use another with the same environment and token. Open `http://127.0.0.1:1024/` and enter the token in Studio settings. Demo needs no market data or model credentials. `axonx` without the `studio` extra installs only the backend.
 
+The startup logo and service console output appear in the foreground terminal and are retained in `workspace_dir/daemon/<identity>/service.log`, including across service restarts. Ctrl+C stops the daemon, service and service-owned manual CLI commands within a total limit of 5 seconds; already launched scheduled commands continue independently, while future schedule triggers stop.
+
 For framework or plugin development, use a source checkout in an activated environment:
 
 ```bash

@@ -25,7 +25,7 @@ When the service enables a token, MCP also requires Bearer authentication. Witho
 
 ## Discover before calling
 
-The tool catalog comes from the running service configuration and may include queries, submission, cancellation, file deletion, Python execution, or plugin installation. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
+The tool catalog comes from the running service configuration and may include queries, file changes, Python execution, and the `cli` command Job. When `cli` is exposed, use its `argv` parameter for Task execution (`exec`), stopping (`kill`), or plugin management (`plugin`). See the [Task API](../api/tasks.md#cli) for command results and process ownership. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
 
 Call MCP `tools/list` first, read the tool Schema, then use `tools/call`. Do not assume that a deployment exposes a tool because its name appears in the documentation. Provide callers only with capabilities needed for the current user task.
 
@@ -56,7 +56,7 @@ async def main():
 asyncio.run(main())
 ```
 
-Pass the service root URL; the client appends `/mcp` itself. Do not add the path twice. This example only queries existing records; it does not submit research tasks or call a model.
+Pass the service root URL; the client appends `/mcp` itself. Do not add the path twice. This example only queries existing records; it does not execute research tasks or call a model.
 
 ## Minimal research query loop
 
@@ -97,7 +97,7 @@ Studio registers these tools when the browser supports `document.modelContext.re
 | ------------------ | -------------------------------------------------------------------------------------------------------- |
 | `list_axonx_tasks` | Return `{ tasks: [...] }` with full Task metadata from the local service hosting the current Studio page |
 
-If the browser lacks this API, registration is simply skipped; other Studio features continue to work. These tools call existing frontend APIs and are not the same protocol entry point as the service `/mcp`. The current implementation does not pass `target`, so it always operates on the local service hosting the page and does not follow Studio's remote machine selection. When unsupported by the browser, they cannot replace an ordinary MCP connection.
+If the browser lacks this API, registration is simply skipped; other Studio features continue to work. This tool calls existing frontend APIs and is not the same protocol entry point as the service `/mcp`. The current implementation does not pass `target`, so it always operates on the local service hosting the page and does not follow Studio's remote machine selection. When unsupported by the browser, it cannot replace an ordinary MCP connection.
 
 The current browser bridge registers only this query tool, with an empty object input schema. Run Tasks through the service `cli` Job or Studio Task definitions. When the page lifecycle ends, AbortSignal ends tool registration.
 

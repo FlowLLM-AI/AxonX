@@ -25,13 +25,13 @@ Prepare source and code tools, then use [Skill and research prompt](research-pro
 | Session records     | Managed by the external host                                           | Managed by AxonX session storage                                        |
 | Reading path        | [External agents](external.md) → [MCP integration](mcp-integration.md) | [Built-in configuration](configuration.md) → [Built-in usage](usage.md) |
 
-External integration does not require `CLAUDE_CODE_*` settings or built-in guide loading. The built-in Agent loads the development guide by default and uses its CLI instructions; the in-process `job_tools` bridge is optional. The public external MCP catalog may include queries, submission, cancellation, and installation. Actual capabilities depend on the selected path's configuration and schemas.
+External integration does not require `CLAUDE_CODE_*` settings or built-in guide loading. The built-in Agent loads the development guide by default and uses its CLI instructions; the in-process `job_tools` bridge is optional. The public external MCP catalog may include queries, file changes, and the `cli` command Job. Task execution, stopping, and plugin installation use its `exec`, `kill`, and `plugin` commands. Actual capabilities depend on the selected path's configuration and schemas.
 
 ## The shared research loop
 
 1. Define the research objective and controls; provide the Skill, source checkout, and code tools.
 2. Develop or optimize the plugin, validate the code, and install it in the selected execution service.
-3. Discover live Task schemas, check upstream compatibility, and submit the required stages.
+3. Discover live Task schemas, check upstream compatibility, and execute the required stages.
 4. Record each Task ID and metadata `started_at`, and verify upstream success before the next stage.
 5. Inspect artifacts and compare results; use the evidence to guide further code or parameter changes.
 

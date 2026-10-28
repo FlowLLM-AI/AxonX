@@ -77,6 +77,6 @@ Addresses require an explicit port and are normalized. Duplicates and unknown fi
 
 ## HTTP service
 
-`service.backend: http` exposes Jobs, events, MCP, `/upload` and optionally Studio. Common fields include `host` (falling back to `bind_host`), `port`, `token`, `web_enabled`, `shutdown_timeout` and `cleanup_timeout`. Configure a token to expose authenticated capabilities. Proxy routes use upstream authentication. See [Authentication](../guides/authentication.md) and [Deployment](../guides/deployment.md).
+`service.backend: http` exposes Jobs, events, MCP, `/upload` and optionally Studio. Common fields include `host` (falling back to `bind_host`), `port`, `token`, `web_enabled`, `shutdown_timeout` and `cleanup_timeout`. The foreground daemon has a separate total 5-second exit limit after Ctrl+C or SIGTERM, even if `cleanup_timeout` is longer. Configure a token to expose authenticated capabilities. Proxy routes use upstream authentication. See [Authentication](../guides/authentication.md) and [Deployment](../guides/deployment.md).
 
 Sources: [models](../../../axonx/app/config/models.py), [loader](../../../axonx/app/config/loader.py), [defaults](../../../axonx/app/config/default.yaml).

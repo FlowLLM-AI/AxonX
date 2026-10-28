@@ -26,6 +26,8 @@ axonx app --service.host 127.0.0.1
 
 The default port is `1024`, workspace `.axonx`, and timezone `Asia/Shanghai`. The foreground daemon supervises the application service. Keep this terminal open; use another terminal with the same Python environment and token for subsequent commands. Open `http://127.0.0.1:1024` for Studio.
 
+The startup logo and service console output appear in this terminal and are also saved to `.axonx/daemon/<identity>/service.log`, including after service restarts. Ctrl+C stops the daemon and service, including service-owned manual CLI commands, with a total shutdown limit of 5 seconds. Already launched scheduled commands continue independently; future schedule triggers stop.
+
 ## Discover and execute Demo
 
 ```bash

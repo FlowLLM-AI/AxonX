@@ -17,13 +17,13 @@ export DINGTALK_CLIENT_SECRET='<application client secret>'
 export DINGTALK_CONVERSATIONS='{"research":"<open conversation id>"}'
 ```
 
-`DINGTALK_CONVERSATIONS` must be a nonempty JSON object. Keys are nonempty string labels; values are nonempty string group identifiers. Duplicate values are deduplicated. The current Task has no group-selection parameter and sends to every configured unique group after submission.
+`DINGTALK_CONVERSATIONS` must be a nonempty JSON object. Keys are nonempty string labels; values are nonempty string group identifiers. Duplicate values are deduplicated. The current Task has no group-selection parameter and sends to every configured unique group when executed.
 
 ## Sending Markdown
 
-![DingTalk notification submission form](../../figures/studio/notification-submit.png)
+![Recorded DingTalk notification configuration form](../../figures/studio/notification-submit.png)
 
-Select `send_dingtalk_task` in Studio, fill in Title, Text, and Message Type, then submit. The screenshot is an empty form without recipient groups or credentials. Submission actually sends messages to groups configured on the execution machine.
+Open **Development tools → Task definitions** in Studio, select `send_dingtalk_task`, fill in Title, Text, and Message Type, then execute. The screenshot records an earlier empty configuration form without recipient groups or credentials; navigation and layout may differ. Executing the Task sends actual messages to groups configured on the execution machine.
 
 The following usage example sends an actual external message; run it according to your recipient configuration:
 

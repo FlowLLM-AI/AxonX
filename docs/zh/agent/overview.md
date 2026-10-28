@@ -25,13 +25,13 @@ AxonX 为 Agent 开发量化插件、执行实验和分析结果提供工具与�
 | 会话记录   | 外部宿主管理                                               | AxonX 会话存储管理                                  |
 | 推荐阅读   | [外部 Agent](external.md) → [MCP 接入](mcp-integration.md) | [内置配置](configuration.md) → [内置使用](usage.md) |
 
-外部 Agent 接入不要求配置 `CLAUDE_CODE_*` 或开启内置开发指南。内置 Agent 默认加载开发指南，按指南使用 CLI；进程内 `job_tools` 桥接为可选配置。外部 MCP 公开目录可能包含查询、提交、取消和安装等操作。实际能力以所用路径的配置与 Schema 为准。
+外部 Agent 接入不要求配置 `CLAUDE_CODE_*` 或开启内置开发指南。内置 Agent 默认加载开发指南，按指南使用 CLI；进程内 `job_tools` 桥接为可选配置。外部 MCP 公开目录可能包含查询、文件变更和 `cli` 命令 Job。Task 执行、停止和插件安装分别使用其 `exec`、`kill` 和 `plugin` 命令。实际能力以所用路径的配置与 Schema 为准。
 
 ## 共同的研究循环
 
 1. 明确研究目标与控制条件，提供 Skill、源码仓库和代码工具。
 2. 开发或优化插件，验证代码，再安装到选定的执行服务。
-3. 查询实际 Task Schema，检查上游兼容性，提交所需阶段。
+3. 查询实际 Task Schema，检查上游兼容性，执行所需阶段。
 4. 记录各 Task ID 与 metadata `started_at`，确认上游成功后再运行下一阶段。
 5. 检查产物、比较结果，根据证据继续调整代码或参数。
 

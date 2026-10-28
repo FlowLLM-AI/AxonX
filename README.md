@@ -41,6 +41,7 @@
 
 ## 📰 Latest Updates
 
+- **CLI Task execution:** `exec` waits for completion and returns business output plus the Task exit code; remote execution uses the service's `cli` Job. Daemon-owned scheduled Tasks continue across service restarts. See [Jobs and Tasks](docs/en/concepts/jobs-and-tasks.md) and [scheduling](docs/en/guides/scheduling.md).
 - **Alpha158 experiments:** risk factors and rank retention improved Top20 net annualized returns by **+1.36 pp and +24.70 pp** over the adapted baseline. See [results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features).
 - **Studio Playground:** explore Tasks and charts with simulated data. <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try it online</a>.
 

@@ -26,6 +26,8 @@ axonx app --service.host 127.0.0.1
 
 默认端口为 `1024`，工作区为 `.axonx`，时区为 `Asia/Shanghai`。前台 Daemon 监督应用服务。保持此终端运行，另开终端并使用相同 Python 环境和 token 执行后续命令。Studio 地址为 `http://127.0.0.1:1024`。
 
+启动 Logo 和服务控制台输出会显示在此终端，同时保存到 `.axonx/daemon/<identity>/service.log`，服务重启后继续显示。Ctrl+C 会停止 Daemon 和服务，并终止服务拥有的手动 CLI 命令，整体退出上限为 5 秒。已经启动的定时命令继续独立运行，后续定时触发停止。
+
 ## 发现并执行 Demo
 
 ```bash

@@ -2,8 +2,12 @@
 
 import json
 import os
+import signal
 import subprocess
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from textwrap import dedent
 from time import monotonic, sleep
 
 import psutil
@@ -70,6 +74,103 @@ def test_crashed_service_descendants_are_cleaned_up_before_restart(supervisor, t
     finally:
         update.signal_group(child.pid)
         child.wait(timeout=5)
+
+
+@pytest.mark.parametrize("blocked", [None, "service", "update"])
+def test_interrupt_with_a_blocked_console_stops_service_and_preserves_scheduled_work(supervisor, tmp_path, blocked):
+    marker = tmp_path / "started"
+    service = (
+        "import signal, time; from pathlib import Path; "
+        f"signal.signal(signal.SIGTERM, signal.SIG_IGN if {blocked == 'service'!r} else signal.SIG_DFL); "
+        "print('服务日志' * 262144); "
+        f"Path({str(marker)!r}).touch(); time.sleep(60)"
+    )
+    runner = dedent("""\
+        import json
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, sys.argv[1])
+        import supervisor
+
+        run = supervisor.Supervisor.run
+
+        def with_scheduled_work(owner):
+            task = owner._spawn([sys.executable, '-c', 'import time; time.sleep(60)'],
+                                owner.plan['cwd'], owner.plan['environment'], owner.directory / 'scheduled.log')
+            owner.tasks[task.pid] = task
+            if owner.plan['blocked_update']:
+                command = ("import signal, time; from pathlib import Path; "
+                           "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                           "Path('updating').touch(); time.sleep(60)")
+                owner.update = owner._spawn([sys.executable, '-c', command], owner.plan['cwd'],
+                                            owner.plan['environment'], owner.directory / 'update.log')
+                (owner.directory / 'updater.pid').write_text(str(owner.update.pid))
+            run(owner)
+
+        supervisor.Supervisor.run = with_scheduled_work
+        sys.argv = ['supervisor.py', sys.argv[2], '0']
+        supervisor.main()
+        """)
+    state = {}
+    with TemporaryDirectory(prefix="axonx-test-", dir="/tmp") as sockets:
+        plan = {
+            **supervisor.plan,
+            "environment": dict(os.environ),
+            "command": [sys.executable, "-c", service],
+            "socket": str(Path(sockets) / "daemon.sock"),
+            "stop_timeout": 60,
+            "blocked_update": blocked == "update",
+        }
+        path = tmp_path / "plan.json"
+        path.write_text(json.dumps(plan))
+        with subprocess.Popen(
+            [sys.executable, "-S", "-c", runner, str(Path(update.__file__).parent), str(path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        ) as process:
+            try:
+                deadline = monotonic() + 5
+                while monotonic() < deadline and process.poll() is None:
+                    if (tmp_path / "processes.json").exists():
+                        state = json.loads((tmp_path / "processes.json").read_text())
+                        if (
+                            state["service"]
+                            and marker.exists()
+                            and (blocked != "update" or (tmp_path / "updating").exists())
+                        ):
+                            break
+                    sleep(0.02)
+                assert marker.exists(), "Service blocked on console output"
+                if blocked == "update":
+                    assert (tmp_path / "updating").exists()
+                # Leave stdout unread to simulate a terminal/pipe that has stopped consuming logs.
+                started = monotonic()
+                os.killpg(process.pid, signal.SIGINT)
+                sleep(0.1)
+                if process.poll() is None:
+                    process.send_signal(signal.SIGINT)
+                assert process.wait(timeout=6) == (130 if blocked else 0)
+                assert monotonic() - started < 5.5
+                wait_stopped(state["service"])
+                assert len(state["tasks"]) == 1
+                assert not stopped(state["tasks"][0])
+                assert "服务日志" * 262144 in (tmp_path / "service.log").read_text()
+                if not blocked:
+                    assert not Path(plan["socket"]).exists()
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=5)
+                for pid in [state.get("service"), *state.get("tasks", [])]:
+                    if pid:
+                        update.signal_group(pid)
+                if (tmp_path / "updater.pid").exists():
+                    updater = int((tmp_path / "updater.pid").read_text())
+                    if process.returncode == 130:
+                        assert stopped(updater)
+                    update.signal_group(updater)
 
 
 def test_expired_update_releases_admission_and_invalidates_the_old_service(supervisor):

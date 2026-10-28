@@ -7,7 +7,9 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -19,6 +21,7 @@ else:
     from update import save, signal_group
 
 PREFIX = "AXONX_DAEMON_"
+SHUTDOWN_TIMEOUT = 5
 
 
 class Supervisor:
@@ -71,6 +74,7 @@ class Supervisor:
         self.token = uuid4().hex
         environment = {
             **self.plan["environment"],
+            "PYTHONUNBUFFERED": "1",
             PREFIX + "DIRECTORY": str(self.directory),
             PREFIX + "SOCKET": self.plan["socket"],
             PREFIX + "TOKEN": self.token,
@@ -89,12 +93,54 @@ class Supervisor:
         self.deadline = time.monotonic() + 120
         self._state()
 
+    @contextmanager
+    def _console_output(self):
+        """Follow new service output without blocking supervision on a slow terminal."""
+        finished = threading.Event()
+        log = (self.directory / "service.log").open("a+b")
+        log.seek(0, os.SEEK_END)
+        console = sys.stdout.fileno()
+
+        def forward():
+            with log:
+                try:
+                    while True:
+                        stopping = finished.is_set()
+                        data = log.read(65536)
+                        if data:
+                            while data:
+                                data = data[os.write(console, data) :]
+                        elif stopping:
+                            return
+                        else:
+                            finished.wait(0.05)
+                except OSError:
+                    # A closed console must not interrupt the service or its file log.
+                    return
+
+        thread = threading.Thread(target=forward, name="service-console", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            finished.set()
+            thread.join(timeout=1)
+
     def _stop(self):
         self.token = None
         self.ready = False
         if self.service is not None:
             signal_group(self.service.pid, signal.SIGTERM)
             self.deadline = time.monotonic() + self.stop_timeout
+
+    def force_exit(self):
+        """Enforce the daemon's total shutdown limit without waiting on cleanup or logs."""
+        try:
+            for child in (self.service, self.update):
+                if child is not None:
+                    signal_group(child.pid)
+        finally:
+            os._exit(130)
 
     def _settle(self, error=None):
         if self.pending is not None:
@@ -265,7 +311,7 @@ class Supervisor:
             if record["phase"] not in {"succeeded", "failed"}:
                 record.update(phase="failed", error="Daemon stopped before update completed")
                 save(record_path, record)
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server, self._console_output():
             mask = os.umask(0o077)
             try:
                 server.bind(str(path))
@@ -314,13 +360,23 @@ class Supervisor:
 def main():
     os.set_inheritable(int(sys.argv[2]), False)
     supervisor = Supervisor(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")))
+    watchdog = threading.Timer(SHUTDOWN_TIMEOUT, supervisor.force_exit)
+    watchdog.daemon = True
+    interrupted = False
 
     def stop(_signum, _frame):
+        nonlocal interrupted
+        if not interrupted:
+            interrupted = True
+            watchdog.start()
         supervisor.stopping = True
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    supervisor.run()
+    try:
+        supervisor.run()
+    finally:
+        watchdog.cancel()
 
 
 if __name__ == "__main__":

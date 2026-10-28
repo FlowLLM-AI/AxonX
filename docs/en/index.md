@@ -8,7 +8,7 @@ The reference research plugins adapt [Microsoft Qlib](https://github.com/microso
 
 | Goal                         | Start here                                                                                     | Outcome                                                         |
 | ---------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Use AxonX for the first time | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)              | Execute Demo and inspect its completed record                   |
+| Use AxonX for the first time | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)              | Run Demo and inspect its result, exit code, and record          |
 | Develop with an Agent        | [Agent development](agent/overview.md) → [Skill and research prompt](agent/research-prompt.md) | Prepare source, tools, and an objective for plugin development  |
 | Run a research baseline      | [Research](research/overview.md) → [Alpha158 workflow](research/workflow.md)                   | Connect data, training, prediction, and backtesting             |
 | Implement a research plugin  | [Development and operations guide](dev_guide.md) → [Plugin management](plugins/management.md)  | Implement Tasks, install and discover the plugin                |

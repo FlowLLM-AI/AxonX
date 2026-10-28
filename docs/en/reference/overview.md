@@ -11,7 +11,7 @@ Use reference pages to look up command syntax, configuration fields, responses, 
 | Client addresses, tokens, and timeouts        | [Client configuration](client-configuration.md)           |
 | Application, component, and Job assembly      | [Server configuration](configuration.md)                  |
 | HTTP discovery and JobResponse                | [API overview](../api/overview.md)                        |
-| Task submission, state, context, and graphs   | [Task API](../api/tasks.md)                               |
+| Task execution, state, context, and graphs    | [Task API](../api/tasks.md)                               |
 | Live progress and log events                  | [SSE events](../api/events.md)                            |
 | Workspace listing and previews                | [Workspace API](../api/workspace.md)                      |
 | Machines and resource readings                | [Machine API](../api/machines.md)                         |

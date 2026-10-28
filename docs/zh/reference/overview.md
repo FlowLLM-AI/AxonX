@@ -11,7 +11,7 @@
 | 客户端地址、令牌与超时          | [客户端配置](client-configuration.md)    |
 | 应用、Component 与 Job 装配     | [服务端配置](configuration.md)           |
 | HTTP 发现与 JobResponse         | [API 总览](../api/overview.md)           |
-| Task 提交、状态、上下文与关系图 | [Task API](../api/tasks.md)              |
+| Task 执行、状态、上下文与关系图 | [Task API](../api/tasks.md)              |
 | 实时进度与日志事件              | [SSE 事件](../api/events.md)             |
 | 工作区列表与预览                | [工作区 API](../api/workspace.md)        |
 | 机器与资源读数                  | [机器 API](../api/machines.md)           |

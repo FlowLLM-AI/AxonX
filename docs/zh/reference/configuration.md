@@ -77,6 +77,6 @@ targets:
 
 ## HTTP 服务
 
-`service.backend: http` 暴露 Job、事件、MCP、`/upload` 和可选 Studio。常用字段包括 `host`（回退 `bind_host`）、`port`、`token`、`web_enabled`、`shutdown_timeout`、`cleanup_timeout`。配置 token 后才能暴露认证能力。代理路由使用上游认证。详见[认证](../guides/authentication.md)和[部署](../guides/deployment.md)。
+`service.backend: http` 暴露 Job、事件、MCP、`/upload` 和可选 Studio。常用字段包括 `host`（回退 `bind_host`）、`port`、`token`、`web_enabled`、`shutdown_timeout`、`cleanup_timeout`。前台 Daemon 收到 Ctrl+C 或 SIGTERM 后，整体退出上限固定为 5 秒，即使 `cleanup_timeout` 更长也不例外。配置 token 后才能暴露认证能力。代理路由使用上游认证。详见[认证](../guides/authentication.md)和[部署](../guides/deployment.md)。
 
 源码：[模型](../../../axonx/app/config/models.py)、[加载器](../../../axonx/app/config/loader.py)、[默认配置](../../../axonx/app/config/default.yaml)。

@@ -2,6 +2,7 @@
 
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -76,7 +77,8 @@ def test_update_client_prepares_and_commits_without_application_objects(tmp_path
     assert updates.status() == {"record": None, "log": ""}
 
 
-def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
+@pytest.mark.parametrize("stop_signal", [signal.SIGINT, signal.SIGTERM])
+def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path, stop_signal):
     root = Path(__file__).resolve().parents[2]
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -87,9 +89,9 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
         "workspace_dir": str(workspace),
         "log_dir": str(tmp_path / "logs"),
         "bind_host": "127.0.0.1",
-        "log_to_console": False,
+        "log_to_console": True,
         "log_to_file": False,
-        "enable_logo": False,
+        "enable_logo": True,
         "components": {name: defaults["components"][name] for name in ("task_index", "updater")},
         "jobs": {name: defaults["jobs"][name] for name in ("cli", "get_config", "status", "get_update_status")},
         "service": {
@@ -103,6 +105,8 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
     configuration = tmp_path / "app.yaml"
     configuration.write_text(yaml.safe_dump(config))
     directory = runtime_directory(str(workspace), "127.0.0.1", port, tmp_path)
+    directory.mkdir(parents=True)
+    (directory / "service.log").write_text("previous daemon output\n")
     environment = {key: value for key, value in os.environ.items() if not key.startswith("AXONX_DAEMON_")}
     environment["PYTHONPATH"] = str(root)
     children = []
@@ -139,6 +143,13 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
                         logs = [path.read_text() for path in directory.glob("*.log")]
                         output.seek(0)
                         raise AssertionError("Workers did not start:\n" + output.read() + "\n".join(logs))
+                    console_path = tmp_path / "daemon.log"
+                    eventually(lambda: "Uvicorn running on" in console_path.read_text())
+                    console = console_path.read_text()
+                    assert "AxonX" in console
+                    assert "█████╗" in console
+                    assert "Service started:" in console
+                    assert "previous daemon output" not in console
                     response = client.post(
                         "/jobs/cli",
                         timeout=10,
@@ -165,6 +176,11 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
                     update = client.post("/jobs/get_update_status", json={"arguments": {}}).json()
                     assert update["success"]
                     assert update["answer"]["record"] is None
+                    process.send_signal(stop_signal)
+                    assert process.wait(timeout=10) == 0
+                    assert not children[0].is_running()
+                    assert "Application shutdown complete." in console_path.read_text()
+                    assert "Application shutdown complete." in (directory / "service.log").read_text()
             finally:
                 process.terminate()
                 try:
@@ -330,8 +346,9 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
     directory = runtime_directory(str(workspace), "127.0.0.1", port, tmp_path)
     environment = {key: value for key, value in os.environ.items() if not key.startswith("AXONX_DAEMON_")}
     environment["PYTHONPATH"] = str(root)
+    output_path = tmp_path / "daemon.log"
     with (
-        (tmp_path / "daemon.log").open("w+") as output,
+        output_path.open("w+") as output,
         subprocess.Popen(
             [sys.executable, str(entry), "app", "--config", str(configuration)],
             cwd=tmp_path,
@@ -408,6 +425,10 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
                     and value
                 )
                 assert second["pid"] == first["pid"] == process.pid
+                eventually(lambda: f"Started server process [{second['service']}]" in output_path.read_text())
+                console = output_path.read_text()
+                for pid in (first["service"], second["service"]):
+                    assert console.count(f"Started server process [{pid}]") == 1
                 record = json.loads(
                     (directory / "updates" / restart["answer"]["update_id"] / "record.json").read_text()
                 )

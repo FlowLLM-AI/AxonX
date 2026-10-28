@@ -33,9 +33,9 @@ export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
 
 ## 参数与日期
 
-![Tushare download submission form](../../figures/studio/tushare-submit.png)
+![历史 Tushare 下载配置表单](../../figures/studio/tushare-submit.png)
 
-在 **Submit task** 选择 `download_tushare_task`，表单根据任务 Schema 展示日期、自然日回溯、请求超时与数据组。图中为未提交的默认配置；填写前先确认执行机器的数据凭据。
+打开 **开发工具 → 任务定义**，选择 `download_tushare_task`。表单根据当前任务 Schema 展示日期、自然日回溯、请求超时与数据组。截图记录早期配置表单的默认值，导航和布局可能有所不同。执行前先确认执行机器的数据凭据。
 
 | 字段         | 默认值   | 用途                                         |
 | ------------ | -------- | -------------------------------------------- |

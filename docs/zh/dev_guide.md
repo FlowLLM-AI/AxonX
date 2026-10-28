@@ -18,6 +18,8 @@ axonx app --service.host 127.0.0.1
 
 保持该终端运行，另一终端使用相同环境和 token。访问 `http://127.0.0.1:1024/`，在 Studio 设置中填写令牌。Demo 无需行情或模型凭据。不带 `studio` extra 的 `axonx` 仅安装后端。
 
+启动 Logo 和服务控制台输出会显示在前台终端，同时保留在 `workspace_dir/daemon/<identity>/service.log`，服务重启后继续显示。Ctrl+C 会停止 Daemon、服务和服务拥有的手动 CLI 命令，整体退出上限为 5 秒；已经启动的定时命令继续独立运行，后续定时触发停止。
+
 开发框架或插件时，在已激活的环境中使用源码仓库：
 
 ```bash

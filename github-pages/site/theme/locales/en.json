@@ -10,7 +10,7 @@
     "paths": {
       "quickstart": {
         "title": "Run your first task",
-        "description": "Submit, follow, and inspect a built-in demo task."
+        "description": "Run the built-in demo, check its result and exit code, then inspect the record."
       },
       "research-overview": {
         "title": "Build a research workflow",
@@ -63,8 +63,8 @@
         "description": "Package algorithms and tasks as plugins with explicit input and output contracts."
       },
       "concepts-task-lifecycle": {
-        "title": "A record of every run",
-        "description": "Keep status, logs, parameters, and artifacts in one task workspace."
+        "title": "Execution you can inspect",
+        "description": "Inspect the current Task's status, parameters, artifacts, and linked logs."
       },
       "guides-remote-machines": {
         "title": "Multiple machines, one entry point",
@@ -72,7 +72,7 @@
       },
       "api-overview": {
         "title": "Studio, CLI, and agents connected",
-        "description": "Share Job interfaces and workspace records to iterate on research evidence."
+        "description": "Run Tasks through the CLI and inspect shared records through service Jobs."
       }
     },
     "star": "Give AxonX a Star on GitHub!",
@@ -88,10 +88,10 @@
     "pathsLabel": "Choose your starting point",
     "showcaseTitle": "See your research unfold.",
     "exploreStudio": "Explore Studio",
-    "showcaseLead": "From task execution to result interpretation, inspect your research in one workspace.",
+    "showcaseLead": "From task execution to result interpretation, inspect your research in one workspace. These screenshots show recorded experiments; current navigation and execution forms may differ.",
     "showcaseLabel": "Studio showcase",
     "previousSlide": "Previous slide",
-    "actualInterface": "ACTUAL INTERFACE",
+    "actualInterface": "RECORDED INTERFACE",
     "readGuide": "Read the guide",
     "nextSlide": "Next slide",
     "capabilitiesTitle": "Flexible research. Grounded execution.",

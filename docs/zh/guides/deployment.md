@@ -84,7 +84,9 @@ TLS 在外部反向代理终止。代理应保留 Authorization、请求体、�
 
 通过 `axonx restart_service` 重新加载源码、`.env`、Task 定义和 Cron 配置；`update_from_git`、`update_from_pip` 在更新后自动启动新 service。daemon PID 保持不变，service PID 改变。监督器源码或启动 argv 发生变化时，需要停止并重新启动整个 `axonx app`。详见[服务更新与重启](self-update.md)。
 
-正常 service 关闭会停止 Cron 接受新触发，清理组件并终止 service 创建的手动 CLI 子进程；daemon 持有的定时 exec 继续运行。首次 Ctrl+C 或 SIGTERM 开始关闭，`cleanup_timeout` 限制总时长，再次 Ctrl+C 或超时强制退出。强制终止可能留下 running metadata，观察查询不改写记录；后续执行前的身份检查或显式 kill 负责确认退出后的收尾。定时 Task 不因 service 重启而重跑，也不补跑停机期间的时刻。
+前台 daemon 显示本次运行的服务控制台输出，包括启动 Logo，同时保留 `workspace_dir/daemon/<identity>/service.log`。服务重启后继续输出，重新启动 daemon 不回放旧日志。
+
+在启动终端按 Ctrl+C，或向 daemon 发送 SIGTERM，会停止 daemon 并请求 service 关闭。这会停止 Cron 接受新触发，清理组件并终止 service 创建的手动 CLI 子进程。daemon 已启动的定时命令继续独立运行。daemon 从第一次 Ctrl+C 或 SIGTERM 起限制整体退出时间为 5 秒，包含服务清理、更新进程退出和控制台日志收尾。到期强制结束剩余服务及更新进程组，并立即退出；重复信号不会延长期限。即使 `cleanup_timeout` 更长，此上限仍然有效；该配置仍用于仅重启服务时的服务清理期限。强制终止可能留下 running metadata，观察查询不改写记录；后续执行前的身份检查或显式 kill 负责确认退出后的收尾。定时 Task 不因 service 重启而重跑，也不补跑停机期间的时刻。
 
 迁移前协调所有写入进程，再复制工作区、配置和必要日志并恢复相同插件环境。
 

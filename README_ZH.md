@@ -41,6 +41,7 @@
 
 ## 📰 最新更新
 
+- **CLI Task 执行：** `exec` 等待完成，输出业务结果并返回 Task 退出码；远程执行使用服务的 `cli` Job。Daemon 拥有的定时 Task 在服务重启期间继续运行。见 [Job 与 Task](docs/zh/concepts/jobs-and-tasks.md)和[定时调度](docs/zh/guides/scheduling.md)。
 - **Alpha158 实验：** 风险因子与排名保留策略的 Top20 净年化收益，相比适配基线分别提升 **+1.36 pp 和 +24.70 pp**。见[结果与证据边界](#benchmark-agent-开发市场横截面增强特征)。
 - **Studio Playground：** 使用模拟数据体验任务和图表。<a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>。
 
