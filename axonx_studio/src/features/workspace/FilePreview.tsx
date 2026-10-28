@@ -4,22 +4,37 @@ import {
   Database,
   File,
   FileSpreadsheet,
+  FileCode2,
+  Eye,
+  LoaderCircle,
 } from "lucide-react";
-import { useState } from "react";
+import type { Nodes, Root } from "mdast";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { WorkspacePreview } from "../../shared/api/workspace";
+import { routeHash } from "../../app/routes";
+import type { MarkdownPreview } from "../../shared/api/contracts";
+import type {
+  WorkspacePreview,
+  WorkspaceText,
+} from "../../shared/api/workspace";
 import { formatBytes } from "../../shared/lib/format";
 
 export function FilePreview({
   preview,
   onPage,
   previousOffset,
+  onReadSource,
+  path = "",
+  machineId = "local",
 }: {
   preview: WorkspacePreview;
   onPage: (offset: number) => void;
   previousOffset: number;
+  onReadSource?: (signal: AbortSignal) => Promise<WorkspaceText>;
+  path?: string;
+  machineId?: string;
 }) {
   const { t } = useTranslation();
   if (preview.kind === "parquet") {
@@ -188,6 +203,15 @@ export function FilePreview({
       </div>
     );
   }
+  if (preview.kind === "markdown")
+    return (
+      <MarkdownDocument
+        preview={preview}
+        onReadSource={onReadSource}
+        path={path}
+        machineId={machineId}
+      />
+    );
   const structured =
     (preview.kind === "json" || preview.kind === "yaml") &&
     !preview.parse_error &&
@@ -214,47 +238,217 @@ export function FilePreview({
           <span>{preview.parse_error}</span>
         </div>
       )}
-      {preview.kind === "markdown" &&
-        preview.frontmatter !== null &&
-        preview.frontmatter !== undefined && (
-          <section className="workspace-frontmatter">
-            <header>{t("workspacePreview.frontmatter")}</header>
-            <pre>{JSON.stringify(preview.frontmatter, null, 2)}</pre>
-          </section>
-        )}
-      {preview.kind === "markdown" && preview.frontmatter_error && (
-        <div className="workspace-notice error">
-          <AlertTriangle />
-          {preview.frontmatter_error}
-        </div>
-      )}
-      {preview.kind === "markdown" ? (
-        <article className="workspace-markdown">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              img: ({ alt }) => (
-                <span className="markdown-image-placeholder">
-                  [{alt || "image"}]
-                </span>
-              ),
-              a: ({ children, ...props }) => (
-                <a {...props} target="_blank" rel="noreferrer">
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {preview.content || ""}
-          </ReactMarkdown>
-        </article>
-      ) : structured ? (
+      {structured ? (
         <StructuredTree value={preview.data} />
       ) : (
         <pre className="workspace-code">{preview.content || ""}</pre>
       )}
     </div>
   );
+}
+
+function MarkdownDocument({
+  preview,
+  onReadSource,
+  path,
+  machineId,
+}: {
+  preview: MarkdownPreview;
+  onReadSource?: (signal: AbortSignal) => Promise<WorkspaceText>;
+  path: string;
+  machineId: string;
+}) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<"preview" | "source">("preview");
+  const [attempt, retry] = useState(0);
+  const [source, setSource] = useState<{
+    data: WorkspaceText | null;
+    loading: boolean;
+    error: string;
+  }>({ data: null, loading: false, error: "" });
+  useEffect(() => {
+    if (mode !== "source" || source.data || !onReadSource) return;
+    const controller = new AbortController();
+    setSource({ data: null, loading: true, error: "" });
+    void Promise.resolve()
+      .then(() => onReadSource(controller.signal))
+      .then(
+        (data) => {
+          if (!controller.signal.aborted)
+            setSource({ data, loading: false, error: "" });
+        },
+        (reason) => {
+          if (!controller.signal.aborted)
+            setSource({
+              data: null,
+              loading: false,
+              error: reason instanceof Error ? reason.message : String(reason),
+            });
+        },
+      );
+    return () => controller.abort();
+  }, [mode, onReadSource, source.data, attempt]);
+  return (
+    <div className="workspace-document">
+      <div
+        className="workspace-markdown-toolbar"
+        role="group"
+        aria-label={t("workspacePreview.markdownView")}
+      >
+        <button
+          type="button"
+          aria-pressed={mode === "preview"}
+          onClick={() => setMode("preview")}
+        >
+          <Eye />
+          {t("workspacePreview.preview")}
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "source"}
+          disabled={!onReadSource}
+          onClick={() => setMode("source")}
+        >
+          <FileCode2 />
+          {t("workspacePreview.source")}
+        </button>
+      </div>
+      {(mode === "source" ? source.data?.truncated : preview.truncated) && (
+        <div className="workspace-notice">
+          <AlertTriangle />
+          {t("workspacePreview.truncated")}
+        </div>
+      )}
+      {mode === "source" ? (
+        source.loading ? (
+          <div className="workspace-preview-loading">
+            <LoaderCircle className="spin" />
+          </div>
+        ) : source.error ? (
+          <div className="workspace-notice error" role="alert">
+            <AlertTriangle />
+            {t("workspacePreview.sourceFailed")}
+            <span>{source.error}</span>
+            <button onClick={() => retry((attempt) => attempt + 1)}>
+              {t("retry")}
+            </button>
+          </div>
+        ) : (
+          <pre className="workspace-code">{source.data?.content}</pre>
+        )
+      ) : (
+        <>
+          {preview.frontmatter !== null &&
+            preview.frontmatter !== undefined && (
+              <section className="workspace-frontmatter">
+                <header>{t("workspacePreview.frontmatter")}</header>
+                <StructuredTree value={preview.frontmatter} />
+              </section>
+            )}
+          {preview.frontmatter_error && (
+            <div className="workspace-notice error">
+              <AlertTriangle />
+              {preview.frontmatter_error}
+            </div>
+          )}
+          <article className="workspace-markdown">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkHeadings]}
+              components={{
+                img: ({ alt }) => (
+                  <span className="markdown-image-placeholder">
+                    [{alt || "image"}]
+                  </span>
+                ),
+                a: ({ children, href }) => {
+                  const external = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(
+                    href || "",
+                  );
+                  return (
+                    <a
+                      href={
+                        external ? href : workspaceLink(href, path, machineId)
+                      }
+                      target={external ? "_blank" : undefined}
+                      rel={external ? "noreferrer" : undefined}
+                      onClick={(event) => {
+                        if (!href?.startsWith("#")) return;
+                        event.preventDefault();
+                        const fragment = href.slice(1);
+                        const headings = event.currentTarget
+                          .closest("article")
+                          ?.querySelectorAll("[id]");
+                        Array.from(headings || [])
+                          .find(
+                            (heading) =>
+                              heading.id === fragment ||
+                              encodeURIComponent(heading.id) === fragment,
+                          )
+                          ?.scrollIntoView({ block: "start" });
+                      }}
+                    >
+                      {children}
+                    </a>
+                  );
+                },
+              }}
+            >
+              {preview.content}
+            </ReactMarkdown>
+          </article>
+        </>
+      )}
+    </div>
+  );
+}
+
+function markdownText(node: Nodes): string {
+  if (node.type === "text" || node.type === "inlineCode") return node.value;
+  if (node.type === "image") return node.alt || "";
+  return "children" in node ? node.children.map(markdownText).join("") : "";
+}
+
+function remarkHeadings() {
+  return (tree: Root) => {
+    const ids = new Set<string>();
+    const visit = (node: Nodes) => {
+      if (node.type === "heading") {
+        const base = markdownText(node)
+          .trim()
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+          .replace(/\s/g, "-");
+        let id = base;
+        for (let suffix = 1; ids.has(id); suffix++) id = `${base}-${suffix}`;
+        ids.add(id);
+        node.data = {
+          ...node.data,
+          hProperties: { ...node.data?.hProperties, id },
+        };
+      }
+      if ("children" in node) node.children.forEach(visit);
+    };
+    visit(tree);
+  };
+}
+
+function workspaceLink(
+  href: string | undefined,
+  path: string,
+  machineId: string,
+) {
+  if (!href || href.startsWith("#")) return href;
+  try {
+    const base = path.split("/").map(encodeURIComponent).join("/");
+    const url = new URL(href, `https://workspace.invalid/${base}`);
+    return routeHash(machineId, {
+      section: "workspace",
+      view: "files",
+      resource: decodeURIComponent(url.pathname.slice(1)),
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 function DataTable({

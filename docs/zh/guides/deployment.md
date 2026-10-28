@@ -1,0 +1,91 @@
+# 服务部署与 Studio 托管
+
+使用 Python 3.12+，在独立环境安装后端和可选 Studio。daemon 监督一个 service；Cron 在 service 内运行。进程托管器应管理 `axonx app` 启动的 daemon，service 子进程由 daemon 管理。
+
+## 安装与配置
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install 'axonx[studio]'
+```
+
+创建 `server.yaml`，按部署机器调整路径：
+
+```yaml
+extends: default
+workspace_dir: /srv/axonx/workspace
+log_dir: /srv/axonx/logs
+service:
+  host: 127.0.0.1
+  port: 1024
+  token: ${AXONX_SERVICE_TOKEN}
+  shutdown_timeout: 1
+  cleanup_timeout: 15
+cron: []
+```
+
+```bash
+export AXONX_SERVICE_TOKEN='<独立服务 token>'
+axonx app --config server.yaml
+```
+
+需要其他机器直连时可绑定 `0.0.0.0` 并配置网络入口。工作区、日志和启动目录应可读写；研究插件安装在同一 Python 环境。配置定时任务见[定时调度](scheduling.md)。
+
+## 验证
+
+```bash
+curl -fsS 'http://127.0.0.1:1024/health' \
+  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
+axonx version
+axonx list_task_defs --include-schemas false
+axonx exec --task demo --task-name deployment-check --x 1 --y 2
+axonx status --task-id 'base#demo#deployment-check'
+```
+
+health 表示服务就绪；demo 检查实际执行与观察。API 可在未安装 Studio 时运行；安装 Studio 后重启 service，打开 `http://127.0.0.1:1024/`。
+
+## 从仓库部署
+
+在激活的执行环境中运行 `./scripts/deploy.sh [应用选项]`，例如 `./scripts/deploy.sh --config server.yaml`。脚本切换到仓库根目录，相对配置路径以此为基准。要求 Git、Python 和 Studio 支持的 Node.js/npm。
+
+脚本使用与 `axonx app` 相同的配置解析和服务标识，验证 daemon 锁、监督器命令及 service 父进程后，先停止所选 daemon 与 service。它随后快进当前分支的 upstream、构建 Studio、以 editable 模式安装后端和 Studio、执行 `pip check`，再安装三个研究插件，最后在前台运行 `axonx app` 并传入原应用选项。不会根据端口选择并终止任意监听者。
+
+停止或身份核验失败时，脚本在更新源码前退出。拉取、构建或安装失败时停止部署，需要修复后重新启动；脚本不回滚源码或环境。通过 systemd/launchd 托管时，应先使用托管器停止 daemon，完成部署后仍通过托管器启动，避免两个监督器竞争。
+
+## 后台托管示例
+
+```ini
+[Unit]
+Description=AxonX daemon
+After=network.target
+
+[Service]
+Type=simple
+User=axonx
+WorkingDirectory=/srv/axonx/source
+EnvironmentFile=/etc/axonx/service.env
+ExecStart=/srv/axonx/source/.venv/bin/axonx app --config /etc/axonx/server.yaml
+Restart=on-failure
+KillMode=process
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+替换账户和路径，限制环境文件权限。此示例的 `KillMode=process` 将 daemon 作为停止目标，由 daemon 关闭 service，避免托管器直接终止同组外的定时进程；独立定时进程可能在完整 daemon 停止后继续运行，需要按 Task 身份显式管理。macOS 可使用自行配置的 launchd；仓库没有完整系统服务安装器。
+
+## HTTPS 与事件流
+
+TLS 在外部反向代理终止。代理应保留 Authorization、请求体、重复头与正确路径，支持 `/mcp`、`/upload` 和长时间 SSE，并关闭事件流缓冲。代理与客户端超时、Uvicorn 请求收尾及 service 总关闭期限是不同预算。
+
+## 更新与关闭
+
+通过 `axonx restart_service` 重新加载源码、`.env`、Task 定义和 Cron 配置；`update_from_git`、`update_from_pip` 在更新后自动启动新 service。daemon PID 保持不变，service PID 改变。监督器源码或启动 argv 发生变化时，需要停止并重新启动整个 `axonx app`。详见[服务更新与重启](self-update.md)。
+
+正常 service 关闭会停止 Cron 接受新触发，清理组件并终止 service 创建的手动 CLI 子进程；daemon 持有的定时 exec 继续运行。首次 Ctrl+C 或 SIGTERM 开始关闭，`cleanup_timeout` 限制总时长，再次 Ctrl+C 或超时强制退出。强制终止可能留下 running metadata，观察查询不改写记录；后续执行前的身份检查或显式 kill 负责确认退出后的收尾。定时 Task 不因 service 重启而重跑，也不补跑停机期间的时刻。
+
+迁移前协调所有写入进程，再复制工作区、配置和必要日志并恢复相同插件环境。
+
+实现：[daemon](../../../axonx/daemon/supervisor.py)、[部署停止工具](../../../scripts/stop_daemon.py)、[HTTP 服务](../../../axonx/app/components/service/http/service.py)。

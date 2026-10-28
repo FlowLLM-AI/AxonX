@@ -67,7 +67,7 @@
   "copyTaskId": "复制 Task ID",
   "copied": "已复制",
   "noTasks": "暂无运行记录",
-  "noTasksHint": "使用 axonx exec 执行任务后，可在此查看运行记录。",
+  "noTasksHint": "在任务定义页面运行任务后，可在此查看运行记录。",
   "noMatches": "没有符合筛选条件的任务",
   "requestFailed": "无法读取任务状态",
   "staleHint": "当前显示最近一次成功获取的数据。",
@@ -309,70 +309,69 @@
   "home": {
     "quantAria": "Agent 研究流程",
     "quantTitle": "从问题到实验",
-    "quantLead": "研究 Prompt + AxonX Skill，驱动 Agent 开发与迭代",
+    "quantLead": "结合 AxonX Skill，由 Agent 完成开发、运行与结果检查",
     "brandAria": "AxonX Agent 原生量化研究 Harness",
     "brandTitle": "让研究问题成为量化代码与可追溯实验",
-    "brandLead": "为 Agent 提供统一的量化开发工具与运行环境，支持插件开发、实验执行和结果分析。",
+    "brandLead": "用 Agent 开发因子、模型与策略，统一运行实验、分析回测，并追踪在线预测结果。",
     "manageTasks": "任务管理",
-    "capabilitiesAria": "Harness 框架能力",
-    "capabilitiesTitle": "Harness 提供的能力",
-    "capabilitiesLead": "统一工具与运行环境，连接代码、执行和证据",
+    "capabilitiesAria": "研究与运行能力",
+    "capabilitiesTitle": "研究与运行能力",
+    "capabilitiesLead": "连接开发、执行、结果分析与日常运行",
     "steps": {
       "question": {
         "title": "定义研究问题",
-        "detail": "明确假设、基线、数据与评价标准"
+        "detail": "明确假设、数据范围、基线与评价标准"
       },
       "agent": {
         "title": "连接研究 Agent",
-        "detail": "外部或内置 Agent，结合 AxonX Skill"
+        "detail": "使用外部 Agent 或 Studio 内置会话"
       },
       "plugin": {
         "title": "开发研究插件",
-        "detail": "编写或优化因子、模型与组合策略"
+        "detail": "扩展数据处理、因子、模型与组合策略"
       },
       "experiment": {
-        "title": "执行研究实验",
-        "detail": "安装到执行环境，使用 exec 运行并观察 Task"
+        "title": "执行研究任务",
+        "detail": "通过 Agent 或 CLI，在选定服务运行"
       },
       "evidence": {
-        "title": "检查实验依据",
-        "detail": "查看参数、日志、指标与研究产物"
+        "title": "检查运行结果",
+        "detail": "查看日志、数据、训练曲线与回测表现"
       },
       "iterate": {
         "title": "比较与迭代",
-        "detail": "对比候选方案，依据结果继续优化"
+        "detail": "比较候选策略，验证差异并继续优化"
       }
     },
     "features": {
       "plugin": {
         "title": "可扩展研究插件",
-        "detail": "复用已有实现，扩展因子、模型和策略"
+        "detail": "覆盖数据处理、因子分析、训练、预测与回测"
       },
       "job": {
         "title": "统一工具接口",
-        "detail": "CLI、HTTP、MCP 与 Studio 共用 Jobs"
+        "detail": "通过 CLI、HTTP、MCP 调用工具与查询结果"
       },
       "task": {
-        "title": "实验任务观察",
-        "detail": "查询定义、任务记录、进度与日志"
+        "title": "任务状态与关系",
+        "detail": "查看参数、进度、日志、上下游与父子调用"
       },
       "machine": {
-        "title": "本地与远程执行",
-        "detail": "在选定服务运行，查看资源与运行状态"
+        "title": "本地与远程环境",
+        "detail": "切换执行目标，查看资源、配置与服务状态"
       },
       "evidence": {
-        "title": "可追溯实验依据",
-        "detail": "保留参数、Task ID and start time、依赖与产物"
+        "title": "研究结果与产物",
+        "detail": "浏览工作区，分析训练曲线、回测与策略差异"
       },
-      "agent": {
-        "title": "Agent 与可视化协作",
-        "detail": "Agent 检查结果，研究者在 Studio 分析"
+      "online": {
+        "title": "在线预测与校验",
+        "detail": "跟踪数据更新、分时信号与在线离线预测差异"
       }
     },
     "openAgent": "打开 Agent",
-    "journey": "你定义问题 · Agent 实现 · Harness 管理执行与证据",
-    "agentNote": "支持外部 Agent 与 Studio 内置 Agent",
-    "browseTasks": "浏览任务定义"
+    "journey": "提出问题 · Agent 开发 · 任务执行 · 结果验证",
+    "agentNote": "支持外部 Agent 与 Studio 内置 Agent"
   },
   "workspace": {
     "folder": "目录",
@@ -397,7 +396,7 @@
     "truncated": "内容过大，仅展示前 512 KiB",
     "invalidJson": "JSON 格式有误",
     "invalidYaml": "YAML 格式有误",
-    "frontmatter": "Frontmatter",
+    "frontmatter": "文档元信息",
     "rows": "行",
     "previous": "上一页",
     "next": "下一页",
@@ -405,7 +404,11 @@
     "list": "列表",
     "dict": "字典",
     "items": "项",
-    "keys": "键"
+    "keys": "键",
+    "markdownView": "Markdown 显示方式",
+    "preview": "预览",
+    "source": "原始",
+    "sourceFailed": "无法读取原始文件"
   },
   "research": {
     "pages": {
@@ -737,21 +740,21 @@
   },
   "update": {
     "title": "服务更新与重启",
-    "description": "更新 AxonX 和 Studio，或从磁盘重新启动所选服务。操作期间服务会暂时不可用。",
+    "description": "更新 AxonX 和 Studio，或重启所选服务并重新加载定时配置。操作期间服务暂时不可用，已启动的定时任务继续运行。",
     "unavailable": "更新与重启不可用。服务需要配置操作和状态查询 Job，并启用 token 认证。",
     "method": "操作方式",
     "git": "源码仓库 · 当前 upstream",
     "pip": "发布包 · 最新稳定版本",
     "gitHint": "使用 git pull --ff-only 快进当前分支，构建 Studio 并更新后端。本地修改冲突时保留修改并报错。",
     "pipHint": "在服务的 Python 环境中更新 axonx 和 axonx-studio。editable 源码安装需要使用源码更新。",
-    "gitConfirm": "我同意更新源码并重启这台机器的 service 和 cron worker。",
+    "gitConfirm": "我同意更新源码并重启所选服务，重新加载定时配置。",
     "pipConfirm": "我同意更新安装包，并重启这台机器的服务。",
     "start": "更新并重启",
     "reconnecting": "正在更新或重启，等待服务恢复连接…",
     "reload": "重新加载 Studio",
     "phases": {
       "accepted": "已接受更新",
-      "fetching": "正在获取 main",
+      "fetching": "正在拉取当前分支的上游更新",
       "building": "正在构建 Studio",
       "installing": "正在安装包",
       "verifying": "正在验证安装",
@@ -1160,11 +1163,51 @@
     "rowsPair": "在线 {{online}} / 离线 {{offline}} 行"
   },
   "taskDefinitionsTitle": "任务定义",
-  "taskDefinitionsLead": "查看已安装任务的说明与输入输出结构。",
+  "taskDefinitionsLead": "配置已安装任务的参数，运行并查看结果。",
   "taskDefinitions": {
     "selectTask": "选择一个 Task",
-    "selectTaskHint": "查看任务说明及输入输出结构",
+    "selectTaskHint": "配置任务参数或查看输入输出定义",
     "loadingCatalog": "正在加载 Task 目录…"
   },
-  "input": "输入"
+  "input": "输入",
+  "taskExecution": {
+    "parameters": "输入参数",
+    "parametersHint": "配置本次任务运行的输入",
+    "outputHint": "运行成功后返回的字段与类型",
+    "nameHint": "任务名称留空时自动生成；复用名称会替换已结束运行的结果。",
+    "target": "执行机器",
+    "connectionHint": "可在站内切换页面；刷新、关闭页面或连接中断可能终止执行。",
+    "reset": "重置参数",
+    "run": "运行任务",
+    "starting": "正在启动",
+    "invalidValue": "请输入有效的参数值",
+    "output": "执行日志",
+    "exitCode": "退出码",
+    "stop": "停止运行",
+    "waitingLog": "等待执行日志…",
+    "disconnectedHint": "连接已中断，请检查任务状态后再决定是否重新运行。",
+    "monitor": "运行记录",
+    "active_one": "{{count}} 个运行中",
+    "active_other": "{{count}} 个运行中",
+    "finished": "执行已结束",
+    "openTask": "打开任务详情",
+    "dismiss": "移除运行记录",
+    "states": {
+      "starting": "正在启动",
+      "running": "运行中",
+      "succeeded": "已完成",
+      "failed": "执行失败",
+      "disconnected": "连接中断"
+    },
+    "active": "{{count}} 个运行中",
+    "taskName": "任务名称",
+    "upstreamTasks": "上游任务 ID",
+    "upstreamHint": "填写直接上游任务的 ID，只记录依赖关系，不会自动执行上游任务。"
+  },
+  "schemaForm": {
+    "addItem": "添加一项",
+    "removeItem": "删除第 {{index}} 项",
+    "requiredOutput": "必有",
+    "optionalOutput": "可选"
+  }
 }

@@ -11,6 +11,10 @@ const schemas: Record<
   string,
   { input?: Record<string, JsonSchema>; output: string }
 > = {
+  cli: {
+    input: { argv: { type: "array", items: { type: "string" } } },
+    output: "object",
+  },
   machine_status: { output: "object" },
   list_machines: { output: "array" },
   list_task_defs: {

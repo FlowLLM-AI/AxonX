@@ -174,10 +174,10 @@ it("keeps operation page IDs distinct in routes and navigation", async () => {
   expect(
     navigationGroups.map((group) => group.items.map((item) => item.id)),
   ).toEqual([
-    ["tasks", "resources", "environment"],
+    ["tasks", "resources", "environment", "workspace"],
     ["operation-online", "operation-comparison", "operation-data"],
     ["agent", "etl", "factors", "train", "predict", "backtest", "compare"],
-    ["task-defs", "workspace", "apis"],
+    ["task-defs", "apis"],
   ]);
   for (const page of operationPages) {
     const route = {

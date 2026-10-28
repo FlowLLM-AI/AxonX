@@ -32,6 +32,7 @@ import {
   getWorkspaceRoot,
   listWorkspaceEntries,
   previewWorkspaceFile,
+  readWorkspaceText,
 } from "../../shared/api/workspace";
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
@@ -59,12 +60,14 @@ function iconFor(entry: WorkspaceEntry) {
 
 export default function WorkspaceBrowserPage({
   target,
+  machineId = "local",
   initialPath = ROOT,
   onConnection,
   onPathChange,
   onOptionsChange,
 }: {
   target?: string;
+  machineId?: string;
   initialPath?: string;
   onConnection: (online: boolean) => void;
   onPathChange: (path: string) => void;
@@ -86,6 +89,17 @@ export default function WorkspaceBrowserPage({
   const [pageOffsets, setPageOffsets] = useState([0]);
   const offset = pageOffsets[pageOffsets.length - 1];
   const [revision, setRevision] = useState(0);
+  const readSource = useCallback(
+    (signal: AbortSignal) => {
+      const root = cache.current.get(ROOT)?.workspace_root;
+      if (!selected || !root) throw new Error("Workspace file is unavailable");
+      return readWorkspaceText(
+        { path: selected.path, workspaceRoot: root },
+        { target, signal },
+      );
+    },
+    [selected, target],
+  );
 
   const loadDirectory = useCallback(
     async (path: string, signal: AbortSignal, append = false) => {
@@ -440,7 +454,11 @@ export default function WorkspaceBrowserPage({
                     }
                   >
                     <FilePreview
+                      key={`${selected.path}:${revision}`}
                       preview={preview}
+                      path={selected.path}
+                      machineId={machineId}
+                      onReadSource={readSource}
                       previousOffset={pageOffsets[pageOffsets.length - 2] ?? 0}
                       onPage={(nextOffset) =>
                         setPageOffsets((pages) =>

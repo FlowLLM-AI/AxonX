@@ -7,8 +7,10 @@ execution_target: ${AXONX_EXECUTION_TARGET:-null}
 # =========== Known target services ===========
 targets: []
 
-# Schedules use the application timezone and startup directory. Restart to reload;
-# missed occurrences are not replayed. An inherited cron list is replaced as a whole.
+# Cron runs inside the service and launches daemon-owned local exec processes.
+# Restart the service to reload schedules; running scheduled Tasks continue.
+# Schedules use the application timezone and startup directory; missed slots are
+# not replayed. An inherited cron list is replaced as a whole; [] disables Cron.
 cron: []
 # cron:
 #   - expression: "0 16 * * 1-5"
@@ -159,13 +161,13 @@ jobs:
       - backend: version_step
 
   update_from_git:
-    description: Stop the application, fast-forward the source branch, build Studio and restart.
+    description: Stop the service, fast-forward the current branch from its upstream, build and install AxonX and Studio, then restart. Running scheduled Tasks continue.
     parameters: *no_parameters
     steps:
       - backend: update_from_git_step
 
   update_from_pip:
-    description: Upgrade axonx and axonx-studio from the package index and restart.
+    description: Stop the service, upgrade axonx and axonx-studio from the package index, then restart. Running scheduled Tasks continue.
     parameters: *no_parameters
     steps:
       - backend: update_from_pip_step
@@ -454,7 +456,8 @@ jobs:
       - backend: workspace_delete
 
   # =========== Sync jobs ===========
-  # Enable with the sync component, then schedule "axonx sync_flush" in cron.
+  # Enable with the sync component and invoke "axonx sync_flush" explicitly.
+  # Application Cron accepts only local "axonx exec --task NAME" commands.
   # sync_flush:
   #   description: Flush task changes queued for workspace replication.
   #   steps:

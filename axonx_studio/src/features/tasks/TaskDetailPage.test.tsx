@@ -5,9 +5,14 @@ import { afterEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { taskStatus } from "../../playground/data";
 import { getTaskStatus } from "./api";
+import { useTaskExecutions, type TaskExecution } from "./execution";
 import { TaskDetailPage } from "./TaskDetailPage";
 
 vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
+vi.mock("./execution", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./execution")>()),
+  useTaskExecutions: vi.fn(() => []),
+}));
 vi.mock("./TaskLogPanel", () => ({
   TaskLogPanel: () => <div>log viewer</div>,
 }));
@@ -18,6 +23,104 @@ vi.mock("./TaskGraph", () => ({
 afterEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("reloads when execution disconnects and lets backend refreshes replace cached metadata", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  await i18n.changeLanguage("en");
+  const task = {
+    ...taskStatus("base", "base#demo#stream", "demo"),
+    state: "running" as const,
+  };
+  let run: TaskExecution = {
+    id: "stream",
+    taskId: task.task_id,
+    definition: "demo",
+    machineId: "local",
+    state: "running",
+    task,
+    log: "live output",
+    error: "",
+    stopping: false,
+  };
+  vi.mocked(useTaskExecutions).mockImplementation(() => [run]);
+  vi.mocked(getTaskStatus)
+    .mockResolvedValueOnce(task)
+    .mockResolvedValueOnce({ ...task, state: "failed" })
+    .mockResolvedValueOnce({ ...task, state: "succeeded" });
+  const callbacks = {
+    onBack: vi.fn(),
+    onOpenTask: vi.fn(),
+    onInterpretTask: vi.fn(),
+    onOpenResearch: vi.fn(),
+    onConnection: vi.fn(),
+  };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const render = () =>
+    root.render(<TaskDetailPage {...callbacks} taskId={task.task_id} />);
+  const status = () =>
+    container.querySelector(".task-detail-subtitle")?.textContent;
+  try {
+    await act(async () => render());
+    expect(status()).toContain("Running");
+    run = { ...run, state: "disconnected" };
+    await act(async () => render());
+    expect(status()).toContain("Failed");
+    expect(getTaskStatus).toHaveBeenCalledTimes(2);
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          ".task-detail-heading-actions button",
+        )!
+        .click(),
+    );
+    expect(status()).toContain("Succeeded");
+    expect(
+      container.querySelector(".task-execution-output")?.textContent,
+    ).toContain("live output");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it("does not show logs from an older execution after the same Task ID is restarted", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const task = taskStatus("base", "base#demo#reused", "demo");
+  vi.mocked(getTaskStatus).mockResolvedValue(task);
+  vi.mocked(useTaskExecutions).mockReturnValue([
+    {
+      id: "previous",
+      taskId: task.task_id,
+      definition: "demo",
+      machineId: "local",
+      state: "succeeded",
+      task: { ...task, started_at: "2020-01-01T00:00:00Z" },
+      log: "old output",
+      error: "",
+      stopping: false,
+    },
+  ]);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <TaskDetailPage
+          taskId={task.task_id}
+          onBack={vi.fn()}
+          onOpenTask={vi.fn()}
+          onInterpretTask={vi.fn()}
+          onOpenResearch={vi.fn()}
+          onConnection={vi.fn()}
+        />,
+      ),
+    );
+    expect(container.querySelector("h1")?.textContent).toBe(task.task_id);
+    expect(container.querySelector(".task-execution-output")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+  }
 });
 
 it.each(["task", "machine"] as const)(

@@ -2,6 +2,7 @@ import { AppShell } from "./app/AppShell";
 import { PageOutlet } from "./app/PageOutlet";
 import { useStudio } from "./app/useStudio";
 import { useAxonXWebMcp } from "./webmcp";
+import { TaskExecutionMonitor } from "./features/tasks/TaskExecution";
 
 export default function App() {
   useAxonXWebMcp();
@@ -24,6 +25,14 @@ export default function App() {
       sidebar={studio.sidebar}
       navigate={studio.navigate}
     >
+      <TaskExecutionMonitor
+        onOpenTask={(run) =>
+          studio.navigate(
+            { section: "runtime", view: "task", resource: run.taskId },
+            run.machineId,
+          )
+        }
+      />
       <PageOutlet
         key={`${studio.authRevision}:${studio.selectedMachine.id}`}
         route={studio.route}

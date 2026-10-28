@@ -1,0 +1,304 @@
+---
+title: 研究产物与 Studio 展示协议
+description: 标准研究输出、文件摘要、训练曲线及回测表的生产和读取契约。
+---
+
+# 研究产物与 Studio 展示协议
+
+研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。这是破坏式格式更新：旧研究产物和回放数据需要重新生成，不迁移历史记录。
+
+研究 Task 使用类型化 `output_params` 发布结果，Studio 从成功任务的 `metadata.json` 提取展示字段，再通过文件预览读取产物。本页区分三层要求：Python 基类必填字段、Studio 实际读取字段、具体插件的扩展协议。
+
+![产物阅读链](../../figures/research/results-reading.svg)
+
+## 统一协议 v1
+
+AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
+
+训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
+
+离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份非空 `model_identity: dict[str, str]`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。Qlib 插件使用 `models_sha256` 和 `features_sha256` 身份项；共享模型允许插件定义字符串键和值。身份不包含日期、路径，也不按日期重复复制。Qlib 特征契约与指纹由插件模块 `axonx_qlib_a158.internal.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.inputs` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+
+## metadata 与产物映射
+
+标准 Task 记录在 metadata 顶层保存身份、输入参数、输出参数等信息；研究字段位于 `output_params`，不要把它们写到顶层期待 Studio 自动识别。
+
+以下是结构片段，不是完整 TaskMetadata：
+
+```json
+{
+  "output_params": {
+    "artifacts": {
+      "dataset": {
+        "path": "alpha158.parquet",
+        "size": 1024,
+        "revision": "1024:1700000000000000000"
+      }
+    }
+  }
+}
+```
+
+示例 size 和版本只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与文件版本。`verify_artifact(task_dir, ArtifactRecord.model_validate(record))` 解析记录，核验普通文件的大小和版本；拒绝越出 Task 目录或经过符号链接的路径。
+
+`BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和文件版本。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
+
+`task.artifact_path(name)` 仅解析路径，不核验文件内容或版本。`upstream_artifact()` 要求源 Task 成功且不是展示副本，并核验一个产物；`pin_upstream_artifacts()` 将经核验的输入复制到消费者的 `inputs/` 目录；`snapshot_model_collection()` 核验清单和引用的模型成员。这些检查基于大小与修改时间，不是内容摘要，也不证明数据在业务语义上兼容。
+
+## 五类基础输出
+
+下表的必填指模型没有默认值；不是所有字段都在 Studio 单独展示。
+
+| 类型     | 基类必填                                    | 基类可选或默认字段                                      |
+| -------- | ------------------------------------------- | ------------------------------------------------------- |
+| ETL      | `rows`、`date_range`                        | `feature_columns=[]`、`label_columns=[]`                |
+| Analysis | `rows`                                      | `scores={}`                                             |
+| Train    | `train_rows`                                | `model_name`、列名、metrics、parameters、training_curve |
+| Predict  | `protocol`、`rows`、`date_range`            | `output_columns=[]`、`statistics={}`                    |
+| Backtest | `default_universe`、`universes`、`protocol` | 共享的 `artifacts={}`                                   |
+
+`model_manifest` 产物是 Qlib 预测消费者的要求，不是 `BaseTrainOutputParams` 自身的必填字段。
+
+所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
+
+训练成员仅由模型清单声明；预测分数映射仅保存在 `protocol.score_columns`，数据通过 `artifacts.predictions` 注册。单成员生产者使用相同集合契约。股票插件在调用回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
+
+此集合契约替代旧 `model_file` 字段，并要求预测输出声明 `score_columns`；不兼容旧版插件输出和历史 metadata。成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
+
+## ETL 产物
+
+基类保存输出文件描述和列名。qlib_a158 扩展 feature_count、symbols、schema、protocol、market_state 等信息，生成：
+
+| artifact 名  | 文件               | 用途                               |
+| ------------ | ------------------ | ---------------------------------- |
+| `dataset`    | `alpha158.parquet` | 训练、因子分析和预测的源数据       |
+| `statistics` | `alpha158.csv`     | 各列质量统计                       |
+| `labels`     | `labels.parquet`   | 固定次一市场日原始收益及可用状态   |
+| `market`     | `market.parquet`   | 报价、复权因子、成交资格及行情状态 |
+| `calendar`   | `calendar.parquet` | 独立于预测资格的市场日期           |
+
+所有下游通过任务内相对路径 `artifacts` 注册表读取文件。ETL、分析、预测和训练输出均不再保存重复的绝对文件路径。
+
+## 因子分析 scores
+
+`scores` 的形状为“分组名 → 指标名 → 数值”：
+
+```json
+{
+  "scores": {
+    "quality": { "mean_abs_ic": 0.03, "positive_ratio": 0.6 },
+    "coverage": { "valid_days": 120.0 }
+  }
+}
+```
+
+这只是合法形状示例，不是 qlib_a158 的固定指标集合。Studio 动态遍历分组及指标，插件应保证指标名与定义可理解，并在详细文件或扩展定义字段交代样本、单位和计算范围。
+
+qlib_a158 实际生成 `factor_analysis.csv`、`factor_quantiles.csv`，映射名分别为 `result`、`quantiles`，并保存 definitions、labels 等扩展字段。
+
+## 训练曲线模型
+
+`TrainingCurve` 是明确验证的模型：
+
+```json
+{
+  "x": ["1", "2", "3"],
+  "y_left": {
+    "train_l2": [0.09, 0.07, 0.06],
+    "validation_l2": [0.1, 0.08, 0.085]
+  },
+  "y_right": {
+    "validation_l1": [0.22, 0.2, 0.205]
+  }
+}
+```
+
+必须满足：
+
+- x 是有序字符串标签，各序列按相同位置对齐。
+- 每条序列长度严格等于 x 长度，数值均为有限值。
+- 有 x 时至少存在一条左轴序列；右轴不能单独存在。
+- 左右轴序列名称不能重复。
+- 空 x 且左右组都为空表示没有曲线数据。
+
+左轴同组应采用相近量纲和数值范围，右轴仅用于第二组尺度。协议不支持第三个数值轴。Studio 读取端只做轻量规范化；图表过滤长度不匹配的序列，计算轴范围时忽略非有限值，不会完整复验 Python 模型规则，也不会修复训练历史。生产者必须在发布前用模型验证。
+
+qlib_a158 把 L2 放左轴、L1 放右轴；曲线是调参模型的训练/验证历史。`model`、`feature_importance`、`evaluation_history` 分别引用最终模型、重要性和历史 CSV。
+
+## 预测统计
+
+基类 `statistics` 是自由扩展映射。Studio 当前读取：
+
+```text
+statistics.days / symbols
+statistics.pred.mean / min / median / max
+statistics.buyable_rows / candidate_rows
+statistics.indices.<column>.constituents / days_with_weights / null_rows
+```
+
+缺少这些字段时页面显示空值，不意味着所有预测插件都必须提供 qlib_a158 股票统计。qlib_a158 artifact 名为 `predictions`，文件为 `predictions.parquet`。
+
+股票回测使用 `axonx.task.builtins.stock` 的统一契约。预测行包含 `trade_date`、`trade_time`、`ts_code`、`pred`、`is_model_candidate`、`is_buyable_at_signal`、`signal_price` 和 `signal_adjustment_factor`；资格标志是非空 Boolean。qlib_a158 另外输出 `name`、`rank`、`buyable_rank` 和指数权重。预测不包含未来标签。ETL 独立发布 `dataset`、`labels`、`market`、`calendar`；`labels` 按信号主键存储 `label_target_date`、`label_return`、`label_valid`、`label_status`。Rank/CSZ 目标仅在训练完成截止时间及样本筛选后计算。
+
+## 预测到股票回测的输入契约
+
+`BaseStockBacktestTask` 从预测 Parquet 读取以下 8 个必需列；两个 Alpha158 插件的 `predictions.parquet` 都满足该契约。
+
+| 必需列                     | 类型与约束                                      | 含义                                       |
+| -------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| `trade_date`               | 非空字符串，有效 YYYYMMDD，且属于市场日历       | 信号日期                                   |
+| `trade_time`               | 非空字符串，有效 HHMM；一次回测只能包含一个时点 | 信号时点，例如 `1500`                      |
+| `ts_code`                  | 非空字符串                                      | 股票标识                                   |
+| `pred`                     | 非空、有限数值                                  | 排序分数，越大排名越靠前；不是收益率或概率 |
+| `is_model_candidate`       | 非空 Boolean                                    | 是否具有模型候选资格                       |
+| `is_buyable_at_signal`     | 非空 Boolean                                    | 信号时是否满足可买筛选条件                 |
+| `signal_price`             | 非空、有限数值                                  | 信号时参考报价，与复权因子分开存储         |
+| `signal_adjustment_factor` | 非空、有限数值                                  | 信号时参考报价的复权因子                   |
+
+预测表不能为空，组合主键 `(trade_date, trade_time, ts_code)` 必须唯一且无空值。股票标识和时点需与行情表使用相同口径。参考报价和复权因子按其价格含义应为正值。两个资格标志都为 `true` 的行才进入选股候选池，再与插件选择的股池取交集。
+
+以下列不是基础回测的必需列：
+
+| 可选列                 | 用途                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `name`                 | 明细显示名称；省略时使用 `ts_code`                                                                                         |
+| `rank`、`buyable_rank` | 预测侧辅助排名；回测自行按 `pred` 降序、`ts_code` 升序计算目标排名                                                         |
+| `index_weight_<code>`  | 小数单位指数权重；插件用 `index_weight_hs300` 等辅助列构造指数股池，权重大于零表示属于该候选指数；权重列也用于基准收益代理 |
+
+预测无需提供特征列、`actual_return`、未来标签或未来买卖日期。`signal_price` 和 `signal_adjustment_factor` 是信号参考信息；实际成交与逐日估值使用独立 `market` 表中的 `price`、`adjustment_factor` 和交易状态。
+
+回测输入还需独立的 `market` 和 `calendar` 产物；可选 `labels` 用于 IC、RankIC、NDCG、目标标签收益和基准收益，无标签时仍可运行组合账本。指定文件时分别传 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`，上述 `input_file` 为预测 Parquet。
+
+通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`revision`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `upstream_task_ids` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物大小和修改时间。`statistics` 是展示信息，不是回测选股输入。
+
+## 回测 dimensions 与 protocol
+
+```json
+{
+  "default_universe": "all",
+  "universes": {
+    "all": {
+      "label": "All market",
+      "parameters": {},
+      "dimensions": {
+        "top_ns": [1, 5, 10, 30],
+        "holding_detail_top_n": 30,
+        "benchmarks": [
+          {
+            "key": "universe",
+            "label": "Universe"
+          }
+        ]
+      },
+      "date_range": {
+        "start": "20230103",
+        "end": "20231229"
+      },
+      "days": 250,
+      "evaluation_status": "done",
+      "artifacts": {
+        "daily": "all_daily",
+        "summary": "all_summary"
+      }
+    }
+  },
+  "protocol": {
+    "version": 1,
+    "task_type": "backtest",
+    "return_unit": "decimal"
+  },
+  "artifacts": {
+    "all_daily": {
+      "path": "universes/all/daily.parquet",
+      "size": 1234,
+      "revision": "1234:1700000000000000000"
+    },
+    "all_summary": {
+      "path": "universes/all/summary.parquet",
+      "size": 1234,
+      "revision": "1234:1700000000000000000"
+    }
+  }
+}
+```
+
+这是基类合法结构示例。统一股票 Task 在 `protocol` 中发布执行、估值、配置、费用、截止时间和输入摘要的定义，`evaluation_status` 标识行情不完整的结果。页面不是自动验证协议文字的回测引擎；插件作者需明确真实执行与单位。
+
+Studio 从 选中股池报告的 `artifacts.daily`、`artifacts.summary` 引用所指向的根级产物记录 加载两个表，加载时每页请求 5000 行，根据 `has_more` 继续，直到读取完整表。仅满足 Backtest 输出模型不足以保证图表可用。
+
+每个股池拥有独立的 dimensions、日期、状态和产物引用。Studio 默认选择 `default_universe`，通过下拉框切换；比较页两侧可独立选择。删除顶层 daily/summary 别名和扁平回测字段，旧回测必须重新生成。
+
+插件继承 `BaseStockBacktestTask`，实现 `build_universes()` 返回 `BacktestUniverse` 定义，实现 `select_universe(signals, universe)` 返回唯一的 `(trade_date, trade_time, ts_code)` 主键。筛选器只接收信号时点数据，不接收标签和未来行情。框架验证主键，为各股池创建独立账户，将报告写入 `universes/<key>/`。可选的 `universe_events()` 为每个报告创建独立事件状态。预测和标签只加载一次。
+
+## 统一回测信号
+
+唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
+
+产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。
+
+## 日频表的展示字段
+
+| 字段                                     | 当前 Studio 用途                                 |
+| ---------------------------------------- | ------------------------------------------------ |
+| `trade_date`                             | 日期轴与两个策略的日期配对，采用 YYYYMMDD 字符串 |
+| `candidate_count`                        | 候选数量                                         |
+| `ic`、`rank_ic`                          | 信号曲线及移动均值                               |
+| `topN_net_return`、`topN_gross_return`   | 净复利、毛累加曲线                               |
+| `topN_turnover`、`topN_transaction_cost` | 换手和成本观察                                   |
+| `topN_ndcg`                              | 各配置 Top N 规模的排名诊断                      |
+| `benchmark_<key>_return`                 | dimensions 声明的基准收益曲线                    |
+| `top30_holdings`                         | 当前固定 Top 30 明细                             |
+
+明细是结构数组，前端读取 `rank`、`ts_code`、`name`、`prediction`、`daily_return`、`weight`。`daily_return` 是固定次一市场日标签，在截止时间不可用时为空。真实买卖日期和延期退出保存在 `positions`、`trades`；成交与未成交原因保存在 `orders`。
+
+当前页面硬编码 `top30_holdings`，不会因 holding_detail_top_n 的值改变而自动寻找新列。qlib_a158 这个字段是信号目标、包含未成交候选；不能描述为实际持仓账本。
+
+## 汇总表的展示字段
+
+每行用 `period_type` 标明 `overall`、`year`、`quarter` 或 `month`，并提供 `period`、`period_start`、`period_end`、`trading_days`。
+
+信号字段包括 `ic_mean`、`icir` 和 `rank_ic_mean`。每个 Top N 对应：
+
+```text
+topN_net_cumulative_return
+topN_net_annualized_return
+topN_net_annualized_volatility
+topN_net_max_drawdown
+topN_net_win_rate
+topN_average_turnover
+topN_gross_cumulative_return
+topN_gross_sharpe
+topN_information_ratio_<benchmark key>
+```
+
+N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图和策略比较是浏览器计算。qlib_a158 毛累计汇总用复利，毛收益图用累加，口径说明见[回测解读](../research/backtest.md)。
+
+## 窗口任务、在线历史与回放
+
+`BaseWindowTask` 接收有序 `ExecutionWindow`，起止时间必须带时区；逐窗口发布 `WindowResult`，状态为 `done`、`skipped`、`incomplete` 或 `failed`。这些是业务结果，与 Task 生命周期状态分开。`BaseRealtimeApiTask` 轮询 `collect()`，`BaseInferenceTask` 在整次执行中固定非空模型身份。网络调用与重试应以 `DeadlineBudget.remaining_seconds` 限制。
+
+`OnlineStore` 将不可变提交文件写入 `persistent/online/commits/<commit_id>/`，通过原子替换 `persistent/online/manifest.json` 发布所选历史。提交记录生产者 `task_id`、`started_at`、信号日期/时间、按信号连续递增的 revision、模型身份、协议和产物。策略身份变化需要使用新的实例名。`read_online_history()` 同时读取完整清单与冻结历史链；报告或回放前使用 `pin_online_history()` 核验引用文件，并固定到消费者目录。
+
+`ReplayStream.create()` 固定文件快照，在新目录中发布 `stream.json`，拒绝覆盖已有数据集；打开流时按大小和 revision 核验所有引用文件。事件按带时区的 `available_at` 排序。向 Task 注入 `ReplayClock`，通过 `ReplayCursor` 仅在业务截止时间之前交付事件。只有创建时钟的线程可以推进回放时间，生命周期时间戳与执行耗时仍使用真实时间。
+
+## 生产者验收
+
+1. 用实际输出子类验证 output_params。
+2. 先写文件，再调用 artifact_record 并发布 metadata。
+3. 用 `verify_artifact` 解析并核验注册产物，消费上游前固定输入快照。
+4. 对照当前 Studio 字段检查日期、数值单位、布尔列和结构数组。
+5. 验证曲线与下游契约，保留 protocol 的明确执行说明。
+
+不要手工用占位摘要冒充真实文件；也不要修改 metadata 来掩盖失败执行。所有图表依赖相应生产者和读取端的共同契约。
+
+## Studio 传输契约
+
+Studio 直接保存任务记录及其 `output_params`，不再平铺第二套研究对象。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。
+
+## 实现依据
+
+- [`基础研究模型`](../../../axonx/task/models/)
+- [`产物 helper`](../../../axonx/task/storage/artifacts.py)
+- [`Studio 读取映射`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
+- [`回测展示类型`](../../../axonx_studio/src/features/research/backtest/types.ts)
+- [`qlib_a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)

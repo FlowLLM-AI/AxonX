@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="510" viewBox="0 0 1320 510" role="img" aria-labelledby="title desc">
+<title id="title">Upload once; choose the consuming operation</title>
+<desc id="desc">StagedFile returns a workspace-relative path, absolute location and byte size.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M1 1 L8 4.5 L1 8" fill="none" stroke="#52738f" stroke-width="1.6"/></marker></defs>
+<rect x="8" y="8" width="1304" height="494" rx="24" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5"/>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18324b" data-diagram-content="true">
+<text x="40" y="53" font-size="28" font-weight="700">Upload once; choose the consuming operation</text>
+<text x="40" y="84" font-size="17" fill="#52738f">StagedFile returns a workspace-relative path, absolute location and byte size.</text>
+<rect x="40" y="126" width="330" height="230" rx="16" fill="#e8f1ff" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="60" y="160" font-size="22" font-weight="700">1. Stage bytes</text>
+<text x="60" y="196" font-size="18">POST /upload</text>
+<text x="60" y="223" font-size="18">Binary: x-file-name header</text>
+<text x="60" y="250" font-size="18">or multipart file + directory</text>
+<text x="60" y="277" font-size="18">Files stay under workspace tmp.</text>
+<rect x="475" y="118" width="370" height="140" rx="16" fill="#f0edff" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="495" y="152" font-size="22" font-weight="700">2a. Install plugin</text>
+<text x="495" y="188" font-size="18">cli argv: plugin install LOCATION</text>
+<text x="495" y="215" font-size="18">Use the absolute staged location.</text>
+<rect x="475" y="294" width="370" height="140" rx="16" fill="#e7f5f1" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="495" y="328" font-size="22" font-weight="700">2b. Apply display archive</text>
+<text x="495" y="364" font-size="18">sync_tasks: { path: PATH }</text>
+<text x="495" y="391" font-size="18">Use the workspace-relative path.</text>
+<rect x="950" y="126" width="330" height="230" rx="16" fill="#fff1dd" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="970" y="160" font-size="22" font-weight="700">3. Clean staging</text>
+<text x="970" y="196" font-size="18">DELETE /upload?path=PATH</text>
+<text x="970" y="223" font-size="18">Use relative path in finally.</text>
+<text x="970" y="250" font-size="18">Inspect the consumer result.</text>
+<text x="970" y="277" font-size="18">Cleanup does not undo install.</text>
+<path d="M 370 202 H 422 V 188 H 473" fill="none" stroke="#52738f" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 422 202 V 364 H 473" fill="none" stroke="#52738f" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 845 188 H 896 V 242 H 948" fill="none" stroke="#52738f" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M 845 364 H 896 V 242" fill="none" stroke="#52738f" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="40" y="476" font-size="17">Uploads carry no checksum field. Verify plugin wheel SHA-256 separately against the installation result.</text>
+</g>
+</svg>

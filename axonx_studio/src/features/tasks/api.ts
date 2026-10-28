@@ -6,6 +6,20 @@ import type {
   TaskSummary,
 } from "../../shared/api/contracts";
 import type { TaskDefinition } from "./model";
+import type { StreamOptions } from "../../shared/api/event";
+
+export interface CommandResult {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  stdout_truncated: boolean;
+  stderr_truncated: boolean;
+}
+
+export const executeTaskCommand = (
+  argv: string[],
+  options: StreamOptions<CommandResult> = {},
+) => axonx.stream<CommandResult>("cli", { argv }, options);
 
 export const listTaskStatuses = (options: RequestOptions = {}) =>
   axonx.invoke<TaskSummary[]>(

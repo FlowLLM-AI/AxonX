@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="520" viewBox="0 0 1320 520" role="img" aria-labelledby="title desc">
+<title id="title">Workspace evidence and retained business data</title>
+<desc id="desc">Task directory: &lt;workspace&gt;/&lt;task_type&gt;/&lt;task_id&gt;/. The current execution is identified by started_at.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M1 1 L8 4.5 L1 8" fill="none" stroke="#52738f" stroke-width="1.6"/></marker></defs>
+<rect x="8" y="8" width="1304" height="504" rx="24" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5"/>
+<g font-family="Arial, Helvetica, sans-serif" fill="#18324b" data-diagram-content="true">
+<text x="40" y="53" font-size="28" font-weight="700">Workspace evidence and retained business data</text>
+<text x="40" y="84" font-size="17" fill="#52738f">Task directory: &lt;workspace&gt;/&lt;task_type&gt;/&lt;task_id&gt;/. The current execution is identified by started_at.</text>
+<rect x="40" y="119" width="390" height="245" rx="16" fill="#e8f1ff" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="60" y="153" font-size="22" font-weight="700">metadata.json</text>
+<text x="60" y="189" font-size="18">Identity and process ownership</text>
+<text x="60" y="216" font-size="18">Inputs, outputs and artifact records</text>
+<text x="60" y="243" font-size="18">State, exit code, errors and steps</text>
+<text x="60" y="270" font-size="18">Direct child invocation snapshots</text>
+<text x="60" y="297" font-size="18">Atomic current lifecycle snapshot</text>
+<rect x="465" y="119" width="390" height="245" rx="16" fill="#f0edff" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="485" y="153" font-size="22" font-weight="700">events.jsonl + artifacts</text>
+<text x="485" y="189" font-size="18">Progress journal for this execution</text>
+<text x="485" y="216" font-size="18">Data, models and reports</text>
+<text x="485" y="243" font-size="18">Artifact paths are Task-relative.</text>
+<text x="485" y="270" font-size="18">Revisions use size + mtime_ns.</text>
+<text x="485" y="297" font-size="18">Reruns replace current evidence.</text>
+<rect x="890" y="119" width="390" height="245" rx="16" fill="#e7f5f1" stroke="#b8cadb" stroke-width="1.5"/>
+<text x="910" y="153" font-size="22" font-weight="700">persistent/</text>
+<text x="910" y="189" font-size="18">Task-owned cumulative data</text>
+<text x="910" y="216" font-size="18">Retained across same-name reruns</text>
+<text x="910" y="243" font-size="18">Plugin controls schema and locking.</text>
+<text x="910" y="270" font-size="18">Deleted with the Task directory.</text>
+<text x="910" y="297" font-size="18">Not a complete run archive.</text>
+<text x="40" y="413" font-size="17">Separate dependencies: log_dir / metadata.log_path, raw market data, installed plugins, credentials and Agent sessions.</text>
+<text x="40" y="447" font-size="17">TaskExecutor writes records; the Task index observes them. Queries do not settle stale running processes.</text>
+<text x="40" y="481" font-size="17">Display synchronization copies selected evidence and optional live groups; it does not create executable backups.</text>
+</g>
+</svg>

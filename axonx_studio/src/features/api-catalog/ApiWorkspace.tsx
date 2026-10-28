@@ -188,7 +188,7 @@ export default function ApiWorkspace({
                   fields
                 </small>
               </header>
-              <div className="api-fields">
+              <div className="schema-fields">
                 <SchemaForm
                   schema={selected.input_schema}
                   values={values}

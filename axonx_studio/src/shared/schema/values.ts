@@ -1,4 +1,6 @@
 export interface JsonSchema {
+  $defs?: Record<string, JsonSchema>;
+  $ref?: string;
   type?: string | string[];
   title?: string;
   description?: string;
@@ -11,8 +13,37 @@ export interface JsonSchema {
   format?: string;
   minimum?: number;
   maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
   exclusiveMinimum?: number;
   exclusiveMaximum?: number;
+}
+
+/** Resolve field references for controls; nested objects remain editable JSON. */
+export function formSchema(schema: JsonSchema): JsonSchema {
+  const resolve = (field: JsonSchema, seen = new Set<string>()): JsonSchema => {
+    let resolved = field;
+    if (field.$ref?.startsWith("#/$defs/") && !seen.has(field.$ref)) {
+      const definition = schema.$defs?.[field.$ref.slice(8)];
+      seen = new Set([...seen, field.$ref]);
+      if (definition) resolved = { ...resolve(definition, seen), ...field };
+    }
+    const branch = resolved.anyOf?.find((item) => item.type !== "null");
+    if (branch) resolved = { ...resolve(branch, seen), ...resolved };
+    return resolved.items
+      ? { ...resolved, items: resolve(resolved.items, seen) }
+      : resolved;
+  };
+  return {
+    ...schema,
+    properties: Object.fromEntries(
+      Object.entries(schema.properties || {}).map(([key, field]) => [
+        key,
+        resolve(field),
+      ]),
+    ),
+  };
 }
 
 export type SchemaFieldValue = string | boolean;
@@ -32,6 +63,7 @@ function encodeFieldValue(
   value: unknown,
   schema: JsonSchema,
 ): SchemaFieldValue {
+  if (value === null) return "";
   const type = schemaType(schema);
   if (type === "boolean") return Boolean(value);
   if (schema.enum || type === "object" || type === "array") {
@@ -53,8 +85,15 @@ export function decodeFieldValue(
   const type = schemaType(schema);
   if (schema.enum) return JSON.parse(String(value));
   if (type === "boolean") return Boolean(value);
-  if (type === "integer") return Number.parseInt(String(value), 10);
-  if (type === "number") return Number(String(value));
+  if (type === "integer" || type === "number") {
+    const number = Number(value);
+    if (
+      !Number.isFinite(number) ||
+      (type === "integer" && !Number.isInteger(number))
+    )
+      throw new Error("Invalid number");
+    return number;
+  }
   if (type === "object" || type === "array") return JSON.parse(String(value));
   return String(value);
 }

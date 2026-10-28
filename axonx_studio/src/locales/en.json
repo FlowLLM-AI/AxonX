@@ -67,7 +67,7 @@
   "copyTaskId": "Copy Task ID",
   "copied": "Copied",
   "noTasks": "No task runs yet",
-  "noTasksHint": "Run a Task with axonx exec to see its record here.",
+  "noTasksHint": "Run a Task from Task definitions to see its record here.",
   "noMatches": "No tasks match these filters",
   "requestFailed": "Unable to load task status",
   "staleHint": "Showing the last successfully loaded data.",
@@ -309,70 +309,69 @@
   "home": {
     "quantAria": "Agent research workflow",
     "quantTitle": "From questions to experiments",
-    "quantLead": "Research prompt + AxonX Skill guide Agent development and iteration",
+    "quantLead": "Use the AxonX Skill to guide Agent development, execution, and review",
     "brandAria": "AxonX agent-native quantitative research harness",
     "brandTitle": "Turn research prompts into quantitative code and traceable experiments",
-    "brandLead": "Unified tools and a runtime for Agents to develop plugins, execute experiments, and analyze results.",
+    "brandLead": "Develop factors, models, and strategies with Agents. Run experiments, analyze backtests, and track online predictions.",
     "manageTasks": "Manage Tasks",
-    "capabilitiesAria": "Harness framework capabilities",
-    "capabilitiesTitle": "Harness capabilities",
-    "capabilitiesLead": "Shared tools and a runtime connect code, execution, and evidence",
+    "capabilitiesAria": "Research and operations",
+    "capabilitiesTitle": "Research and operations",
+    "capabilitiesLead": "Connect development, execution, analysis, and daily operations",
     "steps": {
       "question": {
         "title": "Define the research question",
-        "detail": "Specify the hypothesis, baseline, data, and metrics"
+        "detail": "Specify the hypothesis, data scope, baseline, and metrics"
       },
       "agent": {
         "title": "Connect an Agent",
-        "detail": "Use an external or built-in Agent with the AxonX Skill"
+        "detail": "Use an external Agent or a built-in Studio session"
       },
       "plugin": {
         "title": "Develop research plugins",
-        "detail": "Build or improve factors, models, and portfolio strategies"
+        "detail": "Extend data processing, factors, models, and portfolio strategies"
       },
       "experiment": {
-        "title": "Run experiments",
-        "detail": "Install in the execution environment, run with exec and inspect Tasks"
+        "title": "Run research tasks",
+        "detail": "Run on the selected service through an Agent or CLI"
       },
       "evidence": {
-        "title": "Inspect the evidence",
-        "detail": "Review parameters, logs, metrics, and artifacts"
+        "title": "Inspect results",
+        "detail": "Review logs, data, training curves, and backtest performance"
       },
       "iterate": {
         "title": "Compare and iterate",
-        "detail": "Compare candidates and use results to guide changes"
+        "detail": "Compare candidate strategies, verify differences, and refine"
       }
     },
     "features": {
       "plugin": {
         "title": "Extensible research plugins",
-        "detail": "Reuse implementations and extend factors, models, and strategies"
+        "detail": "Extend ETL, factor analysis, training, prediction, and backtesting"
       },
       "job": {
         "title": "Unified tool interfaces",
-        "detail": "CLI, HTTP, MCP, and Studio share Jobs"
+        "detail": "Call tools and query results through CLI, HTTP, and MCP"
       },
       "task": {
-        "title": "Experiment task management",
-        "detail": "Inspect Task definitions, records, progress and logs"
+        "title": "Task status and relationships",
+        "detail": "Inspect parameters, progress, logs, dependencies, and parent/child calls"
       },
       "machine": {
-        "title": "Local and remote execution",
-        "detail": "Run on a selected service and inspect resources and status"
+        "title": "Local and remote environments",
+        "detail": "Switch execution targets; inspect resources, configuration, and service status"
       },
       "evidence": {
-        "title": "Traceable experiment evidence",
-        "detail": "Preserve parameters, Task IDs and start times, dependencies, and artifacts"
+        "title": "Research results and artifacts",
+        "detail": "Browse workspace files; analyze training curves, backtests, and strategy differences"
       },
-      "agent": {
-        "title": "Agent and visual collaboration",
-        "detail": "Agents inspect results; researchers analyze them in Studio"
+      "online": {
+        "title": "Online predictions and checks",
+        "detail": "Track data updates, signals by time slot, and online/offline prediction differences"
       }
     },
     "openAgent": "Open Agent",
-    "journey": "You define the question · Agent implements · Harness manages execution and evidence",
-    "agentNote": "Use an external Agent or Studio’s built-in Agent",
-    "browseTasks": "Browse Task definitions"
+    "journey": "Question · Agent development · Task execution · Verification",
+    "agentNote": "Use an external Agent or Studio’s built-in Agent"
   },
   "workspace": {
     "folder": "Folder",
@@ -397,7 +396,7 @@
     "truncated": "Large file: showing the first 512 KiB",
     "invalidJson": "Invalid JSON",
     "invalidYaml": "Invalid YAML",
-    "frontmatter": "Frontmatter",
+    "frontmatter": "Document metadata",
     "rows": "rows",
     "previous": "Previous",
     "next": "Next",
@@ -405,7 +404,11 @@
     "list": "List",
     "dict": "Dict",
     "items": "items",
-    "keys": "keys"
+    "keys": "keys",
+    "markdownView": "Markdown view",
+    "preview": "Preview",
+    "source": "Source",
+    "sourceFailed": "Unable to read the original file"
   },
   "research": {
     "pages": {
@@ -737,21 +740,21 @@
   },
   "update": {
     "title": "Update or restart service",
-    "description": "Update AxonX and Studio, or restart the selected service from disk. The service will be temporarily unavailable.",
+    "description": "Update AxonX and Studio, or restart the selected service to reload its schedules. The service is temporarily unavailable; running scheduled Tasks continue.",
     "unavailable": "Update and restart are unavailable. The service needs operation/status Jobs and token authentication.",
     "method": "Operation",
     "git": "Source repository · current upstream",
     "pip": "Published packages · stable releases",
     "gitHint": "Fast-forward the current branch with git pull --ff-only, build Studio and update the backend. Conflicting local changes are retained and cause failure.",
     "pipHint": "Upgrade axonx and axonx-studio in the service’s Python environment. Editable installations must use source updates.",
-    "gitConfirm": "I agree to update the source and restart this machine’s service and cron workers.",
+    "gitConfirm": "I agree to update the source and restart the selected service to reload its schedules.",
     "pipConfirm": "I agree to update packages and restart this machine’s service.",
     "start": "Update and restart",
     "reconnecting": "Updating / restarting. Waiting for the service to reconnect…",
     "reload": "Reload Studio",
     "phases": {
       "accepted": "Update accepted",
-      "fetching": "Fetching main",
+      "fetching": "Pulling the current branch’s upstream",
       "building": "Building Studio",
       "installing": "Installing packages",
       "verifying": "Verifying installation",
@@ -1160,11 +1163,51 @@
     "rowsPair": "Online {{online}} / offline {{offline}} rows"
   },
   "taskDefinitionsTitle": "Task definitions",
-  "taskDefinitionsLead": "Browse installed Tasks and their input and output schemas.",
+  "taskDefinitionsLead": "Configure installed Tasks, run them, and inspect results.",
   "taskDefinitions": {
     "selectTask": "Select a Task",
-    "selectTaskHint": "Review its description and input and output schemas",
+    "selectTaskHint": "Configure parameters or inspect input and output definitions",
     "loadingCatalog": "Loading Task catalog…"
   },
-  "input": "Input"
+  "input": "Input",
+  "taskExecution": {
+    "parameters": "Input parameters",
+    "parametersHint": "Configure the inputs for this run",
+    "outputHint": "Fields and types returned after a successful run",
+    "nameHint": "Leave the task name blank to generate one. Reusing a name replaces its finished run.",
+    "target": "Execution target",
+    "connectionHint": "Navigate within Studio freely. Reloading, closing the page, or losing the connection may stop execution.",
+    "reset": "Reset parameters",
+    "run": "Run task",
+    "starting": "Starting",
+    "invalidValue": "Enter a valid parameter value",
+    "output": "Execution logs",
+    "exitCode": "Exit code",
+    "stop": "Stop execution",
+    "waitingLog": "Waiting for execution logs…",
+    "disconnectedHint": "The connection was interrupted. Check the Task status before running it again.",
+    "monitor": "Executions",
+    "active_one": "{{count}} running",
+    "active_other": "{{count}} running",
+    "finished": "Execution finished",
+    "openTask": "Open Task details",
+    "dismiss": "Dismiss execution record",
+    "states": {
+      "starting": "Starting",
+      "running": "Running",
+      "succeeded": "Completed",
+      "failed": "Failed",
+      "disconnected": "Disconnected"
+    },
+    "active": "{{count}} running",
+    "taskName": "Task name",
+    "upstreamTasks": "Upstream Task IDs",
+    "upstreamHint": "List direct upstream Task IDs. This records dependencies without executing upstream Tasks."
+  },
+  "schemaForm": {
+    "addItem": "Add item",
+    "removeItem": "Remove item {{index}}",
+    "requiredOutput": "Required",
+    "optionalOutput": "Optional"
+  }
 }

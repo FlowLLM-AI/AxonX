@@ -10,16 +10,16 @@ AxonX Studio 是 [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH
 
 ## 主要功能
 
-| 功能           | 能力                                                                                |
-| -------------- | ----------------------------------------------------------------------------------- |
-| 任务定义       | 浏览已安装的任务，查看输入和输出 JSON Schema。                                      |
-| 任务管理       | 筛选任务，查看配置、进度、日志、依赖和父子调用；研究索引支持删除选中结果。          |
-| 机器管理       | 切换本机与已配置的远程目标，查看 CPU、内存、GPU 和运行环境信息。                    |
-| 工作区         | 浏览配置的整个工作区，支持目录按需加载、目录分页与文件预览，包括 Parquet 分页预览。 |
-| 研究结果       | 查看 ETL 数据集、因子指标、训练配置与曲线、预测产物。                               |
-| 回测与策略比较 | 查看收益曲线、质量指标、持仓和年/季/月汇总，在共同日期区间比较两个回测。            |
-| Agent          | 流式展示回答与工具调用、续接会话、重命名/标签/分叉/删除会话，以及停止当前轮次。     |
-| API 调试       | 浏览当前机器的 Job 目录，通过 Schema 表单调用 API。                                 |
+| 功能           | 能力                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| 任务定义       | 配置已安装任务的参数，通过 CLI Job 运行，查看输出字段与实时日志。                                   |
+| 任务管理       | 筛选任务，查看配置、进度、日志、依赖和父子调用；研究索引支持删除选中结果。                          |
+| 机器管理       | 切换本机与已配置的远程目标，查看 CPU、内存、GPU 和运行环境信息。                                    |
+| 工作区         | 在系统管理中浏览工作区，支持目录与 Parquet 分页，以及 Markdown 原始/预览切换和 frontmatter 元信息。 |
+| 研究结果       | 查看 ETL 数据集、因子指标、训练配置与曲线、预测产物。                                               |
+| 回测与策略比较 | 查看收益曲线、质量指标、持仓和年/季/月汇总，在共同日期区间比较两个回测。                            |
+| Agent          | 流式展示回答与工具调用、续接会话、重命名/标签/分叉/删除会话，以及停止当前轮次。                     |
+| API 调试       | 浏览当前机器的 Job 目录，通过 Schema 表单调用 API。                                                 |
 
 界面支持英文与简体中文、明暗主题，并保存浏览器偏好。Hash 路由保留所选机器与资源，例如 `#local/task-defs/catalog/demo`。
 
@@ -47,15 +47,13 @@ pip install axonx-studio
 
 ### 运行第一个任务
 
-1. 在后端环境运行 `axonx exec --task demo --x 2 --y 3`，或让已配置的 Agent 执行该命令。
-2. 在 **任务定义** 中查看已安装的 `demo` 及其输入输出 Schema。
-3. 打开 **全部任务**，选择记录并检查配置、执行步骤、日志与关系。
+1. 打开 **任务定义**，选择 `demo`，填写 `x = 2`、`y = 3`，点击 **运行任务**。
+2. 任务记录生成后进入详情，查看配置、步骤、日志与关系。
+3. 右下角运行记录在站内切换页面和机器时保留，可返回原执行目标查看结果。
 
-Task 名称留空时生成新名称；重用固定名称会替换已结束运行的目录。输入依赖通过 `upstream_task_ids` 记录，父子调用通过 `children` 记录，两者保持独立。
+Studio 通过现有 `cli` Job 保持流式执行连接；站内导航不会取消执行，刷新、关闭页面或连接中断可能终止命令。字符串数组支持逐项添加与删除，对象和复杂数组使用 JSON 输入。也可使用 CLI `axonx exec --task demo --x 2 --y 3`，或让已配置的 Agent 执行。
 
-将 **Task Name** 留空，可为每次实验生成名称。复用固定名称会替换已结束运行的目录。上游关系用于记录任务血缘，关系图不会自动执行依赖任务。
-
-输入依赖使用 `upstream_task_ids`，填写直接上游 Task ID 数组。依赖图展示 upstream/downstream；任务详情同时展示执行步骤和 `children` 中的 parent/child 调用，父子调用不会自动生成依赖边。
+任务名称留空时生成新名称；复用固定名称会替换已结束运行的结果。`upstream_task_ids` 记录直接输入依赖，不会自动执行上游任务；`parent_task_id` 和 `children` 记录父子调用，两者保持独立。
 
 ### 可选的研究与 Agent 配置
 
@@ -194,21 +192,23 @@ React 使用函数组件和 Hook；纯计算使用函数；持有资源或状态
 
 ### 任务
 
-| 文件                                                                                     | 能力                                                             |
-| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [src/features/tasks/ExecutionSteps.tsx](src/features/tasks/ExecutionSteps.tsx)           | 呈现步骤生命周期，并折叠连续重复的已完成步骤。                   |
-| [src/features/tasks/TaskChildren.tsx](src/features/tasks/TaskChildren.tsx)               | 展示每个直接子任务的最新调用及详情入口。                         |
-| [src/features/tasks/TaskDefinitionsPage.tsx](src/features/tasks/TaskDefinitionsPage.tsx) | 按内置任务和插件组织已安装定义，展示输入输出 Schema。            |
-| [src/features/tasks/TaskDetailPage.tsx](src/features/tasks/TaskDetailPage.tsx)           | 装配配置、步骤、父子调用、日志、依赖图和报告入口。               |
-| [src/features/tasks/TaskGraph.tsx](src/features/tasks/TaskGraph.tsx)                     | 加载和布局依赖图，支持节点定位、导航和右键操作。                 |
-| [src/features/tasks/TaskGroup.tsx](src/features/tasks/TaskGroup.tsx)                     | 呈现任务分组、展开状态、表头和组内分页。                         |
-| [src/features/tasks/TaskIssues.tsx](src/features/tasks/TaskIssues.tsx)                   | 聚合被替换任务和快照、请求异常，避免重复提示。                   |
-| [src/features/tasks/TaskLogPanel.tsx](src/features/tasks/TaskLogPanel.tsx)               | 按字节读取日志，支持追踪、向前加载、复制和有界缓冲。             |
-| [src/features/tasks/TaskRow.tsx](src/features/tasks/TaskRow.tsx)                         | 展示任务身份、状态、进度和耗时；提供通用任务状态徽标。           |
-| [src/features/tasks/TasksPage.tsx](src/features/tasks/TasksPage.tsx)                     | 展示、筛选和定时刷新分组任务列表。                               |
-| [src/features/tasks/api.ts](src/features/tasks/api.ts)                                   | 封装任务定义、摘要、完整状态、日志与依赖图 Job。                 |
-| [src/features/tasks/model.ts](src/features/tasks/model.ts)                               | 定义任务展示类型、状态筛选、分组排序、步骤进度、耗时及报告判断。 |
-| [src/features/tasks/tree.ts](src/features/tasks/tree.ts)                                 | 递归读取记录中的子任务，验证启动时间和副本快照身份。             |
+| 文件                                                                                     | 能力                                                                        |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [src/features/tasks/ExecutionSteps.tsx](src/features/tasks/ExecutionSteps.tsx)           | 呈现步骤生命周期，并折叠连续重复的已完成步骤。                              |
+| [src/features/tasks/TaskChildren.tsx](src/features/tasks/TaskChildren.tsx)               | 展示每个直接子任务的最新调用及详情入口。                                    |
+| [src/features/tasks/TaskDefinitionsPage.tsx](src/features/tasks/TaskDefinitionsPage.tsx) | 组织已安装定义，提供参数表单、运行入口和只读输出字段说明。                  |
+| [src/features/tasks/TaskDetailPage.tsx](src/features/tasks/TaskDetailPage.tsx)           | 装配任务详情和执行日志，执行结束后重新读取状态，隔离同名任务的不同运行。    |
+| [src/features/tasks/TaskGraph.tsx](src/features/tasks/TaskGraph.tsx)                     | 加载和布局依赖图，支持节点定位、导航和右键操作。                            |
+| [src/features/tasks/TaskGroup.tsx](src/features/tasks/TaskGroup.tsx)                     | 呈现任务分组、展开状态、表头和组内分页。                                    |
+| [src/features/tasks/TaskIssues.tsx](src/features/tasks/TaskIssues.tsx)                   | 聚合被替换任务和快照、请求异常，避免重复提示。                              |
+| [src/features/tasks/TaskLogPanel.tsx](src/features/tasks/TaskLogPanel.tsx)               | 按字节读取日志，支持追踪、向前加载、复制和有界缓冲。                        |
+| [src/features/tasks/TaskRow.tsx](src/features/tasks/TaskRow.tsx)                         | 展示任务身份、状态、进度和耗时；提供通用任务状态徽标。                      |
+| [src/features/tasks/TasksPage.tsx](src/features/tasks/TasksPage.tsx)                     | 展示、筛选和定时刷新分组任务列表。                                          |
+| [src/features/tasks/api.ts](src/features/tasks/api.ts)                                   | 封装任务定义、状态、日志、依赖图及 CLI 流式执行 Job。                       |
+| [src/features/tasks/model.ts](src/features/tasks/model.ts)                               | 定义任务展示类型、状态筛选、分组排序、步骤进度、耗时及报告判断。            |
+| [src/features/tasks/tree.ts](src/features/tasks/tree.ts)                                 | 递归读取记录中的子任务，验证启动时间和副本快照身份。                        |
+| [src/features/tasks/execution.ts](src/features/tasks/execution.ts)                       | 持有跨页面执行连接，编码 CLI 参数，跟踪状态、日志、停止操作及精确运行身份。 |
+| [src/features/tasks/TaskExecution.tsx](src/features/tasks/TaskExecution.tsx)             | 提供任务运行表单、只读输出字段、实时日志与全局运行记录。                    |
 
 ### 运行环境
 
@@ -237,11 +237,11 @@ React 使用函数组件和 Hook；纯计算使用函数；持有资源或状态
 
 ### 工作区与接口目录
 
-| 文件                                                                                               | 能力                                                        |
-| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [src/features/api-catalog/ApiWorkspace.tsx](src/features/api-catalog/ApiWorkspace.tsx)             | 加载真实 Job 目录，编辑 Schema 参数并调用选中接口。         |
-| [src/features/workspace/FilePreview.tsx](src/features/workspace/FilePreview.tsx)                   | 呈现 Parquet、CSV、JSONL、结构化数据、Markdown 和文本预览。 |
-| [src/features/workspace/WorkspaceBrowserPage.tsx](src/features/workspace/WorkspaceBrowserPage.tsx) | 管理按需加载的目录树、目录分页、路径定位和文件预览请求。    |
+| 文件                                                                                               | 能力                                                                                |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [src/features/api-catalog/ApiWorkspace.tsx](src/features/api-catalog/ApiWorkspace.tsx)             | 加载真实 Job 目录，编辑 Schema 参数并调用选中接口。                                 |
+| [src/features/workspace/FilePreview.tsx](src/features/workspace/FilePreview.tsx)                   | 呈现数据与文档预览；Markdown 支持原始/预览、frontmatter、工作区文件链接和页内定位。 |
+| [src/features/workspace/WorkspaceBrowserPage.tsx](src/features/workspace/WorkspaceBrowserPage.tsx) | 管理按需加载的目录树、目录分页、路径定位和文件预览请求。                            |
 
 ### 研究与回测
 
@@ -316,7 +316,7 @@ React 使用函数组件和 Hook；纯计算使用函数；持有资源或状态
 | [src/shared/api/response.ts](src/shared/api/response.ts)                     | 校验 HTTP 与 Job 响应，提取 answer 并提供 AxonXError。            |
 | [src/shared/api/tables.ts](src/shared/api/tables.ts)                         | 分页解码 Parquet 行，并统一拒绝无效或截断的 JSON 文件。           |
 | [src/shared/api/types.ts](src/shared/api/types.ts)                           | 为生成的 Job 响应和目录类型补充泛型及 Schema 类型。               |
-| [src/shared/api/workspace.ts](src/shared/api/workspace.ts)                   | 封装目录、预览、删除和工作区根路径查询，定义预览联合类型。        |
+| [src/shared/api/workspace.ts](src/shared/api/workspace.ts)                   | 封装目录、预览、删除、根路径查询与有界原始文本读取。              |
 | [src/shared/hooks/useAsyncResource.ts](src/shared/hooks/useAsyncResource.ts) | 管理异步资源的加载、错误、重试、取消和过期响应隔离。              |
 | [src/shared/hooks/useChart.ts](src/shared/hooks/useChart.ts)                 | 统一注册图表能力，复用 ECharts 实例，清理主题和尺寸观察器。       |
 | [src/shared/hooks/useCopyFeedback.ts](src/shared/hooks/useCopyFeedback.ts)   | 提供复制反馈，并清理组件退出后的反馈计时。                        |
@@ -330,7 +330,7 @@ React 使用函数组件和 Hook；纯计算使用函数；持有资源或状态
 | [src/shared/ui/DataBar.tsx](src/shared/ui/DataBar.tsx)                       | 呈现正负数值条和带格式的数值单元格。                              |
 | [src/shared/ui/RailResizer.tsx](src/shared/ui/RailResizer.tsx)               | 提供鼠标和键盘侧栏宽度调整。                                      |
 | [src/shared/ui/ReportTabs.tsx](src/shared/ui/ReportTabs.tsx)                 | 提供受控或本地标签页、键盘导航、按需挂载和状态保留。              |
-| [src/shared/ui/SchemaForm.tsx](src/shared/ui/SchemaForm.tsx)                 | 按 Schema 呈现参数表单，使用统一的值转换约定。                    |
+| [src/shared/ui/SchemaForm.tsx](src/shared/ui/SchemaForm.tsx)                 | 呈现参数表单、字符串列表增删控件与只读输出字段说明。              |
 | [src/shared/ui/Select.tsx](src/shared/ui/Select.tsx)                         | 提供键盘可访问的选择器和原生表单适配。                            |
 | [src/shared/ui/TaskIndexControls.tsx](src/shared/ui/TaskIndexControls.tsx)   | 提供任务索引标题、计数、刷新和搜索控件。                          |
 
@@ -407,6 +407,9 @@ React 使用函数组件和 Hook；纯计算使用函数；持有资源或状态
 | [src/shared/lib/upstreamTasks.test.ts](src/shared/lib/upstreamTasks.test.ts)                                             | 验证上游任务数组的读取、拒绝无效值和引用隔离。                                         |
 | [src/shared/schema/values.test.ts](src/shared/schema/values.test.ts)                                                     | 验证定义 JSON Schema 与表单值，处理类型、默认值、转换和字段错误及相关异常边界。        |
 | [src/shared/ui/Select.test.tsx](src/shared/ui/Select.test.tsx)                                                           | 验证提供键盘可访问的选择器和原生表单适配及相关异常边界。                               |
+| [src/features/tasks/execution.test.ts](src/features/tasks/execution.test.ts)                                             | 验证参数编码、跨页面连接、远程目标、失败与断流处理、重跑身份和停止操作。               |
+| [src/shared/ui/SchemaForm.test.tsx](src/shared/ui/SchemaForm.test.tsx)                                                   | 验证字符串数组逐项增删与类型转换，以及复杂数组保持 JSON 输入。                         |
+| [src/shared/api/workspace.test.ts](src/shared/api/workspace.test.ts)                                                     | 验证原文读取保留 frontmatter、注释、换行和 UTF-8 边界，并正确绑定远程目标。            |
 
 ### 样式
 

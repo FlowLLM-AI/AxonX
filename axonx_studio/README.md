@@ -10,16 +10,16 @@ The home screenshot uses the English interface in the static Playground. Its dat
 
 ## Features
 
-| Area                     | Capabilities                                                                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Task definitions         | Browse installed Task definitions and inspect input/output JSON Schema.                                                                                            |
-| Task management          | Filter records, inspect configuration, follow progress and logs, and view dependencies and parent/child calls. Research indexes support deleting selected results. |
-| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                             |
-| Workspace                | Browse the entire configured workspace with on-demand directory loading, directory pagination, and supported file previews, including paginated Parquet data.      |
-| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                                 |
-| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                        |
-| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                                 |
-| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                                |
+| Area                     | Capabilities                                                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Task definitions         | Configure installed Tasks, run them through the CLI Job, and inspect output fields and live logs.                                                                        |
+| Task management          | Filter records, inspect configuration, follow progress and logs, and view dependencies and parent/child calls. Research indexes support deleting selected results.       |
+| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                                   |
+| Workspace                | Browse the workspace from System management, preview paginated Parquet data, and switch Markdown between rendered preview and original source with frontmatter metadata. |
+| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                                       |
+| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                              |
+| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                                       |
+| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                                      |
 
 The interface supports English and Simplified Chinese, light/dark themes, and saved browser preferences. Hash routes preserve the selected machine and resource, for example `#local/task-defs/catalog/demo`.
 
@@ -47,9 +47,11 @@ Restart the service after installation. AxonX loads `dist/` through the package'
 
 ### Run your first task
 
-1. Run `axonx exec --task demo --x 2 --y 3` in the backend environment, or ask a configured Agent to execute it.
-2. Open **Task definitions** to inspect the installed `demo` definition and schemas.
-3. Open **All tasks**, select the new record, and inspect configuration, execution steps, logs and relationships.
+1. Open **Task definitions**, select `demo`, enter `x = 2` and `y = 3`, and click **Run task**.
+2. Studio opens the Task once its record appears. Inspect its configuration, steps, logs, and relationships.
+3. The execution monitor stays available across page and machine changes. Use it to return to the original execution.
+
+Studio streams the existing `cli` Job until execution finishes. Navigation within Studio preserves the connection; reloading, closing the page, or losing the connection may stop the command. String arrays use add/remove controls, while objects and complex arrays use JSON fields. CLI execution (`axonx exec --task demo --x 2 --y 3`) and Agent execution remain available.
 
 Leave **Task Name** empty to generate a name for each experiment. Reusing a fixed name replaces the directory of a finished run. Upstream relationships record lineage; the graph does not automatically execute dependent Tasks.
 

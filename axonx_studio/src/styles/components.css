@@ -1119,10 +1119,6 @@
   max-width: 1040px;
 }
 
-.task-definition-schema {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 .context-rail > header {
   min-height: 82px;
   background: transparent;
@@ -1173,9 +1169,9 @@
   border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
   box-shadow: 0 5px 15px rgba(35, 50, 86, 0.04);
 }
-.api-fields input,
-.api-fields .select-trigger,
-.api-fields textarea,
+.schema-fields input,
+.schema-fields .select-trigger,
+.schema-fields textarea,
 .search-field,
 .context-search {
   border-color: color-mix(in srgb, var(--accent) 13%, var(--line));
@@ -1552,4 +1548,165 @@
 }
 .table-wrap tbody tr:hover {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.schema-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 20px;
+}
+.schema-fields > label {
+  min-width: 0;
+}
+.schema-fields > label.wide {
+  grid-column: 1/-1;
+}
+.schema-fields > label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.schema-fields > label strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schema-fields > label em {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--faint);
+  background: var(--surface-3);
+  font-size: 11px;
+  font-style: normal;
+}
+.schema-fields > label > small {
+  display: block;
+  margin: -2px 0 8px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.schema-fields input,
+.schema-fields .select-trigger,
+.schema-fields textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.schema-fields textarea {
+  min-height: 110px;
+  padding: 11px;
+  font-family: "JetBrains Mono", monospace;
+  resize: vertical;
+}
+.schema-fields input:focus,
+.schema-fields .select-trigger:focus,
+.schema-fields textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.schema-fields .switch-control {
+  width: auto;
+}
+.string-list-field {
+  display: grid;
+  gap: 8px;
+}
+.string-list-field > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.string-list-field input {
+  min-width: 0;
+  flex: 1;
+}
+.string-list-field button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.string-list-field .string-list-remove {
+  width: 36px;
+  flex: none;
+  color: var(--muted);
+}
+.string-list-field .string-list-add {
+  justify-self: start;
+  padding: 0 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.string-list-field svg {
+  width: 15px;
+  height: 15px;
+}
+.schema-output-fields > article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.schema-output-fields header,
+.schema-output-fields article > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.schema-output-fields strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.schema-output-fields code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+.schema-output-fields header > code {
+  color: var(--accent);
+}
+.schema-output-fields article > span {
+  margin-top: 8px;
+}
+.schema-output-fields small,
+.schema-output-fields p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.schema-output-fields p {
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+.schema-fields:disabled button {
+  cursor: default;
+}
+@media (max-width: 680px) {
+  .schema-fields {
+    grid-template-columns: 1fr;
+  }
+  .schema-fields > label.wide {
+    grid-column: auto;
+  }
 }

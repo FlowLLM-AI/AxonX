@@ -2,6 +2,7 @@
 
 import math
 from datetime import date, timedelta
+from importlib import import_module
 from pathlib import Path
 
 import polars as pl
@@ -20,10 +21,12 @@ from axonx_qlib_a158.research import Alpha158ResearchTask, ResearchInputParams
 
 @pytest.fixture
 def catalog():
-    import axonx_qlib_a158
-
-    manifest = PluginManifest.parse((Path(axonx_qlib_a158.__file__).parent / "plugin.yaml").read_text(), "qlib_a158")
-    return TaskCatalog((name, target, "axonx-qlib-a158") for name, target in manifest.tasks.items())
+    registrations = []
+    for plugin in ("qlib_a158", "qlib_factor", "qlib_strategy"):
+        package = import_module("axonx_" + plugin)
+        manifest = PluginManifest.parse((Path(package.__file__).parent / "plugin.yaml").read_text(), plugin)
+        registrations.extend((name, target, plugin) for name, target in manifest.tasks.items())
+    return TaskCatalog(registrations)
 
 
 @pytest.fixture
@@ -139,3 +142,36 @@ def test_research_owns_dependencies_and_derives_prediction_cutoff():
     with pytest.raises(ValueError, match="pred_start"):
         ResearchInputParams(train={"train_end": "20250101"}, predict={"pred_start": "20240101"})
     assert "input_dir" in Alpha158Task.input_cls.model_json_schema()["properties"]
+
+
+@pytest.mark.parametrize("plugin", ["qlib_factor", "qlib_strategy"])
+def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalog, plugin):
+    days = market
+    executor = TaskExecutor(resolve_task=catalog.resolve)
+
+    def run(stage, **inputs):
+        registration = f"{plugin}_{stage}"
+        task = catalog.resolve(registration)(
+            dict(task_name="protocol", **inputs), workspace_path=tmp_path, reg_name=registration
+        )
+        assert executor.execute(task).state == TaskState.SUCCEEDED
+        return task
+
+    etl = run("etl", start_date=days[60], end_date=days[100])
+    assert etl.output["protocol"]["feature_family"] == "qlib_factor"
+    train = run(
+        "train",
+        upstream_task_ids=[etl.task_id],
+        train_start=days[60],
+        train_end=days[85],
+        context_groups="mean,variance",
+        num_threads=1,
+        num_boost_round=8,
+        early_stopping_rounds=3,
+    )
+    predict = run("predict", upstream_task_ids=[train.task_id, etl.task_id], pred_start=days[85], pred_end=days[95])
+    assert predict.output["protocol"]["market_upstream_task_id"] == etl.task_id
+    backtest = run("backtest", upstream_task_ids=[predict.task_id], top_ns=[5])
+    assert backtest.output["universes"]["all"]["date_range"]["end"] == days[95]
+    if plugin == "qlib_strategy":
+        assert backtest.output["protocol"]["strategy"] == "rank_retention"

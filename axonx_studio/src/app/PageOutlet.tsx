@@ -116,6 +116,7 @@ export function PageOutlet({
       <WorkspaceBrowserPage
         key={target || "local"}
         target={target}
+        machineId={machine.id}
         initialPath={route.resource}
         onConnection={setServiceOnline}
         onPathChange={(path) =>
@@ -211,7 +212,12 @@ export function PageOutlet({
   } else if (route.section === "task-defs") {
     page = (
       <TaskDefinitionsPage
+        key={machine.id}
         target={target}
+        machineId={machine.id}
+        onOpenTask={(resource) =>
+          navigate({ section: "runtime", view: "task", resource })
+        }
         initialName={route.resource}
         onSelected={(resource) =>
           navigate({ section: "task-defs", view: "catalog", resource })

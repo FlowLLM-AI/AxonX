@@ -20,7 +20,7 @@ class UpdateStep(BaseStep):
 
 @provider("update_from_git_step")
 class UpdateFromGitStep(UpdateStep):
-    """Fast-forward the current source branch and rebuild the application."""
+    """Fast-forward the current branch from its upstream and replace the service."""
 
     mode = "git"
 

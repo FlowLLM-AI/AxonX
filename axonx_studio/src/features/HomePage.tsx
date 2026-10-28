@@ -6,11 +6,11 @@ import {
   ChartNoAxesCombined,
   Crosshair,
   FileCode2,
+  Folder,
   FolderSearch,
   GitCompareArrows,
   Network,
   Puzzle,
-  Send,
   Workflow,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -32,7 +32,7 @@ const harnessFeatures = [
   { id: "task", code: "TASK", icon: Activity },
   { id: "machine", code: "TARGET", icon: Network },
   { id: "evidence", code: "EVIDENCE", icon: FolderSearch },
-  { id: "agent", code: "AGENT", icon: ChartNoAxesCombined },
+  { id: "online", code: "ONLINE", icon: ChartNoAxesCombined },
 ] as const;
 
 export default function HomePage({
@@ -105,9 +105,9 @@ export default function HomePage({
                 <ArrowRight aria-hidden="true" />
               </button>
               <div className="hero-task-actions">
-                <button onClick={() => onNavigate("task-defs")}>
-                  <Send aria-hidden="true" />
-                  {t("home.browseTasks")}
+                <button onClick={() => onNavigate("workspace")}>
+                  <Folder aria-hidden="true" />
+                  {t("shell.navigation.workspace")}
                 </button>
                 <button onClick={() => onNavigate("tasks")}>
                   <Activity aria-hidden="true" />

@@ -17,12 +17,67 @@ import type {
 import type { WorkspacePreview } from "../shared/api/workspace";
 import { upstreamTaskIds } from "../shared/lib/tasks";
 import { createPlayground } from "./runtime";
+import { taskCommand } from "../features/tasks/execution";
+import { definitions } from "./data";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 const client = () => new AxonXClient(createPlayground(), false);
 
 describe("static Playground", () => {
+  it.each(["success", "failure"])(
+    "simulates a CLI Task with %s outcome and publishes a queryable record",
+    async (outcome) => {
+      const api = client();
+      const definition = definitions[0];
+      const name = `test-${outcome}`;
+      const taskId = `${definition.task_type}#${definition.name}#${name}`;
+      const logs: string[] = [];
+      const command = api
+        .stream(
+          "cli",
+          { argv: taskCommand(definition.name, { task_name: name, outcome }) },
+          {
+            onEvent: (event) => {
+              if (event.kind === "log") logs.push(event.content);
+            },
+          },
+        )
+        .then(
+          (result) => ({ result, error: null }),
+          (error) => ({ result: null, error }),
+        );
+      await vi.advanceTimersByTimeAsync(2_500);
+      const response = await command;
+      const task = await api.invoke<TaskMetadata>("status", {
+        task_id: taskId,
+      });
+      expect(task.state).toBe(outcome === "success" ? "succeeded" : "failed");
+      expect(Boolean(response.error)).toBe(outcome === "failure");
+      expect(logs.join("")).toContain("[simulation]");
+      expect(task.input_params.task_name).toBe(name);
+    },
+  );
+
+  it("stops a simulated command through the same CLI Job", async () => {
+    const api = client();
+    const definition = definitions[0];
+    const taskId = `${definition.task_type}#${definition.name}#stop-test`;
+    const command = api
+      .stream("cli", {
+        argv: taskCommand(definition.name, { task_name: "stop-test" }),
+      })
+      .catch((error) => error);
+    await vi.advanceTimersByTimeAsync(200);
+    await api.stream("cli", {
+      argv: ["kill", "--task-id", JSON.stringify(taskId)],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    await command;
+    expect(
+      (await api.invoke<TaskMetadata>("status", { task_id: taskId })).error,
+    ).toBe("Simulation stopped");
+  });
   it("defaults to summaries while preserving explicit full status and selected task details", async () => {
     const api = client();
     const full = await api.invoke<TaskMetadata[]>("list_task_statuses", {

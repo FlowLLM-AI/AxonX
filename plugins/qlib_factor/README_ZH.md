@@ -25,6 +25,8 @@
 
 Beta 使用 T−1 及之前 60 个市场日，至少需要 30 个股票与市场配对收益。股票日收益按当日 2%/98% 分位缩尾，市场收益为其等权均值。Beta 为协方差除以市场方差，并限制在 [−3,3]；方差 ≤1e−12 时保持空值。中性动量为股票 5/10/20 日累计收益减去历史 beta × 市场累计收益。残差波动为“股票日收益 − 历史 beta × 市场日收益”的 20 日样本标准差；下行风险为 sqrt(mean(min(股票日收益,0)²))。风险窗口至少需要 20 日内 16 个有效观测；当日行情无效时所有股票特征保持空值。
 
+要求 AxonX 0.3.0 和当前版本的上游研究插件；框架与插件同步升级，不转换旧接口和旧产物格式。
+
 ## 安装与执行
 
 研究插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
@@ -44,13 +46,13 @@ axonx plugin install '<uploaded answer.location>' --target http://research.examp
 axonx get_task_def --task qlib_factor_train --target http://research.example:1024
 
 axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
-axonx exec --task qlib_factor_train --upstream-task-ids '<etl_task_id>' \
+axonx exec --task qlib_factor_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank --parameter-preset axonx \
   --context-groups risk --feature-fraction 1.0 --target http://research.example:1024
-axonx exec --task qlib_factor_predict --upstream-task-ids '<train_task_id>' \
+axonx exec --task qlib_factor_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx exec --task qlib_factor_backtest --upstream-task-ids '<predict_task_id>' \
+axonx exec --task qlib_factor_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --as-of-date 20261008 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```

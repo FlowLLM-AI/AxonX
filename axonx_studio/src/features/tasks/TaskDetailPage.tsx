@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Settings2,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
@@ -26,6 +26,8 @@ import { TaskChildren } from "./TaskChildren";
 import { TaskGraphPanel } from "./TaskGraph";
 import { TaskLogPanel } from "./TaskLogPanel";
 import { Status } from "./TaskRow";
+import { executionActive, useTaskExecutions } from "./execution";
+import { TaskExecutionOutput } from "./TaskExecution";
 
 export function TaskDetailPage({
   taskId,
@@ -69,12 +71,34 @@ export function TaskDetailPage({
   );
 
   const {
-    data: task,
+    data: loadedTask,
     loading,
     error: requestError,
     reload: loadStatus,
   } = useAsyncResource(load);
   const refreshAll = useRefresh(loadStatus);
+  const execution = useTaskExecutions().find(
+    (run) => run.taskId === taskId && run.target === target,
+  );
+  const previousExecution = useRef(execution);
+  useEffect(() => {
+    const previous = previousExecution.current;
+    previousExecution.current = execution;
+    if (
+      previous &&
+      execution &&
+      previous.id === execution.id &&
+      executionActive(previous) &&
+      !executionActive(execution)
+    )
+      void loadStatus();
+  }, [execution, loadStatus]);
+  const task =
+    execution?.task &&
+    executionActive(execution) &&
+    (!loadedTask || execution.task.started_at === loadedTask.started_at)
+      ? execution.task
+      : loadedTask;
   const error = requestError;
   const hasResearch =
     task?.state === "succeeded" &&
@@ -133,6 +157,9 @@ export function TaskDetailPage({
           </span>
         </div>
       </div>
+      {execution && execution.task?.started_at === task.started_at && (
+        <TaskExecutionOutput run={execution} />
+      )}
       {error && (
         <div className="error-banner">
           <strong>{t("requestFailed")}</strong>

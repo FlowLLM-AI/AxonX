@@ -55,6 +55,12 @@ export const navigationGroups: NavigationGroup[] = [
         icon: Settings2,
         labelKey: "runtime.environment",
       },
+      {
+        id: "workspace",
+        route: { section: "workspace", view: "files" },
+        icon: Folder,
+        labelKey: "shell.navigation.workspace",
+      },
     ],
   },
   {
@@ -127,12 +133,6 @@ export const navigationGroups: NavigationGroup[] = [
         route: { section: "task-defs", view: "catalog" },
         icon: FileCode2,
         labelKey: "shell.navigation.taskDefs",
-      },
-      {
-        id: "workspace",
-        route: { section: "workspace", view: "files" },
-        icon: Folder,
-        labelKey: "shell.navigation.workspace",
       },
       {
         id: "apis",

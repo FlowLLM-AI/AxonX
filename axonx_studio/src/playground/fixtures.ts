@@ -15,6 +15,7 @@ import { seedOnline } from "./online";
 export function seed() {
   const tasks = new Map<string, TaskMetadata>();
   const files = new Map<string, WorkspacePreview>();
+  const sourceFiles = new Map<string, string>();
   let upstreamIds: string[] = [];
   for (const kind of [...kinds, "backtest"] as const) {
     const variant = tasks.has(`${kind}#demo`) ? "volatile" : "steady";
@@ -93,13 +94,21 @@ export function seed() {
       ),
     ),
   );
+  const markdown =
+    "# Synthetic market data / 合成行情\n\nAll securities, returns and results are fictional. / 所有证券、收益和结果均为虚构。";
+  const frontmatter = {
+    title: "Synthetic market data",
+    tags: ["market", "simulation"],
+    simulated: true,
+  };
+  const source = `---\ntitle: "Synthetic market data" # demo metadata\ntags: [market, simulation]\nsimulated: true\n---\n${markdown}`;
+  sourceFiles.set("tushare/README.md", source);
   files.set("tushare/README.md", {
     kind: "markdown",
-    content:
-      "# Synthetic market data / 合成行情\n\nAll securities, returns and results are fictional. / 所有证券、收益和结果均为虚构。",
-    size: 150,
+    content: markdown,
+    size: new TextEncoder().encode(source).length,
     truncated: false,
-    frontmatter: null,
+    frontmatter,
     frontmatter_error: null,
   });
   const failed = taskStatus("train", "train#failed", "Demo failure");
@@ -135,5 +144,5 @@ export function seed() {
       truncated: false,
     });
   }
-  return { tasks, files };
+  return { tasks, files, sourceFiles };
 }

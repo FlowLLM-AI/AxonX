@@ -13,6 +13,8 @@
 
 默认 `minimum_holding_days=10`、`replacement_fraction=0.2`、`rank_buffer=1`。Top5/10/20/30 的每日数量上限为 1/2/4/6 只；它不是资金换手上限。不提供固定到期参数，`planned_exit_date` 为空。
 
+要求 AxonX 0.3.0 和当前版本的上游研究插件；框架与插件同步升级，不转换旧接口和旧产物格式。
+
 ## 安装与执行
 
 研究插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
@@ -32,7 +34,7 @@ axonx plugin install '<uploaded answer.location>' --target http://research.examp
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
 # 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
-axonx exec --task qlib_strategy_backtest --upstream-task-ids '<predict_task_id>' \
+axonx exec --task qlib_strategy_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[20,30]' --as-of-date 20261008 \
   --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024

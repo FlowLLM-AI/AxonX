@@ -14,7 +14,7 @@ export const kinds = [
   "backtest",
 ] as const;
 export const definitions: TaskDefinition[] = kinds.map((kind) => ({
-  name: `playground.${kind}`,
+  name: `playground_${kind}`,
   source: "plugin",
   plugin: "playground",
   task_type: kind,
@@ -23,7 +23,10 @@ export const definitions: TaskDefinition[] = kinds.map((kind) => ({
   input_schema: {
     type: "object",
     properties: {
-      task_name: { type: "string", default: `Demo ${kind}` },
+      task_name: {
+        anyOf: [{ type: "string" }, { type: "null" }],
+        default: null,
+      },
       strategy: {
         type: "string",
         enum: ["steady", "volatile"],

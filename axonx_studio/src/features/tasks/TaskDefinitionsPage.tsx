@@ -14,6 +14,7 @@ import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { listTaskDefs } from "./api";
 import type { TaskDefinition } from "./model";
+import { TaskRunForm } from "./TaskExecution";
 
 const EMPTY_TASKS: TaskDefinition[] = [];
 
@@ -23,12 +24,16 @@ export default function TaskDefinitionsPage({
   onSelected,
   onOptionsChange,
   onConnection,
+  machineId,
+  onOpenTask,
 }: {
   target?: string;
   initialName?: string;
   onSelected?: (name: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
+  machineId?: string;
+  onOpenTask?: (taskId: string) => void;
 }) {
   const { t } = useTranslation();
   const [selectedName, setSelectedName] = useState("");
@@ -235,18 +240,13 @@ export default function TaskDefinitionsPage({
                   <p>{selected.description}</p>
                 </div>
               </header>
-              <section className="configuration-card">
-                <h3>{t("input")}</h3>
-                <pre className="task-definition-schema">
-                  {JSON.stringify(selected.input_schema, null, 2)}
-                </pre>
-              </section>
-              <section className="configuration-card">
-                <h3>{t("output")}</h3>
-                <pre className="task-definition-schema">
-                  {JSON.stringify(selected.output_schema, null, 2)}
-                </pre>
-              </section>
+              <TaskRunForm
+                key={`${target}:${selected.name}`}
+                definition={selected}
+                target={target}
+                machineId={machineId}
+                onOpenTask={onOpenTask}
+              />
             </article>
           )}
         </div>

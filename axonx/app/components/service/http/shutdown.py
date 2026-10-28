@@ -41,12 +41,12 @@ class ShutdownDeadline:
             except Exception:
                 # Keep Uvicorn's shutdown path alive; Application.close retries
                 # requests and aggregates errors while the deadline still applies.
-                get_logger("HttpService").exception("Failed to request worker shutdown")
+                get_logger("HttpService").exception("Failed to request application shutdown")
 
     def force_exit(self):
         # Do not await locks, logging handlers or filesystem writes here: they
-        # may be the reason graceful shutdown cannot finish. Only owned workers
-        # are signalled; workspace records never select processes to kill.
+        # may be the reason graceful shutdown cannot finish. Only service-owned
+        # CLI process groups are signalled; daemon-owned scheduled Tasks continue.
         try:
             self.app.context.service.stop_cli_processes(force=True)
             self.app.request_shutdown()

@@ -2,6 +2,7 @@
   max-width: 1800px;
 }
 .workspace-browser {
+  --workspace-header-height: 76px;
   position: relative;
   height: 740px;
   display: grid;
@@ -25,13 +26,15 @@
   min-width: 0;
   background: var(--surface);
 }
-.workspace-file-header {
-  min-height: 70px;
+.workspace-file-header,
+.workspace-tree-panel > header {
+  height: var(--workspace-header-height);
+  min-height: var(--workspace-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 10px 20px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--line);
 }
 .workspace-file-header > div:first-child {
@@ -442,14 +445,54 @@
   font-weight: 700;
   letter-spacing: 0.06em;
 }
-.workspace-frontmatter pre {
-  max-height: 210px;
-  margin: 0;
-  padding: 13px;
+.workspace-frontmatter .structured-tree {
+  min-height: 0;
+  max-height: 260px;
+  padding: 12px;
   overflow: auto;
+}
+.workspace-markdown-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.workspace-markdown-toolbar button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   color: var(--muted);
+  background: transparent;
   font-size: 12px;
-  line-height: 1.6;
+  cursor: pointer;
+}
+.workspace-markdown-toolbar button[aria-pressed="true"] {
+  border-color: var(--line);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.workspace-markdown-toolbar svg {
+  width: 15px;
+  height: 15px;
+}
+.workspace-markdown-toolbar ~ .workspace-code {
+  min-height: calc(100% - 49px);
+}
+.workspace-notice > button {
+  margin-left: auto;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: inherit;
+  background: var(--surface);
+  cursor: pointer;
 }
 .workspace-markdown {
   max-width: 900px;
@@ -800,6 +843,7 @@
     height: 520px;
   }
   .workspace-file-header {
+    height: auto;
     align-items: flex-start;
     flex-direction: column;
     padding: 14px;
@@ -837,14 +881,6 @@
   max-width: 520px;
   background: var(--surface-2);
   overflow: auto;
-}
-.workspace-tree-panel > header {
-  height: 76px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--line);
 }
 .workspace-tree-panel > header > div {
   min-width: 0;

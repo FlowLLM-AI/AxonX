@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="680" viewBox="0 0 1280 680" role="img" aria-labelledby="title desc">
+  <title id="title">AxonX · Agent-native Quantitative Research Harness</title>
+  <desc id="desc">A research prompt, AxonX Skill, and source tools guide external or built-in Agents to develop plugin code. Agents use CLI, MCP, or built-in Job tools; Studio provides built-in Agent sessions, Task control, logs, lineage, factor and model analysis, predictions, backtests, and strategy comparisons, using HTTP and SSE to call shared Jobs. In the selected local or remote target, plugins define typed research Tasks, synchronous CLI processes execute them, and the workspace preserves research records, artifacts, and lineage. Solid arrows show execution and recording; dashed arrows show plugin development and evidence queries.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="5.9" width="1264" height="668.3" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="52" y="47" font-size="34" font-weight="700" text-anchor="start" fill="#18324b">AxonX</text>
+    <text x="52" y="84" font-size="20" font-weight="400" text-anchor="start" fill="#52738f">Agent-native quantitative research harness</text>
+    <text x="1228" y="60.0" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Prompt → Code → Experiments</text>
+    <rect x="52" y="101" width="560" height="73" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="80" y="129" font-size="22" font-weight="700">Research prompt + AxonX Skill</text>
+    <text x="80" y="154" font-size="17" fill="#52738f">Source + file / command tools</text>
+    <path d="M 332 174 V 201" fill="none" stroke="#52738f" stroke-width="2" marker-end="url(#arrow)" />
+    <g transform="translate(0 100)">
+    <rect x="52" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="80" y="132" font-size="23" font-weight="700" text-anchor="start" fill="#18324b">External / Built-in Agents</text>
+    <text x="80" y="158" font-size="17" font-weight="400" text-anchor="start" fill="#52738f">CLI / MCP / built-in Job tools</text>
+    <rect x="668" y="1" width="560" height="173.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="696" y="36" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
+    <text x="1200" y="36" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">HTTP / SSE</text>
+    <text x="696" y="70" font-size="18" fill="#52738f">Built-in Agent sessions</text>
+    <text x="696" y="100" font-size="18" fill="#18324b">Task control · Logs · Lineage</text>
+    <text x="696" y="130" font-size="18" fill="#18324b">Factors · Training curves · Predictions</text>
+    <text x="696" y="158" font-size="18" fill="#18324b">Backtests · Strategy comparisons</text>
+    <path d="M 332 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 948 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="52" y="203.4" width="1176" height="82.0" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="640" y="232.7" font-size="27" font-weight="700" text-anchor="middle" fill="#18324b">Shared Job interfaces</text>
+    <text x="170" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Discover</text>
+    <path d="M 287 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="405" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Task contracts</text>
+    <path d="M 522 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="640" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Execute / Control</text>
+    <path d="M 757 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="875" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Inspect results</text>
+    <path d="M 992 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="1110" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Manage plugins</text>
+    <rect x="32" y="323" width="1216" height="236" rx="24" fill="#ffffff" stroke="#b8cadb" stroke-width="1.8" />
+    <text x="56" y="351" font-size="22" font-weight="700" text-anchor="start" fill="#18324b">Selected execution target</text>
+    <text x="1224" y="351" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Local / Remote</text>
+    <path d="M 640 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="622" y="317.6" font-size="17" font-weight="400" text-anchor="end" fill="#52738f">Execute</text>
+    <path d="M 1052 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6" marker-end="url(#arrow)" />
+    <text x="1070" y="311.7" font-size="17" font-weight="400" text-anchor="start" fill="#52738f">Query</text>
+    <rect x="56" y="372" width="344" height="176" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="80" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Research plugins</text>
+    <path d="M 80 421 H 376" fill="none" stroke="#d1c6ed" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="80" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Data processing · Factors</text>
+    <text x="80" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Training · Prediction · Backtest</text>
+    <text x="80" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Typed Task inputs / outputs</text>
+    <rect x="468" y="372" width="344" height="176" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="492" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Task execution</text>
+    <path d="M 492 421 H 788" fill="none" stroke="#a9d7ca" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="492" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Synchronous CLI process</text>
+    <text x="492" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Status · Progress</text>
+    <text x="492" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Observe · CLI kill</text>
+    <rect x="880" y="372" width="344" height="176" rx="20" fill="#edf3fc" stroke="#bbcee5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="904" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Shared workspace</text>
+    <path d="M 904 421 H 1200" fill="none" stroke="#bbcee5" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="904" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Records · Parameters</text>
+    <text x="904" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Logs &amp; artifacts</text>
+    <text x="904" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Task graph · Upstream IDs</text>
+    <path d="M 400 469 H 468" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="434" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Define</text>
+    <path d="M 812 469 H 880" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="846" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Record</text>
+    </g>
+    <path d="M 52 237 H 22 V 544 H 56" fill="none" stroke="#52738f" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)" />
+    <text x="18" y="411" font-size="15" fill="#52738f" text-anchor="middle" transform="rotate(-90 18 411)">Develop plugin code</text>
+  </g>
+</svg>

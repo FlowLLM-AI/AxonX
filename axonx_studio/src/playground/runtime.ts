@@ -9,7 +9,7 @@ import type { JobEvent } from "../shared/api/event";
 import { taskDirectory, upstreamTaskIds } from "../shared/lib/tasks";
 import { createAgent } from "./agent";
 import { catalog } from "./catalog";
-import { definitions, epoch } from "./data";
+import { addArtifacts, definitions, epoch, json, taskStatus } from "./data";
 import { seed } from "./fixtures";
 import { sse } from "./stream";
 
@@ -64,11 +64,11 @@ function taskView(
 }
 
 export function createPlayground(): Transport {
-  const { tasks, files } = seed();
+  const { tasks, files, sourceFiles } = seed();
   const agent = createAgent();
   const requiredTask = (id: string) => {
     const task = tasks.get(id);
-    if (!task) throw new Error(`Unknown demo task: ${id}`);
+    if (!task) throw new Error(`KeyError: '${id}'`);
     return task;
   };
   const log = (id: string) => {
@@ -148,6 +148,146 @@ export function createPlayground(): Transport {
           "Playground only supports the demo browser / 演示仅支持浏览器环境",
         );
       if (parsed.pathname.endsWith("/events")) {
+        if (name === "cli") {
+          const argv = args.argv;
+          if (
+            !Array.isArray(argv) ||
+            argv.some((value) => typeof value !== "string")
+          )
+            throw new Error("Expected CLI argv strings");
+          const inputs: Record<string, unknown> = {};
+          for (let at = 1; at < argv.length; at += 2) {
+            const key = argv[at].replace(/^--/, "").replaceAll("-", "_");
+            try {
+              inputs[key] = JSON.parse(argv[at + 1]);
+            } catch {
+              inputs[key] = argv[at + 1];
+            }
+          }
+          if (argv[0] === "kill") {
+            const task = requiredTask(String(inputs.task_id));
+            task.state = "failed";
+            task.error = "Simulation stopped";
+            task.exit_code = 1;
+            task.finished_at = new Date().toISOString();
+            return sse(
+              () => [
+                terminal({
+                  stdout: "",
+                  stderr: "",
+                  exit_code: 0,
+                  stdout_truncated: false,
+                  stderr_truncated: false,
+                }),
+              ],
+              init.signal,
+            );
+          }
+          const definition = definitions.find(
+            (task) => task.name === inputs.task,
+          );
+          if (argv[0] !== "exec" || !definition)
+            throw new Error("Unknown simulated Task");
+          const taskId = `${definition.task_type}#${definition.name}#${inputs.task_name}`;
+          const previous = tasks.get(taskId);
+          if (previous?.state === "running") throw new Error("Task is running");
+          const task = taskStatus(
+            definition.task_type,
+            taskId,
+            definition.name,
+          );
+          const { task: registration, ...parameters } = inputs;
+          void registration;
+          task.input_params = { upstream_task_ids: [], ...parameters };
+          task.state = "running";
+          task.created_at = task.started_at = new Date().toISOString();
+          task.finished_at = null;
+          task.exit_code = 0;
+          for (const step of task.steps) {
+            step.state = "pending";
+            step.percentage = 0;
+            step.started_at = step.finished_at = null;
+          }
+          tasks.set(taskId, task);
+          let tick = 0;
+          const publish = () =>
+            files.set(`${taskDirectory(taskId)}/metadata.json`, json(task));
+          publish();
+          return sse(
+            () => {
+              tick++;
+              if (task.state === "running") {
+                for (const [index, step] of task.steps.entries()) {
+                  step.percentage = Math.max(
+                    0,
+                    Math.min(100, (tick - index * 2) * 50),
+                  );
+                  step.state =
+                    step.percentage >= 100
+                      ? "done"
+                      : step.percentage
+                        ? "running"
+                        : "pending";
+                  if (step.percentage && !step.started_at)
+                    step.started_at = new Date().toISOString();
+                  if (step.state === "done")
+                    step.finished_at = new Date().toISOString();
+                }
+                if (tick >= 6) {
+                  task.state =
+                    inputs.outcome === "failure" ? "failed" : "succeeded";
+                  task.exit_code = task.state === "succeeded" ? 0 : 1;
+                  task.finished_at = new Date().toISOString();
+                  task.error =
+                    task.state === "failed" ? "Simulated Task failure" : "";
+                  if (task.state === "succeeded") {
+                    const parameters = task.input_params;
+                    addArtifacts(
+                      files,
+                      task,
+                      String(inputs.strategy || "steady"),
+                      parameters.upstream_task_ids as string[],
+                    );
+                    task.input_params = { ...task.input_params, ...parameters };
+                  }
+                }
+              }
+              publish();
+              const events: JobEvent[] = [
+                {
+                  kind: "log",
+                  ...logChunk(taskId),
+                  content: `[simulation] ${definition.name}: ${task.state} (${Math.min(100, Math.round((tick / 6) * 100))}%)\n`,
+                },
+              ];
+              if (task.state !== "running")
+                events.push({
+                  kind: "result",
+                  ...envelope(
+                    {
+                      stdout: JSON.stringify(task.output_params),
+                      stderr: task.error,
+                      exit_code: task.exit_code,
+                      stdout_truncated: false,
+                      stderr_truncated: false,
+                    },
+                    task.state === "succeeded",
+                  ),
+                });
+              return events;
+            },
+            init.signal,
+            () => {
+              if (task.state === "running") {
+                task.state = "failed";
+                task.error = "Simulation connection closed";
+                task.exit_code = 1;
+                task.finished_at = new Date().toISOString();
+                publish();
+              }
+            },
+          );
+        }
         if (name === "stream_task") {
           requiredTask(id);
           return sse(() => {
@@ -183,6 +323,29 @@ export function createPlayground(): Transport {
       if (Object.hasOwn(agent.jobs, name))
         return response(agent.jobs[name](args));
       switch (name) {
+        case "python": {
+          const code = String(args.code || "");
+          const settings = code.match(/^settings = json.loads\((.+)\)$/m);
+          if (!code.startsWith("# axonx:workspace-text\n") || !settings)
+            throw new Error("Playground only simulates workspace source reads");
+          const [, path, limit] = JSON.parse(JSON.parse(settings[1]));
+          const source = sourceFiles.get(path);
+          if (source === undefined)
+            throw new Error(`Demo source not found: ${path}`);
+          const bytes = new TextEncoder().encode(source);
+          const data = btoa(
+            Array.from(bytes.slice(0, limit), (byte) =>
+              String.fromCharCode(byte),
+            ).join(""),
+          );
+          return response({
+            stdout: JSON.stringify({ data, truncated: bytes.length > limit }),
+            stderr: "",
+            exit_code: 0,
+            stdout_truncated: false,
+            stderr_truncated: false,
+          });
+        }
         case "list_machines":
           return response([]);
         case "machine_status":
