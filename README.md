@@ -55,8 +55,27 @@ Requires **Python 3.12+ on macOS or Linux**.
 
 ### 1. Install and start
 
+Install from pip:
+
 ```bash
 pip install 'axonx[studio]'
+```
+
+Or install the backend and Studio from source:
+
+```bash
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e ./axonx_studio -e '.[studio]'
+npm --prefix axonx_studio ci
+npm --prefix axonx_studio run build
+```
+
+The source install uses editable packages. Building Studio requires **Node.js 22.13+ (22.x), 24.x or 26+**; rebuild after frontend changes.
+
+Then start the service:
+
+```bash
 export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
@@ -81,11 +100,9 @@ Keep the Task ID and metadata `started_at`. Use different instance names to pres
 
 ### 3. Develop with an Agent
 
-For the reference research plugins, clone the source and install into the execution service's Python environment:
+For the reference research plugins, use the source checkout above (or clone the repository if you installed from pip). From the repository root, install into the execution service's Python environment:
 
 ```bash
-git clone https://github.com/FlowLLM-AI/AxonX.git
-cd AxonX
 axonx plugin install -e ./plugins/qlib_a158
 axonx restart_service
 ```

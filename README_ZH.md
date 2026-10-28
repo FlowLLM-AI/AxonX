@@ -55,8 +55,27 @@
 
 ### 1. 安装与启动
 
+从 pip 安装：
+
 ```bash
 pip install 'axonx[studio]'
+```
+
+或从源码安装后端与 Studio：
+
+```bash
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e ./axonx_studio -e '.[studio]'
+npm --prefix axonx_studio ci
+npm --prefix axonx_studio run build
+```
+
+源码安装使用 editable 模式。构建 Studio 需要 **Node.js 22.13+（22.x）、24.x 或 26+**；修改前端后需重新构建。
+
+然后启动服务：
+
+```bash
 export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
@@ -81,11 +100,9 @@ axonx status --task-id 'base#demo#quickstart' --detail full
 
 ### 3. 使用 Agent 开发
 
-使用参考研究插件时，克隆源码并安装到执行服务的 Python 环境：
+使用参考研究插件时，复用上面的源码仓库；通过 pip 安装的用户可另行克隆仓库。在仓库根目录，将插件安装到执行服务的 Python 环境：
 
 ```bash
-git clone https://github.com/FlowLLM-AI/AxonX.git
-cd AxonX
 axonx plugin install -e ./plugins/qlib_a158
 axonx restart_service
 ```
