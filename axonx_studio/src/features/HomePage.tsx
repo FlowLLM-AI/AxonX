@@ -1,4 +1,3 @@
-import { assetUrl } from "../app/environment";
 import {
   Activity,
   ArrowDown,
@@ -6,16 +5,17 @@ import {
   Bot,
   ChartNoAxesCombined,
   Crosshair,
+  FileCode2,
   FolderSearch,
   GitCompareArrows,
-  FileCode2,
   Network,
   Puzzle,
   Send,
   Workflow,
 } from "lucide-react";
-import type { SectionId } from "../app/routes";
 import { useTranslation } from "react-i18next";
+import { assetUrl } from "../app/environment";
+import type { SectionId } from "../app/routes";
 
 const researchSteps = [
   { id: "question", icon: Crosshair },

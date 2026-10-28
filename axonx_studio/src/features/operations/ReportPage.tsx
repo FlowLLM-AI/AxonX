@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { getTaskStatus } from "../tasks/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { PipelineReport } from "../online/PipelineReport";
-import { TaskReport } from "./TaskReport";
+import { getTaskStatus } from "../tasks/api";
+import { ReportView } from "./TaskReport";
 
 export default function ReportPage({
   taskId,
@@ -16,7 +15,7 @@ export default function ReportPage({
 }) {
   const { t } = useTranslation();
   const load = useCallback(
-    (signal: AbortSignal) => getTaskStatus(taskId, target, signal),
+    (signal: AbortSignal) => getTaskStatus(taskId, { target, signal }),
     [taskId, target],
   );
   const { data, error, reload } = useAsyncResource(load);
@@ -29,23 +28,12 @@ export default function ReportPage({
         </div>
       )}
       {data ? (
-        ["online", "online_pipeline", "compare_pipeline"].includes(
-          data.report_kind || "",
-        ) ? (
-          <PipelineReport
-            key={`${target}:${data.task_id}:${data.started_at}`}
-            task={data}
-            target={target}
-            onOpenTask={onOpenTask}
-          />
-        ) : (
-          <TaskReport
-            key={`${target}:${data.task_id}:${data.started_at}`}
-            task={data}
-            target={target}
-            onOpenTask={onOpenTask}
-          />
-        )
+        <ReportView
+          key={`${target}:${data.task_id}:${data.started_at}`}
+          task={data}
+          target={target}
+          onOpenTask={onOpenTask}
+        />
       ) : (
         !error && <p>{t("shell.loading")}</p>
       )}

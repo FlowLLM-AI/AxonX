@@ -1,19 +1,20 @@
 import { Database } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTaskStatus } from "../tasks/api";
-import { DataUpdateProgress } from "./DataUpdateProgress";
-import { TaskLogPanel } from "../tasks/TaskLogPanel";
-import { Status } from "../tasks/TaskRow";
-import { formatDate } from "../tasks/format";
-import { readTaskChildren, type TaskNode } from "../tasks/tree";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useRefresh } from "../../shared/hooks/useRefresh";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
+import { selectOptions } from "../../shared/lib/values";
 import { ReportTabs } from "../../shared/ui/ReportTabs";
-import { ModelPicker } from "../online/ModelPicker";
-
-import type { TaskReference } from "../tasks/types";
+import { Picker } from "../../shared/ui/Select";
+import { TaskLogPanel } from "../tasks/TaskLogPanel";
+import { Status } from "../tasks/TaskRow";
+import { getTaskStatus } from "../tasks/api";
+import type { TaskReference } from "../tasks/model";
+import { readTaskChildren, type TaskNode } from "../tasks/tree";
+import { DataUpdateProgress } from "./DataUpdateProgress";
+import { PipelineReport } from "./PipelineReport";
 
 export function TaskReport({
   task,
@@ -28,7 +29,7 @@ export function TaskReport({
   const [selectedTask, setSelectedTask] = useState("");
   const load = useCallback(
     async (signal: AbortSignal) => {
-      const parent = await getTaskStatus(task.task_id, target, signal);
+      const parent = await getTaskStatus(task.task_id, { target, signal });
       if (parent.started_at !== task.started_at)
         throw new Error(t("onlinePipeline.restartedTask"));
       const nodes = await readTaskChildren(parent, target, signal, {
@@ -140,24 +141,30 @@ export function TaskReport({
       <ReportTabs
         defaultTab="result"
         actions={
-          <ModelPicker
+          <Picker
             label={t("taskDetail.task")}
-            models={[
-              "",
-              ...children.keys(),
-              ...(selectedTask && !selected ? [selectedTask] : []),
-            ]}
-            labels={{
-              "": t("onlinePipeline.chainLog"),
-              ...Object.fromEntries(
-                [...children].map(([id, { record }]) => [id, record.node_name]),
-              ),
-              ...(selectedTask && !selected
-                ? { [selectedTask]: t("onlinePipeline.replacedChild") }
-                : {}),
-            }}
             value={selectedTask}
             onChange={setSelectedTask}
+            className="online-model-picker"
+            options={selectOptions(
+              [
+                "",
+                ...children.keys(),
+                ...(selectedTask && !selected ? [selectedTask] : []),
+              ],
+              {
+                "": t("onlinePipeline.chainLog"),
+                ...Object.fromEntries(
+                  [...children].map(([id, { record }]) => [
+                    id,
+                    record.node_name,
+                  ]),
+                ),
+                ...(selectedTask && !selected
+                  ? { [selectedTask]: t("onlinePipeline.replacedChild") }
+                  : {}),
+              },
+            )}
           />
         }
         tabs={[
@@ -238,5 +245,23 @@ export function TaskReport({
         ]}
       />
     </article>
+  );
+}
+
+export function ReportView({
+  task,
+  target,
+  onOpenTask,
+}: {
+  task: TaskReference & { report_kind: string | null };
+  target?: string;
+  onOpenTask: (id: string) => void;
+}) {
+  return ["online", "online_pipeline", "compare_pipeline"].includes(
+    task.report_kind || "",
+  ) ? (
+    <PipelineReport task={task} target={target} onOpenTask={onOpenTask} />
+  ) : (
+    <TaskReport task={task} target={target} onOpenTask={onOpenTask} />
   );
 }

@@ -114,12 +114,12 @@ beforeEach(() => {
     blocks: [],
   }));
   vi.mocked(streamAgentChat).mockImplementation(
-    (_message, _id, _target, signal, onEvent) => {
-      streamSignal = signal;
-      emit = onEvent;
+    (_arguments, { signal, onEvent } = {}) => {
+      streamSignal = signal!;
+      emit = onEvent!;
       return new Promise<void>((resolve, reject) => {
         finish = resolve;
-        signal.addEventListener(
+        signal!.addEventListener(
           "abort",
           () => reject(new DOMException("Aborted", "AbortError")),
           { once: true },
@@ -141,11 +141,10 @@ it("does not fetch an unfinished old session after switching conversations", asy
   await render("chat", "existing-session");
   expect(streamSignal.aborted).toBe(true);
   expect(getAgentSession).toHaveBeenCalledTimes(1);
-  expect(getAgentSession).toHaveBeenCalledWith(
-    "existing-session",
-    "machine-a",
-    expect.any(AbortSignal),
-  );
+  expect(getAgentSession).toHaveBeenCalledWith("existing-session", {
+    target: "machine-a",
+    signal: expect.any(AbortSignal),
+  });
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 
@@ -169,11 +168,10 @@ it("ignores late stream events and reconciliation after changing targets", async
 it("still reconciles a completed turn with the selected service", async () => {
   await startTurn();
   await act(async () => finish());
-  expect(getAgentSession).toHaveBeenCalledWith(
-    "new-session",
-    "machine-a",
-    expect.any(AbortSignal),
-  );
+  expect(getAgentSession).toHaveBeenCalledWith("new-session", {
+    target: "machine-a",
+    signal: expect.any(AbortSignal),
+  });
   expect(listAgentSessions).toHaveBeenCalledTimes(2);
 });
 
@@ -187,17 +185,17 @@ it("cancels pending reconciliation when the same session is selected on another 
       }),
   );
   await act(async () => finish());
-  const signal = vi.mocked(getAgentSession).mock.calls[0][2]!;
+  const signal = vi.mocked(getAgentSession).mock.calls[0][1]!.signal!;
   expect(signal.aborted).toBe(false);
   await render("chat", "new-session", "machine-b");
   expect(signal.aborted).toBe(true);
   await act(async () => fail(new Error("Old machine session not found")));
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(listAgentSessions).toHaveBeenCalledTimes(2);
-  expect(listAgentSessions).toHaveBeenLastCalledWith(
-    "machine-b",
-    expect.any(AbortSignal),
-  );
+  expect(listAgentSessions).toHaveBeenLastCalledWith({
+    target: "machine-b",
+    signal: expect.any(AbortSignal),
+  });
 });
 
 it("ignores an obsolete history failure after selecting another session", async () => {
@@ -209,7 +207,7 @@ it("ignores an obsolete history failure after selecting another session", async 
       }),
   );
   await render("chat", "old-session");
-  const signal = vi.mocked(getAgentSession).mock.calls[0][2]!;
+  const signal = vi.mocked(getAgentSession).mock.calls[0][1]!.signal!;
   await render("chat", "existing-session");
   expect(signal.aborted).toBe(true);
   await act(async () => fail(new Error("Old session not found")));
@@ -220,7 +218,7 @@ it("ignores an obsolete history failure after selecting another session", async 
 it("clears the session-list loading state when a post-turn refresh is cancelled", async () => {
   await startTurn();
   vi.mocked(listAgentSessions).mockImplementationOnce(
-    (_target, signal) =>
+    ({ signal } = {}) =>
       new Promise((_resolve, reject) => {
         signal!.addEventListener(
           "abort",

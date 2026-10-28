@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
-import { fmt } from "./format";
-import type { ResearchArtifact } from "./types";
+import { formatNumber as fmt } from "../../shared/lib/format";
+import type { ResearchTask } from "./types";
 
 export function PredictionOverview({
   meta,
 }: {
-  meta: ResearchArtifact<"predict">;
+  meta: ResearchTask<"predict">;
 }) {
   const { t } = useTranslation();
   const stats = meta.output_params.statistics;

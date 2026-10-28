@@ -1,5 +1,5 @@
 import type { JobCatalog } from "../shared/api/types";
-import type { JsonSchema } from "../shared/schema/types";
+import type { JsonSchema } from "../shared/schema/values";
 
 const text = (value: string): JsonSchema => ({
   type: "string",

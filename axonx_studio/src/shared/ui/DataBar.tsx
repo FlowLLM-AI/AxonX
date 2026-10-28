@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { toNumber } from "../lib/format";
 
 export function DataBar({
   value,
@@ -39,5 +40,21 @@ export function DataBar({
       )}
       <span className="summary-data-value">{children}</span>
     </span>
+  );
+}
+
+export function DataCell({
+  value,
+  format,
+  domain,
+}: {
+  value: unknown;
+  format: (value: unknown) => string;
+  domain?: { min: number; max: number };
+}) {
+  return (
+    <DataBar value={toNumber(value)} domain={domain}>
+      {format(value)}
+    </DataBar>
   );
 }

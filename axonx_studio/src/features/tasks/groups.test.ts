@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
-import { groupTasks } from "./groups";
-import type { TaskSummary, TaskState } from "./types";
+import type { TaskState, TaskSummary } from "../../shared/api/contracts";
+import { groupTasks } from "./model";
+
 const filters = { search: "", state: "" as const, type: "" };
 const task = (
   id: string,
@@ -55,7 +56,7 @@ it("filters actual tasks while retaining the whole group count", () => {
   ];
   const groups = groupTasks(tasks, {
     search: "BAD",
-    state: "attention",
+    state: "failed",
     type: "analysis",
   });
   expect(groups).toHaveLength(1);

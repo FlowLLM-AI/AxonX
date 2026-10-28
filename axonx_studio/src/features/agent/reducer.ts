@@ -1,8 +1,8 @@
+import type { AgentHistoryBlock } from "../../shared/api/contracts";
 import type {
   AgentBlockPatch,
   AgentMessageEvent,
 } from "../../shared/api/event";
-import type { AgentHistoryBlock } from "./types";
 
 export interface DisplayBlock extends AgentHistoryBlock {
   local?: boolean;

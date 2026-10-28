@@ -1,8 +1,8 @@
 import { expect, it, vi } from "vitest";
 import { seed } from "../../playground/fixtures";
+import type { TaskMetadata } from "../../shared/api/contracts";
 import { getTaskStatus } from "./api";
 import { readTaskChildren } from "./tree";
-import type { TaskMetadata } from "./types";
 
 vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
 

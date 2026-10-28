@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { listMachineOptions, machineStatus } from "../features/machines/api";
-import type { MachineNode } from "../features/machines/types";
-import type { ContextOption, ThemePreference } from "./types";
-import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
+import type { MachineNode } from "../features/runtime/machine";
+import { listMachineOptions, machineStatus } from "../features/runtime/machine";
+import { axonx } from "../shared/api/client";
+import { AxonXError } from "../shared/api/response";
 import { useRefresh } from "../shared/hooks/useRefresh";
-import { AxonXError, axonx } from "../shared/api/client";
+import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
+import type { ContextOption, ThemePreference } from "./types";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -92,7 +93,7 @@ function useMachines(
 
   useEffect(() => {
     const controller = new AbortController();
-    listMachineOptions(controller.signal)
+    listMachineOptions({ signal: controller.signal })
       .then((result) => {
         if (!controller.signal.aborted) {
           setMachines(result);
@@ -133,7 +134,7 @@ function useServiceStatus(target: string | undefined, authRevision: number) {
   const check = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const info = await machineStatus(target, signal);
+        const info = await machineStatus({ target, signal });
         if (signal.aborted) return;
         setServiceOnline(true);
         setAuthRequired(false);

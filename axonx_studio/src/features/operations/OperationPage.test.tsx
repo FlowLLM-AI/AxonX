@@ -2,16 +2,16 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AxonXClient, configureClient } from "../../shared/api/client";
+import { taskStatus } from "../../playground/data";
 import { createPlayground } from "../../playground/runtime";
-import OperationPage from "./OperationPage";
-import { DataUpdateProgress } from "./DataUpdateProgress";
+import { AxonXClient, configureClient } from "../../shared/api/client";
 import { getTaskStatus } from "../tasks/api";
+import { DataUpdateProgress } from "./DataUpdateProgress";
+import OperationPage from "./OperationPage";
+import { operationPages } from "./pages";
+import { parseOnlineReport } from "./report";
 import ReportPage from "./ReportPage";
 import { TaskReport } from "./TaskReport";
-import { taskStatus } from "../../playground/fixtures";
-import { operationPages } from "./pages";
-import { parseOnlineReport } from "../online/types";
 
 const translate = (key: string) => key;
 vi.mock("react-i18next", async (importOriginal) => ({

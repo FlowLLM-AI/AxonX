@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
-import type { TaskNode } from "./tree";
 import { TaskIssues } from "./TaskIssues";
+import type { TaskNode } from "./tree";
+
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {

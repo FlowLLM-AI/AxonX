@@ -1,3 +1,5 @@
+import { Check, ChevronDown } from "lucide-react";
+import type { CSSProperties, ReactNode, SelectHTMLAttributes } from "react";
 import {
   Children,
   isValidElement,
@@ -7,9 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode, SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown } from "lucide-react";
 
 function optionText(node: ReactNode): string {
   return Children.toArray(node)

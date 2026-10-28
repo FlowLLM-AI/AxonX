@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { taskStatus } from "../../playground/fixtures";
+import { taskStatus } from "../../playground/data";
 import { ExecutionSteps } from "./ExecutionSteps";
 
 it("uses lifecycle state rather than percentage to identify completion", async () => {

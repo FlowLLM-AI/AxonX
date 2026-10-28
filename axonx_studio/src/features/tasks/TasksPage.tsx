@@ -1,19 +1,17 @@
-import { Select } from "../../shared/ui/Select";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, LoaderCircle, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useRefresh } from "../../shared/hooks/useRefresh";
 import type { ContextOption } from "../../app/types";
-import type { TaskSummary } from "./types";
+import type { TaskSummary } from "../../shared/api/contracts";
+import { useRefresh } from "../../shared/hooks/useRefresh";
+import { Select } from "../../shared/ui/Select";
 import { listTaskStatuses } from "./api";
 import {
-  ACTIVE,
-  ATTENTION,
   STATES,
   groupTasks,
   type StateFilter,
   type TaskGroupData,
-} from "./groups";
+} from "./model";
 import { TaskGroup, TaskTableColumns, TaskTableHeading } from "./TaskGroup";
 
 export function TasksPage({
@@ -50,7 +48,10 @@ export function TasksPage({
       if (quiet) setRefreshing(true);
       else setLoading(true);
       try {
-        const result = await listTaskStatuses(target, controller.signal);
+        const result = await listTaskStatuses({
+          target,
+          signal: controller.signal,
+        });
         if (controller.signal.aborted) return;
         setTasks(result);
         setError("");
@@ -108,8 +109,6 @@ export function TasksPage({
   const filterKey = JSON.stringify([search.trim().toLowerCase(), state, type]);
   const stats = {
     total: tasks.length,
-    active: tasks.filter((item) => ACTIVE.has(item.state)).length,
-    attention: tasks.filter((item) => ATTENTION.has(item.state)).length,
   };
   const renderGroup = (group: TaskGroupData) => (
     <TaskGroup
@@ -211,12 +210,6 @@ export function TasksPage({
           >
             <option value="">
               {t("allStates")} · {stats.total}
-            </option>
-            <option value="active">
-              {t("active")} · {stats.active}
-            </option>
-            <option value="attention">
-              {t("attention")} · {stats.attention}
             </option>
             {STATES.map((value) => (
               <option key={value} value={value}>

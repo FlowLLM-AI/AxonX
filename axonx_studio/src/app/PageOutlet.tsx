@@ -1,12 +1,12 @@
 import { lazy, Suspense, type Dispatch, type SetStateAction } from "react";
-import type { ResearchPageId } from "../features/research/types";
-import type { ContextOption } from "./types";
 import { useTranslation } from "react-i18next";
-import type { MachineNode } from "../features/machines/types";
-import { researchSections } from "./navigation";
-import { defaultRoute } from "./routes";
-import type { AppRoute, SectionId } from "./routes";
 import { operationPages } from "../features/operations/pages";
+import type { ResearchPageId } from "../features/research/types";
+import type { MachineNode } from "../features/runtime/machine";
+import { researchSections } from "./navigation";
+import type { AppRoute, SectionId } from "./routes";
+import { defaultRoute } from "./routes";
+import type { ContextOption } from "./types";
 
 const OperationPage = lazy(
   () => import("../features/operations/OperationPage"),
@@ -25,7 +25,7 @@ const StrategyComparePage = lazy(
 );
 const ApiWorkspace = lazy(() => import("../features/api-catalog/ApiWorkspace"));
 const TaskDefinitionsPage = lazy(
-  () => import("../features/task-definitions/TaskDefinitionsPage"),
+  () => import("../features/tasks/TaskDefinitionsPage"),
 );
 const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 

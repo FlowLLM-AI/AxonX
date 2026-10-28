@@ -1,6 +1,6 @@
-import type { ResearchArtifact } from "../types";
+import type { ResearchTask } from "../types";
 
-export type NumericRow = Record<string, unknown>;
+type NumericRow = Record<string, unknown>;
 
 export interface Holding {
   rank: number;
@@ -33,8 +33,7 @@ export interface SummaryRow extends NumericRow {
 
 export type BenchmarkDefinition =
   import("../../../shared/api/contracts").BacktestBenchmark;
-export type BacktestArtifact = ResearchArtifact<"backtest">;
-export type { BacktestUniverseReport } from "../types";
+export type BacktestArtifact = ResearchTask<"backtest">;
 
 export interface ChartRow extends NumericRow {
   date: string;

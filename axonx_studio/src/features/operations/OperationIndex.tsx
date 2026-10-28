@@ -1,8 +1,8 @@
 import { ArrowRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { TaskSummary } from "../tasks/types";
+import type { TaskSummary } from "../../shared/api/contracts";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
 import { Status } from "../tasks/TaskRow";
-import { formatDate } from "../tasks/format";
 
 export function OperationIndex({
   tasks,

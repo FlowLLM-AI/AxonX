@@ -1,11 +1,13 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../../i18n";
-import { table, taskStatus } from "../../../playground/fixtures";
-import { previewWorkspaceFile } from "../../workspace/api";
+import { table, taskStatus } from "../../../playground/data";
+import { previewWorkspaceFile } from "../../../shared/api/workspace";
 import { loadBacktest, loadBacktestDaily } from "./api";
 import type { BacktestArtifact } from "./types";
 
-vi.mock("../../workspace/api", () => ({ previewWorkspaceFile: vi.fn() }));
+vi.mock("../../../shared/api/workspace", () => ({
+  previewWorkspaceFile: vi.fn(),
+}));
 const file = { path: "daily.parquet", size: 1, revision: "1:1" };
 const meta: BacktestArtifact = {
   ...taskStatus("backtest", "backtest#demo", "demo"),
@@ -45,18 +47,18 @@ it("loads current signals metadata through both report readers with pagination a
     } as Awaited<ReturnType<typeof previewWorkspaceFile>>)
     .mockResolvedValueOnce(table([{ trade_date: "20260106" }]));
   expect(
-    await loadBacktestDaily(meta, "all", "remote", controller.signal),
+    await loadBacktestDaily(meta, "all", {
+      target: "remote",
+      signal: controller.signal,
+    }),
   ).toHaveLength(2);
   expect(previewWorkspaceFile).toHaveBeenLastCalledWith(
-    "backtest/backtest#demo/daily.parquet",
-    5000,
-    5000,
-    "remote",
-    controller.signal,
+    { path: "backtest/backtest#demo/daily.parquet", offset: 5000, limit: 5000 },
+    { target: "remote", signal: controller.signal },
   );
   vi.mocked(previewWorkspaceFile).mockResolvedValue(table([]));
   await expect(
-    loadBacktest(meta, "all", "remote", controller.signal),
+    loadBacktest(meta, "all", { target: "remote", signal: controller.signal }),
   ).resolves.toEqual({ daily: [], summary: [] });
 });
 it.each([loadBacktest, loadBacktestDaily])(

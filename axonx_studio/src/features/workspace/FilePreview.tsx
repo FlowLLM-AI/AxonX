@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   AlertTriangle,
   ChevronRight,
@@ -6,11 +5,12 @@ import {
   File,
   FileSpreadsheet,
 } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { WorkspacePreview } from "../../shared/api/workspace";
 import { formatBytes } from "../../shared/lib/format";
-import { useTranslation } from "react-i18next";
-import type { WorkspacePreview } from "./types";
 
 export function FilePreview({
   preview,

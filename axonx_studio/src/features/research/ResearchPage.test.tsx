@@ -1,16 +1,16 @@
-import { axonx } from "../../shared/api/client";
-// @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
-import { listTaskDirectories, previewWorkspaceFile } from "../workspace/api";
+import { axonx } from "../../shared/api/client";
+import { previewWorkspaceFile } from "../../shared/api/workspace";
 import ResearchPage from "./ResearchPage";
 
+// @vitest-environment jsdom
+
 vi.mock("../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
-vi.mock("../workspace/api", () => ({
-  listTaskDirectories: vi.fn(),
+vi.mock("../../shared/api/workspace", () => ({
   previewWorkspaceFile: vi.fn(),
   deleteWorkspaceEntries: vi.fn(),
 }));
@@ -28,27 +28,13 @@ it.each(["en", "zh"])(
         : [tasks.get("backtest#demo")!],
     );
     const path = "backtest/backtest#demo";
-    vi.mocked(listTaskDirectories).mockResolvedValue({
-      path: "backtest",
-      workspace_root: null,
-      truncated: false,
-      entries: [
-        {
-          name: "demo",
-          path,
-          kind: "directory",
-          preview_kind: null,
-          supported: true,
-          size: null,
-          modified_at: 0,
-        },
-      ],
-    });
-    vi.mocked(previewWorkspaceFile).mockImplementation(async (key) => {
-      const preview = files.get(key);
-      if (!preview) throw new Error(`Missing fixture ${key}`);
-      return preview;
-    });
+    vi.mocked(previewWorkspaceFile).mockImplementation(
+      async ({ path: key }) => {
+        const preview = files.get(key);
+        if (!preview) throw new Error(`Missing fixture ${key}`);
+        return preview;
+      },
+    );
     const container = document.createElement("div");
     const root = createRoot(container);
     try {
@@ -92,11 +78,12 @@ it.each(["en", "zh"])(
       expect(selector?.value).toBe("hs300");
       for (const universe of ["all", "hs300"]) {
         expect(previewWorkspaceFile).toHaveBeenCalledWith(
-          `${path}/universes/${universe}/daily.parquet`,
-          0,
-          5000,
-          "remote",
-          expect.any(AbortSignal),
+          {
+            path: `${path}/universes/${universe}/daily.parquet`,
+            offset: 0,
+            limit: 5000,
+          },
+          { target: "remote", signal: expect.any(AbortSignal) },
         );
       }
     } finally {
@@ -112,7 +99,7 @@ it("reads training member count from the canonical model manifest", async () => 
   vi.mocked(axonx.invoke).mockImplementation(async (name) =>
     name === "status" ? task : [task],
   );
-  vi.mocked(previewWorkspaceFile).mockImplementation(async (path) => {
+  vi.mocked(previewWorkspaceFile).mockImplementation(async ({ path }) => {
     const preview = files.get(path);
     if (!preview) throw new Error(`Missing fixture ${path}`);
     return preview;
@@ -141,11 +128,8 @@ it("reads training member count from the canonical model manifest", async () => 
       expect(card?.querySelector("strong")?.textContent).toBe("1");
     });
     expect(previewWorkspaceFile).toHaveBeenCalledWith(
-      "train/train#demo/models.json",
-      0,
-      1,
-      "remote",
-      expect.any(AbortSignal),
+      { path: "train/train#demo/models.json", offset: 0, limit: 1 },
+      { target: "remote", signal: expect.any(AbortSignal) },
     );
   } finally {
     await act(async () => root.unmount());

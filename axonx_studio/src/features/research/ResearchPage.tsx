@@ -1,109 +1,29 @@
-import { Select } from "../../shared/ui/Select";
-import { taskDirectory } from "../../shared/lib/tasks";
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart3,
-  BrainCircuit,
   Check,
-  CheckCircle2,
   CheckSquare2,
-  Copy,
   Database,
-  FileSpreadsheet,
-  GitBranch,
-  GitCompareArrows,
   LoaderCircle,
   RefreshCw,
-  Sparkles,
   Trash2,
-  TrendingUp,
   X,
 } from "lucide-react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ContextOption } from "../../app/types";
+import { deleteWorkspaceEntries } from "../../shared/api/workspace";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { formatBytes } from "../../shared/lib/format";
-import { upstreamTaskIds } from "../../shared/lib/upstreamTasks";
-import { ReplicaNotice } from "../../shared/ReplicaNotice";
+import { taskDirectory } from "../../shared/lib/tasks";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { TaskIndexControls } from "../../shared/ui/TaskIndexControls";
-import { deleteWorkspaceEntries } from "../workspace/api";
-import {
-  countTrainingMembers,
-  getResearchTask,
-  listResearchTasks,
-} from "./api";
-import { fmt } from "./format";
-import { PredictionOverview } from "./PredictionOverview";
-import type { ResearchArtifact, ResearchKind, ResearchPageId } from "./types";
+import { listResearchTasks } from "./api";
+import { ResearchDetail } from "./ResearchDetail";
+import type { ResearchKind, ResearchPageId } from "./types";
 
-const BacktestView = lazy(() =>
-  import("./backtest/BacktestView").then((module) => ({
-    default: module.BacktestView,
-  })),
-);
-const TrainingCurveChart = lazy(() =>
-  import("./TrainingCurveChart").then((module) => ({
-    default: module.TrainingCurveChart,
-  })),
-);
+const EMPTY_TASKS: TaskSummary[] = [];
 
-type Meta = ResearchArtifact;
-type TaskSummary = import("../tasks/types").TaskSummary;
-type Kind = ResearchKind;
-
-function useTasks(
-  kind: Kind,
-  target?: string,
-  onConnection?: (online: boolean) => void,
-) {
-  const [tasks, setTasks] = useState<TaskSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const requestId = useRef(0);
-  const requestController = useRef<AbortController | null>(null);
-  const load = useCallback(() => {
-    const currentRequest = ++requestId.current;
-    setLoading(true);
-    setError("");
-    setTasks([]);
-    requestController.current?.abort();
-    const controller = new AbortController();
-    requestController.current = controller;
-    listResearchTasks(kind, target, controller.signal)
-      .then((tasks) => {
-        if (currentRequest !== requestId.current) return;
-        setTasks(tasks);
-        onConnection?.(true);
-      })
-      .catch((reason) => {
-        if (currentRequest !== requestId.current) return;
-        setError(reason instanceof Error ? reason.message : String(reason));
-        onConnection?.(false);
-      })
-      .finally(() => {
-        if (currentRequest === requestId.current) setLoading(false);
-      });
-  }, [kind, onConnection, target]);
-  useEffect(() => {
-    load();
-    return () => {
-      requestId.current += 1;
-      requestController.current?.abort();
-    };
-  }, [load]);
-  return { tasks, loading, error, load };
-}
+type TaskSummary = import("../../shared/api/contracts").TaskSummary;
 
 export default function ResearchPage({
   kind,
@@ -114,7 +34,7 @@ export default function ResearchPage({
   onConnection,
   onNavigate,
 }: {
-  kind: Kind;
+  kind: ResearchKind;
   target?: string;
   initialSelectedId?: string;
   onSelected?: (taskId: string) => void;
@@ -128,7 +48,22 @@ export default function ResearchPage({
     t(`research.pages.${kind}.title`),
     t(`research.pages.${kind}.lead`),
   ];
-  const { tasks, loading, error, load } = useTasks(kind, target, onConnection);
+  const request = useCallback(
+    async (signal: AbortSignal) => {
+      try {
+        const result = await listResearchTasks(kind, { target, signal });
+        signal.throwIfAborted();
+        onConnection(true);
+        return result;
+      } catch (reason) {
+        if (!signal.aborted) onConnection(false);
+        throw reason;
+      }
+    },
+    [kind, target, onConnection],
+  );
+  const { data, loading, error, reload: load } = useAsyncResource(request);
+  const tasks = data ?? EMPTY_TASKS;
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -217,7 +152,7 @@ export default function ResearchPage({
     try {
       await deleteWorkspaceEntries(
         deleteTargets.map((task) => taskDirectory(task.task_id)),
-        target,
+        { target },
       );
       setDeleteTargets([]);
       setChecked({});
@@ -379,7 +314,7 @@ export default function ResearchPage({
                 <LoaderCircle className="spin" />
               </div>
             ) : selected ? (
-              <SelectedArtifact
+              <ResearchDetail
                 key={`${target}:${selected.task_id}:${selected.started_at}`}
                 kind={kind}
                 taskId={selected.task_id}
@@ -510,582 +445,5 @@ export default function ResearchPage({
         </div>
       )}
     </section>
-  );
-}
-
-function SelectedArtifact({
-  kind,
-  taskId,
-  target,
-  onNavigate,
-}: {
-  kind: Kind;
-  taskId: string;
-  target?: string;
-  onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
-}) {
-  const { t } = useTranslation();
-  const load = useCallback(
-    (signal: AbortSignal) => getResearchTask(kind, taskId, target, signal),
-    [kind, taskId, target],
-  );
-  const { data, error, loading, reload } = useAsyncResource(load);
-  if (error)
-    return (
-      <div className="error-banner" role="alert">
-        {error}
-        <button onClick={() => void reload()}>{t("research.retry")}</button>
-      </div>
-    );
-  if (loading || !data)
-    return (
-      <div className="research-loading">
-        <LoaderCircle className="spin" />
-      </div>
-    );
-  return <ArtifactDetail meta={data} target={target} onNavigate={onNavigate} />;
-}
-
-function ArtifactDetail({
-  meta,
-  target,
-  onNavigate,
-}: {
-  meta: Meta;
-  target?: string;
-  onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
-}) {
-  const kind = meta.task_type;
-  const { t } = useTranslation();
-  const lineageClipboard = useCopyFeedback();
-  const copiedLineage = lineageClipboard.copied;
-  const pageByType: Partial<Record<string, ResearchPageId>> = {
-    etl: "etl",
-    analysis: "factors",
-    train: "train",
-    predict: "predict",
-    backtest: "backtest",
-  };
-  const upstreams = upstreamTaskIds(meta.input_params.upstream_task_ids).map(
-    (taskId) => ({
-      taskId,
-      type: taskId.split("#")[0],
-      page: pageByType[taskId.split("#")[0]] || ("runtime" as const),
-    }),
-  );
-  const copyLineageId = (taskId: string) => lineageClipboard.copy(taskId);
-  return (
-    <>
-      {
-        <header className="artifact-header">
-          <div>
-            <span className={`artifact-kind ${kind}`}>{iconFor(kind)}</span>
-            <div className="artifact-title">
-              <small>{meta.reg_name || kind}</small>
-              <div className="artifact-title-row">
-                <h2 title={meta.task_id}>{meta.task_id}</h2>
-                <button
-                  type="button"
-                  className="artifact-id-copy"
-                  onClick={() => void copyLineageId(meta.task_id)}
-                  title={t("research.copy_task_id")}
-                  aria-label={t("research.copy_task_id")}
-                >
-                  {copiedLineage === meta.task_id ? <Check /> : <Copy />}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="artifact-header-actions">
-            {kind === "backtest" && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => onNavigate("compare", meta.task_id)}
-              >
-                <GitCompareArrows />
-                {t("research.compare")}
-              </button>
-            )}
-            <span className="ready-badge">
-              <CheckCircle2 />
-              {t("research.artifacts_ready")}
-            </span>
-          </div>
-        </header>
-      }
-      <ReplicaNotice replica={meta.replica} />
-      {upstreams.length > 0 && (
-        <div className="lineage-strip">
-          <span>
-            <GitBranch />
-            {t("research.upstream_tasks")}
-          </span>
-          <div className="lineage-sources">
-            {upstreams.map((upstream) => (
-              <div className="lineage-node" key={upstream.taskId}>
-                <button
-                  className="lineage-link"
-                  onClick={() => onNavigate(upstream.page, upstream.taskId)}
-                  title={`${t("research.open_upstream_task")}: ${upstream.taskId}`}
-                >
-                  <em>{upstream.type.toUpperCase()}</em>
-                  <code>{upstream.taskId}</code>
-                  <ArrowRight />
-                </button>
-                <button
-                  className="lineage-copy"
-                  onClick={() => void copyLineageId(upstream.taskId)}
-                  aria-label={t("research.copy_upstream_task_id")}
-                >
-                  {copiedLineage === upstream.taskId ? <Check /> : <Copy />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {meta.task_type === "backtest" ? (
-        <Suspense
-          fallback={
-            <div className="research-loading">
-              <LoaderCircle className="spin" />
-            </div>
-          }
-        >
-          <BacktestView meta={meta} target={target} />
-        </Suspense>
-      ) : (
-        <BaseOutputView meta={meta} target={target} />
-      )}
-    </>
-  );
-}
-
-const iconFor = (kind: Kind) =>
-  kind === "analysis" ? (
-    <Sparkles />
-  ) : kind === "backtest" ? (
-    <TrendingUp />
-  ) : kind === "train" ? (
-    <BrainCircuit />
-  ) : kind === "predict" ? (
-    <BarChart3 />
-  ) : (
-    <Database />
-  );
-function Kpis({
-  items,
-}: {
-  items: { label: string; value: React.ReactNode; hint?: string }[];
-}) {
-  return (
-    <div className={`artifact-kpis count-${Math.min(items.length, 4)}`}>
-      {items.map((item) => (
-        <article key={item.label}>
-          <small>{item.label}</small>
-          <strong>{item.value}</strong>
-          {item.hint && <span>{item.hint}</span>}
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function AnalysisScores({
-  scores,
-}: {
-  scores: Record<string, Record<string, number>>;
-}) {
-  const { t } = useTranslation();
-  const [chosenMetric, setChosenMetric] = useState("");
-  const [chosenLabel, setChosenLabel] = useState("");
-  const groups = Object.entries(scores).map(([key, values]) => {
-    const separator = key.indexOf("/");
-    return {
-      metric: separator < 0 ? key : key.slice(0, separator),
-      label: separator < 0 ? "—" : key.slice(separator + 1),
-      values,
-    };
-  });
-  if (!groups.length) return null;
-  const metrics = [...new Set(groups.map((group) => group.metric))];
-  const metric = metrics.includes(chosenMetric) ? chosenMetric : metrics[0];
-  const labels = [
-    ...new Set(
-      groups
-        .filter((group) => group.metric === metric)
-        .map((group) => group.label),
-    ),
-  ];
-  const label = labels.includes(chosenLabel) ? chosenLabel : labels[0];
-  const values =
-    groups.find((group) => group.metric === metric && group.label === label)
-      ?.values || {};
-  const rows = Object.entries(values).sort(
-    ([nameA, valueA], [nameB, valueB]) =>
-      Math.abs(valueB) - Math.abs(valueA) || nameA.localeCompare(nameB),
-  );
-  const maxAbs = Math.max(...rows.map(([, value]) => Math.abs(value)), 0);
-
-  return (
-    <section className="viz-card wide analysis-score-card">
-      <header>
-        <div>
-          <small>SCORES</small>
-          <h3>{t("research.factor_scores")}</h3>
-        </div>
-        <div className="analysis-score-controls">
-          <label>
-            <span>{t("research.metric")}</span>
-            <Select
-              value={metric}
-              onChange={(event) => setChosenMetric(event.target.value)}
-            >
-              {metrics.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label>
-            <span>{t("research.label")}</span>
-            <Select
-              value={label}
-              onChange={(event) => setChosenLabel(event.target.value)}
-            >
-              {labels.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <span className="analysis-score-count">{rows.length}</span>
-        </div>
-      </header>
-      <div className="analysis-score-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>{t("research.factor")}</th>
-              <th>{t("research.magnitude")}</th>
-              <th>{t("research.score")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([factor, value]) => {
-              const width = maxAbs ? (Math.abs(value) / maxAbs) * 50 : 0;
-              return (
-                <tr key={factor}>
-                  <td>
-                    <code>{factor}</code>
-                  </td>
-                  <td>
-                    <div className="analysis-score-bar" aria-hidden="true">
-                      <span
-                        className={value < 0 ? "negative" : "positive"}
-                        style={{
-                          left: `${value < 0 ? 50 - width : 50}%`,
-                          width: `${width}%`,
-                        }}
-                      />
-                    </div>
-                  </td>
-                  <td>{fmt(value, 4)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function TrainingMemberCount({
-  meta,
-  target,
-}: {
-  meta: ResearchArtifact<"train">;
-  target?: string;
-}) {
-  const load = useCallback(
-    (signal: AbortSignal) => countTrainingMembers(meta, target, signal),
-    [meta, target],
-  );
-  const { data, error } = useAsyncResource(load);
-  return (
-    <span title={error || undefined}>{data == null ? "—" : fmt(data, 0)}</span>
-  );
-}
-
-function BaseOutputView({
-  meta,
-  target,
-}: {
-  meta: Exclude<Meta, { task_type: "backtest" }>;
-  target?: string;
-}) {
-  const kind = meta.task_type;
-  const { t } = useTranslation();
-  const train = meta.task_type === "train" ? meta.output_params : null;
-  const etl = meta.task_type === "etl" ? meta.output_params : null;
-  const predict = meta.task_type === "predict" ? meta.output_params : null;
-  const analysis = meta.task_type === "analysis" ? meta.output_params : null;
-  const count =
-    train?.train_rows ??
-    ("rows" in meta.output_params ? meta.output_params.rows : undefined);
-  const countLabel =
-    kind === "train"
-      ? t("research.train_rows")
-      : kind === "predict"
-        ? t("research.prediction_rows")
-        : t("research.rows");
-  const paths = Object.entries(meta.output_params.artifacts).map(
-    ([name, artifact]) => [
-      name,
-      `${taskDirectory(meta.task_id)}/${artifact.path}`,
-    ],
-  );
-  const members = Object.entries(
-    (("protocol" in meta.output_params
-      ? meta.output_params.protocol.score_columns
-      : undefined) || {}) as Record<string, string>,
-  );
-  const columns =
-    kind === "etl"
-      ? [
-          [
-            t("research.feature_columns"),
-            etl?.feature_columns ?? train?.feature_columns,
-          ],
-          [t("research.label_columns"), etl?.label_columns],
-        ]
-      : kind === "train"
-        ? [
-            [
-              t("research.feature_columns"),
-              etl?.feature_columns ?? train?.feature_columns,
-            ],
-            [t("research.target_columns"), train?.target_columns],
-          ]
-        : [];
-  const columnCards = columns.map(([title, values]) =>
-    Array.isArray(values) && (values.length > 0 || kind === "train") ? (
-      <section className="viz-card base-columns-card" key={String(title)}>
-        <header>
-          <div>
-            <small>COLUMNS</small>
-            <h3>{title}</h3>
-          </div>
-          <span>{values.length}</span>
-        </header>
-        <div className="base-column-list">
-          {values.map((value) => (
-            <code key={value}>{value}</code>
-          ))}
-        </div>
-      </section>
-    ) : null,
-  );
-  return (
-    <div className="artifact-content">
-      <Kpis
-        items={[
-          { label: countLabel, value: fmt(count, 0) },
-          ...(kind === "train"
-            ? [
-                {
-                  label: t("research.model"),
-                  value: train?.model_name || "—",
-                },
-              ]
-            : []),
-          ...(kind === "train" || kind === "predict"
-            ? [
-                {
-                  label: t("research.model_members"),
-                  value:
-                    meta.task_type === "train" ? (
-                      <TrainingMemberCount meta={meta} target={target} />
-                    ) : (
-                      fmt(members.length, 0)
-                    ),
-                },
-              ]
-            : []),
-          ...(kind === "etl" || kind === "predict"
-            ? [
-                {
-                  label: t("research.start"),
-                  value: (etl?.date_range ?? predict?.date_range)?.start || "—",
-                },
-                {
-                  label: t("research.end"),
-                  value: (etl?.date_range ?? predict?.date_range)?.end || "—",
-                },
-              ]
-            : []),
-          {
-            label: t("research.artifacts"),
-            value: fmt(
-              Object.keys(meta.output_params.artifacts || {}).length,
-              0,
-            ),
-          },
-        ]}
-      />
-      {kind === "train" ? (
-        <div className="train-config-grid">
-          {columnCards}
-          <section className="viz-card train-parameters-card">
-            <header>
-              <div>
-                <small>PARAMETERS</small>
-                <h3>{t("research.effective_parameters")}</h3>
-              </div>
-              <span>{Object.keys(train?.parameters || {}).length}</span>
-            </header>
-            <div className="base-value-list">
-              {Object.entries(train?.parameters || {}).map(([name, value]) => (
-                <div key={name}>
-                  <code>{name}</code>
-                  <strong>
-                    {typeof value === "string" ? value : JSON.stringify(value)}
-                  </strong>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      ) : meta.task_type === "predict" ? (
-        <PredictionOverview meta={meta} />
-      ) : (
-        columnCards
-      )}
-      {kind === "predict" && members.length > 0 && (
-        <section className="viz-card wide">
-          <header>
-            <h3>{t("research.score_columns")}</h3>
-            <span>{members.length}</span>
-          </header>
-          <div className="base-value-list">
-            {members.map(([member, column]) => (
-              <div key={member}>
-                <code>{member}</code>
-                <strong>{column}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-      {kind === "analysis" && (
-        <AnalysisScores scores={analysis?.scores || {}} />
-      )}
-      {kind === "train" && (
-        <section className="viz-card wide train-curve-card">
-          <header>
-            <div>
-              <small>TRAINING</small>
-              <h3>{t("research.training_curves")}</h3>
-            </div>
-          </header>
-          {train?.training_curve?.x.length ? (
-            <Suspense
-              fallback={
-                <div className="research-loading">
-                  <LoaderCircle className="spin" />
-                </div>
-              }
-            >
-              <TrainingCurveChart curve={train?.training_curve} />
-            </Suspense>
-          ) : (
-            <div className="train-curve-empty">
-              {t("research.no_training_curve_is_available")}
-            </div>
-          )}
-          {train?.training_curve &&
-            Object.keys(train?.training_curve.y_left).some((name) =>
-              name.endsWith("_l2"),
-            ) &&
-            Object.keys(train?.training_curve.y_right).some((name) =>
-              name.endsWith("_l1"),
-            ) && (
-              <p className="train-curve-note">
-                {t("research.left_axis_l2_mean_squared")}
-              </p>
-            )}
-          {Object.keys(train?.metrics || {}).length > 0 && (
-            <div className="train-curve-metrics">
-              {Object.entries(train?.metrics || {}).map(([name, value]) => (
-                <span key={name}>
-                  <small>{name}</small>
-                  <strong>{fmt(value, 4)}</strong>
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-      <section className="viz-card base-files-card">
-        <header>
-          <div>
-            <small>OUTPUT</small>
-            <h3>{t("research.output_files")}</h3>
-          </div>
-        </header>
-        <div className="artifact-files">
-          {paths.map(
-            ([name, path]) =>
-              path && (
-                <div key={name}>
-                  <FileSpreadsheet />
-                  <span>
-                    <strong>{name}</strong>
-                    <code>{path}</code>
-                  </span>
-                </div>
-              ),
-          )}
-        </div>
-        {kind === "etl" && typeof meta.input_params.input_dir === "string" && (
-          <div className="artifact-input-dir">
-            <small>{t("research.input_directory")}</small>
-            <code>{String(meta.input_params.input_dir)}</code>
-          </div>
-        )}
-      </section>
-      <section className="viz-card base-files-card">
-        <header>
-          <div>
-            <small>ARTIFACTS</small>
-            <h3>{t("research.artifacts_2")}</h3>
-          </div>
-        </header>
-        <ArtifactRecords meta={meta} />
-      </section>
-    </div>
-  );
-}
-
-function ArtifactRecords({ meta }: { meta: Meta }) {
-  return (
-    <div className="artifact-files">
-      {Object.entries(meta.output_params.artifacts || {}).map(
-        ([name, file]) => (
-          <div key={name}>
-            <FileSpreadsheet />
-            <span>
-              <strong>{name}</strong>
-              <code>{file.path}</code>
-            </span>
-            <em>{formatBytes(file.size, false)}</em>
-          </div>
-        ),
-      )}
-    </div>
   );
 }

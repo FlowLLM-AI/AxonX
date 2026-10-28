@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { upstreamTaskIds } from "./upstreamTasks";
+import { upstreamTaskIds } from "./tasks";
 
 describe("upstream task metadata", () => {
   it("reads single and multiple dependencies from arrays", () => {

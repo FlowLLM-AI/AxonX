@@ -3,9 +3,9 @@ import type { DailyRow } from "../backtest/types";
 import {
   cumulativeSeries,
   executionCostRates,
-  pairedMean,
   holdingOverlap,
   pairDays,
+  pairedMean,
   periodComparison,
   strategyStats,
 } from "./model";

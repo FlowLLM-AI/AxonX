@@ -1,12 +1,16 @@
-import type { TaskMetadata, TaskSummary } from "../features/tasks/types";
-import { taskStepProgress } from "../features/tasks/format";
-import type { WorkspaceListing } from "../features/workspace/types";
+import { taskStepProgress } from "../features/tasks/model";
 import type { Transport } from "../shared/api/client";
+import type {
+  TaskMetadata,
+  TaskSummary,
+  WorkspaceListing,
+} from "../shared/api/contracts";
 import type { JobEvent } from "../shared/api/event";
-import { upstreamTaskIds } from "../shared/lib/upstreamTasks";
+import { taskDirectory, upstreamTaskIds } from "../shared/lib/tasks";
 import { createAgent } from "./agent";
 import { catalog } from "./catalog";
-import { addArtifacts, definitions, epoch, json, seed } from "./fixtures";
+import { definitions, epoch } from "./data";
+import { seed } from "./fixtures";
 import { sse } from "./stream";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
@@ -62,52 +66,11 @@ function taskView(
 export function createPlayground(): Transport {
   const { tasks, files } = seed();
   const agent = createAgent();
-  const running = new Map<string, number>();
   const requiredTask = (id: string) => {
     const task = tasks.get(id);
     if (!task) throw new Error(`Unknown demo task: ${id}`);
     return task;
   };
-  function updateTasks() {
-    for (const [id, started] of running) {
-      const task = requiredTask(id);
-      const elapsed = Date.now() - started;
-      task.state = "running";
-      task.started_at = new Date(started).toISOString();
-      task.steps = task.steps.map((step, i) => ({
-        ...step,
-        percentage: Math.max(0, Math.min(100, (elapsed - 600 - i * 1800) / 18)),
-        started_at:
-          elapsed >= 600 + i * 1800
-            ? new Date(started + 600 + i * 1800).toISOString()
-            : null,
-        finished_at:
-          elapsed >= 2400 + i * 1800
-            ? new Date(started + 2400 + i * 1800).toISOString()
-            : null,
-      }));
-      if (elapsed >= 6000) {
-        running.delete(id);
-        task.finished_at = new Date(started + 6000).toISOString();
-        task.state =
-          task.input_params.outcome === "failure" ? "failed" : "succeeded";
-        if (task.state === "failed") {
-          task.error = "Simulated missing input / 模拟输入缺失";
-          task.exit_code = 1;
-        } else {
-          task.output_params = { output_dir: `${id.split("#")[0]}/${id}` };
-          addArtifacts(
-            files,
-            task,
-            String(task.input_params.strategy),
-            upstreamTaskIds(task.input_params.upstream_task_ids),
-          );
-        }
-      }
-    }
-    for (const task of tasks.values())
-      files.set(`${task.task_type}/${task.task_id}/metadata.json`, json(task));
-  }
   const log = (id: string) => {
     const task = requiredTask(id);
     return (
@@ -173,7 +136,6 @@ export function createPlayground(): Transport {
   }
   return async (url, init = {}) => {
     if (init.signal?.aborted) throw abortError();
-    updateTasks();
     const parsed = new URL(url, "https://playground.invalid");
     const name = decodeURIComponent(parsed.pathname.split("/")[2] || "");
     const invocation = init.body ? JSON.parse(String(init.body)) : {};
@@ -189,7 +151,6 @@ export function createPlayground(): Transport {
         if (name === "stream_task") {
           requiredTask(id);
           return sse(() => {
-            updateTasks();
             const task = requiredTask(id);
             const events: JobEvent[] = [
               ...task.steps.map((step) => ({
@@ -198,7 +159,7 @@ export function createPlayground(): Transport {
               })),
               { kind: "log", ...logChunk(id), reset: true },
             ];
-            if (!running.has(id)) {
+            {
               for (const [path, file] of files)
                 if (path.startsWith(`${id.split("#")[0]}/${id}/`))
                   events.push({
@@ -234,7 +195,7 @@ export function createPlayground(): Transport {
             cpu: {
               total_cores: 4,
               physical_cores: 4,
-              usage_percent: running.size ? 42 : 3,
+              usage_percent: 3,
             },
             memory: {
               total_bytes: 8589934592,
@@ -348,6 +309,9 @@ export function createPlayground(): Transport {
         }
         case "delete_entries": {
           const paths = args.paths as string[];
+          for (const taskId of tasks.keys())
+            if (paths.some((path) => taskDirectory(taskId) === path))
+              tasks.delete(taskId);
           for (const path of paths)
             for (const key of files.keys())
               if (key === path || key.startsWith(`${path}/`)) files.delete(key);

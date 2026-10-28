@@ -1,7 +1,9 @@
+import { Activity, Database } from "lucide-react";
+
 export interface OperationPageDefinition {
   id: string;
   titleKey: string;
-  view: "tasks" | "pipeline";
+  icon: typeof Activity;
   reportKinds: readonly string[];
 }
 
@@ -9,19 +11,19 @@ export const operationPages: readonly OperationPageDefinition[] = [
   {
     id: "online",
     titleKey: "onlineWorkbench.title",
-    view: "pipeline",
+    icon: Activity,
     reportKinds: ["online_pipeline", "online"],
   },
   {
     id: "comparison",
     titleKey: "operations.comparison",
-    view: "pipeline",
+    icon: Activity,
     reportKinds: ["compare_pipeline"],
   },
   {
     id: "data",
     titleKey: "operations.dataUpdate",
-    view: "tasks",
+    icon: Database,
     reportKinds: ["data_update"],
   },
 ];

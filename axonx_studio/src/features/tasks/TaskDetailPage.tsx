@@ -1,31 +1,31 @@
-import { ReportTabs } from "../../shared/ui/ReportTabs";
-import { TaskLogPanel } from "./TaskLogPanel";
-import { TaskChildren } from "./TaskChildren";
-import { ExecutionSteps } from "./ExecutionSteps";
-import { ReplicaNotice } from "../../shared/ReplicaNotice";
-import { hasTaskReport } from "../online/types";
-import { useCallback, useState } from "react";
 import {
   ArrowLeft,
+  ArrowUpRight,
+  Bot,
   Check,
   Copy,
   FileJson,
   FileText,
   GitBranch,
-  Bot,
   LoaderCircle,
   LocateFixed,
-  ArrowUpRight,
-  Settings2,
   RefreshCw,
+  Settings2,
 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { useRefresh } from "../../shared/hooks/useRefresh";
-import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
+import { ReplicaNotice } from "../../shared/ReplicaNotice";
+import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { getTaskStatus } from "./api";
+import { ExecutionSteps } from "./ExecutionSteps";
+import { hasTaskReport } from "./model";
+import { TaskChildren } from "./TaskChildren";
+import { TaskGraphPanel } from "./TaskGraph";
+import { TaskLogPanel } from "./TaskLogPanel";
 import { Status } from "./TaskRow";
-import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
 
 export function TaskDetailPage({
   taskId,
@@ -56,7 +56,7 @@ export function TaskDetailPage({
   const load = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const result = await getTaskStatus(taskId, target, signal);
+        const result = await getTaskStatus(taskId, { target, signal });
         signal.throwIfAborted();
         onConnection(true);
         return result;

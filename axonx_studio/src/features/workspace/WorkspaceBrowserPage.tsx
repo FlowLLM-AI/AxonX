@@ -1,12 +1,4 @@
 import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
@@ -21,20 +13,28 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
-import { RailResizer } from "../../shared/ui/RailResizer";
-import { formatBytes } from "../../shared/lib/format";
-import type { ContextOption } from "../../app/types";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import type { ContextOption } from "../../app/types";
 import type {
-  WorkspaceListing,
   WorkspaceEntry,
-  WorkspacePreview,
-} from "./types";
+  WorkspaceListing,
+} from "../../shared/api/contracts";
+import type { WorkspacePreview } from "../../shared/api/workspace";
 import {
   getWorkspaceRoot,
   listWorkspaceEntries,
   previewWorkspaceFile,
-} from "./api";
+} from "../../shared/api/workspace";
+import { formatBytes } from "../../shared/lib/format";
+import { RailResizer } from "../../shared/ui/RailResizer";
 
 const FilePreview = lazy(() =>
   import("./FilePreview").then((module) => ({ default: module.FilePreview })),
@@ -94,10 +94,8 @@ export default function WorkspaceBrowserPage({
       setLoading((current) => new Set(current).add(path));
       try {
         const result = await listWorkspaceEntries(
-          path,
-          target,
-          signal,
-          append ? existing?.entries.length : 0,
+          { path, offset: append ? existing?.entries.length : 0 },
+          { target, signal },
         );
         signal.throwIfAborted();
         const directory = {
@@ -139,7 +137,7 @@ export default function WorkspaceBrowserPage({
       if (initialPath.startsWith("/")) {
         const workspaceRoot =
           directory.workspace_root ||
-          (await getWorkspaceRoot(target, controller.signal));
+          (await getWorkspaceRoot({ target, signal: controller.signal }));
         controller.signal.throwIfAborted();
         const root = workspaceRoot?.replace(/\/+$/, "");
         if (!root || !initialPath.startsWith(`${root}/`))
@@ -197,11 +195,8 @@ export default function WorkspaceBrowserPage({
     setPreviewLoading(selected?.kind === "file");
     if (selected?.kind === "file") {
       void previewWorkspaceFile(
-        selected.path,
-        offset,
-        200,
-        target,
-        controller.signal,
+        { path: selected.path, offset, limit: 200 },
+        { target, signal: controller.signal },
       )
         .then((result) => {
           if (!controller.signal.aborted) {
@@ -279,6 +274,7 @@ export default function WorkspaceBrowserPage({
         .filter((entry) => entry.kind !== "symlink")
         .map((entry) => ({
           value: entry.path,
+          kind: entry.kind === "directory" ? "directory" : "file",
           label: entry.name,
           detail:
             entry.kind === "directory"

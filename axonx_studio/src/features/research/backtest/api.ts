@@ -1,6 +1,7 @@
-import { taskDirectory } from "../../../shared/lib/tasks";
 import i18n from "../../../i18n";
-import { loadParquetRows } from "../../workspace/parquet";
+import type { RequestOptions } from "../../../shared/api/client";
+import { loadParquetRows } from "../../../shared/api/tables";
+import { taskDirectory } from "../../../shared/lib/tasks";
 import type { BacktestArtifact, DailyRow, SummaryRow } from "./types";
 
 function universeArtifact(
@@ -20,19 +21,16 @@ function universeArtifact(
 export async function loadBacktest(
   meta: BacktestArtifact,
   universe: string,
-  target?: string,
-  signal?: AbortSignal,
+  options: RequestOptions = {},
 ) {
   const [daily, summary] = await Promise.all([
     loadParquetRows<DailyRow>(
       universeArtifact(meta, universe, "daily"),
-      target,
-      signal,
+      options,
     ),
     loadParquetRows<SummaryRow>(
       universeArtifact(meta, universe, "summary"),
-      target,
-      signal,
+      options,
     ),
   ]);
   return { daily, summary };
@@ -41,12 +39,10 @@ export async function loadBacktest(
 export async function loadBacktestDaily(
   meta: BacktestArtifact,
   universe: string,
-  target?: string,
-  signal?: AbortSignal,
+  options: RequestOptions = {},
 ) {
   return loadParquetRows<DailyRow>(
     universeArtifact(meta, universe, "daily"),
-    target,
-    signal,
+    options,
   );
 }

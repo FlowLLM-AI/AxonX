@@ -1,8 +1,6 @@
-import { assetUrl, playground } from "./environment";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  ChevronRight,
   ChevronDown,
+  ChevronRight,
   Languages,
   Menu,
   Moon,
@@ -11,21 +9,23 @@ import {
   Settings2,
   Sun,
 } from "lucide-react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
+import type { MachineNode } from "../features/runtime/machine";
 import { changeLanguage } from "../i18n";
-import { RailResizer } from "../shared/ui/RailResizer";
 import { formatMachineAddress } from "../shared/lib/format";
-import type { ContextOption, ThemePreference } from "./types";
-import type { MachineNode } from "../features/machines/types";
+import { RailResizer } from "../shared/ui/RailResizer";
+import { assetUrl, playground } from "./environment";
 import {
   navigationGroups,
-  navigationItems,
   navigationItemForRoute,
+  navigationItems,
   researchSections,
 } from "./navigation";
-import { defaultRoute } from "./routes";
-import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
 import type { AppRoute } from "./routes";
+import { defaultRoute } from "./routes";
+import type { ContextOption, ThemePreference } from "./types";
 import type { SidebarState } from "./useStudio";
 
 interface AppShellProps {
@@ -124,7 +124,7 @@ export function AppShell(props: AppShellProps) {
   const workspaceFileSelected =
     route.section === "workspace" &&
     resourceOption &&
-    resourceOption.detail !== t("workspace.folder");
+    resourceOption.kind === "file";
   const taskDetail = route.section === "runtime" && route.view === "task";
   const finalLabel =
     route.resource &&

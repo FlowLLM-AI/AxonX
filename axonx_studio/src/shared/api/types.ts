@@ -1,7 +1,7 @@
-import type { JsonSchema } from "../schema/types";
+import type { JsonSchema } from "../schema/values";
 import type {
-  JobResponse as ResponseContract,
   JobInfo as InfoContract,
+  JobResponse as ResponseContract,
 } from "./contracts";
 
 export type JobResponse<T = unknown> = Omit<ResponseContract, "answer"> & {

@@ -1,4 +1,19 @@
-import type { JsonSchema } from "./types";
+export interface JsonSchema {
+  type?: string | string[];
+  title?: string;
+  description?: string;
+  default?: unknown;
+  enum?: unknown[];
+  anyOf?: JsonSchema[];
+  items?: JsonSchema;
+  properties?: Record<string, JsonSchema>;
+  required?: string[];
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+}
 
 export type SchemaFieldValue = string | boolean;
 export type SchemaFormValues = Record<string, SchemaFieldValue>;
@@ -13,7 +28,7 @@ export function schemaType(schema: JsonSchema): string {
   );
 }
 
-export function encodeFieldValue(
+function encodeFieldValue(
   value: unknown,
   schema: JsonSchema,
 ): SchemaFieldValue {
@@ -89,10 +104,4 @@ export function parseSchemaValues(
   }
 
   return { data, errors };
-}
-
-export function humanizeFieldName(value: string): string {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

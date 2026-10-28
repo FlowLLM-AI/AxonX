@@ -4,28 +4,27 @@ import {
   Bot,
   BrainCircuit,
   Cpu,
-  Folder,
   FileCode2,
   FlaskConical,
-  Network,
+  Folder,
   GitCompareArrows,
-  Sparkles,
+  Network,
   Settings2,
+  Sparkles,
   Workflow,
-  Database,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { operationPages } from "../features/operations/pages";
 import type { AppRoute, SectionId } from "./routes";
 
-export interface NavigationItem {
+interface NavigationItem {
   id: string;
   route: AppRoute;
   icon: ComponentType<{ className?: string }>;
   labelKey: string;
 }
 
-export interface NavigationGroup {
+interface NavigationGroup {
   id: "operations" | "system" | "development" | "research";
   defaultOpen: boolean;
   labelKey: string;
@@ -65,7 +64,7 @@ export const navigationGroups: NavigationGroup[] = [
     items: operationPages.map((page): NavigationItem => ({
       id: `operation-${page.id}`,
       route: { section: "operations", view: page.id },
-      icon: page.view === "tasks" ? Database : Activity,
+      icon: page.icon,
       labelKey: page.titleKey,
     })),
   },

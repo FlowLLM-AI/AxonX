@@ -1,12 +1,12 @@
-@import "./foundation.css";
+@import "./components.css";
+@import "./shell.css";
+@import "./home.css";
+@import "./runtime.css";
+@import "./tasks.css";
 @import "./workspace.css";
 @import "./research.css";
-@import "./shell-runtime.css";
 @import "./api.css";
-@import "./features.css";
 @import "./agent.css";
-
-@import "./online.css";
 @import "./operations.css";
-
+@import "./stock.css";
 @import "./select.css";

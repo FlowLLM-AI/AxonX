@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ContextOption } from "../../app/types";
 import type { AppRoute } from "../../app/routes";
+import type { ContextOption } from "../../app/types";
+import type { AgentSessionInfo } from "../../shared/api/contracts";
 import type {
   AgentMessageEvent,
   JobEvent,
@@ -19,6 +20,7 @@ import {
   streamAgentChat,
   tagAgentSession,
 } from "./api";
+import { AxonXMark } from "./AxonXMark";
 import { Composer } from "./Composer";
 import { Conversation } from "./Conversation";
 import {
@@ -28,8 +30,6 @@ import {
   optimisticUserBlock,
 } from "./reducer";
 import { SessionRail } from "./SessionRail";
-import type { AgentSessionInfo } from "./types";
-import { AxonXMark } from "./AxonXMark";
 
 interface AgentWorkspaceProps {
   view: "new" | "chat" | "task";
@@ -72,7 +72,7 @@ export default function AgentWorkspace({
       const requestId = ++sessionsRequest.current;
       setSessionsLoading(true);
       try {
-        const result = await listAgentSessions(target, signal);
+        const result = await listAgentSessions({ target, signal });
         if (signal?.aborted || requestId !== sessionsRequest.current) return;
         setSessions(result);
         onOptionsChange(
@@ -105,7 +105,7 @@ export default function AgentWorkspace({
 
   const reconcile = useCallback(
     async (id: string, signal: AbortSignal) => {
-      const result = await getAgentSession(id, target, signal);
+      const result = await getAgentSession(id, { target, signal });
       if (!signal.aborted && activeSession.current === id) {
         setConversation(fromHistory(result.blocks));
         setError("");
@@ -143,7 +143,7 @@ export default function AgentWorkspace({
     }
     const request = new AbortController();
     setHistoryLoading(true);
-    getAgentSession(sessionId, target, request.signal)
+    getAgentSession(sessionId, { target, signal: request.signal })
       .then((result) => {
         if (request.signal.aborted) return;
         if (activeSession.current === sessionId)
@@ -203,11 +203,8 @@ export default function AgentWorkspace({
     };
     try {
       await streamAgentChat(
-        message,
-        requestedSession,
-        target,
-        streamController.signal,
-        onEvent,
+        { message, session_id: requestedSession },
+        { target, signal: streamController.signal, onEvent },
       );
       if (!streamController.signal.aborted) onConnection(true);
     } catch (reason) {
@@ -259,7 +256,7 @@ export default function AgentWorkspace({
     if (!id || stopping) return;
     setStopping(true);
     try {
-      await cancelAgentTurn(id, target);
+      await cancelAgentTurn(id, { target });
     } catch (reason) {
       setStopping(false);
       setError(errorMessage(reason));
@@ -272,23 +269,23 @@ export default function AgentWorkspace({
       session.custom_title || "",
     );
     if (!title?.trim()) return;
-    await renameAgentSession(session.session_id, title.trim(), target);
+    await renameAgentSession(session.session_id, title.trim(), { target });
     await refreshSessions();
   };
   const tag = async (session: AgentSessionInfo) => {
     const value = window.prompt(t("agent.tagPrompt"), session.tag || "");
     if (value === null) return;
-    await tagAgentSession(session.session_id, value.trim() || null, target);
+    await tagAgentSession(session.session_id, value.trim() || null, { target });
     await refreshSessions();
   };
   const fork = async (session: AgentSessionInfo) => {
-    const result = await forkAgentSession(session.session_id, target);
+    const result = await forkAgentSession(session.session_id, { target });
     await refreshSessions();
     navigate({ section: "agent", view: "chat", resource: result.session_id });
   };
   const remove = async (session: AgentSessionInfo) => {
     if (!window.confirm(t("agent.deleteConfirm"))) return;
-    await deleteAgentSession(session.session_id, target);
+    await deleteAgentSession(session.session_id, { target });
     if (activeSession.current === session.session_id)
       navigate({ section: "agent", view: "new" });
     await refreshSessions();

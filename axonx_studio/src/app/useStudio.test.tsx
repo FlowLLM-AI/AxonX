@@ -2,17 +2,17 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listMachineOptions, machineStatus } from "../features/machines/api";
-import type { MachineInfo } from "../features/machines/types";
 import OperationPage from "../features/operations/OperationPage";
-import { AxonXClient, configureClient } from "../shared/api/client";
+import { operationPages } from "../features/operations/pages";
+import { listMachineOptions, machineStatus } from "../features/runtime/machine";
 import { createPlayground } from "../playground/runtime";
+import { AxonXClient, configureClient } from "../shared/api/client";
+import type { MachineInfo } from "../shared/api/contracts";
 import { AppShell } from "./AppShell";
 import { defaultRoute } from "./routes";
 import { useStudio } from "./useStudio";
-import { operationPages } from "../features/operations/pages";
 
-vi.mock("../features/machines/api", () => ({
+vi.mock("../features/runtime/machine", () => ({
   listMachineOptions: vi.fn(),
   machineStatus: vi.fn(),
 }));
@@ -124,10 +124,10 @@ describe("Studio backend version", () => {
       studio.navigate(defaultRoute("runtime"), "remote:1024"),
     );
     expect(version()).toBe("v3.2.1");
-    expect(machineStatus).toHaveBeenLastCalledWith(
-      "remote:1024",
-      expect.any(AbortSignal),
-    );
+    expect(machineStatus).toHaveBeenLastCalledWith({
+      target: "remote:1024",
+      signal: expect.any(AbortSignal),
+    });
     vi.mocked(machineStatus).mockRejectedValue(new Error("Offline"));
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
     expect(version()).toBeUndefined();
@@ -140,7 +140,7 @@ describe("Studio backend version", () => {
       .mockReturnValueOnce(local.promise)
       .mockReturnValueOnce(remote.promise);
     await act(async () => root.render(<Harness />));
-    const signal = vi.mocked(machineStatus).mock.calls[0][1]!;
+    const signal = vi.mocked(machineStatus).mock.calls[0][0]!.signal!;
     await act(async () =>
       studio.navigate(defaultRoute("runtime"), "remote:1024"),
     );

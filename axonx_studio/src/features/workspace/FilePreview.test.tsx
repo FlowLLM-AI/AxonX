@@ -2,8 +2,8 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
+import type { JsonlPreview } from "../../shared/api/contracts";
 import { FilePreview } from "./FilePreview";
-import type { JsonlPreview } from "./types";
 
 vi.mock("react-i18next", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-i18next")>()),

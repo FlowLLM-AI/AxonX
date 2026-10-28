@@ -1,18 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
 import { Activity, LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { OperationPageDefinition } from "./pages";
-import type { TaskSummary } from "../tasks/types";
-import { listTaskStatuses } from "../tasks/api";
-import { formatDate } from "../tasks/format";
+import type { ContextOption } from "../../app/types";
+import type { TaskSummary } from "../../shared/api/contracts";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useRefresh } from "../../shared/hooks/useRefresh";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { TaskIndexControls } from "../../shared/ui/TaskIndexControls";
-import { PipelineReport } from "../online/PipelineReport";
-import { TaskReport } from "./TaskReport";
+import { listTaskStatuses } from "../tasks/api";
 import { OperationIndex } from "./OperationIndex";
-import type { ContextOption } from "../../app/types";
+import type { OperationPageDefinition } from "./pages";
+import { ReportView } from "./TaskReport";
 
 const EMPTY_TASKS: TaskSummary[] = [];
 
@@ -38,7 +37,7 @@ export default function OperationPage({
   const load = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const tasks = await listTaskStatuses(target, signal);
+        const tasks = await listTaskStatuses({ target, signal });
         signal.throwIfAborted();
         onConnection(true);
         return tasks
@@ -120,22 +119,14 @@ export default function OperationPage({
               <button onClick={() => void reload()}>{t("retry")}</button>
             </div>
           )}
-          {selected &&
-            (page.view === "pipeline" ? (
-              <PipelineReport
-                key={`${target}:${selected.task_id}:${selected.started_at}`}
-                task={selected}
-                target={target}
-                onOpenTask={onOpenTask}
-              />
-            ) : (
-              <TaskReport
-                key={`${target}:${selected.task_id}:${selected.started_at}`}
-                task={selected}
-                target={target}
-                onOpenTask={onOpenTask}
-              />
-            ))}
+          {selected && (
+            <ReportView
+              key={`${target}:${selected.task_id}:${selected.started_at}`}
+              task={selected}
+              target={target}
+              onOpenTask={onOpenTask}
+            />
+          )}
           {!selected && (
             <div className="empty-research">
               <Activity />

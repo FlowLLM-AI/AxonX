@@ -1,3 +1,4 @@
+import { toNumber as finite } from "../../../shared/lib/format";
 import type { DailyRow, Holding } from "../backtest/types";
 
 export interface PairedDay {
@@ -6,7 +7,7 @@ export interface PairedDay {
   b: DailyRow;
 }
 
-export interface StrategyStats {
+interface StrategyStats {
   cumulative: number;
   annualized: number;
   volatility: number;
@@ -14,9 +15,6 @@ export interface StrategyStats {
   winRate: number;
   turnover: number;
 }
-
-export const finite = (value: unknown) =>
-  value == null || value === "" ? NaN : Number(value);
 
 export function executionCostRates(input: Record<string, unknown>) {
   return {
@@ -114,7 +112,7 @@ export function strategyStats(
 }
 
 export type PeriodUnit = "year" | "quarter" | "month";
-export function periodKey(date: string, unit: PeriodUnit) {
+function periodKey(date: string, unit: PeriodUnit) {
   const year = date.slice(0, 4);
   const month = Number(date.slice(4, 6));
   if (unit === "year") return year;

@@ -3,7 +3,7 @@ import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { taskStatus } from "../../playground/fixtures";
+import { taskStatus } from "../../playground/data";
 import { getTaskStatus } from "./api";
 import { TaskDetailPage } from "./TaskDetailPage";
 
@@ -11,7 +11,7 @@ vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
 vi.mock("./TaskLogPanel", () => ({
   TaskLogPanel: () => <div>log viewer</div>,
 }));
-vi.mock("../task-graph/TaskGraphPage", () => ({
+vi.mock("./TaskGraph", () => ({
   TaskGraphPanel: () => <div>task graph</div>,
 }));
 
@@ -87,7 +87,9 @@ it.each(["task", "machine"] as const)(
       );
       expect(container.querySelector(".task-detail-heading")).toBeNull();
       expect(container.querySelector(".task-detail-loading")).not.toBeNull();
-      expect(vi.mocked(getTaskStatus).mock.calls[1][2]?.aborted).toBe(true);
+      expect(vi.mocked(getTaskStatus).mock.calls[1][1]?.signal?.aborted).toBe(
+        true,
+      );
       await act(async () => finishNext(next));
       await act(async () => {
         finishPrevious(previous);
@@ -150,7 +152,7 @@ it("keeps loading after StrictMode aborts the first request, then switches all f
   const pending = new Promise<typeof task>((done) => {
     resolve = done;
   });
-  vi.mocked(getTaskStatus).mockImplementation((_id, _target, signal) => {
+  vi.mocked(getTaskStatus).mockImplementation((_id, { signal } = {}) => {
     if (vi.mocked(getTaskStatus).mock.calls.length === 1) {
       return new Promise((_resolve, reject) => {
         signal?.addEventListener(

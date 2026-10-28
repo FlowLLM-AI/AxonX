@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
+import type { ChildTaskRecord } from "../../shared/api/contracts";
 import { Status } from "./TaskRow";
-import type { ChildTaskRecord } from "./types";
 
 /** Show the latest invocation of each direct child; details belong to its own page. */
 export function TaskChildren({

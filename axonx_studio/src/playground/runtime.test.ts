@@ -5,17 +5,17 @@ import {
   fromHistory,
   optimisticUserBlock,
 } from "../features/agent/reducer";
-import type { AgentSession, AgentSessionInfo } from "../features/agent/types";
-import type { TaskGraph } from "../features/task-graph/types";
-import { taskStepProgress } from "../features/tasks/format";
-import type { TaskMetadata } from "../features/tasks/types";
-import type {
-  WorkspaceListing,
-  WorkspacePreview,
-} from "../features/workspace/types";
+import { taskStepProgress } from "../features/tasks/model";
 import { AxonXClient } from "../shared/api/client";
-import { streamJob } from "../shared/api/event";
-import { upstreamTaskIds } from "../shared/lib/upstreamTasks";
+import type {
+  AgentSession,
+  AgentSessionInfo,
+  TaskGraph,
+  TaskMetadata,
+  WorkspaceListing,
+} from "../shared/api/contracts";
+import type { WorkspacePreview } from "../shared/api/workspace";
+import { upstreamTaskIds } from "../shared/lib/tasks";
 import { createPlayground } from "./runtime";
 
 beforeEach(() => vi.useFakeTimers());
@@ -29,7 +29,7 @@ describe("static Playground", () => {
       detail: "full",
     });
     const summaries =
-      await api.invoke<import("../features/tasks/types").TaskSummary[]>(
+      await api.invoke<import("../shared/api/contracts").TaskSummary[]>(
         "list_task_statuses",
       );
     expect(summaries.map((task) => task.task_id)).toEqual(
@@ -193,8 +193,7 @@ describe("static Playground", () => {
       "local-prompt",
     );
     let session_id = "";
-    const result = streamJob(
-      api,
+    const result = api.stream(
       "agent_chat",
       { message: "解释回测" },
       {
@@ -230,7 +229,7 @@ describe("static Playground", () => {
     expect(history.blocks[0].role).toBe("user");
     expect(history.blocks[1].block_type).toBe("tool");
     expect(history.blocks[2].text).toContain("没有调用 LLM");
-    const next = streamJob(api, "agent_chat", {
+    const next = api.stream("agent_chat", {
       session_id,
       message: "Compare",
     });
@@ -251,8 +250,7 @@ describe("static Playground", () => {
     const api = client();
     const controller = new AbortController();
     let session_id = "";
-    const result = streamJob(
-      api,
+    const result = api.stream(
       "agent_chat",
       { message: "Compare" },
       {
@@ -275,7 +273,7 @@ describe("static Playground", () => {
     expect(history.blocks.every((block) => block.status !== "running")).toBe(
       true,
     );
-    const resumed = streamJob(api, "agent_chat", {
+    const resumed = api.stream("agent_chat", {
       session_id,
       message: "继续",
     });

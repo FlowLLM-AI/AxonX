@@ -13,8 +13,8 @@ describe("task list requests", () => {
       );
     configureClient(new AxonXClient(transport, false));
     const signal = new AbortController().signal;
-    await listTaskStatuses("remote:1024", signal);
-    await listFullTaskStatuses("remote:1024", signal);
+    await listTaskStatuses({ target: "remote:1024", signal });
+    await listFullTaskStatuses({ target: "remote:1024", signal });
     for (const [index, detail] of ["summary", "full"].entries()) {
       const [url, init] = transport.mock.calls[index];
       expect(url).toBe("/jobs/list_task_statuses");

@@ -538,18 +538,6 @@
 .agent-running-indicator span {
   margin-left: 5px;
 }
-@keyframes agentPulse {
-  0%,
-  70%,
-  100% {
-    opacity: 0.25;
-    transform: translateY(0);
-  }
-  35% {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
-}
 .agent-welcome,
 .agent-conversation-state {
   height: 100%;

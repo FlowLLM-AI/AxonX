@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { DisplayReplica } from "./lib/replica";
+import type { DisplayReplica } from "./api/contracts";
 
 export function ReplicaNotice({
   replica,

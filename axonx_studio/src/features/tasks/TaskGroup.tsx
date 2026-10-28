@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { STATES, type TaskGroupData } from "./groups";
-import { formatDate } from "./format";
+import type { TaskSummary } from "../../shared/api/contracts";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
+import { STATES, type TaskGroupData } from "./model";
 import { TaskRow } from "./TaskRow";
-import type { TaskSummary } from "./types";
 
 interface GroupProps {
   group: TaskGroupData;

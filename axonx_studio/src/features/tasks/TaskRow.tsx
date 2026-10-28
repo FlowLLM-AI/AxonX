@@ -1,8 +1,9 @@
 import { Check, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { TaskState, TaskSummary } from "../../shared/api/contracts";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { formatDate, formatDuration, taskStepProgress } from "./format";
-import type { TaskState, TaskSummary } from "./types";
+import { formatDateTime as formatDate } from "../../shared/lib/format";
+import { formatDuration, taskStepProgress } from "./model";
 
 export function TaskRow({
   task,

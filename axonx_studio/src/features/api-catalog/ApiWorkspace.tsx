@@ -1,4 +1,3 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Braces,
@@ -8,18 +7,20 @@ import {
   Play,
   Search,
 } from "lucide-react";
-import { RailResizer } from "../../shared/ui/RailResizer";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { ContextOption } from "../../app/types";
+import { axonx } from "../../shared/api/client";
+import type { JobInfo } from "../../shared/api/types";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
+import type { SchemaFormValues } from "../../shared/schema/values";
 import {
   initialSchemaValues,
   parseSchemaValues,
 } from "../../shared/schema/values";
-import type { SchemaFormValues } from "../../shared/schema/values";
-import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type { ContextOption } from "../../app/types";
-import type { MachineNode } from "../machines/types";
-import type { JobInfo } from "../../shared/api/types";
-import { invokeApi, listJobs } from "./api";
-import { useTranslation } from "react-i18next";
+import { RailResizer } from "../../shared/ui/RailResizer";
+import { SchemaForm } from "../../shared/ui/SchemaForm";
+import type { MachineNode } from "../runtime/machine";
 
 export default function ApiWorkspace({
   machine,
@@ -35,42 +36,30 @@ export default function ApiWorkspace({
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [apis, setApis] = useState<JobInfo[]>([]);
-  const [selectedName, setSelectedName] = useState(initialName || "");
+  const target = machine.isLocal ? undefined : machine.address;
+  const selectedName = initialName || "";
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [values, setValues] = useState<SchemaFormValues>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<unknown>();
 
-  const load = useCallback(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    listJobs(machine.isLocal ? undefined : machine.address, controller.signal)
-      .then((catalog) => {
-        const items = catalog.items;
-        setApis(items);
-        setSelectedName((current) =>
-          items.some((item) => item.name === current) ? current : "",
-        );
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      try {
+        const catalog = await axonx.jobs({ target, signal });
+        signal.throwIfAborted();
         onConnection(true);
-      })
-      .catch((reason) => {
-        if (reason?.name !== "AbortError") {
-          setError(String(reason));
-          onConnection(false);
-        }
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [machine.address, machine.isLocal, onConnection]);
-  useEffect(load, [load]);
-  useEffect(() => {
-    if (initialName && apis.some((item) => item.name === initialName))
-      setSelectedName(initialName);
-  }, [initialName, apis]);
+        return catalog.items;
+      } catch (reason) {
+        if (!signal.aborted) onConnection(false);
+        throw reason;
+      }
+    },
+    [target, onConnection],
+  );
+  const { data, loading, error: catalogError, reload } = useAsyncResource(load);
+  const apis = data ?? EMPTY_APIS;
   useEffect(() => {
     onOptionsChange?.(
       apis.map((api) => ({ value: api.name, label: api.name, detail: "POST" })),
@@ -94,10 +83,7 @@ export default function ApiWorkspace({
     setError("");
   }, [selected]);
 
-  const choose = (name: string) => {
-    setSelectedName(name);
-    onSelected(name);
-  };
+  const choose = onSelected;
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected) return;
@@ -113,11 +99,9 @@ export default function ApiWorkspace({
       setSubmitting(true);
       setError("");
       setResult(
-        await invokeApi(
-          selected.name,
-          parsed.data,
-          machine.isLocal ? undefined : machine.address,
-        ),
+        await axonx.invoke(selected.name, parsed.data, {
+          target: machine.isLocal ? undefined : machine.address,
+        }),
       );
       onConnection(true);
     } catch (reason) {
@@ -169,6 +153,12 @@ export default function ApiWorkspace({
       </aside>
       <RailResizer min={180} max={440} className="context-resizer" />
       <main className="workspace-canvas api-canvas">
+        {catalogError && (
+          <div className="error-state" role="alert">
+            {catalogError}
+            <button onClick={() => void reload()}>{t("retry")}</button>
+          </div>
+        )}
         {!selected ? (
           <div className="empty-workspace">
             <Network />
@@ -199,23 +189,11 @@ export default function ApiWorkspace({
                 </small>
               </header>
               <div className="api-fields">
-                {Object.entries(selected.input_schema.properties || {}).map(
-                  ([name, schema]) => (
-                    <SchemaField
-                      key={name}
-                      name={name}
-                      schema={schema}
-                      required={(selected.input_schema.required || []).includes(
-                        name,
-                      )}
-                      value={values[name] ?? ""}
-                      variant="compact"
-                      onChange={(value) =>
-                        setValues((current) => ({ ...current, [name]: value }))
-                      }
-                    />
-                  ),
-                )}
+                <SchemaForm
+                  schema={selected.input_schema}
+                  values={values}
+                  onChange={setValues}
+                />
               </div>
             </section>
             {error && <div className="inline-error">{error}</div>}
@@ -244,3 +222,5 @@ export default function ApiWorkspace({
     </section>
   );
 }
+
+const EMPTY_APIS: JobInfo[] = [];

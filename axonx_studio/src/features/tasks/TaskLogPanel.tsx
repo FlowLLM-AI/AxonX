@@ -6,12 +6,12 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { readTaskLog } from "./api";
-import { useRefresh } from "../../shared/hooks/useRefresh";
+import type { TaskMetadata } from "../../shared/api/contracts";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import { errorMessage } from "../../shared/lib/errors";
 import { formatBytes } from "../../shared/lib/format";
-import type { TaskMetadata } from "./types";
+import { readTaskLog } from "./api";
 
 const LIMIT = 65_536;
 const MAX = 524_288;
@@ -68,12 +68,8 @@ function TaskLogContent({ task, target, toolbar }: TaskLogProps) {
         if (limit <= 0) return;
         for (;;) {
           const chunk = await readTaskLog(
-            id,
-            at,
-            limit,
-            target,
-            signal,
-            startedAt,
+            { task_id: id, offset: at, limit, started_at: startedAt },
+            { target, signal },
           );
           if (signal.aborted) return;
           const replace = at < 0 || chunk.reset;

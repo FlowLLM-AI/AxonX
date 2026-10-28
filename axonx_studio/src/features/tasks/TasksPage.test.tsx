@@ -2,9 +2,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TaskSummary } from "../../shared/api/contracts";
 import { TasksPage } from "./TasksPage";
 import { listTaskStatuses } from "./api";
-import type { TaskSummary } from "./types";
+
 vi.mock("./api", () => ({
   listTaskStatuses: vi.fn(),
 }));

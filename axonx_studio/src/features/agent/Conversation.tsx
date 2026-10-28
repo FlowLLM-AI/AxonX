@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
 import { LoaderCircle, MessageSquareText } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { ConversationState, DisplayBlock } from "./reducer";
 import { AgentBlock } from "./AgentBlock";
 import { AxonXMark } from "./AxonXMark";
+import type { ConversationState, DisplayBlock } from "./reducer";
 
 interface MessageGroup {
   id: string;

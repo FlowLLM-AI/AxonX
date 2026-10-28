@@ -3,6 +3,7 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useCopyFeedback } from "./useCopyFeedback";
+
 let root: Root;
 let container: HTMLDivElement;
 let clipboard: ReturnType<typeof useCopyFeedback>;

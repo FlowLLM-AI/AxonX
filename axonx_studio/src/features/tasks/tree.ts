@@ -1,5 +1,5 @@
+import type { ChildTaskRecord, TaskMetadata } from "../../shared/api/contracts";
 import { getTaskStatus } from "./api";
-import type { ChildTaskRecord, TaskMetadata } from "./types";
 
 export interface TaskNode {
   record: ChildTaskRecord;
@@ -36,7 +36,7 @@ export async function readTaskChildren(
           if (!requests.has(record.child_task_id!))
             requests.set(
               record.child_task_id!,
-              getTaskStatus(record.child_task_id!, target, signal),
+              getTaskStatus(record.child_task_id!, { target, signal }),
             );
           const status = await requests.get(record.child_task_id!)!;
           if (status.started_at !== record.started_at)

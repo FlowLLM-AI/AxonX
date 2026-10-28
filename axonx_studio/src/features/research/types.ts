@@ -11,12 +11,8 @@ export type ResearchKind =
   "analysis" | "backtest" | "etl" | "train" | "predict";
 export type ResearchPageId =
   "etl" | "factors" | "train" | "predict" | "backtest" | "compare";
-export type {
-  BacktestUniverseReport,
-  TrainingCurve,
-} from "../../shared/api/contracts";
 
-export interface PredictionStatistics {
+interface PredictionStatistics {
   days?: number;
   symbols?: number;
   pred?: { mean?: number; min?: number; median?: number; max?: number };
@@ -27,7 +23,7 @@ export interface PredictionStatistics {
     { constituents: number; days_with_weights: number; null_rows: number }
   >;
 }
-export interface ResearchOutputs {
+interface ResearchOutputs {
   analysis: BaseAnalysisOutputParams;
   etl: BaseETLOutputParams;
   train: BaseTrainOutputParams;
@@ -38,7 +34,7 @@ export interface ResearchOutputs {
   backtest: StockBacktestOutput;
 }
 /** Discriminated views over the original wire record; no flattened data copy. */
-export type ResearchArtifact<K extends ResearchKind = ResearchKind> = {
+export type ResearchTask<K extends ResearchKind = ResearchKind> = {
   [P in K]: Omit<TaskMetadata, "task_type" | "output_params"> & {
     task_type: P;
     output_params: ResearchOutputs[P];

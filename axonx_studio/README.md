@@ -10,16 +10,16 @@ The home screenshot uses the English interface in the static Playground. Its dat
 
 ## Features
 
-| Area                     | Capabilities                                                                                                                                                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Task submission          | Browse installed Task definitions and generate configuration forms from JSON Schema, including upstream Task IDs.                                             |
-| Task management          | Filter runs, inspect parameters and outputs, follow progress and logs, view upstream relationships, cancel tasks, and delete selected runs.                   |
-| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                        |
-| Workspace                | Browse the entire configured workspace with on-demand directory loading, directory pagination, and supported file previews, including paginated Parquet data. |
-| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                            |
-| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                   |
-| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                            |
-| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                           |
+| Area                     | Capabilities                                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Task definitions         | Browse installed Task definitions and inspect input/output JSON Schema.                                                                                            |
+| Task management          | Filter records, inspect configuration, follow progress and logs, and view dependencies and parent/child calls. Research indexes support deleting selected results. |
+| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                             |
+| Workspace                | Browse the entire configured workspace with on-demand directory loading, directory pagination, and supported file previews, including paginated Parquet data.      |
+| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                                 |
+| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                        |
+| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                                 |
+| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                                |
 
 The interface supports English and Simplified Chinese, light/dark themes, and saved browser preferences. Hash routes preserve the selected machine and resource, for example `#local/task-defs/catalog/demo`.
 
@@ -47,11 +47,9 @@ Restart the service after installation. AxonX loads `dist/` through the package'
 
 ### Run your first task
 
-1. Keep the machine selector on **Local**, then open **Submit task**.
-2. Choose the built-in `demo` Task under **Native tasks**.
-3. Set `X` to `2`, `Y` to `3`, and leave `Fail` as `False`.
-4. Click **Submit run**, then open **Task management** and select the run.
-5. Inspect its status, steps, logs, configuration, and final output.
+1. Run `axonx exec --task demo --x 2 --y 3` in the backend environment, or ask a configured Agent to execute it.
+2. Open **Task definitions** to inspect the installed `demo` definition and schemas.
+3. Open **All tasks**, select the new record, and inspect configuration, execution steps, logs and relationships.
 
 Leave **Task Name** empty to generate a name for each experiment. Reusing a fixed name replaces the directory of a finished run. Upstream relationships record lineage; the graph does not automatically execute dependent Tasks.
 
@@ -80,7 +78,7 @@ The npm package distributes the built frontend assets:
 npm install @flowllm-ai/axonx-studio
 ```
 
-Serve `node_modules/@flowllm-ai/axonx-studio/dist/` with your static server. An AxonX backend is still required. The frontend uses origin-relative API URLs, so configure the same origin to proxy `/health`, `/jobs`, `/files`, `/mcp`, and `/proxy` to that backend. Preserve Authorization headers and SSE streaming for live logs and Agent responses. Hash routing does not require server routes for individual Studio pages.
+Serve `node_modules/@flowllm-ai/axonx-studio/dist/` with your static server. An AxonX backend is still required. The frontend uses origin-relative API URLs, so configure the same origin to proxy `/health`, `/jobs`, `/upload`, `/mcp`, and `/proxy` to that backend. Preserve Authorization headers and SSE streaming for live logs and Agent responses. Hash routing does not require server routes for individual Studio pages.
 
 For AxonX's built-in hosting, install the Python package instead.
 
@@ -137,22 +135,13 @@ pip install ./axonx_studio
 
 ## Code organization
 
-| Path                                                 | Responsibility                                                                                           |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `src/app/`                                           | Hash routes, navigation, machine selection, shared application state, and lazy page loading.             |
-| `src/features/`                                      | Tasks, runtime, machines, Agent, workspace, research, backtests, strategy comparison, and API pages.     |
-| `src/shared/api/`                                    | Authenticated Job requests, response decoding, SSE parsing, and shared API types.                        |
-| `src/shared/schema/` and `src/shared/ui/SchemaForm/` | JSON Schema field rendering and form value conversion.                                                   |
-| `src/shared/hooks/` and `src/shared/lib/`            | Async resources, polling, copy feedback, formatting, and error helpers.                                  |
-| `src/locales/` and `src/i18n.ts`                     | English/Chinese translations and language persistence.                                                   |
-| `src/styles/`                                        | Design tokens, layout, themes, and feature styles.                                                       |
-| `src/webmcp.ts`                                      | Optional browser tools for listing and submitting local Tasks when `document.modelContext` is available. |
-| `public/`, `dist/`                                   | Source static assets and generated build output.                                                         |
-| `__init__.py`, `pyproject.toml`, `package.json`      | Python asset lookup and Python/npm packaging.                                                            |
+`app/` coordinates routing and the shell. `features/` contains seven business domains: Tasks (including definitions and graph), runtime (including machines and maintenance), Agent, workspace, research, operations, and the API catalog. Research separates selection, result presentation and calculations. Operations owns online and comparison reports. `shared/api/` owns transport, generated wire types, file decoding and artifact access; `shared/hooks/` owns cancellable resources, refresh scheduling and chart lifecycle.
 
-Use `axonx.invoke` or feature API wrappers for Job calls. Requests use `{ arguments, target }`; the client checks the Job response envelope and returns `answer`. Propagate the selected `target` and cancellation signals through feature APIs. Reuse the shared SSE parser for streaming calls.
+Use function components for React UI, pure functions for transformations, and classes where state has an explicit owner: `AxonXClient`, `ArtifactTableCache`, `SignalHistoryStore`, and the refresh scheduler. Old module paths and forwarding wrappers are removed. Import wire types directly from `shared/api/contracts.ts`; this generated file remains tied to the backend contract.
 
-To add a page, register its route in `src/app/routes.ts`, navigation in `navigation.ts`, and rendering in `PageOutlet.tsx`. Add user-facing strings to both locale files. See [Studio development](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/development/studio.md) for extension guidance.
+All requests use separate business arguments and `{ target, signal }` options. Task identity includes its start time; input dependencies and parent/child invocation remain separate. A failed refresh preserves previously loaded data only within the same resource identity. Shared UI components and their consumers use the current interfaces directly.
+
+See the [complete file-by-file capability map](README_ZH.md#文件职责), including every source, test, stylesheet, configuration file and source asset.
 
 ## Troubleshooting
 
@@ -166,7 +155,7 @@ To add a page, register its route in `src/app/routes.ts`, navigation in `navigat
 | Remote requests fail                             | Check backend `targets`, remote service credentials, and connectivity from the local backend.                                                            |
 | Static deployment loads but APIs or streams fail | Check same-origin API proxy paths, Authorization forwarding, and SSE buffering.                                                                          |
 
-Workspace preview uses paths relative to the execution workspace. The `/files` API handles staged uploads and cleanup; retrieve complete artifacts from the execution machine's workspace. Deleting runs or workspace entries removes their data and does not rebuild downstream results.
+Workspace preview uses paths relative to the execution workspace. The `/upload` API handles staged uploads and cleanup; retrieve complete artifacts from the execution machine's workspace. Deleting runs or workspace entries removes their data and does not rebuild downstream results.
 
 ## Documentation and license
 
