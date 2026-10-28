@@ -231,17 +231,6 @@ export function BaseOutputView({
               {t("research.no_training_curve_is_available")}
             </div>
           )}
-          {train?.training_curve &&
-            Object.keys(train?.training_curve.y_left).some((name) =>
-              name.endsWith("_l2"),
-            ) &&
-            Object.keys(train?.training_curve.y_right).some((name) =>
-              name.endsWith("_l1"),
-            ) && (
-              <p className="train-curve-note">
-                {t("research.left_axis_l2_mean_squared")}
-              </p>
-            )}
           {Object.keys(train?.metrics || {}).length > 0 && (
             <div className="train-curve-metrics">
               {Object.entries(train?.metrics || {}).map(([name, value]) => (

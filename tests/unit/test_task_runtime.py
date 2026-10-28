@@ -61,7 +61,7 @@ def test_executor_resolves_and_runs_child_tasks(tmp_path):
     assert read_entry(tmp_path, child.child_task_id).parent_task_id == result.task_id
 
 
-@pytest.mark.parametrize("parent_code, child_code, expected", [(0, 0, 0), (0, 7, 7), (9, 0, 9), (9, 7, 9)])
+@pytest.mark.parametrize("parent_code, child_code, expected", [(0, 0, 0), (0, 7, 0), (9, 0, 9), (9, 7, 9)])
 def test_business_tasks_keep_their_steps_outputs_and_type_when_calling_children(
     tmp_path, parent_code, child_code, expected
 ):

@@ -9,22 +9,7 @@ export function PredictionOverview({
 }) {
   const { t } = useTranslation();
   const stats = meta.output_params.statistics;
-  const columns = meta.output_params.output_columns?.length
-    ? meta.output_params.output_columns
-    : [
-        "trade_date",
-        "trade_time",
-        "ts_code",
-        "pred",
-        "name",
-        "is_model_candidate",
-        "is_buyable_at_signal",
-        "signal_price",
-        "signal_adjustment_factor",
-        "rank",
-        "buyable_rank",
-        ...(meta.output_params.index_weight_columns || []),
-      ];
+  const columns = meta.output_params.output_columns || [];
   const rate = (count?: number) =>
     count === undefined || !meta.output_params.rows
       ? "—"

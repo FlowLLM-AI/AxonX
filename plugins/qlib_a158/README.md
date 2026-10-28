@@ -39,7 +39,7 @@ Qlib aliases `colsample_bytree` / `subsample` map to `feature_fraction` / `baggi
 
 ## Install and inspect
 
-Requires Python 3.12+ and AxonX `>=0.2.1`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
+Requires Python 3.12+ and AxonX `>=0.3.0`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
 
 This plugin is not published to PyPI. Install the AxonX core and clone the repository, then install a wheel from its root for fixed-version execution:
 
@@ -82,12 +82,7 @@ axonx exec --task download_tushare_task \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-Save the returned `task_id` and `started_at`, and wait for the download to succeed before submitting ETL:
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<download_task_id>'
-```
+`axonx exec` returns the final exit code. Continue with ETL after the download succeeds.
 
 | Files                                                            | Purpose                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -101,6 +96,20 @@ axonx --client-timeout 86400 wait_task \
 Prepare sufficient preceding history for rolling windows. The example trains from 2015, so downloads start in 2014. The default download only looks back seven calendar days and does not provide a full history. For credentials, partition layout, and updates, see [Tushare downloads](https://flowllm-ai.github.io/AxonX/en/research/tushare).
 
 ETL reads the preceding market dates required by its longest rolling window. Earlier partitions outside that calculation window do not block the task; all participating quotes and adjustment factors remain strictly validated.
+
+## Composed research
+
+`qlib_a158_research` runs ETL → Train → Predict → Backtest as independently observable child Tasks. Supply `--analysis '{}'` to run factor analysis from the ETL output. Historical Tushare inputs must already exist.
+
+```bash
+axonx exec --task qlib_a158_research --task-name baseline \
+  --etl '{"start_date":"20150101","end_date":"20261008"}' \
+  --train '{"train_end":"20230101"}' \
+  --predict '{"pred_end":"20261008"}' \
+  --backtest '{"top_ns":[5,10,20,30]}'
+```
+
+Prediction starts at the training cutoff when omitted. The plugin owns nested research inputs, child names and dependencies. Backtests end at the last signal by default; set `backtest.as_of_date` explicitly for later valuation or settlement. Leaf prediction accepts a Train and an optional compatible ETL, allowing saved models to score new datasets.
 
 ## Tasks and execution
 
@@ -118,28 +127,20 @@ Factor analysis branches from ETL and is not a prerequisite for training. Submit
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # After ETL succeeds
-axonx exec --task qlib_a158_factor --upstream-task-ids '<etl_task_id>'
-axonx exec --task qlib_a158_train --upstream-task-ids '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --upstream-task-ids '["<etl_task_id>"]'
+axonx exec --task qlib_a158_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101
 
 # After training succeeds
-axonx exec --task qlib_a158_predict --upstream-task-ids '<train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008
 
 # After prediction succeeds
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-For every wait, provide both identifiers from that submission:
-
-```bash
-axonx --client-timeout 86400 wait_task \
-  --task-id '<task_id>'
-axonx get_task_def --task qlib_a158_train
-```
-
-For remote execution, add the same `--target` to all submission, wait, and definition queries. Install and execute against the same service environment.
+Inspect each Task's schema with `axonx get_task_def --task qlib_a158_train`. For remote execution, add the same `--target` to execution and definition commands and use the target service's Python environment.
 
 ## Key parameters
 
@@ -179,7 +180,7 @@ From the repository root, after installing development dependencies:
 
 ```bash
 python -m pytest \
-  tests/unit/test_qlib_a158.py tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
+  plugins/qlib_a158/tests \
   tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
@@ -189,6 +190,6 @@ These checks cover feature boundaries, label timing, four-way parameter comparis
 
 Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
 
-AxonX owns protocol v1 in `axonx.task.models.artifacts`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
+AxonX owns protocol v1 in `axonx.task.models.artifacts`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). The plugin owns feature contracts and semantic fingerprints; AxonX provides verified model snapshots. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
 
 Backtests now publish **all market** (`all`) and **CSI 300** (`hs300`) as independent reports in one Task. Studio provides a universe dropdown, including independent selections in strategy comparison. Positive signal-time `index_weight_hs300` defines CSI 300 membership. The backtest schema uses `default_universe`, `universes` and a shared artifact registry; regenerate old backtests.

@@ -8,14 +8,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ...models.artifacts import validate_protocol
 from ...models.base import TaskModel, normalize_yyyymmdd
+from ...models.identity import TaskType
 from ...models.params import (
     BaseBacktestOutputParams,
     BaseETLOutputParams,
     BaseInputParams,
 )
 from ...models.reports import BacktestDimensions, OnlineCommit
-from .protocol import validate_feature_protocol
 
 
 class PortfolioSettings(BaseModel):
@@ -91,7 +92,8 @@ class StockETLOutput(BaseETLOutputParams):
     @field_validator("protocol")
     @classmethod
     def validate_etl_protocol(cls, value):
-        return validate_feature_protocol(value)
+        # Feature compatibility and family-specific semantics belong to the plugin.
+        return validate_protocol(value, TaskType.ETL)
 
 
 class StockReportSettings(TaskModel):

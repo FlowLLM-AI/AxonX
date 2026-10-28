@@ -125,12 +125,6 @@ class BaseTrainOutputParams(BaseOutputParams):
         description="Optional aligned training history with up to two value ranges, one per y-axis.",
     )
 
-    @model_validator(mode="after")
-    def validate_model_collection(self):
-        if "model_manifest" not in self.artifacts:
-            raise ValueError("Training output requires a model_manifest artifact")
-        return self
-
 
 class BasePredictionCompareInputParams(BaseInputParams):
     comparison_keys: list[str] = Field(min_length=1)

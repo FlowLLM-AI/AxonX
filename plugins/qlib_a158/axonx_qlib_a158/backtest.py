@@ -23,6 +23,13 @@ class Alpha158BacktestTask(BaseStockBacktestTask):
 
     input_cls = Alpha158BacktestInputParams
 
+    def resolve_inputs(self):
+        super().resolve_inputs()
+        # The plugin evaluates through its final signal date by default. A caller
+        # can explicitly extend as_of_date to value or settle remaining positions.
+        if self.input_params.as_of_date is None:
+            self.input_params.as_of_date = self.state["signals"]["trade_date"].max()
+
     def build_universes(self):
         yield BacktestUniverse(key="all", label="全市场")
         yield BacktestUniverse(key="hs300", label="沪深300", parameters={"index": "hs300"})

@@ -11,19 +11,32 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.task.builtins.stock.data import KEYS, validate_keys
-from axonx.task.builtins.stock.protocol import feature_identity
 from axonx.task.core.base import TaskStep
 from axonx.task.core.research import BasePredictTask
-from axonx.task.models.artifacts import ModelCollection, fingerprint, prediction_protocol, validate_protocol
+from axonx.task.models.artifacts import (
+    ModelCollection,
+    fingerprint,
+    prediction_protocol,
+    validate_protocol,
+)
 from axonx.task.models.base import normalize_yyyymmdd
-from axonx.task.models.identity import TaskType, task_type_from_id, validate_upstream_task_ids
+from axonx.task.models.identity import (
+    TaskType,
+    task_type_from_id,
+    validate_upstream_task_ids,
+)
 from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write, file_revision
-from axonx.task.storage.inputs import pin_upstream_artifacts, snapshot_model_collection, upstream_artifact
+from axonx.task.storage.inputs import (
+    pin_upstream_artifacts,
+    snapshot_model_collection,
+    upstream_artifact,
+)
 from axonx.task.storage.workspace import task_path
 
 from .internal.modeling import feature_matrix
+from .internal.protocol import feature_identity
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
@@ -113,7 +126,12 @@ class LgbmPredictTask(BasePredictTask):
         upstream_ids = validate_upstream_task_ids(
             self.state["train_metadata"].get("input_params", {}).get("upstream_task_ids", [])
         )
-        etl_upstream_ids = [task_id for task_id in upstream_ids if task_type_from_id(task_id) == TaskType.ETL]
+        explicit = [
+            task_id for task_id in self.input_params.upstream_task_ids if task_type_from_id(task_id) == TaskType.ETL
+        ]
+        etl_upstream_ids = explicit or [
+            task_id for task_id in upstream_ids if task_type_from_id(task_id) == TaskType.ETL
+        ]
         if len(etl_upstream_ids) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
         etl_task_id = etl_upstream_ids[0]

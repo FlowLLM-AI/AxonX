@@ -1,4 +1,5 @@
 tasks:
+  qlib_a158_research: axonx_qlib_a158.research:Alpha158ResearchTask
   qlib_a158_etl: axonx_qlib_a158.etl:Alpha158Task
   qlib_a158_factor: axonx_qlib_a158.analysis:FactorAnalysisTask
   qlib_a158_train: axonx_qlib_a158.train:LgbmTrainTask

@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from ...utils.logging import get_logger
 from ..models.identity import (
     TASK_ID_SEPARATOR,
+    TaskState,
     TaskType,
     generated_task_name,
     validate_registration_name,
@@ -153,7 +154,8 @@ class BaseTask(ABC):
 
         Children inherit this Task's name unless explicitly overridden. Repeated
         calls may replace the same Task's outputs; node names label invocations.
-        Continuing after a failure permits later work but keeps this Task failed.
+        Continuing permits later work. The default exit code keeps this Task
+        failed; override exit_code only when the plugin has handled that failure.
         Pass upstream_task_ids explicitly when a child consumes another's output.
         """
         execute_child = self._execute_child
@@ -229,6 +231,5 @@ class BaseTask(ABC):
             raise RuntimeError("Progress can only be reported inside the TaskExecutor")
         progress(percentage, name=name, **changes)  # pylint: disable=not-callable
 
-    @staticmethod
-    def exit_code(_output: dict) -> int:
-        return 0
+    def exit_code(self, _output: dict) -> int:
+        return next((child.exit_code or 1 for child in self.children if child.state != TaskState.SUCCEEDED), 0)

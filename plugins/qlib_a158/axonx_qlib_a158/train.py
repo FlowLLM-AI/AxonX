@@ -12,7 +12,6 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.task.builtins.stock.data import transform_labels
-from axonx.task.builtins.stock.protocol import feature_contract
 from axonx.task.core.base import TaskStep
 from axonx.task.core.research import BaseTrainTask
 from axonx.task.models.artifacts import (
@@ -29,6 +28,7 @@ from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_meta
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
+from .internal.protocol import feature_contract
 from .internal.reference import DEVIATIONS, QLIB_PARAMETERS, QLIB_REFERENCE
 
 MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)

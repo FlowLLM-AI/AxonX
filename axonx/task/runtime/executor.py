@@ -205,10 +205,7 @@ class TaskExecutor:
                     task.close()
                 task._output_params = task._build_output()
                 output = task.output
-                exit_code = task.exit_code(output) or next(
-                    (child.exit_code or 1 for child in status.children if child.state != TaskState.SUCCEEDED),
-                    0,
-                )
+                exit_code = task.exit_code(output)
                 status.output_params = output
                 finish_task(
                     status, exit_code=exit_code, error=f"Task exited with code {exit_code}" if exit_code else ""

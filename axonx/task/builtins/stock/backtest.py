@@ -57,9 +57,11 @@ class BaseStockBacktestTask(BaseBacktestTask):
             PredictionProtocol.model_validate(protocol)
             etl = etl or protocol["market_upstream_task_id"]
         if etl:
-            for key in ("market", "calendar", "labels"):
-                if paths[key] is None:
-                    paths[key] = self.upstream_file(etl, key)[0]
+            names = tuple(key for key in ("market", "calendar", "labels") if paths[key] is None)
+            if names:
+                _, metadata = read_upstream_metadata(self.workspace_path, etl)
+                pinned = pin_upstream_artifacts(self, etl, *names, metadata=metadata)
+                paths.update(zip(names, pinned, strict=True))
         if paths["market"] is None or paths["calendar"] is None:
             raise ValueError("Backtest requires independent market and calendar artifacts")
         paths = {key: self.resolve_workspace_path(value) for key, value in paths.items() if value is not None}

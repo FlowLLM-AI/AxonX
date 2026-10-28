@@ -7,7 +7,6 @@ from pathlib import Path
 
 import polars as pl
 from pydantic import Field, field_validator
-from pydantic.json_schema import SkipJsonSchema
 
 from axonx.task.builtins.stock.data import (
     apply_market_status,
@@ -67,7 +66,7 @@ class Alpha158OutputParams(StockETLOutput):
 class Alpha158InputParams(BaseETLInputParams):
     """Configure source data and the dates included in the Alpha158 dataset."""
 
-    input_dir: SkipJsonSchema[Path] = Path("tushare")
+    input_dir: Path = Path("tushare")
     market_status_file: Path | None = None
     start_date: str | None = Field(
         default="20140101",

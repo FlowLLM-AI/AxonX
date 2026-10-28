@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field
 
 from .artifacts import Protocol
 from .base import TaskModel
@@ -46,14 +46,6 @@ class ReplicaFile(TaskModel):
     source_rows: int | None = Field(default=None, ge=0)
     dates: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="before")
-    @classmethod
-    def read_legacy(cls, value):
-        if isinstance(value, dict) and "sha256" in value:
-            value = dict(value)
-            value.setdefault("revision", "legacy:" + value.pop("sha256"))
-        return value
-
 
 class LiveSnapshot(TaskModel):
     """One ordered, read-only snapshot of a parent Task and its children."""
@@ -80,19 +72,6 @@ class DisplayReplica(TaskModel):
     source_log_path: str = ""
     snapshot: LiveSnapshot | None = None
     log: ReplicaLog | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def read_legacy(cls, value):
-        if isinstance(value, dict):
-            value = dict(value)
-            for old, new in (
-                ("source_digest", "source_revision"),
-                ("policy_digest", "policy_revision"),
-            ):
-                if old in value:
-                    value.setdefault(new, "legacy:" + value.pop(old))
-        return value
 
 
 @dataclass(frozen=True)

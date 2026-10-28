@@ -18,7 +18,7 @@ const meta: ResearchTask<"predict"> = {
   output_params: {
     rows: 4,
     date_range: {},
-    output_columns: [],
+    output_columns: ["signal_price", "is_buyable_at_signal"],
     protocol: {},
     statistics: {},
     artifacts: {},

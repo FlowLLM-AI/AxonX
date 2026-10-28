@@ -113,10 +113,6 @@ class OnlineStore:
         boundary = len(history.commits) // HISTORY_BLOCK_SIZE * HISTORY_BLOCK_SIZE
         if boundary:
             previous_path = self.root / "commits" / history.commits[boundary - 1].commit_id / "history.json"
-            if not previous_path.is_file():
-                # Portable legacy histories may retain only their latest full snapshot.
-                boundary = len(history.commits)
-                previous_path = self.root / "commits" / history.commits[-1].commit_id / "history.json"
             if previous_path.is_symlink():
                 raise ValueError("Frozen history snapshot cannot be a symlink")
             expected = history.model_copy(update={"commits": history.commits[:boundary]})
