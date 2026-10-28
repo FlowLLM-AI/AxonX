@@ -61,6 +61,12 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         assert len(wheels) == len(sdists) == 1, f"Expected one wheel and sdist for {project['name']}"
         required = {f"{package}/__init__.py"}
         source_files = plugin_source_files(source, package)
+        if not plugin:
+            for language in ("en", "zh"):
+                guide = f"axonx/app/components/agent/guides/{language}.md"
+                assert (
+                    source_files[guide] == (source / f"docs/{language}/dev_guide.md").read_bytes()
+                ), "Packaged Agent guide is stale; run python -m scripts.sync_agent_guides"
         required.update(source_files)
         if plugin:
             required.add(f"{package}/plugin.yaml")
@@ -139,9 +145,7 @@ def verify_installation() -> None:
             assert files.joinpath("app/config/remote.yaml").is_file()
             for language in ("en", "zh"):
                 guide = files.joinpath("app/components/agent/guides", f"{language}.md")
-                assert (
-                    guide.read_bytes() == (source / "axonx/app/components/agent/guides" / f"{language}.md").read_bytes()
-                )
+                assert guide.read_bytes() == (source / f"docs/{language}/dev_guide.md").read_bytes()
         print(f"Verified installation: {project['name']} {distribution.version}")
 
     from axonx.app.config.loader import ConfigLoader

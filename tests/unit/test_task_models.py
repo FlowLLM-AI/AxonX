@@ -211,7 +211,7 @@ def test_online_dates_share_calendar_validation():
         StockReportSettings(**settings, missing_dates=["20240301"])
 
 
-@pytest.mark.parametrize("problem", [None, "format", "targets", "missing"])
+@pytest.mark.parametrize("problem", [None, "format", "date", "missing"])
 def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
     now = datetime.now(UTC)
     record = ArtifactRecord(path="data.parquet", size=0, revision="0:1")
@@ -225,8 +225,8 @@ def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
         "evaluation_status": "done",
     }
     artifacts = {name: record for name in STOCK_REPORT_ARTIFACTS}
-    if problem == "targets":
-        artifacts["targets"] = record
+    if problem == "date":
+        settings["date_range"]["end"] = "20240301"
     if problem == "missing":
         artifacts.pop("calendar")
     commit = OnlineCommit(

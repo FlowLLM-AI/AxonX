@@ -32,7 +32,8 @@ def stop_daemon(directory: Path, timeout: float) -> None:
         process = psutil.Process(state["pid"])
         expected = [str(directory / "supervisor.py"), str(directory / "plan.json")]
         argv = process.cmdline()
-        if len(argv) != 5 or argv[1:4] != ["-S", *expected]:
+        # Runtime loaders may prepend options; the daemon invocation ends the command.
+        if len(argv) < 5 or argv[-4:-1] != ["-S", *expected]:
             raise RuntimeError("Daemon identity does not match the selected configuration; nothing was stopped")
         service = psutil.Process(state["service"]) if state.get("service") else None
         if service is not None and service.ppid() != process.pid:

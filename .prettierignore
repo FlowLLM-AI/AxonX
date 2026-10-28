@@ -6,3 +6,14 @@
 **/package-lock.json
 **/build/
 **/*.egg-info/
+**/.axonx/
+**/.vercel/
+**/.venv*/
+**/.pytest_cache/
+**/.ruff_cache/
+/logs/
+/test-results/
+
+# Generated from docs/{en,zh}/dev_guide.md by scripts/sync_agent_guides.py
+/axonx/app/components/agent/guides/*.md
+/skills/axonx/SKILL.md

@@ -16,6 +16,8 @@ npm run dev
 
 `npm run build` 先执行 TypeScript 检查，再输出 `dist`。从仓库根目录执行 `pip install ./axonx_studio`，AxonX 即可通过 Python 包加载这些资源。开发服务器用于热更新。
 
+接口契约以 Python 模型和 `axonx/app/config/default.yaml` 为准。修改后运行 `npm run contracts:generate`，再运行 `npm run contracts:check`，更新 `src/shared/api/contracts.ts` 和 `src/playground/job-contracts.json`。修改 Python 来源，不直接编辑生成文件；导出的版本号也用于模拟机器信息。
+
 如果运行期间已挂载的 Studio 构建资源被删除，页面请求返回 `503` 和恢复提示；缺失的静态资源请求返回 `404` 或 `503`。API 路由保持可用。可在原路径恢复构建资源；如果包安装路径发生变化，需要重启服务。本处理覆盖发送响应头之前的文件缺失，已经开始传输的响应无法替换。
 
 ## 目录职责
@@ -116,7 +118,7 @@ npm run build:playground
 
 `playground/fixtures.ts` 创建虚拟工作区，包含 ETL → 训练 → 预测 → 回测主链、从 ETL 独立分出的因子分析与两组回测。JSON 表格预览实现现有 Parquet 预览协议，无需附带 Parquet 解码器。收益与汇总指标由同一组序列生成。
 
-`playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 声明支持的 Job。提交任务按经过时间推进，即使没有订阅者也会继续；状态查询和事件流同步这些状态。取消任务停止执行；AbortSignal 只关闭过期订阅并释放计时器。所有状态均保留统一 metadata，成功任务生成业务产物。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
+`playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 从生成的服务 schema 中选择支持的 Job 并提供演示表单默认值。Task ID 使用 `type#registration#instance`，注册名与 metadata 对应，Agent 会话使用 UUID。提交命令在 CLI 事件连接打开期间推进；关闭连接会停止其拥有的模拟执行，与服务拥有的命令清理行为一致。关闭独立的 Task 观察只释放该订阅。所有状态均保留统一 metadata，成功任务生成业务产物。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
 
 刷新或点击「重置示例」恢复初始状态，不持久化执行状态。测试覆盖数据契约、分页、生命周期、删除、事件流清理、脚本会话和网络隔离。应检查正式与 Playground 两种构建；站点验证会检查合并后的入口与资源路径。
 

@@ -8,7 +8,7 @@ import { ExecutionSteps } from "./ExecutionSteps";
 
 it("uses lifecycle state rather than percentage to identify completion", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  const task = taskStatus("base", "base#demo#progress", "progress");
+  const task = taskStatus("base", "base#demo#progress");
   const step = task.steps[0];
   task.steps = [
     {
@@ -51,7 +51,7 @@ it.each(["running", "failed"] as const)(
   async (state) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     await i18n.changeLanguage(state === "running" ? "zh" : "en");
-    const task = taskStatus("api", "api#demo", "demo");
+    const task = taskStatus("api", "api#demo");
     task.state = state;
     task.error = state === "failed" ? "download failed" : "";
     const step = task.steps[0];
@@ -100,7 +100,7 @@ it.each(["running", "failed"] as const)(
 it("uses each substep's own failure and skipped state instead of failing the last row", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("en");
-  const task = taskStatus("base", "base#failed", "failed");
+  const task = taskStatus("base", "base#failed");
   task.state = "failed";
   task.error = "parent error";
   const step = task.steps[0];

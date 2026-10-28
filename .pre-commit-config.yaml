@@ -1,5 +1,3 @@
-exclude: ^skills/
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -19,7 +17,6 @@ repos:
     rev: 26.5.1
     hooks:
       - id: black
-        args: [--line-length=120, --target-version=py312]
   - repo: https://github.com/PyCQA/flake8
     rev: 7.4.1
     hooks:
@@ -69,12 +66,18 @@ repos:
       - id: prettier
         name: prettier (frontend and docs)
         language: node
-        entry: prettier --check
+        entry: prettier --check --ignore-path .prettierignore
         additional_dependencies: [prettier@3.9.9]
-        files: '^(axonx_studio|github-pages|docs)/.*\.(ts|tsx|mts|js|mjs|json|css|html|vue|md)$'
+        files: '^(?:(?:axonx_studio|github-pages|docs)/.*\.(?:ts|tsx|mts|js|mjs|json|css|html|vue|md)|(?:AGENTS|CLAUDE|README(?:_ZH)?|CONTRIBUTING(?:_ZH)?|module-dependencies)\.md|vercel\.json|\.pre-commit-config\.yaml)$'
       - id: studio-contracts
         name: Studio contracts match Python models
         language: system
         entry: python -m scripts.generate_studio_contracts --check
         pass_filenames: false
-        files: '^(axonx/.*\.py|scripts/generate_studio_contracts\.py|axonx_studio/src/shared/api/contracts\.ts)$'
+        files: '^(axonx/.*\.(py|yaml)|scripts/generate_studio_contracts\.py|axonx_studio/src/shared/api/contracts\.ts|axonx_studio/src/playground/job-contracts\.json)$'
+      - id: agent-guides
+        name: Agent resources and Skill match documentation
+        language: system
+        entry: python -m scripts.sync_agent_guides --check
+        pass_filenames: false
+        files: '^(docs/(en|zh)/dev_guide\.md|axonx/app/components/agent/guides/.*\.md|skills/axonx/SKILL\.md|scripts/sync_agent_guides\.py)$'

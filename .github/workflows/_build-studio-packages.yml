@@ -30,17 +30,21 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: axonx_studio/pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            axonx_studio/pyproject.toml
       - name: Validate package versions
         id: metadata
         run: |
           python -m pip install build twine
+          python -m pip install -e .
           version=$(python .github/scripts/verify-studio-packages.py)
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
       - name: Check and build Studio
         working-directory: axonx_studio
         run: |
           npm ci
+          npm run contracts:check
           npm run format:check
           npm run lint
           npm test

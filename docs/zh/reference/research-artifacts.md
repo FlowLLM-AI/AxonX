@@ -1,11 +1,11 @@
 ---
 title: 研究产物与 Studio 展示协议
-description: 标准研究输出、文件摘要、训练曲线及回测表的生产和读取契约。
+description: 标准研究输出、文件版本、训练曲线及回测表的生产和读取契约。
 ---
 
 # 研究产物与 Studio 展示协议
 
-研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。这是破坏式格式更新：旧研究产物和回放数据需要重新生成，不迁移历史记录。
+研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。
 
 研究 Task 使用类型化 `output_params` 发布结果，Studio 从成功任务的 `metadata.json` 提取展示字段，再通过文件预览读取产物。本页区分三层要求：Python 基类必填字段、Studio 实际读取字段、具体插件的扩展协议。
 
@@ -13,9 +13,9 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 ## 统一协议 v1
 
-AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
+AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。研究协议头必须包含 `version=1`，在 `task_type` 中使用 `TaskType` 的值。读取时拒绝缺少协议头和其他版本的数据。
 
-训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
+训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保存训练摘要和曲线，完整集合与模型路径由模型清单记录。
 
 离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份非空 `model_identity: dict[str, str]`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。Qlib 插件使用 `models_sha256` 和 `features_sha256` 身份项；共享模型允许插件定义字符串键和值。身份不包含日期、路径，也不按日期重复复制。Qlib 特征契约与指纹由插件模块 `axonx_qlib_a158.internal.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.inputs` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
 
@@ -63,7 +63,7 @@ AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。Task 记�
 
 训练成员仅由模型清单声明；预测分数映射仅保存在 `protocol.score_columns`，数据通过 `artifacts.predictions` 注册。单成员生产者使用相同集合契约。股票插件在调用回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
 
-此集合契约替代旧 `model_file` 字段，并要求预测输出声明 `score_columns`；不兼容旧版插件输出和历史 metadata。成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
+成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
 
 ## ETL 产物
 
@@ -77,7 +77,7 @@ AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。Task 记�
 | `market`     | `market.parquet`   | 报价、复权因子、成交资格及行情状态 |
 | `calendar`   | `calendar.parquet` | 独立于预测资格的市场日期           |
 
-所有下游通过任务内相对路径 `artifacts` 注册表读取文件。ETL、分析、预测和训练输出均不再保存重复的绝对文件路径。
+所有下游通过任务内相对路径 `artifacts` 注册表读取文件。ETL、分析、预测和训练输出注册任务内相对路径。
 
 ## 因子分析 scores
 
@@ -226,15 +226,15 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 
 Studio 从 选中股池报告的 `artifacts.daily`、`artifacts.summary` 引用所指向的根级产物记录 加载两个表，加载时每页请求 5000 行，根据 `has_more` 继续，直到读取完整表。仅满足 Backtest 输出模型不足以保证图表可用。
 
-每个股池拥有独立的 dimensions、日期、状态和产物引用。Studio 默认选择 `default_universe`，通过下拉框切换；比较页两侧可独立选择。删除顶层 daily/summary 别名和扁平回测字段，旧回测必须重新生成。
+每个股池拥有独立的 dimensions、日期、状态和产物引用。Studio 默认选择 `default_universe`，通过下拉框切换；比较页两侧可独立选择。
 
 插件继承 `BaseStockBacktestTask`，实现 `build_universes()` 返回 `BacktestUniverse` 定义，实现 `select_universe(signals, universe)` 返回唯一的 `(trade_date, trade_time, ts_code)` 主键。筛选器只接收信号时点数据，不接收标签和未来行情。框架验证主键，为各股池创建独立账户，将报告写入 `universes/<key>/`。可选的 `universe_events()` 为每个报告创建独立事件状态。预测和标签只加载一次。
 
 ## 统一回测信号
 
-唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
+`signals.parquet` 表保留全部输入信号，包含非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表，缺少标签不影响候选资格。
 
-产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。
+回测输出和在线报告声明 `signals_format: stock-signals-v1`，读取端验证该字段后，按所选股池的产物引用加载数据。
 
 ## 日频表的展示字段
 
@@ -293,7 +293,7 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 
 ## Studio 传输契约
 
-Studio 直接保存任务记录及其 `output_params`，不再平铺第二套研究对象。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。
+Studio 保存任务记录及其 `output_params`。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。
 
 ## 实现依据
 

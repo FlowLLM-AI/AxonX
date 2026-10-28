@@ -3,7 +3,7 @@ import { taskStatus } from "../../playground/data";
 import { displayArtifacts, isArtifactRecord } from "./artifacts";
 
 it("accepts sampled replica revisions for artifact loading", () => {
-  const task = taskStatus("etl", "etl#demo#test", "test");
+  const task = taskStatus("etl", "etl#demo#test");
   task.output_params.artifacts = {
     dataset: { path: "dataset.parquet", size: 100, revision: "100:1" },
   };

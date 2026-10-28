@@ -5,7 +5,7 @@ description: Shared stock protocols, cutoff-safe labels, daily valuation and por
 
 # Interpreting Backtest Results
 
-Alpha158 and enhanced Alpha158 use the same `BaseStockBacktestTask` and position ledger. Stock schema version 2 separates signal-time features, fixed-day labels and market data.
+Alpha158 and enhanced Alpha158 use the same `BaseStockBacktestTask` and position ledger. The ETL publishes separate signal-time features, fixed-day labels and market data artifacts.
 
 The shared implementation lives in `axonx.task.builtins.stock`; new plugins should import from this package.
 
@@ -92,8 +92,8 @@ IC, RankIC and NDCG use the same signal-day buyable candidate pool as target sel
 
 Studio reads the selected `universes[key]` report, resolving its daily and summary references through the root artifact registry. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
 
-Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; schema version 2 does not embed future returns or valid-return coverage in predictions. Empty statistics and missing labels display as unavailable.
+Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; prediction outputs contain scores and signal-time eligibility without future returns or valid-return coverage. Empty statistics and missing labels display as unavailable.
 
-Studio comparison preserves `signals_format` from Task metadata and reads available display-replica artifacts. Current stock backtests use `stock-signals-v1`; legacy `targets` artifacts or unversioned `signals` require regenerating the backtest. Benchmark information-ratio headers use the labels declared in `dimensions.benchmarks`.
+Studio comparison preserves `signals_format` from Task metadata and reads available display-replica artifacts. Stock backtests declare `signals_format: stock-signals-v1` and register their signals, daily and summary tables through artifact references. Benchmark information-ratio headers use the labels declared in `dimensions.benchmarks`.
 
-`net_relative_max_drawdown_<benchmark>` shares daily active returns with net IR (net strategy return minus the same-day benchmark). Compound these as `∏(1 + active return)`, then measure maximum drawdown from the running peak, including initial equity of 1. Values are nonpositive decimals; overall, year, quarter and month reset independently. Only paired finite observations are used; no valid observations yields null. Studio displays each declared mean/index benchmark. Historical summaries without these columns display `—`; rerun the backtest to generate them.
+`net_relative_max_drawdown_<benchmark>` shares daily active returns with net IR (net strategy return minus the same-day benchmark). Compound these as `∏(1 + active return)`, then measure maximum drawdown from the running peak, including initial equity of 1. Values are nonpositive decimals; overall, year, quarter and month reset independently. Only paired finite observations are used; no valid observations yields null. Studio displays each declared mean/index benchmark. Unavailable values display `—`.

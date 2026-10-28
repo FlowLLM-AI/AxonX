@@ -1,4 +1,6 @@
-# AxonX service configuration for the Qlib Alpha158 plugin.
+# AxonX 0.3 application configuration; start with: axonx app --config qlib_a158
+# Installed plugin.yaml contributions are discovered from the Python environment.
 # Configure ETL dates, model presets, labels and fees when submitting each Task.
+# exec settings: CLI options > service get_config > built-in defaults.
 # See README.md / README_ZH.md for the complete research workflow.
 extends: default

@@ -2,13 +2,14 @@
 
 etl: Alpha158 ETL extended with causal cross-sectional context features.
 train: Feature selection with the shared Alpha158 model lifecycle.
+config: Named application configuration resources, inheriting AxonX defaults.
 internal: Causal market moments and stock-level momentum/risk calculations.
 """
 
 from axonx_qlib_a158.etl import Alpha158InputParams
 from axonx_qlib_a158.train import MODEL_LABELS, LgbmTrainOutputParams
 
-from . import etl, internal, train
+from . import config, etl, internal, train
 from .etl import Alpha158OutputParams, Alpha158Task
 from .train import LgbmTrainInputParams, LgbmTrainTask
 
@@ -20,6 +21,7 @@ __all__ = [
     "LgbmTrainOutputParams",
     "LgbmTrainTask",
     "MODEL_LABELS",
+    "config",
     "etl",
     "internal",
     "train",

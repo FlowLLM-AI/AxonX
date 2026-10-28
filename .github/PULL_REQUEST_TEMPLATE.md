@@ -2,10 +2,10 @@
 
 <!-- Explain the problem and resulting behavior. Link related issues (e.g. Fixes #123). -->
 
-## Compatibility
+## Affected contracts
 
-<!-- State the impact, or "None", on CLI/API/configuration, persisted task records,
-task identity/lifecycle, and artifact formats. Explain migration steps for intentional changes. -->
+<!-- Describe the resulting CLI/API/configuration, persisted task records,
+task identity/lifecycle, and artifact formats. Update affected callers and documentation together. -->
 
 ## Validation
 

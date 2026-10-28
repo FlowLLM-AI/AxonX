@@ -118,7 +118,8 @@ async def test_stream_and_folded_reply_preserve_session_options_and_guides(tmp_p
             "SHARED": "agent",
             "CLAUDE_CONFIG_DIR": str(tmp_path / "agent/claude/default"),
         }
-        assert first.system_prompt.startswith("Custom prompt\n\n# AxonX 工作区指南")
+        assert first.system_prompt == "Custom prompt\n\n" + agent.dev_guide
+        assert agent.dev_guide.startswith("# AxonX 开发与运行指南")
         assert agent.sdk_store.root == tmp_path / "sessions"
         assert agent.options["system_prompt"] == {"type": "file", "path": "prompt.md"}
         assert agent.options["env"] == {"SHARED": "agent"}

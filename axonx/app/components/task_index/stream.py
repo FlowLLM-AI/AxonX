@@ -67,8 +67,8 @@ class TaskEventStream:
 
             limit = LOG_WINDOW_BYTES
             if terminal_end is not None:
-                # Preserve the reader's reset behavior if a legacy process log
-                # rotated or was truncated before its terminal snapshot.
+                # Reset the reader if the log rotated or was truncated before
+                # its terminal snapshot.
                 remaining = max(1, terminal_end) if log_offset > terminal_end else terminal_end - log_offset
                 limit = min(limit, remaining)
             if limit <= 0:

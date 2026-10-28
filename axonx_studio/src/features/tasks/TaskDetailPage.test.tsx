@@ -29,7 +29,7 @@ it("reloads when execution disconnects and lets backend refreshes replace cached
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("en");
   const task = {
-    ...taskStatus("base", "base#demo#stream", "demo"),
+    ...taskStatus("base", "base#demo#stream"),
     state: "running" as const,
   };
   let run: TaskExecution = {
@@ -86,7 +86,7 @@ it("reloads when execution disconnects and lets backend refreshes replace cached
 
 it("does not show logs from an older execution after the same Task ID is restarted", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  const task = taskStatus("base", "base#demo#reused", "demo");
+  const task = taskStatus("base", "base#demo#reused");
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   vi.mocked(useTaskExecutions).mockReturnValue([
     {
@@ -129,11 +129,7 @@ it.each(["task", "machine"] as const)(
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.spyOn(window, "confirm").mockReturnValue(true);
     await i18n.changeLanguage("en");
-    const previous = taskStatus(
-      "base",
-      "base#demo#previous",
-      "previous-machine",
-    );
+    const previous = taskStatus("base", "base#demo#previous");
     previous.state = "running";
     const next = {
       ...previous,
@@ -213,7 +209,7 @@ it.each(["task", "machine"] as const)(
 it("recovers from an initial request failure through retry", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("en");
-  const task = taskStatus("base", "base#demo#retry", "demo");
+  const task = taskStatus("base", "base#demo#retry");
   vi.mocked(getTaskStatus)
     .mockRejectedValueOnce(new Error("offline"))
     .mockResolvedValue(task);
@@ -250,7 +246,7 @@ it("recovers from an initial request failure through retry", async () => {
 it("keeps loading after StrictMode aborts the first request, then switches all four tabs", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("zh");
-  const task = taskStatus("base", "base#demo", "demo");
+  const task = taskStatus("base", "base#demo");
   let resolve!: (value: typeof task) => void;
   const pending = new Promise<typeof task>((done) => {
     resolve = done;
@@ -316,7 +312,7 @@ it.each(["base", "train"] as const)(
   "shows steps and children together for %s Tasks in both languages",
   async (kind) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-    const task = taskStatus(kind, `${kind}#demo`, "demo");
+    const task = taskStatus(kind, `${kind}#demo`);
     task.steps = [
       { ...task.steps[0], name: "execute" },
       {
@@ -410,7 +406,7 @@ it.each(["base", "train"] as const)(
 it("shows step progress without a child section before any children are invoked", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("zh");
-  const task = taskStatus("base", "base#empty", "empty");
+  const task = taskStatus("base", "base#empty");
   task.steps = [];
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   const container = document.createElement("div");

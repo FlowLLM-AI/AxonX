@@ -10,7 +10,7 @@ vi.mock("../../../shared/api/workspace", () => ({
 }));
 const file = { path: "daily.parquet", size: 1, revision: "1:1" };
 const meta: BacktestArtifact = {
-  ...taskStatus("backtest", "backtest#demo", "demo"),
+  ...taskStatus("backtest", "backtest#demo#test"),
   created_at: "",
   reg_name: "demo",
   task_type: "backtest",
@@ -53,7 +53,11 @@ it("loads current signals metadata through both report readers with pagination a
     }),
   ).toHaveLength(2);
   expect(previewWorkspaceFile).toHaveBeenLastCalledWith(
-    { path: "backtest/backtest#demo/daily.parquet", offset: 5000, limit: 5000 },
+    {
+      path: "backtest/backtest#demo#test/daily.parquet",
+      offset: 5000,
+      limit: 5000,
+    },
     { target: "remote", signal: controller.signal },
   );
   vi.mocked(previewWorkspaceFile).mockResolvedValue(table([]));
@@ -62,9 +66,9 @@ it("loads current signals metadata through both report readers with pagination a
   ).resolves.toEqual({ daily: [], summary: [] });
 });
 it.each([loadBacktest, loadBacktestDaily])(
-  "still rejects legacy artifacts before requesting data",
+  "requires the stock signals protocol before requesting data",
   async (load) => {
-    for (const legacy of [
+    for (const invalid of [
       {
         ...meta,
         output_params: { ...meta.output_params, signals_format: undefined },
@@ -73,13 +77,12 @@ it.each([loadBacktest, loadBacktestDaily])(
         ...meta,
         output_params: {
           ...meta.output_params,
-          signals_format: undefined,
-          universes: {},
+          signals_format: "unknown",
         },
       },
     ]) {
       await expect(
-        load(legacy as unknown as BacktestArtifact, "all"),
+        load(invalid as unknown as BacktestArtifact, "all"),
       ).rejects.toThrow(i18n.t("backtest.errors.signalsFormat"));
     }
     expect(previewWorkspaceFile).not.toHaveBeenCalled();

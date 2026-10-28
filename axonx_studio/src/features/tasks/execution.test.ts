@@ -101,7 +101,7 @@ it("keeps a remote execution alive when its page unsubscribes", async () => {
 
 it("observes metadata while streaming and retains a bounded log tail", async () => {
   const run = store.start(definition, {}, { machineId: "local" });
-  const task = taskStatus("base", run.taskId, "demo");
+  const task = taskStatus("base", run.taskId);
   task.state = "running";
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   await vi.advanceTimersByTimeAsync(200);
@@ -138,7 +138,7 @@ it("does not retry an interrupted command", async () => {
 });
 
 it("does not mistake an earlier same-name record for a failed rerun", async () => {
-  const old = taskStatus("base", "base#demo#same", "demo");
+  const old = taskStatus("base", "base#demo#same");
   vi.mocked(getTaskStatus).mockResolvedValue(old);
   store.start(definition, { task_name: "same" }, { machineId: "local" });
   await vi.advanceTimersByTimeAsync(0);
@@ -155,7 +155,7 @@ it("does not mistake an earlier same-name record for a failed rerun", async () =
 });
 
 it("rejects an existing running Task before spawning a command", async () => {
-  const old = taskStatus("base", "base#demo#same", "demo");
+  const old = taskStatus("base", "base#demo#same");
   old.state = "running";
   vi.mocked(getTaskStatus).mockResolvedValue(old);
   store.start(definition, { task_name: "same" }, { machineId: "local" });
@@ -189,7 +189,7 @@ it("stops on the original target and checks the exact execution before terminati
     { machineId: "remote", target: "remote:1024" },
   );
   const complete = finish;
-  const task = taskStatus("base", run.taskId, "demo");
+  const task = taskStatus("base", run.taskId);
   task.state = "running";
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   await vi.advanceTimersByTimeAsync(200);

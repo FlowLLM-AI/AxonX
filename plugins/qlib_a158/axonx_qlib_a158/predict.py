@@ -17,7 +17,6 @@ from axonx.task.models.artifacts import (
     ModelCollection,
     fingerprint,
     prediction_protocol,
-    validate_protocol,
 )
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.identity import (
@@ -30,13 +29,13 @@ from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write, file_revision
 from axonx.task.storage.inputs import (
     pin_upstream_artifacts,
+    read_upstream_metadata,
     snapshot_model_collection,
     upstream_artifact,
 )
-from axonx.task.storage.workspace import task_path
 
 from .internal.modeling import feature_matrix
-from .internal.protocol import feature_identity
+from .internal.protocol import feature_identity, validate_feature_protocol
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
@@ -89,8 +88,6 @@ class LgbmPredictTask(BasePredictTask):
 
     def resolve_train_task(self) -> None:
         train_task_id = self.input_params.upstream_task_id(TaskType.TRAIN)
-        train_dir = task_path(self.workspace_path, train_task_id)
-        train_metadata_path = train_dir / "metadata.json"
         manifest_path, train_metadata = upstream_artifact(self, train_task_id, "model_manifest")
         manifest_path = snapshot_model_collection(
             manifest_path,
@@ -110,11 +107,8 @@ class LgbmPredictTask(BasePredictTask):
             )
         output_dir = self.task_dir
         self.state.update(
-            train_dir=train_dir,
-            train_metadata_path=train_metadata_path,
             train_metadata=train_metadata,
             model_path=model_path,
-            train_end=train_end,
             predictions_path=output_dir / "predictions.parquet",
         )
         self.logger.info(
@@ -135,18 +129,14 @@ class LgbmPredictTask(BasePredictTask):
         if len(etl_upstream_ids) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
         etl_task_id = etl_upstream_ids[0]
-        etl_dir = task_path(self.workspace_path, etl_task_id)
-        etl_metadata_path = etl_dir / "metadata.json"
-        dataset_path, etl_metadata = upstream_artifact(self, etl_task_id, "dataset")
+        _, etl_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         feature_protocol = etl_metadata["output_params"]["protocol"]
-        validate_protocol(feature_protocol, TaskType.ETL)
+        validate_feature_protocol(feature_protocol)
         if feature_identity(feature_protocol) != feature_identity(self.state["model_collection"]["feature_protocol"]):
             raise ValueError("Feature protocol differs from training")
         (dataset_path,) = pin_upstream_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
         self.state.update(
             etl_task_id=etl_task_id,
-            etl_dir=etl_dir,
-            etl_metadata_path=etl_metadata_path,
             etl_metadata=etl_metadata,
             dataset_path=dataset_path,
         )

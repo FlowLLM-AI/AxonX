@@ -7,9 +7,9 @@ from pathlib import Path
 
 import polars as pl
 
-from axonx.task.models.identity import TaskState
+from axonx.task.models.identity import TASK_ID_SEPARATOR
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.storage.files import atomic_write, file_revision
+from axonx.task.storage.files import atomic_write, atomic_write_json, file_revision
 from axonx.task.storage.inputs import read_upstream_metadata
 from axonx.task.storage.workspace import task_path
 
@@ -20,7 +20,7 @@ from ..train import LgbmTrainTask
 
 def run_comparison(options: argparse.Namespace) -> dict:
     """Run the selected label/preset combinations and save metrics with task provenance."""
-    workspace = options.workspace_path.resolve()
+    workspace = options.workspace_dir.expanduser().resolve()
     _, metadata = read_upstream_metadata(workspace, options.etl_task)
     dataset = metadata["output_params"]["artifacts"]["dataset"]
     records, summaries = {}, []
@@ -28,15 +28,15 @@ def run_comparison(options: argparse.Namespace) -> dict:
     def run(cls, name, **params):
         task = cls(params, workspace_path=workspace, reg_name=name)
         status = TaskExecutor().execute(task)
-        if status.state != TaskState.SUCCEEDED:
-            raise RuntimeError(f"{task.task_id}: {status.error}")
-        return task.task_id, status.output_params
+        if status.exit_code != 0:
+            raise RuntimeError(f"{task.task_id}: {status.error or f'exit code {status.exit_code}'}")
+        return task.task_id, status.output_params, status.model_dump(mode="json", include={"started_at"})["started_at"]
 
     labels = list(dict.fromkeys(options.labels))
     combinations = [(label, preset) for label in labels for preset in ("axonx", "qlib")]
     for label, preset in combinations:
         key = preset if len(labels) == 1 else f"{label}_{preset}"
-        train_id, train = run(
+        train_id, train, train_started_at = run(
             LgbmTrainTask,
             "qlib_a158_train",
             upstream_task_ids=[options.etl_task],
@@ -47,14 +47,14 @@ def run_comparison(options: argparse.Namespace) -> dict:
             num_threads=options.num_threads,
             num_boost_round=options.num_boost_round,
         )
-        predict_id, prediction = run(
+        predict_id, prediction, predict_started_at = run(
             LgbmPredictTask,
             "qlib_a158_predict",
             upstream_task_ids=[train_id],
             pred_start=options.pred_start,
             pred_end=options.pred_end,
         )
-        backtest_id, backtest = run(
+        backtest_id, backtest, backtest_started_at = run(
             Alpha158BacktestTask,
             "qlib_a158_backtest",
             upstream_task_ids=[predict_id],
@@ -71,6 +71,11 @@ def run_comparison(options: argparse.Namespace) -> dict:
                 "train": train_id,
                 "predict": predict_id,
                 "backtest": backtest_id,
+            },
+            "started_at": {
+                "train": train_started_at,
+                "predict": predict_started_at,
+                "backtest": backtest_started_at,
             },
             "parameters": train["parameters"],
             "best_iteration": train["best_iteration"],
@@ -92,6 +97,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
             )
     result = {
         "etl_task": options.etl_task,
+        "etl_started_at": metadata["started_at"],
         "dataset_revision": dataset["revision"],
         "settings": {key: str(value) if isinstance(value, Path) else value for key, value in vars(options).items()},
         "presets": records,
@@ -105,19 +111,16 @@ def run_comparison(options: argparse.Namespace) -> dict:
     source = task_path(workspace, options.etl_task) / dataset["path"]
     if file_revision(source) != dataset["revision"]:
         raise ValueError("ETL dataset changed during parameter comparison")
-    output = workspace / "qlib_a158_comparison" / train_id.split("#")[-1]
+    output = workspace / "qlib_a158_comparison" / train_id.rsplit(TASK_ID_SEPARATOR, 1)[-1]
     output.mkdir(parents=True, exist_ok=True)
     atomic_write(output / "summary.csv", pl.concat(summaries).write_csv)
-    atomic_write(
-        output / "comparison.json",
-        lambda path: path.write_text(json.dumps(result, indent=2, allow_nan=False)),
-    )
+    atomic_write_json(output / "comparison.json", result)
     return {"output_dir": str(output), **result}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workspace-path", type=Path, default=Path(".axonx"))
+    parser.add_argument("--workspace-dir", type=Path, default=Path(".axonx"))
     parser.add_argument("--etl-task", required=True)
     parser.add_argument("--labels", choices=["rank", "csz"], nargs="+", default=["rank"])
     parser.add_argument("--buy-cost-rate", type=float, default=0.0005)

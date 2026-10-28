@@ -41,7 +41,7 @@
 
 ## 📰 最新更新
 
-- **CLI Task 执行：** `exec` 等待完成，输出业务结果并返回 Task 退出码；远程执行使用服务的 `cli` Job。Daemon 拥有的定时 Task 在服务重启期间继续运行。见 [Job 与 Task](docs/zh/concepts/jobs-and-tasks.md)和[定时调度](docs/zh/guides/scheduling.md)。
+- **发布 0.3.0：** 支持可继承配置、统一任务执行，以及服务重启不中断的定时任务。
 - **Alpha158 实验：** 风险因子与排名保留策略的 Top20 净年化收益，相比适配基线分别提升 **+1.36 pp 和 +24.70 pp**。见[结果与证据边界](#benchmark-agent-开发市场横截面增强特征)。
 - **Studio Playground：** 使用模拟数据体验任务和图表。<a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>。
 
@@ -51,7 +51,7 @@
 
 ## 🚀 快速开始
 
-要求 **Python 3.12+，支持 macOS 和 Linux**。
+当前源码版本为 **AxonX 0.3.0**，要求 **Python 3.12+，支持 macOS 和 Linux**。Studio 是独立发布的可选包。
 
 ### 1. 安装与启动
 
@@ -80,7 +80,18 @@ export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
 
-默认端口 `1024`、工作区 `.axonx`。也可通过 `.env` 配置，已有环境变量优先。保持此终端运行，在另一终端使用相同 Python 环境与 token。
+默认端口 `1024`、工作区 `.axonx`、服务/CLI 日志目录 `logs/`。可选设置见 [example.env](example.env)；CLI 启动时从启动目录或父目录加载最近的 `.env`，保留已有环境变量。保持此终端运行，在另一终端使用相同 Python 环境与 token。
+
+需要自定义设置时，将以下 YAML 保存为 `axonx.local.yaml`：
+
+```yaml
+extends: default
+workspace_dir: .axonx
+service:
+  host: 127.0.0.1
+```
+
+通过 `axonx app --config ./axonx.local.yaml` 启动。自定义配置仅在声明 `extends: default` 时继承内置服务、组件和 Job；字典合并，列表和标量替换。已安装插件也可提供命名配置，详见[配置参考](docs/zh/reference/configuration.md)。
 
 <a id="快速演示"></a>
 
@@ -93,6 +104,8 @@ axonx status --task-id 'base#demo#quickstart' --detail full
 ```
 
 `exec` 等待完成，输出业务结果（`result=5`）并返回 Task 退出码。Demo 无需行情或模型凭据。访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 填写令牌。
+
+`axonx --help` 显示离线用法，`axonx help` 查询运行中服务的 Job。执行设置按 **显式 CLI 参数 → 服务 `get_config` → 内置默认值** 生效。仅在服务连接不可用时回退；认证或服务错误直接报告。Task 专用参数通过 `get_task_def` 查询。
 
 记录 Task ID 和 metadata `started_at`。实验使用不同实例名：同名重跑替换当前记录与输出，保留 `persistent/`。详见[任务管理](docs/zh/guides/task-management.md)。
 
@@ -176,7 +189,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 替换示例地址。`--target` 使用 `AXONX_TARGET_TOKEN`，默认本机调用使用 `AXONX_SERVICE_TOKEN`。远程路径属于目标机。本地插件部署按 **构建 → 上传 → 安装 `location` → 清理 `path` → 重启/验证** 完成，见[插件管理](docs/zh/plugins/management.md)。
 
-Studio 使用后端配置的 `targets`，见[远程机器](docs/zh/guides/remote-machines.md)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task，见[服务更新](docs/zh/guides/self-update.md)。
+Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` 配置，本身不会选择 CLI 目标。见[远程机器](docs/zh/guides/remote-machines.md)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task；计划接受本地 `axonx exec --task NAME` 命令。见[服务更新](docs/zh/guides/self-update.md)。
 
 <a id="axonx-文档"></a>
 

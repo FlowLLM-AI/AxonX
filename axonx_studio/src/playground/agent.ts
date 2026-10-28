@@ -1,11 +1,13 @@
 import type { AgentHistoryBlock, AgentSession } from "../shared/api/contracts";
 import type { JobEvent } from "../shared/api/event";
+import { demoSessionId } from "./catalog";
 import { sse } from "./stream";
 
 export function createAgent() {
   const sessions = new Map<string, AgentSession>();
   const activeChats = new Map<string, AbortController>();
   let serial = 0;
+  let sessionSerial = 0;
   const block = (
     role: "user" | "assistant",
     text: string,
@@ -19,7 +21,7 @@ export function createAgent() {
     payload: {},
   });
   const makeSession = (prompt: string) => {
-    const id = `demo-session-${++serial}`;
+    const id = `${demoSessionId.slice(0, -12)}${String(++sessionSerial).padStart(12, "0")}`;
     const session: AgentSession = {
       info: {
         file_size: null,
@@ -54,9 +56,25 @@ export function createAgent() {
     return session;
   };
   const jobs: Record<string, (args: Record<string, unknown>) => unknown> = {
-    list_agent_sessions: () =>
-      [...sessions.values()].map((session) => session.info),
-    get_agent_session: requiredSession,
+    list_agent_sessions: (args) =>
+      [...sessions.values()]
+        .map((session) => session.info)
+        .sort((a, b) => b.last_modified - a.last_modified)
+        .slice(
+          Number(args.offset ?? 0),
+          Number(args.offset ?? 0) + Number(args.limit ?? 200),
+        ),
+    get_agent_session: (args) => {
+      const session = requiredSession(args);
+      const offset = Number(args.offset ?? 0);
+      return {
+        ...session,
+        blocks: session.blocks.slice(
+          offset,
+          offset + Number(args.limit ?? 1000),
+        ),
+      };
+    },
     cancel_agent_turn: (args) => {
       const session = requiredSession(args);
       activeChats.get(session.info.session_id)?.abort();

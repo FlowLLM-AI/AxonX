@@ -25,8 +25,12 @@ For framework or plugin development, use a source checkout in an activated envir
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-pip install -e '.[dev,studio]'
+pip install -e ./axonx_studio -e '.[dev,studio]'
+npm --prefix axonx_studio ci
+npm --prefix axonx_studio run build
 ```
+
+Building Studio from source requires Node.js 22.13+ (22.x), 24.x or 26+. Rebuild after frontend changes.
 
 Source paths below are relative to the checkout root. Service workspace paths belong to the selected execution machine. Package installation alone does not supply the example plugin sources.
 

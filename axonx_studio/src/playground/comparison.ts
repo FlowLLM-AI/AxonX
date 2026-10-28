@@ -6,14 +6,10 @@ export function seedNightly(
   tasks: Map<string, TaskMetadata>,
   files: Map<string, WorkspacePreview>,
 ) {
-  const parent = taskStatus(
-    "base",
-    "base#playground_compare#demo",
-    "Synthetic nightly comparison",
-  );
+  const parent = taskStatus("base", "base#playground_compare#demo");
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    task_name: "Synthetic nightly comparison",
+    task_name: "demo",
     trade_date: "2026-01-05",
     trade_time: "1445",
     models: [
@@ -44,25 +40,12 @@ export function seedNightly(
     scheduled_at: null,
     deadline: null,
   });
-  const download = taskStatus(
-    "base",
-    "base#tushare_mins#nightly",
-    "Synthetic nightly download",
-  );
-  const history = taskStatus(
-    "base",
-    "base#a_stock_history#nightly-1445",
-    "Synthetic historical inputs",
-  );
-  const etl = taskStatus(
-    "etl",
-    "etl#a_stock_etl#nightly",
-    "Synthetic historical features",
-  );
+  const download = taskStatus("base", "base#tushare_mins#nightly");
+  const history = taskStatus("base", "base#a_stock_history#nightly-1445");
+  const etl = taskStatus("etl", "etl#a_stock_etl#nightly");
   const comparison = taskStatus(
     "analysis",
     "analysis#a_stock_prediction_compare#nightly",
-    "Synthetic comparison",
   );
   comparison.report_kind = "online";
   comparison.input_params.upstream_task_ids = [etl.task_id];

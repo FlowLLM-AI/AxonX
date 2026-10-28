@@ -37,6 +37,10 @@ const groupFor = (page) => {
   return owners.get(page);
 };
 const groupPages = Object.keys(map).map((page) => page.replace(/\.md$/, ""));
+const outputFile = (target) => {
+  if (!target || target.endsWith("/")) return `${target}index.html`;
+  return map[`${target}.md`] ? `${target}.html` : target;
+};
 const checked = new Set();
 const anchors = new Map();
 async function checkAnchor(target, hash, page) {
@@ -71,16 +75,6 @@ for (const lang of ["en", "zh"]) {
       `Navigation has no source: ${lang}/${route}`,
     );
 }
-for (const legacy of [
-  "getting-started/introduction",
-  "guides/plugin-management",
-]) {
-  for (const lang of ["en", "zh"]) {
-    await assert.rejects(stat(`${site}${lang}/${legacy}.html`), {
-      code: "ENOENT",
-    });
-  }
-}
 for (const page of pages) {
   const html = await readFile(site + page, "utf8");
   for (const [anchor] of html.matchAll(/<a\b[^>]*>/g)) {
@@ -100,9 +94,9 @@ for (const page of pages) {
       url.pathname.startsWith(base),
       `Link escapes deployment base in ${page}: ${href}`,
     );
-    let target = decodeURIComponent(url.pathname.slice(base.length));
-    if (target.endsWith("/") || !target) target += "index.html";
-    else if (!/\.[^/]+$/.test(target)) target += ".html";
+    const target = outputFile(
+      decodeURIComponent(url.pathname.slice(base.length)),
+    );
     await checkAnchor(target, url.hash, page);
     if (!checked.has(target)) {
       await exists(target);
@@ -160,13 +154,7 @@ for (const page of Object.keys(map)) {
     );
     if (!href.startsWith(`${origin}${base}`)) continue;
     const target = new URL(href).pathname.slice(base.length);
-    await exists(
-      /\.[^/]+$/.test(target)
-        ? target
-        : target.endsWith("/")
-          ? `${target}index.html`
-          : `${target}.html`,
-    );
+    await exists(outputFile(decodeURIComponent(target)));
   }
 }
 const cn = await readFile(site + "zh/index.html", "utf8");

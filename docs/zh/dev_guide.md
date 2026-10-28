@@ -25,8 +25,12 @@ axonx app --service.host 127.0.0.1
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-pip install -e '.[dev,studio]'
+pip install -e ./axonx_studio -e '.[dev,studio]'
+npm --prefix axonx_studio ci
+npm --prefix axonx_studio run build
 ```
+
+从源码构建 Studio 需要 Node.js 22.13+（22.x）、24.x 或 26+；修改前端后重新构建。
 
 下文源码路径相对仓库根目录；服务工作区路径属于所选执行机器。仅安装 Python 包不会提供示例插件源码。
 

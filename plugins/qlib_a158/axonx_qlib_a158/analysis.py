@@ -19,6 +19,7 @@ from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_meta
 
 from .internal.analysis import FactorMetricsCalculator
 from .internal.etl_pipeline import LABELS
+from .internal.protocol import validate_feature_protocol
 
 
 class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
@@ -69,15 +70,13 @@ class FactorAnalysisTask(BaseAnalysisTask):
 
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
-        source_dir, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
-        source_metadata_path = source_dir / "metadata.json"
+        _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
+        validate_feature_protocol(source_metadata["output_params"]["protocol"])
         dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir
         self.state.update(
-            source_dir=source_dir,
-            source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
             labels_path=labels_path,

@@ -39,14 +39,14 @@ Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bag
 
 ## 安装与检查
 
-要求 Python 3.12+ 和 AxonX `>=0.3.0`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
+插件版本 0.3.0 要求 Python 3.12+ 和 AxonX `>=0.3.0`；任务执行支持 macOS 和 Linux。安装在运行 `axonx exec` 的 Python 环境中，使用 `--target` 时为目标服务解释器。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
-插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，再从仓库根目录安装固定版本的 wheel：
+插件尚未发布到 PyPI。先克隆仓库并从根目录安装匹配的主包，再将插件安装为 wheel：
 
 ```bash
-pip install axonx
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
+pip install -e .
 axonx plugin install ./plugins/qlib_a158
 axonx plugin list
 axonx plugin show axonx-qlib-a158
@@ -59,18 +59,38 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
 
-editable 需要选定 Python 环境中的源码目录，不能与 `--output` 同用；指定 `--target` 时源码目录属于目标机器。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
+editable 需要选定 Python 环境中的源码目录，不能与 `--output` 同用；指定 `--target` 时源码目录属于目标机器。新的 `exec` 进程加载当前 Python 源码；依赖或入口点变化后重新安装，重启常驻服务以刷新 Task 目录、Schema 和已加载依赖。
 
 本机 CLI 的环境不一定是远程服务的环境。远程部署先配置目标服务 token，再明确指定目标：
 
 ```bash
 export AXONX_TARGET_TOKEN='<service token>'
-# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
-axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
+axonx plugin build ./plugins/qlib_a158 --output /tmp/axonx-wheels
+# 先上传 /tmp/axonx-wheels 中实际构建的 wheel，再执行安装。
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024' --client-timeout 600
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
+安装修改所选解释器；新 CLI 进程发现已安装插件，定义查询和 Studio 则保留服务启动时的目录，直到重启。安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
+
+上传安装后，使用工作区相对 `path` 清理暂存文件；安装源使用绝对 `location`。通过 `axonx restart_service --target HOST:PORT` 重启，待服务恢复后核验插件版本和 Task 定义。链接中的部署指南包含上传、校验和清理的完整示例。
+
+## 执行与配置
+
+`axonx exec` 在本地 CLI 进程中同步执行并打印输出参数，以退出码判断命令成功，可在无服务时运行。指定 `--target` 后，命令在目标服务的 CLI 子进程中执行。定义、状态和日志 Job 需要运行中的服务，查询该服务的环境与工作区。
+
+执行配置优先级为：显式 CLI 参数 → 服务 `get_config` → 内置默认值。使用 `--workspace-dir /absolute/path` 明确选择研究工作区；ETL 相对输入路径从工作区解析。本地和远程命令必须使用上游 Task 所在的工作区。
+
+可选应用预设仅包含 `extends: default`，通过 `axonx.configs` 注册，继承标准服务、组件和 Job。已安装插件的 `plugin.yaml` 独立贡献 Task 注册；研究输入通过 `exec` 参数传入：
+
+```bash
+axonx app --config qlib_a158 --workspace-dir /tmp/axonx-research
+# 在另一终端执行；该工作区需已准备历史数据：
+axonx exec --task qlib_a158_research --task-name baseline --workspace-dir /tmp/axonx-research
+axonx status --task-id 'base#qlib_a158_research#baseline' --detail full
+```
+
+Task ID 格式为 `<type>#<registration>#<task_name>`。从日志或完整状态保存 ID 和 `started_at`；同名重跑替换该 Task 的当前产物。父子调用表示流程组合，`upstream_task_ids` 表示消费数据的依赖；展示副本不能作为研究输入。
 
 ## 数据准备
 
@@ -123,10 +143,10 @@ axonx exec --task qlib_a158_research --task-name baseline \
 | `qlib_a158_etl`      | 工作区行情数据   | 特征、标签、交易状态和统计           |
 | `qlib_a158_factor`   | ETL 任务标识     | 因子诊断与分析结果                   |
 | `qlib_a158_train`    | ETL 任务标识     | 模型、训练协议、验证曲线和特征重要性 |
-| `qlib_a158_predict`  | Train 任务标识   | 全横截面预测与预测统计               |
+| `qlib_a158_predict`  | Train + 可选 ETL | 全横截面预测与预测统计               |
 | `qlib_a158_backtest` | Predict 任务标识 | 日级回测、分期汇总与持仓相关产物     |
 
-因子分析从 ETL 分支执行，不是训练的前置任务。按以下顺序提交；每一步都使用实际返回的 Task ID，等待任务成功后再提交下游。
+因子分析从 ETL 分支执行，不是训练的前置任务。按以下顺序提交；从执行日志记录 Task ID，等待任务成功后再提交下游。
 
 ```bash
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
@@ -171,7 +191,7 @@ axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]'
 
 158 个基础特征使用 `f_alpha158_*` 名称，包含 13 个当日价形特征以及 5、10、20、30、60 日窗口的 29 组滚动特征。行情使用复权价格，并保留交易日历和上市状态信息。
 
-ETL 使用当前统一协议 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。rank 使用平均排名并归一化到 `[0,1]`；csz 使用截尾后的日截面总体标准差（`ddof=0`）。早停按验证 L2 选轮数。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
+ETL 使用协议 v1 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。rank 使用平均排名并归一化到 `[0,1]`；csz 使用截尾后的日截面总体标准差（`ddof=0`）。早停按验证 L2 选轮数。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
 
 回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`buy_cost_rate=0.0005` 和 `sell_cost_rate=0.0015` 默认使用 Qlib 参考费率，即买入 0.05% / 卖出 0.15%，归一化资金账本不设最低 5 元费用。费用按实际成交金额收取，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
 
@@ -185,13 +205,25 @@ ETL 使用当前统一协议 发布独立的 `dataset`、`labels`、`market`、`
 
 ```bash
 python -m pytest \
-  plugins/qlib_a158/tests tests/unit/test_stock_backtest.py -q
+  plugins/qlib_a158/tests \
+  tests/unit/test_stock_backtest.py tests/unit/test_documentation_contracts.py -q
 ```
 
-覆盖特征边界、标签时点、四组参数对照、分侧费用、延迟退出与持仓资金记账规则。
+覆盖 CPU 组合研究流程、新数据预测、特征协议校验、标签/预设对照和共享股票账本。跨插件测试需要安装全部三个研究插件。
+
+使用已成功完成的 ETL 在本地比较标签与参数预设：
+
+```bash
+python -m axonx_qlib_a158.scripts.compare_parameters \
+  --workspace-dir /tmp/axonx-research --etl-task '<etl_task_id>' --labels rank csz
+```
+
+该本地 Python 工具直接调用 `TaskExecutor`，不查询服务配置。输出 `summary.csv` 和 `comparison.json`，记录各阶段 Task ID、`started_at` 和输入版本。包内 `scripts/run_pipeline.sh` 将参数传给 `axonx exec --task qlib_a158_research`。
 
 ## 实验记录
 
 实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/alpha158-case.md)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。
 
-一次回测 Task 同时发布**全市场**（`all`）与**沪深300**（`hs300`）两个独立报告。Studio 通过下拉框切换股池，策略比较两侧可独立选择。信号时点 `index_weight_hs300 > 0` 定义沪深300成分。新输出使用 `default_universe`、`universes` 和统一产物表，旧回测需重新生成。
+AxonX 在 `axonx.task.models.artifacts` 定义协议 v1，使用 `TaskType` 作为 `task_type`，产物记录包含任务相对 `path`、`size` 和 `revision`。版本使用 `size:mtime_ns`，表示文件版本，不是内容校验和。训练发布 `output_params.protocol` 和 `models.json` 模型集合。预测通过 `axonx.task.storage.inputs` 快照模型成员并固定上游产物。特征语义与指纹属于 `axonx_qlib_a158.internal.protocol`；训练、分析和预测在消费数据前校验该契约。预测发布 `model_identity`、`dates`、`score_columns` 和文件版本。读取端校验协议头与特征语义。
+
+一次回测 Task 同时发布**全市场**（`all`）与**沪深300**（`hs300`）两个独立报告。Studio 通过下拉框切换股池，策略比较两侧可独立选择。信号时点 `index_weight_hs300 > 0` 定义沪深300成分。回测输出使用 `default_universe`、`universes` 和统一产物表。

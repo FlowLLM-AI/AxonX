@@ -17,7 +17,6 @@ from axonx.task.core.research import BaseTrainTask
 from axonx.task.models.artifacts import (
     ModelCollection,
     task_protocol,
-    validate_protocol,
 )
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.identity import TaskType
@@ -28,7 +27,7 @@ from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_meta
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
-from .internal.protocol import feature_contract
+from .internal.protocol import feature_contract, validate_feature_protocol
 from .internal.reference import DEVIATIONS, QLIB_PARAMETERS, QLIB_REFERENCE
 
 MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)
@@ -167,16 +166,13 @@ class LgbmTrainTask(BaseTrainTask):
 
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
-        source_dir, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
-        source_metadata_path = source_dir / "metadata.json"
-        validate_protocol(source_metadata["output_params"]["protocol"], TaskType.ETL)
+        _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
+        validate_feature_protocol(source_metadata["output_params"]["protocol"])
         dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir
         self.state.update(
-            source_dir=source_dir,
-            source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
             labels_path=labels_path,

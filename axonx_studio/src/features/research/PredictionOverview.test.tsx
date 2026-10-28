@@ -11,7 +11,7 @@ import type { ResearchTask } from "./types";
 let root: Root;
 let container: HTMLDivElement;
 const meta: ResearchTask<"predict"> = {
-  ...taskStatus("predict", "predict#demo", "demo"),
+  ...taskStatus("predict", "predict#demo"),
   task_type: "predict",
   created_at: "",
   reg_name: "predict",

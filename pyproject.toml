@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx"
 dynamic = ["version"]
-description = "Agent-native quantitative research harness. Help agents develop and improve research plugins, run experiments, and analyze traceable results through CLI, MCP, and Studio."
+description = "Agent-driven quantitative research with typed Tasks, research plugins, and traceable experiments via CLI, HTTP, MCP, and Studio."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -86,13 +86,14 @@ version = { attr = "axonx._version.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["axonx", "axonx.*"]
+namespaces = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = [".", "plugins/qlib_a158", "plugins/qlib_factor", "plugins/qlib_strategy", "tests"]
 testpaths = ["tests", "plugins/qlib_a158/tests", "plugins/qlib_factor/tests", "plugins/qlib_strategy/tests"]
-# tests/integration needs API keys, so a bare `pytest` run must not pick it up.
-# Run it explicitly with `pytest -m integration`.
+# Integration tests require API keys or live services and are deselected by default.
+# Run them explicitly with `python -m pytest tests/integration -m integration`.
 addopts = '-m "not integration"'
 markers = [
     "integration: needs API keys or live external services; run with `-m integration`",
@@ -100,6 +101,10 @@ markers = [
 
 [tool.setuptools.package-data]
 axonx = ["app/config/*.yaml", "app/components/agent/guides/*.md"]
+
+[tool.black]
+target-version = ["py312"]
+line-length = 120
 
 [tool.ruff]
 target-version = "py312"

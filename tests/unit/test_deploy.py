@@ -46,19 +46,33 @@ def running_daemon(tmp_path, monkeypatch):
         lock.close()
 
 
-def test_verified_daemon_shutdown_releases_lock_without_killing_service_directly(tmp_path, running_daemon):
+@pytest.mark.parametrize("private_loader", [False, True])
+def test_verified_daemon_shutdown_releases_lock_without_killing_service_directly(
+    tmp_path, running_daemon, private_loader
+):
     daemon, service = running_daemon
+    if private_loader:
+        daemon.cmdline.return_value = [
+            "/runtime/ld-linux-x86-64.so.2",
+            "--library-path",
+            "/runtime/lib:/venv/lib",
+            "--argv0",
+            "/launchers/python",
+            *daemon.cmdline.return_value,
+        ]
     deploy.stop_daemon(tmp_path, 4)
     daemon.terminate.assert_called_once_with()
     daemon.wait.assert_called_once_with(timeout=4)
     service.terminate.assert_not_called()
 
 
-@pytest.mark.parametrize("mismatch", ["command", "parent"])
+@pytest.mark.parametrize("mismatch", ["command", "parent", "argument"])
 def test_unrelated_process_or_service_is_never_signalled(tmp_path, running_daemon, mismatch):
     daemon, service = running_daemon
     if mismatch == "command":
         daemon.cmdline.return_value = ["python", "unrelated.py"]
+    elif mismatch == "argument":
+        daemon.cmdline.return_value.append("unrelated.py")
     else:
         service.ppid.return_value = 999
     with pytest.raises(RuntimeError, match="nothing was stopped"):

@@ -5,7 +5,7 @@ description: Production and consumption contracts for standard research outputs,
 
 # Research artifacts and Studio presentation contracts
 
-Research file records use `revision="<size>:<mtime_ns>"`, not content checksums. Publication, input snapshots, online history and replay check file size and modification time rather than hashing payload bytes. Copies preserve nanosecond mtime; published files must be immutable and replaced atomically. Metadata checks cannot detect edits preserving both size and mtime. Model identity fingerprints member revisions; configuration and source-code fingerprints remain SHA-256. This is a breaking format change: regenerate old research artifacts and replay datasets; historical records are not migrated.
+Research file records use `revision="<size>:<mtime_ns>"`, not content checksums. Publication, input snapshots, online history and replay check file size and modification time rather than hashing payload bytes. Copies preserve nanosecond mtime; published files must be immutable and replaced atomically. Metadata checks cannot detect edits preserving both size and mtime. Model identity fingerprints member revisions; configuration and source-code fingerprints remain SHA-256.
 
 Research Tasks publish results through typed `output_params`. Studio extracts presentation fields from successful tasks' `metadata.json`, then reads artifacts through file previews. This page distinguishes three layers of requirements: required Python base-class fields, fields actually read by Studio, and extension contracts of specific plugins.
 
@@ -13,7 +13,7 @@ Research Tasks publish results through typed `output_params`. Studio extracts pr
 
 ## Shared protocol v1
 
-AxonX owns the shared research protocol in `axonx.task.models.artifacts`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
+AxonX owns the shared research protocol in `axonx.task.models.artifacts`. Research protocol headers require `version=1` and a `TaskType` value in `task_type`. Readers reject missing headers and other versions.
 
 Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its revision lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
 
@@ -61,6 +61,10 @@ A `model_manifest` artifact is required by the Qlib prediction consumer, rather 
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
+Training members are declared only in the model manifest. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
+
+Member count distinguishes single-member from multi-member output, independently of prediction target count.
+
 ## ETL artifacts
 
 The base class stores output-file descriptions and column names. qlib_a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
@@ -73,7 +77,7 @@ The base class stores output-file descriptions and column names. qlib_a158 adds 
 | `market`      | `market.parquet`   | Quotes, adjustment factors, execution flags and states    |
 | `calendar`    | `calendar.parquet` | Market dates independent of prediction eligibility        |
 
-All consumers resolve output files through the task-relative `artifacts` registry. ETL, analysis, prediction and training no longer publish duplicate absolute file paths.
+All consumers resolve output files through the task-relative `artifacts` registry. ETL, analysis, prediction and training register task-relative output paths.
 
 ## Factor-analysis scores
 
@@ -91,10 +95,6 @@ All consumers resolve output files through the task-relative `artifacts` registr
 This illustrates a valid shape rather than a fixed qlib_a158 metric set. Studio dynamically iterates groups and metrics. Plugins should ensure metric names and definitions are understandable and explain samples, units, and calculation scope in detailed files or extended definition fields.
 
 qlib_a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
-
-Training members are declared only in the model manifest. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
-
-Historical output formats are unsupported and must be regenerated. Member count distinguishes single-member from multi-member output, independently of prediction target count.
 
 ## Training curve model
 
@@ -226,15 +226,15 @@ This illustrates a valid base-class structure. The shared stock Task publishes e
 
 Studio loads two tables from the selected report’s `artifacts.daily` and `artifacts.summary` references in the root artifact registry, requesting 5000 rows per page and continuing according to `has_more` until the complete tables are read. Satisfying the Backtest output model alone does not guarantee usable charts.
 
-Each universe is an independent report with its own dimensions, dates, status and artifact references. Studio selects `default_universe` initially and offers a dropdown; comparison selects a universe independently on each side. Top-level daily/summary aliases and flat backtest fields are removed. Regenerate old backtests.
+Each universe is an independent report with its own dimensions, dates, status and artifact references. Studio selects `default_universe` initially and offers a dropdown; comparison selects a universe independently on each side.
 
 Plugins inherit `BaseStockBacktestTask`, implement `build_universes()` returning `BacktestUniverse` definitions and `select_universe(signals, universe)` returning unique `(trade_date, trade_time, ts_code)` keys. The selector receives signal-time data; labels and future prices are not selector inputs. The framework verifies keys, runs separate ledgers, and publishes each report under `universes/<key>/`. Optional `universe_events()` creates fresh event state per report. Shared predictions and labels are loaded once.
 
 ## Unified backtest signals
 
-The sole `signals.parquet` retains every input signal and adds non-null Boolean `is_backtest_candidate`, nullable `target_rank`, and nullable `label_return`. Filtering the candidate flag yields the backtest candidate table. No `targets.parquet` or `targets_file` is produced. Missing labels do not remove candidate membership. Prediction scoring protocols are unchanged. Old backtest files must be regenerated; readers do not support the previous format.
+The `signals.parquet` table retains every input signal and contains non-null Boolean `is_backtest_candidate`, nullable `target_rank`, and nullable `label_return`. Filtering the candidate flag yields the backtest candidate table. Missing labels do not remove candidate membership.
 
-Outputs declare `signals_format: stock-signals-v1`. Readers reject former backtest outputs and online commits; rerun their tasks to generate current outputs. The raw prediction scoring protocol remains unchanged.
+Backtest outputs and online reports declare `signals_format: stock-signals-v1`. Readers validate this field before loading the selected universe’s artifact references.
 
 ## Presentation fields in the daily table
 

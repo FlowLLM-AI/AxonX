@@ -24,10 +24,10 @@ it.each(["en", "zh"])(
     const { files, tasks } = seed();
     vi.mocked(axonx.invoke).mockImplementation(async (name) =>
       name === "status"
-        ? tasks.get("backtest#demo")!
-        : [tasks.get("backtest#demo")!],
+        ? tasks.get("backtest#playground_backtest#demo")!
+        : [tasks.get("backtest#playground_backtest#demo")!],
     );
-    const path = "backtest/backtest#demo";
+    const path = "backtest/backtest#playground_backtest#demo";
     vi.mocked(previewWorkspaceFile).mockImplementation(
       async ({ path: key }) => {
         const preview = files.get(key);
@@ -43,7 +43,7 @@ it.each(["en", "zh"])(
           <ResearchPage
             kind="backtest"
             target="remote"
-            initialSelectedId="backtest#demo"
+            initialSelectedId="backtest#playground_backtest#demo"
             onConnection={vi.fn()}
             onNavigate={vi.fn()}
           />,
@@ -95,7 +95,7 @@ it.each(["en", "zh"])(
 
 it("reads training member count from the canonical model manifest", async () => {
   const { files, tasks } = seed();
-  const task = tasks.get("train#demo")!;
+  const task = tasks.get("train#playground_train#demo")!;
   vi.mocked(axonx.invoke).mockImplementation(async (name) =>
     name === "status" ? task : [task],
   );
@@ -112,7 +112,7 @@ it("reads training member count from the canonical model manifest", async () => 
         <ResearchPage
           kind="train"
           target="remote"
-          initialSelectedId="train#demo"
+          initialSelectedId="train#playground_train#demo"
           onConnection={vi.fn()}
           onNavigate={vi.fn()}
         />,
@@ -128,7 +128,11 @@ it("reads training member count from the canonical model manifest", async () => 
       expect(card?.querySelector("strong")?.textContent).toBe("1");
     });
     expect(previewWorkspaceFile).toHaveBeenCalledWith(
-      { path: "train/train#demo/models.json", offset: 0, limit: 1 },
+      {
+        path: "train/train#playground_train#demo/models.json",
+        offset: 0,
+        limit: 1,
+      },
       { target: "remote", signal: expect.any(AbortSignal) },
     );
   } finally {

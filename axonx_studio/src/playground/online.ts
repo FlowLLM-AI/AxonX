@@ -92,13 +92,8 @@ export function seedOnline(
   ];
   for (const sample of samples) {
     const id = `${sample.kind}#playground_online#demo`;
-    const task = taskStatus(
-      sample.kind as TaskMetadata["task_type"],
-      id,
-      sample.name,
-    );
+    const task = taskStatus(sample.kind as TaskMetadata["task_type"], id);
     task.report_kind = "online";
-    task.input_params.task_name = sample.name;
     if (sample.kind === "analysis")
       task.input_params.comparison_keys = sample.result.comparisons?.map(
         (item) => item.key,
@@ -116,10 +111,10 @@ export function seedOnline(
   }
   const child = tasks.get("inference#playground_online#demo")!;
   const id = "base#playground_online#demo";
-  const parent = taskStatus("base", id, "Synthetic online pipeline");
+  const parent = taskStatus("base", id);
   parent.report_kind = "online_pipeline";
   parent.input_params = {
-    task_name: "Synthetic online pipeline",
+    task_name: "demo",
     trade_date: "2026-01-05",
   };
   parent.children = [
@@ -452,6 +447,7 @@ function seedStockOnline(
   }
   const commit = history.commits.at(-1)!;
   task.started_at = commit.started_at;
+  task.finished_at = commit.committed_at;
   const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
   files.set(`inference/${task.task_id}/${historyPath}`, json(history));
   files.set(

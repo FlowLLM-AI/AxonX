@@ -23,7 +23,31 @@ npm ci
 npm run dev
 ```
 
-另开终端启动 Python 服务，代理与构建设置见 [Studio 开发](docs/zh/development/studio.md)。
+另开终端，从仓库根目录启动 Python 服务：
+
+```bash
+export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
+axonx app --service.host 127.0.0.1
+```
+
+默认端口为 `1024`，运行数据位于 `.axonx/`，服务/CLI 日志位于 `logs/`。可选凭据与内置配置变量见 [example.env](example.env)。CLI 启动时从当前目录或最多五级父目录加载最近的 `.env`，保留已有环境变量。代理与构建设置见 [Studio 开发](docs/zh/development/studio.md)。
+
+## 配置 0.3.0 应用
+
+`axonx app --config NAME_OR_PATH` 接受 YAML/YML/JSON 文件、内置 `default`/`remote` 名称及已安装的 `axonx.configs` 入口。自定义文件必须显式继承默认配置，例如将以下内容保存为 `axonx.local.yaml`：
+
+```yaml
+extends: default
+workspace_dir: .axonx
+service:
+  host: 127.0.0.1
+```
+
+```bash
+axonx app --config ./axonx.local.yaml
+```
+
+字典递归合并，列表和标量替换继承值。相对工作区/日志路径按进程工作目录解析。`exec`/`kill` 设置依次使用显式 CLI 参数、服务 `get_config` 和内置默认值；Task 参数遵循各自的输入 Schema。`get_config` 可能包含凭据，不应公开其输出。详见[配置参考](docs/zh/reference/configuration.md)。
 
 ## 选择修改位置
 
@@ -31,13 +55,14 @@ npm run dev
 | ----------------------------- | ----------------------------------------------- |
 | `axonx/task/`                 | 类型模型、开发基类、同步运行时、存储与内置 Task |
 | `axonx/plugin/`               | 插件发现、wheel 校验与安装                      |
+| `axonx/utils/`                | 共享环境、日志、值转换与异步清理                |
 | `axonx/app/`、`axonx/client/` | 应用能力、Job、传输和客户端连接                 |
 | `axonx/cli/`、`axonx/daemon/` | 命令路由、服务监督与定时进程归属                |
 | `plugins/`                    | 研究算法、manifest 与插件测试                   |
 | `axonx_studio/`               | 界面、表单、API 客户端与研究视图                |
 | `docs/`、`github-pages/`      | 双语指南、图片、导航与站点工具                  |
 
-算法放在 Task/插件中。Task 执行不依赖 App、Plugin 或 CLI，由启动层装配目录并注入宿主能力。从所属模块导入，数据契约不执行运行时操作，资源须明确清理。详见[架构](docs/zh/concepts/architecture.md)、[框架扩展](docs/zh/development/framework-extensions.md)和[依赖图](module-dependencies.md)。
+算法放在 Task/插件中。Task 执行不依赖 App、Plugin 或 CLI，由启动层装配目录并注入宿主能力。`app/core/composition.py` 选择具体 Provider 并编排受管生命周期，Step 通过组件基类契约适配 Job。HTTP/MCP 客户端保持独立于 App。从所属模块导入，数据契约不执行运行时操作，资源须明确清理。详见[架构](docs/zh/concepts/architecture.md)、[框架扩展](docs/zh/development/framework-extensions.md)和[依赖图](module-dependencies.md)。
 
 ## 开发插件
 
@@ -53,6 +78,8 @@ axonx plugin install -e ./plugins/qlib_strategy
 
 插件包含包元数据、`axonx.plugins` 入口、`plugin.yaml`、类型化 Task、测试和中英文 README。运行时资源加入 `tool.setuptools.package-data`，打包 CI 会比较 wheel/sdist 与源码内容。实现遵循 [Task 开发](docs/zh/dev_guide.md)与[产物契约](docs/zh/reference/research-artifacts.md)。
 
+可选命名应用配置使用指向包与文件 stem 的 `axonx.configs` 入口，例如 `qlib_a158 = "axonx_qlib_a158.config:qlib_a158_demo"`。分发包需包含 `config/__init__.py` 和 YAML 资源。入口名称必须唯一，应用配置不负责注册 Task。
+
 Agent 编写的代码遵循相同检查。主张改进时保留源码/插件版本、数据快照、窗口、参数、成本、Task ID 和 `started_at`，提供脱敏复现依据，并遵循[实验设计](docs/zh/research/experiments.md)。
 
 ## 验证改动
@@ -67,7 +94,11 @@ Agent 编写的代码遵循相同检查。主张改进时保留源码/插件版�
 | Python 传输契约 | 在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`           |
 | 文档示例        | `python -m pytest tests/unit/test_documentation_contracts.py`                               |
 
-裸命令 `pytest` 还会收集插件测试，需准备研究依赖。默认排除集成测试；运行 `pytest -m integration` 前，准备所需服务和凭据并检查外部影响。
+另用 `python -m scripts.sync_agent_guides --check` 检查 Agent 资源；架构变更运行 `python -m pytest tests/unit/test_module_boundaries.py`。
+
+裸命令 `pytest` 还会收集插件测试，需准备研究依赖。默认不执行集成测试；运行 `python -m pytest tests/integration -m integration` 前，准备所需服务和凭据并检查外部影响。
+
+契约生成同时更新 `axonx_studio/src/shared/api/contracts.ts` 和 `axonx_studio/src/playground/job-contracts.json`。修改 Python 序列化模型、默认 Job 或 `axonx/_version.py` 后重新生成，不手改生成文件。
 
 测试使用临时工作区，不提交凭据、私有数据、`.axonx/`、日志或研究生成产物。界面检查覆盖中英文、空数据和请求失败。将实际文件路径传入 `pre-commit run --files <changed-files>`，检查自动修复结果。Hooks 使用 Ruff 整理导入、Black 格式化，并执行其他 lint 检查。
 
@@ -75,7 +106,7 @@ Agent 编写的代码遵循相同检查。主张改进时保留源码/插件版�
 
 修改 `docs/en/`、`docs/zh/` 中的规范文档，或被站点引用的根目录/插件 README 与贡献指南。保持双语对应，共享素材位于 `docs/figures/`，导航位于 `docs/.vitepress/navigation.mjs`，生成站点文件由构建重建。
 
-内置 Agent 指南资源链接到 `docs/{en,zh}/dev_guide.md`；可分发 [AxonX Skill](skills/axonx/SKILL.md) 的行为说明应与英文指南一致。核验命令，API 变化时同步更新契约示例。
+Agent 指南的规范来源是 `docs/{en,zh}/dev_guide.md`。修改后运行 `python -m scripts.sync_agent_guides`，重新生成包内指南资源和 [AxonX Skill](skills/axonx/SKILL.md)；使用 `--check` 验证一致性。核验命令，API 变化时同步更新契约示例。Studio 的 `contracts:generate` 还会导出 Playground 使用的默认 Job schema 和 AxonX 版本，两个生成文件需一起更新。
 
 从仓库根目录准备两组前端依赖并验证站点：
 
@@ -88,15 +119,17 @@ npm --prefix github-pages run build
 
 构建检查双语页面、链接、资源、锚点和 Markdown 导出，详见[站点开发](github-pages/README_ZH.md)。
 
+Vercel 使用根目录 `vercel.json`，以 `DOCS_BASE=/` 和无扩展名 URL 构建静态文档与 Playground。安装两组前端依赖后发布 `github-pages/dist`，Python 服务单独运行。根路径部署可用 `DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages run build` 验证。
+
 ## 提交 Pull Request
 
-说明问题、改动后的行为、兼容性影响与验证结果。可见界面改动附截图，注明文档更新情况，推荐 Conventional Commits 标题。贡献遵循 [Apache License 2.0](LICENSE)。
+说明问题、改动后的行为、受影响的契约与验证结果。可见界面改动附截图，注明文档更新情况，推荐 Conventional Commits 标题。贡献遵循 [Apache License 2.0](LICENSE)。
 
 ## 发布
 
 主包与 Studio 独立发布，发布前更新版本并通过 CI：
 
-- **AxonX：** 更新 `axonx/_version.py`，推送 `v<version>` 并发布对应 GitHub Release；也可手动运行 [Release / AxonX Python package](.github/workflows/release-python.yml)，输入不带 `v` 的版本号，从该标签构建。
+- **AxonX：** 更新 `axonx/_version.py`（当前为 `0.3.0`），重新生成 Studio 契约，推送 `v<version>` 并发布对应 GitHub Release；也可手动运行 [Release / AxonX Python package](.github/workflows/release-python.yml)，输入不带 `v` 的版本号，从该标签构建。
 - **Studio：** 同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json`，在 `main` 运行 [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml)。`both` 先发 PyPI 再发 npm，`pypi`/`npm` 可单独选择；稳定版 npm 标签为 `latest`，预发布版为 `next`。
 
 配置对应的 Trusted Publisher（`pypi`/`npm` 环境）。已有版本会发布失败，标签不可移动。PyPI 成功而 npm 失败时，在原 workflow 重跑失败 job 以复用产物。主包发布不包含研究插件。

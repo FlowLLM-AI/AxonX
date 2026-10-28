@@ -617,12 +617,12 @@
     "errors": {
       "parquetRequired": "回测产物必须是 Parquet 文件",
       "missingDailySummary": "回测 metadata 缺少 daily 或 summary 产物",
-      "signalsFormat": "不支持旧版股票信号格式，请使用当前协议重新运行任务",
-      "missingUniverse": "缺少股池报告，请重新回测"
+      "signalsFormat": "股票信号元数据必须声明 signals_format=stock-signals-v1",
+      "missingUniverse": "回测元数据缺少所选股池报告"
     },
     "noSummaryData": "暂无汇总数据",
     "daily_mean_in_range": "区间日均",
-    "unable_to_load_backtest_artifacts": "无法读取新版回测产物",
+    "unable_to_load_backtest_artifacts": "无法读取回测产物",
     "daily_parquet_is_empty": "daily.parquet 为空",
     "gross_return": "毛收益",
     "net_return": "净收益",

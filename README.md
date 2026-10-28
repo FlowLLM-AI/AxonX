@@ -41,7 +41,7 @@
 
 ## 📰 Latest Updates
 
-- **CLI Task execution:** `exec` waits for completion and returns business output plus the Task exit code; remote execution uses the service's `cli` Job. Daemon-owned scheduled Tasks continue across service restarts. See [Jobs and Tasks](docs/en/concepts/jobs-and-tasks.md) and [scheduling](docs/en/guides/scheduling.md).
+- **0.3.0 released:** supports inheritable configuration, unified Task execution, and scheduled Tasks that continue across service restarts.
 - **Alpha158 experiments:** risk factors and rank retention improved Top20 net annualized returns by **+1.36 pp and +24.70 pp** over the adapted baseline. See [results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features).
 - **Studio Playground:** explore Tasks and charts with simulated data. <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try it online</a>.
 
@@ -51,7 +51,7 @@
 
 ## 🚀 Quick start
 
-Requires **Python 3.12+ on macOS or Linux**.
+This checkout is **AxonX 0.3.0**. Requires **Python 3.12+ on macOS or Linux**. Studio is an optional, independently released package.
 
 ### 1. Install and start
 
@@ -80,7 +80,18 @@ export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
 
-Defaults: port `1024`, workspace `.axonx`. Settings can also come from `.env`; existing environment variables take precedence. Keep this terminal open and use another with the same Python environment and token.
+Defaults: port `1024`, workspace `.axonx`, service/CLI logs `logs/`. Use [example.env](example.env) for optional settings; CLI startup loads the nearest `.env` from the launch directory or its parents, preserving existing environment values. Keep this terminal open and use another with the same Python environment and token.
+
+For custom settings, save a YAML file such as `axonx.local.yaml`:
+
+```yaml
+extends: default
+workspace_dir: .axonx
+service:
+  host: 127.0.0.1
+```
+
+Start it with `axonx app --config ./axonx.local.yaml`. Custom configs inherit the bundled service, components and Jobs only with `extends: default`; mappings merge, while lists and scalars replace. Installed plugins can also provide named configs. See [configuration](docs/en/reference/configuration.md).
 
 <a id="quick-demo"></a>
 
@@ -93,6 +104,8 @@ axonx status --task-id 'base#demo#quickstart' --detail full
 ```
 
 `exec` waits and returns business output (`result=5`) plus the Task exit code. Demo needs no market data or model credentials. Open `http://127.0.0.1:1024/` and enter the token in **Settings → Local service token**.
+
+`axonx --help` shows offline usage; `axonx help` queries the running service's Jobs. Execution settings use **explicit CLI options → service `get_config` → built-in defaults**. The CLI falls back only when the service connection is unavailable; authentication and service errors are reported. Task-specific parameters come from `get_task_def`.
 
 Keep the Task ID and metadata `started_at`. Use different instance names to preserve experiments: same-name reruns replace current records and outputs, retaining `persistent/`. See [Task management](docs/en/guides/task-management.md).
 
@@ -176,7 +189,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 Replace the example address. `--target` uses `AXONX_TARGET_TOKEN`; default local calls use `AXONX_SERVICE_TOKEN`. Remote paths belong to the target. Deploy local plugins by **build → upload → install `location` → clean `path` → restart/verify**; see [plugin management](docs/en/plugins/management.md).
 
-Studio uses backend-configured `targets`; see [remote machines](docs/en/guides/remote-machines.md). Service restarts stop service-owned manual commands and preserve daemon-owned scheduled Tasks; see [service updates](docs/en/guides/self-update.md).
+Studio uses backend-configured `targets`; `AXONX_TARGET` populates the bundled `remote` config and does not select a CLI destination by itself. See [remote machines](docs/en/guides/remote-machines.md). Service restarts stop service-owned manual commands and preserve daemon-owned scheduled Tasks; schedules accept local `axonx exec --task NAME` commands. See [service updates](docs/en/guides/self-update.md).
 
 <a id="axonx-documentation"></a>
 

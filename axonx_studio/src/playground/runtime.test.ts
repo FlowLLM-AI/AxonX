@@ -19,12 +19,98 @@ import { upstreamTaskIds } from "../shared/lib/tasks";
 import { createPlayground } from "./runtime";
 import { taskCommand } from "../features/tasks/execution";
 import { definitions } from "./data";
+import { seed } from "./fixtures";
+import { catalog } from "./catalog";
+import contracts from "./job-contracts.json";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 const client = () => new AxonXClient(createPlayground(), false);
 
 describe("static Playground", () => {
+  it.each(["success", "failure"])(
+    "folds CLI events for ordinary API calls with %s outcome",
+    async (outcome) => {
+      const api = client();
+      const command = api
+        .invoke("cli", {
+          argv: taskCommand(definitions[0].name, {
+            task_name: "api-call",
+            outcome,
+          }),
+        })
+        .then(
+          (result) => ({ result, error: null }),
+          (error) => ({ result: null, error }),
+        );
+      await vi.advanceTimersByTimeAsync(2500);
+      const result = await command;
+      expect(Boolean(result.error)).toBe(outcome === "failure");
+      const status = await api.invoke<TaskMetadata>("status", {
+        task_id: "etl#playground_etl#api-call",
+      });
+      expect(status.reg_name).toBe(definitions[0].name);
+      if (outcome === "success")
+        expect(
+          await api.invoke("stream_task", { task_id: status.task_id }),
+        ).toEqual(status);
+      else
+        await expect(
+          api.invoke("stream_task", { task_id: status.task_id }),
+        ).rejects.toThrow();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("uses canonical identities and consistent invocation records throughout the virtual workspace", () => {
+    const { tasks } = seed();
+    for (const task of tasks.values()) {
+      const parts = task.task_id.split("#");
+      expect(parts).toHaveLength(3);
+      expect(parts[0]).toBe(task.task_type);
+      expect(parts[1]).toBe(task.reg_name);
+      expect(parts[2]).toBe(task.input_params.task_name);
+      expect(parts[2]).toMatch(/^[A-Za-z0-9-]{1,32}$/);
+      expect(Date.parse(task.finished_at!)).toBeGreaterThanOrEqual(
+        Date.parse(task.started_at),
+      );
+      for (const id of upstreamTaskIds(task.input_params.upstream_task_ids))
+        expect(tasks.has(id)).toBe(true);
+      for (const record of task.children) {
+        const child = tasks.get(record.child_task_id!)!;
+        expect(child).toBeDefined();
+        expect(child.reg_name).toBe(record.reg_name);
+        expect(child.started_at).toBe(record.started_at);
+        expect(child.parent_task_id).toBe(task.task_id);
+      }
+    }
+  });
+
+  it("exposes current service schemas, version and lightweight Task discovery", async () => {
+    const api = client();
+    expect(
+      catalog.items.find((job) => job.name === "preview_file")?.input_schema
+        .required,
+    ).toEqual(["path"]);
+    expect(
+      catalog.items.find((job) => job.name === "read_task_log")?.input_schema
+        .properties,
+    ).toHaveProperty("started_at");
+    expect(
+      await api.invoke("get_task_def", { task: definitions[0].name }),
+    ).toEqual(definitions[0]);
+    await expect(
+      api.invoke("get_task_def", { task: "missing" }),
+    ).rejects.toThrow("Unknown Task");
+    const machine = await api.invoke<{ axonx: { version: string } }>(
+      "machine_status",
+    );
+    expect(machine.axonx.version).toBe(contracts.version);
+    const ids = await api.invoke<string[]>("list_task_ids");
+    const summaries = await api.invoke<TaskMetadata[]>("list_task_statuses");
+    expect(ids).toEqual(summaries.map((task) => task.task_id));
+  });
+
   it.each(["success", "failure"])(
     "simulates a CLI Task with %s outcome and publishes a queryable record",
     async (outcome) => {
@@ -165,14 +251,14 @@ describe("static Playground", () => {
           if (task.state !== "succeeded") continue;
           expect(metadata.state).toBe("succeeded");
           const expectedSource: Record<string, string[]> = {
-            analysis: ["etl#demo"],
-            train: ["etl#demo"],
-            predict: ["train#demo"],
-            backtest: ["predict#demo"],
+            analysis: ["etl#playground_etl#demo"],
+            train: ["etl#playground_etl#demo"],
+            predict: ["train#playground_train#demo"],
+            backtest: ["predict#playground_predict#demo"],
           };
           if (
-            metadata.task_id === `${task_type}#demo` ||
-            metadata.task_id === "backtest#volatile"
+            metadata.task_id === `${task_type}#playground_${task_type}#demo` ||
+            metadata.task_id === "backtest#playground_backtest#volatile"
           )
             expect(metadata.input_params.upstream_task_ids).toEqual(
               expectedSource[task_type] || [],

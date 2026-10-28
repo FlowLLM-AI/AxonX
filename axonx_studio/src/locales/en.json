@@ -617,8 +617,8 @@
     "errors": {
       "parquetRequired": "Backtest artifacts must be Parquet files",
       "missingDailySummary": "Backtest metadata is missing daily or summary artifacts",
-      "signalsFormat": "Unsupported stock signals format; rerun the task with the current protocol",
-      "missingUniverse": "Missing universe report; regenerate backtest"
+      "signalsFormat": "Stock signal metadata must declare signals_format=stock-signals-v1",
+      "missingUniverse": "Backtest metadata is missing the selected universe report"
     },
     "noSummaryData": "NO SUMMARY DATA",
     "daily_mean_in_range": "Daily mean in range",

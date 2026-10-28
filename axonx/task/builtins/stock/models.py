@@ -145,8 +145,6 @@ class StockOnlineReport(TaskModel):
     @model_validator(mode="after")
     def validate_report(self):
         settings = StockReportSettings.model_validate(self.commit.protocol.get("report"))
-        if "targets" in self.commit.artifacts:
-            raise ValueError("Unsupported stock signals format; regenerate online records with a new task_name")
         if settings.date_range["end"] != self.commit.trade_date:
             raise ValueError("Online report must end at its committed signal date")
         if missing := STOCK_REPORT_ARTIFACTS - self.commit.artifacts.keys():

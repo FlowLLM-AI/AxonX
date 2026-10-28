@@ -168,8 +168,8 @@ def load_task_metadata(directory: Path, task_id: str) -> TaskMetadata:
         metadata = TaskMetadata.model_validate_json(path.read_text(encoding="utf-8"))
     except ValueError as exc:
         raise ValueError(
-            f"Invalid Task metadata: {path}; the format is corrupt or incompatible. "
-            "Inspect or migrate the record before retrying; existing Task files were not overwritten"
+            f"Invalid Task metadata: {path}; the record must match TaskMetadata. "
+            "Existing Task files were not overwritten"
         ) from exc
     if metadata.task_id != task_id or metadata.task_type != task_type_from_id(task_id):
         raise ValueError(

@@ -2,10 +2,13 @@
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
+import yaml
 from pydantic import TypeAdapter
 
+from axonx._version import __version__
 from axonx.app.components.agent.models import (
     AgentHistoryBlock,
     AgentMutationResult,
@@ -17,6 +20,7 @@ from axonx.app.components.machine.models import (
     MachineDiagnostics,
     MachineInfo,
 )
+from axonx.app.config.models import JobConfig
 from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
@@ -122,6 +126,7 @@ MODELS = [
     BaseTrainOutputParams,
 ]
 OUTPUT = Path(__file__).resolve().parents[1] / "axonx_studio/src/shared/api/contracts.ts"
+JOB_OUTPUT = OUTPUT.parents[2] / "playground/job-contracts.json"
 
 
 def typescript(schema):
@@ -169,23 +174,39 @@ def render():
     )
 
 
+def render_jobs():
+    """Export the default service contracts for the browser-only Playground catalog."""
+    root = OUTPUT.parents[4]
+    jobs = yaml.safe_load((root / "axonx/app/config/default.yaml").read_text(encoding="utf-8"))["jobs"]
+    contracts = {}
+    for name, values in sorted(jobs.items()):
+        config = JobConfig.model_validate(values)
+        if config.enable_serve:
+            contracts[name] = JobInfo(
+                name=name,
+                description=config.description,
+                input_schema=config.parameters,
+                output_schema=JobResponse.model_json_schema(),
+            ).model_dump(mode="json")
+    return json.dumps({"version": __version__, "jobs": contracts}, ensure_ascii=False, indent=2) + "\n"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     # Match repository formatting so generation is deterministic.
-    import subprocess
-
-    content = subprocess.run(
-        ["npx", "--no-install", "prettier", "--parser", "typescript"],
-        input=render(),
-        text=True,
-        capture_output=True,
-        check=True,
-        cwd=OUTPUT.parents[3],
-    ).stdout
-    if args.check:
-        if not OUTPUT.exists() or OUTPUT.read_text() != content:
-            raise SystemExit("Studio contracts are stale; run python scripts/generate_studio_contracts.py")
-    else:
-        OUTPUT.write_text(content)
+    for output, source, language in ((OUTPUT, render(), "typescript"), (JOB_OUTPUT, render_jobs(), "json")):
+        content = subprocess.run(
+            ["npx", "--no-install", "prettier", "--parser", language],
+            input=source,
+            text=True,
+            capture_output=True,
+            check=True,
+            cwd=OUTPUT.parents[3],
+        ).stdout
+        if args.check:
+            if not output.exists() or output.read_text(encoding="utf-8") != content:
+                raise SystemExit("Studio contracts are stale; run python -m scripts.generate_studio_contracts")
+        else:
+            output.write_text(content, encoding="utf-8")

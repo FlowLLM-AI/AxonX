@@ -56,7 +56,7 @@ jobs:
       - name: Run isolated unit and plugin tests
         run: >-
           coverage run --source=axonx,axonx_qlib_a158,axonx_qlib_factor,axonx_qlib_strategy
-          -m pytest tests/unit plugins/qlib_factor/tests plugins/qlib_strategy/tests
+          -m pytest tests/unit plugins/qlib_a158/tests plugins/qlib_factor/tests plugins/qlib_strategy/tests
           -m 'not integration' --tb=short --junitxml=test-results/junit.xml
       - name: Report coverage
         run: |

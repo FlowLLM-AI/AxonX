@@ -18,11 +18,13 @@ export function seed() {
   const sourceFiles = new Map<string, string>();
   let upstreamIds: string[] = [];
   for (const kind of [...kinds, "backtest"] as const) {
-    const variant = tasks.has(`${kind}#demo`) ? "volatile" : "steady";
-    const id = `${kind}#${variant === "steady" ? "demo" : "volatile"}`;
-    const task = taskStatus(kind, id, `Demo ${kind} / ${variant}`);
-    if (kind === "train") upstreamIds = ["etl#demo"];
-    if (kind === "backtest") upstreamIds = ["predict#demo"];
+    const variant = tasks.has(`${kind}#playground_${kind}#demo`)
+      ? "volatile"
+      : "steady";
+    const id = `${kind}#playground_${kind}#${variant === "steady" ? "demo" : "volatile"}`;
+    const task = taskStatus(kind, id);
+    if (kind === "train") upstreamIds = ["etl#playground_etl#demo"];
+    if (kind === "backtest") upstreamIds = ["predict#playground_predict#demo"];
     task.input_params.upstream_task_ids = [...upstreamIds];
     tasks.set(id, task);
     addArtifacts(files, task, variant, upstreamIds);
@@ -42,11 +44,7 @@ export function seed() {
         child.parent_task_id = parent.task_id;
     }
   }
-  const download = taskStatus(
-    "api",
-    "api#playground_download#demo",
-    "Synthetic data update",
-  );
+  const download = taskStatus("api", "api#playground_download#demo");
   download.report_kind = "data_update";
   download.steps = [
     {
@@ -79,7 +77,8 @@ export function seed() {
   const scheduled = structuredClone(download);
   scheduled.task_id = "api#playground_download#scheduled";
   scheduled.started_at = "2026-01-06T00:00:00Z";
-  scheduled.input_params.task_name = "Scheduled data update";
+  scheduled.finished_at = scheduled.started_at;
+  scheduled.input_params.task_name = "scheduled";
   tasks.set(scheduled.task_id, scheduled);
   files.set(
     "tushare/daily/sample.parquet",
@@ -111,7 +110,7 @@ export function seed() {
     frontmatter,
     frontmatter_error: null,
   });
-  const failed = taskStatus("train", "train#failed", "Demo failure");
+  const failed = taskStatus("train", "train#playground_train#failed");
   failed.state = "failed";
   failed.error = "Simulated missing input";
   failed.exit_code = 1;

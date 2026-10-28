@@ -66,7 +66,7 @@ npm run preview
 
 主题文案与 VitePress 界面标签统一维护在 `site/theme/locales/en.json` 和 `zh.json`，测试检查两份资源的键一致。`i18n.ts` 提供响应式语言资源与站内链接；`language.mjs` 负责语言选择与路由转换；`home.ts` 保存首页链接与图片信息，`lib/readme-home.mjs` 仅将 README 最新更新章节渲染为生成的首页数据。参考 Studio 将语言资源与功能代码分离的结构，响应式能力直接使用 Vue/VitePress，无需额外翻译依赖。Markdown 原文与导航标签继续维护在 `docs/`。
 
-框架文件从 `docs/.vitepress/` 移至 `site/` 和 `lib/`，导航仍与内容放在一起。导航归属与源码路径独立。Alpha158 案例发布在 `research/alpha158-case`，实验方法位于 `research/experiments`。源码链接使用当前路由，不维护兼容重定向。
+站点配置与主题位于 `site/`，构建模块位于 `lib/`，导航位于 `docs/.vitepress/navigation.mjs`。导航归属与源码路径独立。Alpha158 案例发布在 `research/alpha158-case`，实验方法位于 `research/experiments`。源码链接使用文档的规范路由。
 
 ### 新增页面
 
@@ -79,11 +79,13 @@ npm run preview
 
 ### 链接与导出
 
-链接相对原始文件解析。已发布原文转换为站内路由，共用图片转换为 `public/media/<仓库路径>`，未发布仓库文件链接到 GitHub。转换 Markdown 行内链接与 HTML 链接，保留围栏代码示例。标题提取排除围栏代码注释；以标志开头的项目 README 在生成时补充一级标题，不修改原文。语言选择依次遵循 `?lang=en|zh`、显式 `/en/` 或 `/zh/` 路由、与 Studio 共用的 `language` 偏好、浏览器语言（中文或默认英文）。根页面先渲染英文，再由浏览器跳转到所选语言的首页。保存的偏好不会覆盖显式语言路由。自动语言跳转替换当前浏览历史记录；站内导航及浏览器前进／后退后也会应用语言选择。顶栏切换英文／中文和浅色／深色；切换语言保留当前文档、查询参数和锚点，并更新已有的 `lang` 参数。旧的 `axonx-language` 偏好不再读取。默认浅色；旧的跟随浏览器／系统偏好不再跟随浏览器或系统设置。
+链接相对原始文件解析。已发布原文转换为站内路由，共用图片转换为 `public/media/<仓库路径>`，未发布仓库文件链接到 GitHub。转换 Markdown 行内链接与 HTML 链接，保留围栏代码示例。标题提取排除围栏代码注释；以标志开头的项目 README 在生成时补充一级标题，不修改原文。语言选择依次遵循 `?lang=en|zh`、显式 `/en/` 或 `/zh/` 路由、与 Studio 共用的 `language` 偏好、浏览器语言（中文或默认英文）。根页面先渲染英文，再由浏览器跳转到所选语言的首页。保存的偏好不会覆盖显式语言路由。自动语言跳转替换当前浏览历史记录；站内导航及浏览器前进／后退后也会应用语言选择。顶栏切换英文／中文和浅色／深色；切换语言保留当前文档、查询参数和锚点，并更新已有的 `lang` 参数。语言偏好使用共用的 `language` 键。默认浅色，用户显式选择浅色或深色。
 
 原文映射保证编辑链接指向真实维护位置。Markdown 导出使用绝对 URL 与 UTF-8 BOM。`llms.txt`、`llms-full.txt` 按站点相同的双语导航顺序排列。未导入站点的历史实验材料继续链接到仓库原文。
 
 ## 部署
+
+在 `docs/{en,zh}/dev_guide.md` 维护 Agent 正文后，运行 `python -m scripts.sync_agent_guides` 同步包资源和 Skill。Python 模型或默认 Job 变化后，在后端环境运行 `npm --prefix axonx_studio run contracts:generate`，同时刷新 Playground schema 和显示版本。CI 在静态站点构建前验证这些契约；浏览生成站点仍无需 Python 进程。
 
 [文档工作流](../.github/workflows/docs.yml)安装依赖，运行模块测试并构建，再上传 `dist/` 到 GitHub Pages。PR 仅验证，匹配的 push 或 `main` 分支手动运行可部署。GitHub Pages 来源需设置为 GitHub Actions。
 

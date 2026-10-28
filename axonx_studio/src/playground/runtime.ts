@@ -5,13 +5,14 @@ import type {
   TaskSummary,
   WorkspaceListing,
 } from "../shared/api/contracts";
-import type { JobEvent } from "../shared/api/event";
+import { readJobEvents, type JobEvent } from "../shared/api/event";
 import { taskDirectory, upstreamTaskIds } from "../shared/lib/tasks";
 import { createAgent } from "./agent";
 import { catalog } from "./catalog";
 import { addArtifacts, definitions, epoch, json, taskStatus } from "./data";
 import { seed } from "./fixtures";
 import { sse } from "./stream";
+import contracts from "./job-contracts.json";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
   answer,
@@ -134,7 +135,7 @@ export function createPlayground(): Transport {
       truncated: sorted.length > offset + 5000,
     };
   }
-  return async (url, init = {}) => {
+  const transport: Transport = async (url, init = {}) => {
     if (init.signal?.aborted) throw abortError();
     const parsed = new URL(url, "https://playground.invalid");
     const name = decodeURIComponent(parsed.pathname.split("/")[2] || "");
@@ -188,19 +189,31 @@ export function createPlayground(): Transport {
           );
           if (argv[0] !== "exec" || !definition)
             throw new Error("Unknown simulated Task");
-          const taskId = `${definition.task_type}#${definition.name}#${inputs.task_name}`;
+          const taskName =
+            inputs.task_name ??
+            `${new Date().toISOString().replace(/\D/g, "").slice(0, 10)}${crypto.randomUUID().slice(0, 4)}`;
+          if (
+            typeof taskName !== "string" ||
+            !/^[A-Za-z0-9-]{1,32}$/.test(taskName)
+          )
+            throw new Error(
+              "task_name must contain 1-32 letters, digits, or hyphens",
+            );
+          inputs.task_name = taskName;
+          const taskId = `${definition.task_type}#${definition.name}#${taskName}`;
           const previous = tasks.get(taskId);
           if (previous?.state === "running") throw new Error("Task is running");
-          const task = taskStatus(
-            definition.task_type,
-            taskId,
-            definition.name,
-          );
+          const task = taskStatus(definition.task_type, taskId);
           const { task: registration, ...parameters } = inputs;
           void registration;
           task.input_params = { upstream_task_ids: [], ...parameters };
           task.state = "running";
-          task.created_at = task.started_at = new Date().toISOString();
+          task.created_at = task.started_at = new Date(
+            Math.max(
+              Date.now(),
+              previous ? Date.parse(previous.started_at) + 1 : 0,
+            ),
+          ).toISOString();
           task.finished_at = null;
           task.exit_code = 0;
           for (const step of task.steps) {
@@ -311,7 +324,11 @@ export function createPlayground(): Transport {
                       file.kind === "json" ? "application/json" : null,
                     extra: { simulated: true },
                   });
-              events.push(terminal(task));
+              if (task.state !== "running")
+                events.push({
+                  kind: "result",
+                  ...envelope(task, task.state === "succeeded"),
+                });
             }
             return events;
           }, init.signal);
@@ -320,6 +337,19 @@ export function createPlayground(): Transport {
         throw new Error(`Unsupported demo stream: ${name}`);
       }
       if (parsed.pathname === "/jobs") return response(catalog);
+      if (["cli", "stream_task", "agent_chat"].includes(name)) {
+        const stream = await transport(`/jobs/${name}/events`, init);
+        let result: ReturnType<typeof envelope> | undefined;
+        try {
+          await readJobEvents(stream, (event) => {
+            if (event.kind === "result")
+              result = envelope(event.answer, event.success, event.metadata);
+          });
+        } catch (error) {
+          if (!result) throw error;
+        }
+        return Response.json(result);
+      }
       if (Object.hasOwn(agent.jobs, name))
         return response(agent.jobs[name](args));
       switch (name) {
@@ -351,7 +381,7 @@ export function createPlayground(): Transport {
         case "machine_status":
           return response({
             axonx: {
-              version: "0.1.0-demo",
+              version: contracts.version,
               git_commit: null,
               git_branch: "playground",
             },
@@ -378,6 +408,24 @@ export function createPlayground(): Transport {
                 })
               : definitions,
           );
+        case "get_task_def": {
+          const definition = definitions.find(
+            (task) => task.name === args.task,
+          );
+          if (!definition) throw new Error(`Unknown Task: ${args.task}`);
+          return response(definition);
+        }
+        case "list_task_ids":
+          return response(
+            [...tasks.values()]
+              .sort(
+                (a, b) =>
+                  Date.parse(b.created_at || "") -
+                    Date.parse(a.created_at || "") ||
+                  b.task_id.localeCompare(a.task_id),
+              )
+              .map((task) => task.task_id),
+          );
         case "list_task_statuses":
           return response(
             [...tasks.values()]
@@ -386,7 +434,12 @@ export function createPlayground(): Transport {
                   (!args.task_type || task.task_type === args.task_type) &&
                   (!args.state || task.state === args.state),
               )
-              .reverse()
+              .sort(
+                (a, b) =>
+                  Date.parse(b.created_at || "") -
+                    Date.parse(a.created_at || "") ||
+                  b.task_id.localeCompare(a.task_id),
+              )
               .map((task) => taskView(task, args.detail ?? "summary")),
           );
         case "status":
@@ -540,4 +593,5 @@ export function createPlayground(): Transport {
       );
     }
   };
+  return transport;
 }

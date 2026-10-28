@@ -42,7 +42,7 @@ body:
     attributes:
       label: Alternatives considered
   - type: textarea
-    id: compatibility
+    id: contracts
     attributes:
-      label: Compatibility considerations
+      label: Affected contracts
       description: Mention possible changes to CLI/API/configuration, task records, lifecycle, or artifact formats

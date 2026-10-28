@@ -3,7 +3,7 @@ import { taskStatus } from "../../playground/data";
 import { displayArtifacts } from "../api/artifacts";
 
 it("uses actual sampled revisions and excludes omitted artifact links", () => {
-  const metadata = taskStatus("etl", "etl#demo#test", "test");
+  const metadata = taskStatus("etl", "etl#demo#test");
   metadata.output_params.artifacts = {
     dataset: { path: "dataset.parquet", size: 1000, revision: "1000:1" },
     omitted: { path: "missing.parquet", size: 1000, revision: "1000:1" },

@@ -6,7 +6,7 @@ import { getResearchTask, listResearchTasks } from "./api";
 afterEach(() => vi.restoreAllMocks());
 
 it("queries only successful results of the selected category and reuses the wire record", async () => {
-  const task = taskStatus("train", "train#sample", "sample");
+  const task = taskStatus("train", "train#sample");
   const invoke = vi.spyOn(axonx, "invoke").mockResolvedValue([task]);
   const controller = new AbortController();
   const result = await listResearchTasks("train", {
@@ -34,7 +34,7 @@ it("rejects a result cancelled while the request was pending", async () => {
 });
 
 it("checks selected task identity and category before exposing a research output", async () => {
-  const task = taskStatus("train", "train#sample", "sample");
+  const task = taskStatus("train", "train#sample");
   const invoke = vi.spyOn(axonx, "invoke").mockResolvedValue(task);
   expect(
     await getResearchTask("train", task.task_id, { target: "remote" }),

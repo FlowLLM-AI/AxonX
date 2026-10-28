@@ -16,6 +16,8 @@ The complete development toolchain requires Node.js 22.13+ (22.x), 24.x, or 26+ 
 
 `npm run build` performs TypeScript checks first, then outputs `dist`. Install the Python package with `pip install ./axonx_studio` from the repository root to let AxonX serve those assets. The development server provides hot updates.
 
+Python models and `axonx/app/config/default.yaml` own the wire contracts. Run `npm run contracts:generate` after changing them, then `npm run contracts:check`. This updates `src/shared/api/contracts.ts` and `src/playground/job-contracts.json`; edit the Python sources rather than these generated files. The exported version also identifies the simulated machine.
+
 If a mounted Studio build is removed while the service is running, page requests return `503` with a recovery message; missing asset requests return `404` or `503`. API routes remain available. Restore the build at the same path, or restart the service after changing the package installation path. This handles missing files before response headers are sent; it cannot replace a response whose transfer has already started.
 
 ## Directory responsibilities
@@ -116,7 +118,7 @@ All requests, including streams, go through `AxonXClient.request`. The default t
 
 `playground/fixtures.ts` creates a virtual workspace with an ETL → training → prediction → backtest chain, independent factor analysis from ETL, and two backtests. JSON table previews implement the existing Parquet preview protocol without shipping a Parquet decoder. Returns and summary metrics are generated from the same series.
 
-`playground/runtime.ts` owns task and file state; `agent.ts` owns scripted sessions and tool messages; `stream.ts` owns event subscription cleanup; `catalog.ts` declares supported Jobs. Submitted tasks advance from elapsed time even without subscribers; status requests and streams reconcile that state. Task cancellation stops execution, while AbortSignal only closes an obsolete subscription and releases its timer. All states have unified metadata; successful runs add business artifacts. The `strategy` parameter selects synthetic results; `outcome` selects success or failure. No submitted configuration executes a real research algorithm.
+`playground/runtime.ts` owns task and file state; `agent.ts` owns scripted sessions and tool messages; `stream.ts` owns event subscription cleanup; `catalog.ts` selects supported Jobs from the generated service schemas and supplies demo form defaults. Task IDs use `type#registration#instance`, registrations match metadata, and Agent sessions use UUIDs. Submitted commands advance while their CLI event connection is open; closing that connection stops the owned simulation, matching service-owned command cleanup. Closing a separate Task observation only releases its subscription. All states have unified metadata; successful runs add business artifacts. The `strategy` parameter selects synthetic results; `outcome` selects success or failure. No submitted configuration executes a real research algorithm.
 
 Refresh or use **Reset demo** to recreate initial state. There is no persisted execution state. Tests exercise data contracts, pagination, lifecycle, deletion, stream cleanup, scripted conversations and network isolation. Verify both normal and Playground builds; the website verifier checks the merged Playground entry and asset paths.
 

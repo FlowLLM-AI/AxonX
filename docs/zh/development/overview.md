@@ -25,6 +25,6 @@
 
 公共 Job 入参以 `axonx/app/config/default.yaml` 为准，原生命令语法属于 `axonx/cli/parser.py`，执行行为属于 `commands.py`/`remote.py`。Task 模型与开发接口位于 `axonx/task`。契约变化时同时更新引用、示例、图示和中英文。
 
-内置 Agent 资源通过符号链接指向 docs/en/dev_guide.md 和 docs/zh/dev_guide.md。维护这两份可执行指南，并将可分发 skills/axonx/SKILL.md 正文与英文指南同步。常驻服务在启动时重新加载指南。
+Agent 指南的规范来源是 `docs/en/dev_guide.md` 和 `docs/zh/dev_guide.md`。修改后运行 `python -m scripts.sync_agent_guides`，同步包内 `axonx/app/components/agent/guides/` 资源和可分发 `skills/axonx/SKILL.md`。生成结果使用普通文件，确保 wheel 和不支持符号链接的检出都包含完整正文；使用 `--check` 检查漂移。常驻服务在启动时重新加载指南。
 
 从仓库根目录，在后端开发环境运行 `python -m pytest tests/unit/test_documentation_contracts.py`；安装两套前端依赖后运行 `npm --prefix github-pages test` 和 `npm --prefix github-pages run build`。契约检查验证所有已配置 Job 的请求示例、文档 CLI 入参/导入和可执行 Task 开发/组合示例。站点构建还检查导航、翻译、锚点、资源和导出。历史研究表格和基准图保留记录值及来源。

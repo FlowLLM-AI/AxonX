@@ -10,9 +10,13 @@ import jsonschema
 import pytest
 import yaml
 
+from axonx.app.config.loader import ConfigLoader
+from axonx.app.core.application import Application
 from axonx.cli.parser import parse_command, parse_plugin_arguments
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.runtime.executor import TaskExecutor
+from scripts.generate_studio_contracts import render_jobs
+from scripts.sync_agent_guides import generated_guides
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs"
@@ -29,6 +33,22 @@ def test_distributable_skill_body_matches_english_guide():
     assert separator
     assert yaml.safe_load(metadata.removeprefix("---\n"))["name"] == "axonx"
     assert body.removeprefix("\n") == (DOCS / "en/dev_guide.md").read_text()
+
+
+def test_packaged_guides_and_skill_are_complete_generated_files():
+    for path, expected in generated_guides().items():
+        assert not path.is_symlink(), path
+        assert path.read_text(encoding="utf-8") == expected, path
+
+
+def test_playground_job_contracts_match_the_service_catalog(tmp_path):
+    generated = json.loads(render_jobs())
+    stored = json.loads((ROOT / "axonx_studio/src/playground/job-contracts.json").read_text(encoding="utf-8"))
+    assert stored == generated
+    config = ConfigLoader().resolve(log_config=False)
+    config.update(workspace_dir=str(tmp_path), log_dir=str(tmp_path / "logs"), log_to_console=False, log_to_file=False)
+    app = Application(**config)
+    assert generated["jobs"] == {name: job.info.model_dump(mode="json") for name, job in app.context.jobs.items()}
 
 
 def test_translated_development_guides_have_identical_examples():
@@ -69,7 +89,8 @@ def test_api_examples_cover_and_validate_configured_jobs(language):
 def test_documented_cli_commands_use_current_grammar_and_job_schemas():
     jobs = job_schemas()
     count = 0
-    for page in sorted(DOCS.rglob("*.md")):
+    pages = sorted(DOCS.rglob("*.md")) + [ROOT / "README.md", ROOT / "README_ZH.md", ROOT / "skills/axonx/SKILL.md"]
+    for page in pages:
         for language, body in FENCES.findall(page.read_text()):
             if language not in {"bash", "sh"}:
                 continue

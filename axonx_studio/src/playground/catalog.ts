@@ -1,103 +1,62 @@
-import type { JobCatalog } from "../shared/api/types";
-import type { JsonSchema } from "../shared/schema/values";
+import type { JobCatalog, JobInfo } from "../shared/api/types";
+import contracts from "./job-contracts.json";
 
-const text = (value: string): JsonSchema => ({
-  type: "string",
-  default: value,
-});
-const task = { task_id: text("backtest#demo") };
-const session = { session_id: text("demo-session-1") };
-const schemas: Record<
-  string,
-  { input?: Record<string, JsonSchema>; output: string }
-> = {
-  cli: {
-    input: { argv: { type: "array", items: { type: "string" } } },
-    output: "object",
-  },
-  machine_status: { output: "object" },
-  list_machines: { output: "array" },
-  list_task_defs: {
-    input: { include_schemas: { type: "boolean", default: true } },
-    output: "array",
-  },
-  list_task_statuses: {
-    input: {
-      detail: { type: "string", enum: ["summary", "full"], default: "summary" },
-      task_type: { type: "string" },
-      state: {
-        type: "string",
-        enum: ["running", "succeeded", "failed"],
-      },
-    },
-    output: "array",
-  },
-  status: {
-    input: {
-      ...task,
-      detail: { type: "string", enum: ["summary", "full"], default: "full" },
-    },
-    output: "object",
-  },
-  read_task_log: {
-    input: {
-      ...task,
-      offset: { type: "integer", default: -1 },
-      limit: { type: "integer", default: 8192 },
-    },
-    output: "object",
-  },
-  get_task_graph: { input: task, output: "object" },
-  list_task_directories: {
-    input: { task_type: text("backtest") },
-    output: "object",
-  },
-  list_entries: {
-    input: {
-      path: text(""),
-      offset: { type: "integer", minimum: 0, default: 0 },
-    },
-    output: "object",
-  },
-  preview_file: {
-    input: {
-      path: text("backtest/backtest#demo/metadata.json"),
-      max_bytes: { type: "integer", minimum: 1, maximum: 33554432 },
-      offset: { type: "integer", default: 0 },
-      limit: { type: "integer", default: 200 },
-    },
-    output: "object",
-  },
-  delete_entries: {
-    input: {
-      paths: {
-        type: "array",
-        items: { type: "string" },
-        default: ["backtest/backtest#volatile"],
-      },
-    },
-    output: "array",
-  },
-  list_agent_sessions: { output: "array" },
-  get_agent_session: { input: session, output: "object" },
-  cancel_agent_turn: { input: session, output: "object" },
-  rename_agent_session: {
-    input: { ...session, title: text("Demo") },
-    output: "object",
-  },
-  tag_agent_session: {
-    input: { ...session, tag: text("demo") },
-    output: "object",
-  },
-  delete_agent_session: { input: session, output: "object" },
-  fork_agent_session: { input: session, output: "object" },
+export const demoSessionId = "00000000-0000-4000-8000-000000000001";
+const defaults: Record<string, unknown> = {
+  task_id: "backtest#playground_backtest#demo",
+  session_id: demoSessionId,
 };
+const jobs = contracts.jobs;
+const supported: Array<keyof typeof jobs> = [
+  "cli",
+  "machine_status",
+  "list_machines",
+  "list_task_defs",
+  "get_task_def",
+  "list_task_ids",
+  "list_task_statuses",
+  "status",
+  "read_task_log",
+  "get_task_graph",
+  "stream_task",
+  "list_task_directories",
+  "list_entries",
+  "preview_file",
+  "delete_entries",
+  "list_agent_sessions",
+  "get_agent_session",
+  "agent_chat",
+  "cancel_agent_turn",
+  "rename_agent_session",
+  "tag_agent_session",
+  "delete_agent_session",
+  "fork_agent_session",
+];
+
 export const catalog: JobCatalog = {
-  items: Object.entries(schemas).map(([name, { input = {}, output }]) => ({
-    name,
-    description: "Browser simulation / 浏览器模拟接口",
-    input_schema: { type: "object", properties: input },
-    output_schema: { type: output },
-  })),
-  total: Object.keys(schemas).length,
+  items: supported.map((name): JobInfo => {
+    const job: JobInfo = jobs[name];
+    const properties = Object.fromEntries(
+      Object.entries(job.input_schema.properties || {}).map(([key, field]) => [
+        key,
+        key in defaults ? { ...field, default: defaults[key] } : field,
+      ]),
+    );
+    if (name === "preview_file")
+      properties.path = {
+        ...properties.path,
+        default: "backtest/backtest#playground_backtest#demo/metadata.json",
+      };
+    if (name === "delete_entries")
+      properties.paths = {
+        ...properties.paths,
+        default: ["backtest/backtest#playground_backtest#volatile"],
+      };
+    return {
+      ...job,
+      description: `Browser simulation / 浏览器模拟接口: ${job.description}`,
+      input_schema: { ...job.input_schema, properties },
+    };
+  }),
+  total: supported.length,
 };

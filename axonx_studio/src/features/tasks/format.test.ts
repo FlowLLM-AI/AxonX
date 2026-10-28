@@ -5,7 +5,7 @@ import { taskStepProgress } from "./model";
 
 describe("task summary progress", () => {
   it("preserves the step index without the historical steps", () => {
-    const full = taskStatus("api", "api#test#summary", "test");
+    const full = taskStatus("api", "api#test#summary");
     const { input_params, output_params, steps, children, ...metadata } = full;
     void input_params;
     void output_params;

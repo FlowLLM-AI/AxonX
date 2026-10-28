@@ -29,7 +29,7 @@ vi.mock("./BacktestChart", () => ({
   ),
 }));
 const meta: BacktestArtifact = {
-  ...taskStatus("backtest", "backtest#demo", "demo"),
+  ...taskStatus("backtest", "backtest#demo"),
   created_at: "",
   reg_name: "backtest",
   task_type: "backtest",

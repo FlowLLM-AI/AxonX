@@ -150,16 +150,8 @@ it("keeps report kinds separate even with a direct link to another report kind",
 });
 
 it("includes standalone inference while excluding comparison reports and child executions", async () => {
-  const inference = taskStatus(
-    "inference",
-    "inference#model#standalone",
-    "model",
-  );
-  const comparison = taskStatus(
-    "analysis",
-    "analysis#compare#standalone",
-    "compare",
-  );
+  const inference = taskStatus("inference", "inference#model#standalone");
+  const comparison = taskStatus("analysis", "analysis#compare#standalone");
   comparison.report_kind = "online";
   const child = {
     ...inference,
@@ -187,13 +179,13 @@ it("keeps all actual Tasks visible without submission configuration", async () =
   await render("api#playground_download#demo", "data");
   expect(container.querySelectorAll(".task-index article")).toHaveLength(2);
   expect(container.querySelector(".online-report")?.textContent).toContain(
-    "Synthetic data update",
+    "demo",
   );
   const scheduled = [
     ...container.querySelectorAll<HTMLButtonElement>(
       ".task-index article button",
     ),
-  ].find((button) => button.textContent?.includes("Scheduled data update"))!;
+  ].find((button) => button.textContent?.includes("scheduled"))!;
   await act(async () => scheduled.click());
   expect(onSelected).toHaveBeenLastCalledWith(
     "api#playground_download#scheduled",
@@ -362,11 +354,7 @@ it("omits internal bookkeeping steps but retains counts, coverage and errors", a
 
 it("switches download results and logs together and refuses a replaced child Task", async () => {
   const parent = await getTaskStatus("api#playground_download#demo");
-  const child = taskStatus(
-    "api",
-    "api#static#demo",
-    "DownloadTushareStaticTask",
-  );
+  const child = taskStatus("api", "api#static#demo");
   child.output_params = {
     rows: 1234,
     selected_apis: ["stock_basic", "trade_cal", "stock_basic"],
@@ -384,7 +372,7 @@ it("switches download results and logs together and refuses a replaced child Tas
       error: "",
     },
   ];
-  const daily = taskStatus("api", "api#daily#demo", "DownloadTushareDailyTask");
+  const daily = taskStatus("api", "api#daily#demo");
   daily.output_params = { selected_apis: ["daily"], attempted_count: 182 };
   parent.children.push({
     ...parent.children[0],
@@ -489,10 +477,10 @@ it("switches download results and logs together and refuses a replaced child Tas
 });
 
 it("selects a shared Task by ID when another branch retains an older start time", async () => {
-  const parent = taskStatus("api", "api#parent#test", "Parent");
-  const first = taskStatus("api", "api#first#test", "First");
-  const second = taskStatus("api", "api#second#test", "Second");
-  const child = taskStatus("api", "api#shared#test", "Shared");
+  const parent = taskStatus("api", "api#parent#test");
+  const first = taskStatus("api", "api#first#test");
+  const second = taskStatus("api", "api#second#test");
+  const child = taskStatus("api", "api#shared#test");
   child.output_params = { result: 777 };
   const record = (task: typeof child, name = task.reg_name) => ({
     reg_name: task.reg_name,

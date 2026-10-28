@@ -26,6 +26,12 @@ export const definitions: TaskDefinition[] = kinds.map((kind) => ({
       task_name: {
         anyOf: [{ type: "string" }, { type: "null" }],
         default: null,
+        pattern: "^[A-Za-z0-9-]{1,32}$",
+      },
+      upstream_task_ids: {
+        type: "array",
+        items: { type: "string" },
+        default: [],
       },
       strategy: {
         type: "string",
@@ -48,7 +54,6 @@ export const definitions: TaskDefinition[] = kinds.map((kind) => ({
 export function taskStatus(
   kind: TaskMetadata["task_type"],
   id: string,
-  name: string,
 ): TaskMetadata {
   return {
     parent_task_id: null,
@@ -56,8 +61,8 @@ export function taskStatus(
     report_kind: kind === "inference" ? "online" : null,
     task_id: id,
     task_type: kind,
-    reg_name: name,
-    input_params: { task_name: name, upstream_task_ids: [] },
+    reg_name: id.split("#")[1],
+    input_params: { task_name: id.split("#")[2], upstream_task_ids: [] },
     state: "succeeded",
     pid: 1234,
     machine_id: "playground",
@@ -356,11 +361,11 @@ export function addArtifacts(
     ...task,
     task_id: task.task_id,
     task_type: task.task_type,
-    reg_name: `playground.${task.task_type}`,
+    reg_name: task.reg_name,
     created_at: task.created_at,
     input_params: {
       ...task.input_params,
-      task_name: task.reg_name,
+      task_name: task.input_params.task_name,
       upstream_task_ids: [...upstreamIds],
     },
     output_params: {
