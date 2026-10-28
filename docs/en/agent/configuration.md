@@ -7,8 +7,6 @@ description: Distinguish framework fields, Claude SDK options, session storage, 
 
 The current built-in Agent backend is `claude`, implemented with the Claude Agent SDK. AxonX manages session identity, the Job tool bridge, and state directories; the SDK manages model calls and its own execution options.
 
-![Configuration layers](../../figures/agent/configuration-layers.svg)
-
 ## Enable the default built-in agent
 
 Complete the [quickstart](../getting-started/quickstart.md), then set the service token and model environment in `.env` in the startup directory:

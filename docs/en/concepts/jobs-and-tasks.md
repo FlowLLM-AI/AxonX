@@ -2,7 +2,7 @@
 
 Jobs expose application capabilities. Tasks execute synchronous research and persist evidence. CLI, HTTP, MCP and Studio access the same configured Jobs; native Task execution is a separate CLI operation.
 
-![Job, command and Task outcomes](../../figures/concepts/jobs-tasks.svg)
+![Job command ownership, Task execution and persisted evidence](../../figures/concepts/task-execution.svg)
 
 ## Comparison
 

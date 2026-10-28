@@ -21,9 +21,7 @@ export DINGTALK_CONVERSATIONS='{"research":"<open conversation id>"}'
 
 ## 发送 Markdown
 
-![历史钉钉通知配置表单](../../figures/studio/notification-submit.png)
-
-在 Studio 打开 **开发工具 → 任务定义**，选择 `send_dingtalk_task`，填写 Title、Text 和 Message Type 后执行。截图记录早期空白配置表单，不包含接收群或凭据，导航和布局可能有所不同。执行 Task 会向执行机器配置的群实际发送消息。
+在 Studio 打开 **开发工具 → 任务定义**，选择 `send_dingtalk_task`，填写 Title、Text 和 Message Type 后执行。完整任务定义界面见[使用 Studio](../getting-started/studio.md#执行任务并检查详情)。执行 Task 会向执行机器配置的群实际发送消息。
 
 下面是会实际发送外部消息的使用示例，按自己的接收配置执行：
 

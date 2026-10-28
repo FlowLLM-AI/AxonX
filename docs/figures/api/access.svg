@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="704" viewBox="0 0 1280 704" role="img" aria-labelledby="title desc">
+  <title id="title">Reach a service, then interpret its result</title>
+  <desc id="desc">Direct clients connect to the destination using its token. Studio calls its same-origin backend and may forward to a configured target using backend credentials. HTTP JSON, MCP and HTTP SSE invoke configured Jobs; result shapes and terminal events must be checked. Files transfer separately through upload.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="688" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">Reach a service, then interpret its result</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">HTTP, MCP and Studio expose configured Jobs; native Task commands execute through the cli Job.</text>
+    <rect x="48" y="120" width="552" height="124" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="154" font-size="22" font-weight="700">Direct CLI / Python / external MCP</text>
+    <text x="72" y="186" font-size="17">Connect to the destination service</text>
+    <text x="72" y="212" font-size="17">Address + destination Bearer token</text>
+    <rect x="680" y="120" width="552" height="124" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="704" y="154" font-size="22" font-weight="700">Studio browser → same-origin backend</text>
+    <text x="704" y="186" font-size="17">Optional top-level target selects a configured host</text>
+    <text x="704" y="212" font-size="17">The backend resolves target credentials</text>
+    <path d="M 324 244 L 324 294" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 956 244 L 956 294" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="294" width="1184" height="108" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="328" font-size="23" font-weight="700">Selected AxonX service</text>
+    <text x="72" y="361" font-size="18">Authenticate → validate Job inputs → dispatch configured Steps</text>
+    <text x="72" y="386" font-size="16" fill="#52738f">HTTP: { arguments, target? } · MCP: business arguments · cli Job: argv for exec / kill / plugin</text>
+    <path d="M 232 402 L 232 450" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 640 402 L 640 450" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 1048 402 L 1048 450" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="450" width="368" height="148" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="484" font-size="22" font-weight="700">HTTP JSON</text>
+    <text x="72" y="516" font-size="17">POST /jobs/NAME</text>
+    <text x="72" y="542" font-size="16.5">JobResponse: success, answer, metadata</text>
+    <text x="72" y="568" font-size="17">Business failure can use HTTP 200.</text>
+    <rect x="456" y="450" width="368" height="148" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="484" font-size="22" font-weight="700">MCP tools</text>
+    <text x="480" y="516" font-size="17">/mcp · tools/list → tools/call</text>
+    <text x="480" y="542" font-size="17">Ordinary JobResponse tool results</text>
+    <text x="480" y="568" font-size="17">Live Job events use HTTP SSE.</text>
+    <rect x="864" y="450" width="368" height="148" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="484" font-size="22" font-weight="700">HTTP SSE</text>
+    <text x="888" y="516" font-size="17">POST /jobs/NAME/events</text>
+    <text x="888" y="542" font-size="16">progress / log / artifact / agent_message</text>
+    <text x="888" y="568" font-size="17">Read the terminal result event.</text>
+    <text x="48" y="635" font-size="16" fill="#52738f">cli result: stdout / stderr / exit_code. Task result: persisted state + typed business output.</text>
+    <text x="48" y="665" font-size="16" fill="#52738f">POST /upload transfers files separately. /proxy/NAME follows its configured upstream protocol and credentials.</text>
+  </g>
+</svg>

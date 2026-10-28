@@ -1,6 +1,6 @@
 # HTTP and MCP Protocol
 
-![Shared Job protocol](../../figures/api/protocol.svg)
+![Job access, dispatch and transport-specific results](../../figures/api/access.svg)
 
 ## Routes
 

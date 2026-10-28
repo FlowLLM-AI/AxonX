@@ -9,9 +9,15 @@ Alpha158 和增强 Alpha158 共用 `BaseStockBacktestTask` 和持仓账本。ETL
 
 共享实现位于 `axonx.task.builtins.stock`，新插件应从该包导入。
 
-![股票回测信号与逐日权益记账](../../figures/research/backtest-accounting.svg)
+![独立信号、市场输入、真实持仓与组合报告](../../figures/research/backtest-accounting.svg)
 
 ## 数据契约
+
+![Studio 0.3.0 backtest universe, overall metrics and Top N summary](../../figures/studio/backtest-overall.png)
+
+[查看高清原图](../../figures/studio/backtest-overall.png)
+
+完整截图展示 Playground 合成回测的 **总体** 标签页，指标用于说明界面，不是 Alpha158 结果。
 
 Studio 回测页优先展示股池选择器和报告，报告下方保留产物清单，每份发布文件仅在清单中列出一次。
 
@@ -85,6 +91,12 @@ Turnover = executed buy and sell notional / previous equity
 `daily` 使用 `topN_*` 列，`dimensions` 声明组合规模和基准。`top30_holdings` 是信号目标列表，不是实际持仓；真实敞口见 `positions`。尚未退出的持仓仍保留在该产物中，即使没有已完成交易。
 
 ## 信号诊断与基准
+
+![Studio 0.3.0 net-return chart and Top 30 signal targets](../../figures/studio/backtest-net-return.png)
+
+[查看高清原图](../../figures/studio/backtest-net-return.png)
+
+**净收益** 标签页集中展示日期窗口、收益曲线与信号目标表。完整截图使用同一组合成回测。
 
 IC、RankIC、NDCG 与目标选股共用信号当天可买候选池，包括插件选择的股池限制。IC 和 RankIC 对比预测分数与有效的固定次一市场日原始收益。NDCG 对比高分信号和相同可用收益样本的排序质量；缺标签不会补入低分候选。这些指标属于信号日期，持仓收益和估值属于组合日历日期。
 

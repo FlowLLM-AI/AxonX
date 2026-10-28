@@ -7,8 +7,6 @@ description: 下载原始行情分区、静态主数据和沪深 300 权重。
 
 内置 `download_tushare_task` 是 `api` 类型 Task，将请求结果整理为工作区内的 Parquet 文件。它负责原始数据准备，Alpha158 特征生成由 ETL 插件完成。
 
-![下载与存储](../../figures/research/tushare-layout.svg)
-
 ## 配置数据连接
 
 在执行 Task 的服务环境中设置：
@@ -33,9 +31,7 @@ export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
 
 ## 参数与日期
 
-![历史 Tushare 下载配置表单](../../figures/studio/tushare-submit.png)
-
-打开 **开发工具 → 任务定义**，选择 `download_tushare_task`。表单根据当前任务 Schema 展示日期、自然日回溯、请求超时与数据组。截图记录早期配置表单的默认值，导航和布局可能有所不同。执行前先确认执行机器的数据凭据。
+打开 **开发工具 → 任务定义**，选择 `download_tushare_task`。表单根据当前任务 Schema 展示日期、自然日回溯、请求超时与数据组。完整任务定义界面见[使用 Studio](../getting-started/studio.md#执行任务并检查详情)。执行前先确认执行机器的数据凭据。
 
 | 字段         | 默认值   | 用途                                         |
 | ------------ | -------- | -------------------------------------------- |

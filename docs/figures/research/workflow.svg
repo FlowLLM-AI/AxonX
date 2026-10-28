@@ -1,54 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="646" viewBox="0 0 1256 646" role="img" aria-labelledby="title desc">
-  <title id="title">Alpha158: data to research evidence</title>
-  <desc id="desc">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1240.0" height="630.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
-      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Alpha158: data to research evidence</text>
-      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</text>
-      <rect x="40" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="136" y="182" font-size="23" font-weight="700" text-anchor="middle">Market data</text>
-      <text x="136" y="214" font-size="18" font-weight="400" text-anchor="middle">
-        <tspan x="136" dy="0">Quotes /</tspan>
-        <tspan x="136" dy="25">adjustments</tspan>
-      </text>
-      <text x="136" y="270" font-size="17" font-weight="400" text-anchor="middle">Prepared separately</text>
-      <rect x="272" y="150" width="192" height="160" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="368" y="182" font-size="23" font-weight="700" text-anchor="middle">ETL</text>
-      <text x="368" y="214" font-size="18" font-weight="400" text-anchor="middle">Features / labels</text>
-      <text x="368" y="241" font-size="18" font-weight="400" text-anchor="middle">Trading flags</text>
-      <rect x="504" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="600" y="182" font-size="23" font-weight="700" text-anchor="middle">Train</text>
-      <text x="600" y="214" font-size="17" font-weight="400" text-anchor="middle">Temporal validation</text>
-      <text x="600" y="241" font-size="18" font-weight="400" text-anchor="middle">Saved model</text>
-      <rect x="736" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="832" y="182" font-size="23" font-weight="700" text-anchor="middle">Predict</text>
-      <text x="832" y="214" font-size="18" font-weight="400" text-anchor="middle">Out-of-sample</text>
-      <text x="832" y="241" font-size="18" font-weight="400" text-anchor="middle">Scores</text>
-      <rect x="968" y="150" width="192" height="160" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="1064" y="182" font-size="23" font-weight="700" text-anchor="middle">Backtest</text>
-      <text x="1064" y="214" font-size="18" font-weight="400" text-anchor="middle">Costs / fills</text>
-      <text x="1064" y="241" font-size="18" font-weight="400" text-anchor="middle">Returns / holdings</text>
-      <path d="M 232 230 H 272" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 464 230 H 504" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 696 230 H 736" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 928 230 H 968" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 368 310 V 370" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="276" y="370" width="260" height="110" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="300.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Factor analysis</text>
-      <text x="300.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">ETL diagnostics</text>
-      <rect x="608" y="370" width="552" height="110" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="632.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Inspect and compare evidence</text>
-      <text x="632.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">Metadata · Artifacts · Common dates</text>
-      <text x="632.0" y="461.0" font-size="18" font-weight="400" text-anchor="start">Signal quality · Net returns · Risk</text>
-      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Execute stages directly or through a parent Task; verify successful outputs before consumption.</text>
-      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Arrows show data dependencies; the framework does not execute a DAG automatically.</text>
-    </g>
-    <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="818" viewBox="0 0 1280 818" role="img" aria-labelledby="title desc">
+  <title id="title">Alpha158: data → models → portfolio evidence</title>
+  <desc id="desc">Raw Tushare data feeds ETL. ETL publishes a feature dataset, labels, market data and calendar. Training consumes the ETL dataset; prediction consumes a model collection and compatible ETL data; backtesting consumes scores with independent market/calendar data and optional labels. Factor analysis branches from ETL. Upstream IDs record input dependencies, while parent/child calls record synchronous composition; neither graph auto-executes the pipeline.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="802" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">Alpha158: data → models → portfolio evidence</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">Run stages explicitly or use the research parent Task; factor analysis is an optional ETL branch.</text>
+    <rect x="48" y="134" width="248" height="138" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="168" font-size="20" font-weight="700">Tushare download</text>
+    <text x="72" y="200" font-size="17">Raw files + master data</text>
+    <text x="72" y="226" font-size="17">workspace/tushare/</text>
+    <rect x="352" y="134" width="416" height="138" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="376" y="168" font-size="22" font-weight="700">ETL</text>
+    <text x="376" y="200" font-size="17">Features · Labels · Market · Calendar</text>
+    <text x="376" y="226" font-size="17">Dataset + statistics artifacts</text>
+    <rect x="832" y="134" width="400" height="138" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="856" y="168" font-size="22" font-weight="700">Factor analysis (optional)</text>
+    <text x="856" y="200" font-size="17">IC diagnostics · Quantile returns</text>
+    <text x="856" y="226" font-size="17">result / quantiles artifacts</text>
+    <path d="M 296 203 L 352 203" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 768 203 L 832 203" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 560 272 L 560 311 L 232 311 L 232 356" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="72" y="332" font-size="16" fill="#52738f">Feature dataset</text>
+    <rect x="48" y="356" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="390" font-size="22" font-weight="700">Train</text>
+    <text x="72" y="422" font-size="17">Read one successful ETL Task</text>
+    <text x="72" y="448" font-size="17">Publish a verified model collection</text>
+    <text x="72" y="474" font-size="17">models.json + model member artifacts</text>
+    <rect x="456" y="356" width="368" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="390" font-size="22" font-weight="700">Predict</text>
+    <text x="480" y="422" font-size="17">Read Train + compatible ETL</text>
+    <text x="480" y="448" font-size="17">Out-of-sample scores + eligibility</text>
+    <text x="480" y="474" font-size="17">Predictions contain no future labels.</text>
+    <rect x="864" y="356" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="390" font-size="22" font-weight="700">Backtest</text>
+    <text x="888" y="422" font-size="17">Scores + independent market/calendar</text>
+    <text x="888" y="448" font-size="17">Optional labels for signal diagnostics</text>
+    <text x="888" y="474" font-size="17">daily / summary / portfolio artifacts</text>
+    <path d="M 416 429 L 456 429" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 824 429 L 864 429" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 728 272 L 728 307 L 800 307 L 800 356" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="7 6" />
+    <text x="822" y="314" font-size="15" fill="#52738f">ETL for prediction</text>
+    <path d="M 752 272 L 752 290 L 1192 290 L 1192 356" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="7 6" />
+    <text x="992" y="323" font-size="15" fill="#52738f">Market / calendar / labels</text>
+    <text x="48" y="553" font-size="18" font-weight="700" fill="#52738f">Two different relationships</text>
+    <rect x="48" y="574" width="552" height="152" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="608" font-size="22" font-weight="700">Data dependencies</text>
+    <text x="72" y="640" font-size="17">upstream_task_ids → consumed input references</text>
+    <text x="72" y="666" font-size="17">get_task_graph follows these declared edges.</text>
+    <text x="72" y="692" font-size="17">Verify success, revisions and feature semantics.</text>
+    <rect x="680" y="574" width="552" height="152" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="704" y="608" font-size="22" font-weight="700">Parent / child composition</text>
+    <text x="704" y="640" font-size="17">run_task() → synchronous child invocation</text>
+    <text x="704" y="666" font-size="17">parent_task_id / children record the calls.</text>
+    <text x="704" y="692" font-size="17">Children share the parent execution process.</text>
+    <text x="48" y="763" font-size="16" fill="#52738f">Keep Task IDs + started_at + artifact revisions. A recorded edge does not automatically execute a stage.</text>
+    <text x="48" y="792" font-size="16" fill="#52738f">Solid arrows: main inputs. Dashed arrows: additional ETL artifacts. Child-call relationships are recorded separately.</text>
   </g>
 </svg>

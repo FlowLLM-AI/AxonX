@@ -1,7 +1,5 @@
 # Python 参考
 
-![Python 接入路径](../../figures/reference/python-paths.svg)
-
 ## 导入入口
 
 ```python

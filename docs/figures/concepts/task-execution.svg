@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="816" viewBox="0 0 1280 816" role="img" aria-labelledby="title desc">
+  <title id="title">Who runs a Task, and where its result lives</title>
+  <desc id="desc">Local CLI exec runs in its caller. A service cli Job owns a command child process. App Cron asks the daemon to launch scheduled exec processes that survive service restart. All run the synchronous TaskExecutor, which publishes running then succeeded or failed metadata. TaskIndex observes these records; kill explicitly verifies and stops the root process.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="800" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">Who runs a Task, and where its result lives</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">Jobs expose application capabilities; TaskExecutor runs synchronous research steps and child Tasks.</text>
+    <text x="48" y="122" font-size="18" font-weight="700" fill="#52738f">Execution paths · three process owners</text>
+    <rect x="48" y="140" width="368" height="147" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="174" font-size="22" font-weight="700">Local CLI exec</text>
+    <text x="72" y="206" font-size="17">Caller process runs the Task</text>
+    <text x="72" y="232" font-size="17">Waits for output and exit code</text>
+    <text x="72" y="258" font-size="17">Lifetime belongs to the caller.</text>
+    <rect x="456" y="140" width="368" height="147" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="174" font-size="22" font-weight="700">Service cli Job</text>
+    <text x="480" y="206" font-size="17">Service owns the CLI child group</text>
+    <text x="480" y="232" font-size="17">Streams stdout and stderr</text>
+    <text x="480" y="258" font-size="17">Service shutdown stops the group.</text>
+    <rect x="864" y="140" width="368" height="147" rx="20" fill="#fff2df" stroke="#dfc89e" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="174" font-size="22" font-weight="700">App Cron → daemon</text>
+    <text x="888" y="206" font-size="17">App computes future trigger times</text>
+    <text x="888" y="232" font-size="17">Daemon owns launched exec processes</text>
+    <text x="888" y="258" font-size="17">Running Tasks survive service restart.</text>
+    <path d="M 232 287 L 232 332" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 640 287 L 640 332" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 1048 287 L 1048 332" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="332" width="1184" height="126" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="367" font-size="24" font-weight="700">TaskExecutor · one synchronous runtime</text>
+    <text x="72" y="399" font-size="18">Resolve Task → check ownership → run steps / child Tasks → close resources → validate output</text>
+    <text x="72" y="433" font-size="17" fill="#52738f">Children share the root process. Task identity = type#registration#instance + current started_at.</text>
+    <path d="M 232 458 L 232 506" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="506" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="540" font-size="22" font-weight="700">Persist state</text>
+    <text x="72" y="572" font-size="17">running → succeeded / failed</text>
+    <text x="72" y="598" font-size="17">metadata.json + events.jsonl</text>
+    <text x="72" y="624" font-size="17">Exit 0 accompanies succeeded.</text>
+    <rect x="456" y="506" width="368" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="540" font-size="22" font-weight="700">Observe evidence</text>
+    <text x="480" y="572" font-size="17">TaskIndex · status · wait_task</text>
+    <text x="480" y="598" font-size="17">Logs · Upstream graph · Artifacts</text>
+    <text x="480" y="624" font-size="17">Queries observe current records.</text>
+    <rect x="864" y="506" width="368" height="146" rx="20" fill="#fff2df" stroke="#dfc89e" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="540" font-size="22" font-weight="700">Stop or rerun</text>
+    <text x="888" y="572" font-size="17">kill verifies process identity</text>
+    <text x="888" y="598" font-size="17">Stop the root before replacing files</text>
+    <text x="888" y="624" font-size="17">A same-name rerun retains persistent/.</text>
+    <path d="M 416 579 L 456 579" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="692" width="1184" height="70" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="72" y="722" font-size="18" font-weight="700">Check three results separately: Job success · command exit_code · Task state and business output</text>
+    <text x="72" y="747" font-size="16" fill="#52738f">Use distinct Task names to retain experiments. A successful execution still needs research-quality checks.</text>
+    <text x="48" y="793" font-size="16" fill="#52738f">Cron launches local exec; missed occurrences are not replayed. Coordinate overlapping runs in the host workflow.</text>
+  </g>
+</svg>

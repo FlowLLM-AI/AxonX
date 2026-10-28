@@ -7,7 +7,7 @@ description: 通过 Skill + Prompt 开发量化插件，使用 CLI 或 MCP 执�
 
 外部 Agent 使用自己的模型、代码工具与会话环境，开发或优化量化插件，再通过 AxonX 执行和检查研究任务。本页以 CLI 为例；需要宿主直接发现服务工具时，继续阅读 [MCP 接入](mcp-integration.md)。
 
-![外部 Agent 的开发与研究流程](../../figures/agent/external-workflow.svg)
+![通过 Skill 与工具将研究目标转化为 Task 证据](../../figures/agent/workflow.svg)
 
 ## 准备服务与说明
 

@@ -21,9 +21,7 @@ export DINGTALK_CONVERSATIONS='{"research":"<open conversation id>"}'
 
 ## Sending Markdown
 
-![Recorded DingTalk notification configuration form](../../figures/studio/notification-submit.png)
-
-Open **Development tools → Task definitions** in Studio, select `send_dingtalk_task`, fill in Title, Text, and Message Type, then execute. The screenshot records an earlier empty configuration form without recipient groups or credentials; navigation and layout may differ. Executing the Task sends actual messages to groups configured on the execution machine.
+Open **Development tools → Task definitions** in Studio, select `send_dingtalk_task`, fill in Title, Text, and Message Type, then execute. See [Using Studio](../getting-started/studio.md#execute-a-task-and-inspect-details) for the complete task-definition interface. Executing the Task sends actual messages to groups configured on the execution machine.
 
 The following usage example sends an actual external message; run it according to your recipient configuration:
 

@@ -9,7 +9,7 @@ The AxonX HTTP service provides Streamable HTTP MCP at `/mcp`, mapping public Jo
 
 MCP is one integration option for [external agents](external.md). A host can also use the [AxonX Skill](../../../skills/axonx/SKILL.md) for research instructions; CLI access does not require MCP configuration. Built-in sessions use a separate component bridge; see the [integration overview](overview.md).
 
-![Independent Agent integration paths](../../figures/agent/mcp-surfaces.svg)
+![Service connection paths and HTTP, MCP and SSE results](../../figures/api/access.svg)
 
 ## Connection details
 

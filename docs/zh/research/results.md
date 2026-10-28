@@ -7,9 +7,7 @@ description: 从数据质量、因子诊断、训练验证到预测覆盖阅读 
 
 Studio 按 ETL、因子、训练、预测和回测组织成功任务的结果。每张卡片对应工作区中的 metadata 与文件产物；图表只能说明产物中的数据，需要结合插件协议解释。
 
-![结果阅读顺序](../../figures/research/results-reading.svg)
-
-本页截图来自远程工作区的历史研究结果，以英文界面展示操作和字段。部分使用早期插件版本，其特征数量、标签和指标仅说明当时的运行，不代表当前 Alpha158 基线或 README 三版本实验。解释结果时以各 Task 的 metadata 和插件版本为准；下文算法说明以当前 `qlib_a158` 实现为准。
+本页截图展示 Studio 0.3.0 的完整英文界面，使用 Playground 合成数据。特征数量、标签、曲线和指标用于说明界面，不代表 Alpha158 基线或 README 三版本实验。解释真实结果时，以各 Task 的 metadata 和插件版本为准；下文算法说明以当前 `qlib_a158` 实现为准。
 
 ## 从运行页面进入结果页面
 
@@ -20,6 +18,8 @@ Studio 按 ETL、因子、训练、预测和回测组织成功任务的结果。
 ## ETL：先判断数据是否可信
 
 ![ETL dates, feature columns and labels](../../figures/studio/etl-results.png)
+
+[查看高清原图](../../figures/studio/etl-results.png)
 
 结果摘要将日期范围、行数和特征/标签列集中展示。先核对覆盖范围，再继续下游分析。
 
@@ -42,6 +42,8 @@ ETL 的 `statistics` 文件属于插件扩展，通用基类并不强制所有 E
 
 ![Factor scores by metric and label](../../figures/studio/factor-results.png)
 
+[查看高清原图](../../figures/studio/factor-results.png)
+
 通过 Metric 与 Label 选择指标和标签；条形方向与数值共同表示因子评分。
 
 qlib_a158 输出 `factor_analysis.csv` 与 `factor_quantiles.csv`。前者给出各特征的诊断结果，后者用于观察按因子值分组的收益。
@@ -54,7 +56,9 @@ Studio 的 `scores` 面板来自插件提供的“指标分组 → 数值”映�
 
 ## 训练：验证过程与最终模型
 
-![Model training summary and effective parameters](../../figures/studio/training-results.png)
+![Studio 0.3.0 training summary, parameters, curves and artifacts](../../figures/studio/training-results.png)
+
+[查看高清原图](../../figures/studio/training-results.png)
 
 训练详情并列显示样本、特征、目标列和实际参数；这些信息用于核对实验配置。
 
@@ -68,9 +72,7 @@ qlib_a158 的训练窗口左闭右开，末尾日期保留作验证。调参阶�
 
 ### 如何读训练曲线
 
-![Training and validation curves on separate axes](../../figures/studio/training-curves.png)
-
-图中实线是训练、虚线是验证，L2 与 L1 使用左右两个轴。可以通过底部缩放条查看部分迭代；不要跨轴比较曲线高度。
+上方完整训练截图同时展示摘要与曲线。Playground 的合成 `train` 和 `validation` 序列均使用左轴。查看实际 Task 时，应核对图例和轴标签；插件可以发布使用不同量纲的左右轴序列。
 
 `training_curve.x` 的每个位置对应一次迭代或一个有序时间点。所有序列共享同一 x；左轴与右轴允许两组不同量纲。不能只看两条视觉上靠近的线就比较数值大小，应先看轴和指标单位。
 
@@ -85,6 +87,8 @@ gain 是分裂带来的累计增益，split 是参与分裂的次数。高重要
 ## 预测：评分与覆盖
 
 ![Prediction scores, sample coverage and output columns](../../figures/studio/prediction-results.png)
+
+[查看高清原图](../../figures/studio/prediction-results.png)
 
 预测概览展示评分分布、样本覆盖与输出字段。截图中的评分属于该次模型，不代表收益概率。
 

@@ -1,48 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="512" viewBox="0 0 1056 512" role="img" aria-labelledby="title desc">
-  <title id="title">Stock Backtest: Signals and Equity</title>
-  <desc id="desc">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1040.0" height="496.0" rx="30" fill="#f5f9ff" stroke="#163450" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#163450">
-      <text x="44" y="60" font-size="32" font-weight="700" text-anchor="start">Stock Backtest: Signals and Equity</text>
-      <text x="44" y="102" font-size="18" text-anchor="start" fill="#163450">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</text>
-      <rect x="50.0" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="149.375" y="202" text-anchor="middle" font-size="23" font-weight="700">Signal Day</text>
-      <text x="149.375" y="240" text-anchor="middle" font-size="18">Score rank / Top N</text>
-      <text x="149.375" y="300" text-anchor="middle" font-size="18">Top N targets</text>
-      <path d="M 252.75 256 H 277.75" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="283.75" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="383.125" y="202" text-anchor="middle" font-size="23" font-weight="700">Entry Proxy</text>
-      <text x="383.125" y="240" text-anchor="middle" font-size="18">Close / buyability</text>
-      <text x="383.125" y="300" text-anchor="middle" font-size="18">
-        <tspan x="383.125" dy="0">Cash and open</tspan>
-        <tspan x="383.125" dy="28">positions</tspan>
-      </text>
-      <path d="M 486.5 256 H 511.5" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="517.5" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="616.875" y="202" text-anchor="middle" font-size="23" font-weight="700">Hold / Exit</text>
-      <text x="616.875" y="240" text-anchor="middle" font-size="18">Policy / sellable exit</text>
-      <text x="616.875" y="300" text-anchor="middle" font-size="18">
-        <tspan x="616.875" dy="0">Daily market</tspan>
-        <tspan x="616.875" dy="28">valuation</tspan>
-      </text>
-      <path d="M 720.25 256 H 745.25" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="751.25" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="850.625" y="202" text-anchor="middle" font-size="23" font-weight="700">Daily Returns</text>
-      <text x="850.625" y="240" text-anchor="middle" font-size="18">
-        <tspan x="850.625" dy="0">Equity change /</tspan>
-        <tspan x="850.625" dy="28">prior equity</tspan>
-      </text>
-      <text x="850.625" y="300" text-anchor="middle" font-size="18">Executed side fees</text>
-      <text x="50" y="402.0" font-size="19">
-        <tspan x="50" dy="0">Top N lists signal targets. Portfolio equity = cash + marked positions.</tspan>
-      </text>
-    </g>
-    <path d="M 44 374 H 956" fill="none" stroke="#163450" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="824" viewBox="0 0 1280 824" role="img" aria-labelledby="title desc">
+  <title id="title">Stock backtests: targets, actual fills and daily equity</title>
+  <desc id="desc">Scores and signal-time eligibility determine targets without future labels. Independent market/calendar data determines valuation and tradeability; optional labels support diagnostics. The ledger marks existing positions, attempts due sells and funds targets from available cash. Blocked exits retain capital. Published signals, orders, positions, trades, daily and summary artifacts distinguish target intent from actual exposure.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="808" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">Stock backtests: targets, actual fills and daily equity</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">Signal quality and portfolio accounting use separate inputs and answer different questions.</text>
+    <rect x="48" y="126" width="368" height="146" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="160" font-size="22" font-weight="700">Signals</text>
+    <text x="72" y="192" font-size="17">Prediction scores + eligibility</text>
+    <text x="72" y="218" font-size="17">Rank targets in the chosen universe</text>
+    <text x="72" y="244" font-size="17">Selection uses no future labels.</text>
+    <rect x="456" y="126" width="368" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="160" font-size="22" font-weight="700">Market + calendar</text>
+    <text x="480" y="192" font-size="17">Independent prices and adjustments</text>
+    <text x="480" y="218" font-size="17">Buy / sell flags · Trading dates</text>
+    <text x="480" y="244" font-size="17">Missing quotes are not suspensions.</text>
+    <rect x="864" y="126" width="368" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="160" font-size="22" font-weight="700">Labels (optional)</text>
+    <text x="888" y="192" font-size="17">Fixed-next-market-day returns</text>
+    <text x="888" y="218" font-size="17">IC · RankIC · NDCG · Benchmarks</text>
+    <text x="888" y="244" font-size="17">Diagnostics do not set targets.</text>
+    <rect x="32" y="330" width="1216" height="232" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="48" y="366" font-size="18" font-weight="700" fill="#52738f">Shared position ledger · each Top N / universe has its own portfolio</text>
+    <rect x="48" y="394" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="428" font-size="22" font-weight="700">Mark positions</text>
+    <text x="72" y="460" font-size="17">Value existing holdings each day</text>
+    <text x="72" y="486" font-size="17">Equity = cash + marked positions</text>
+    <text x="72" y="512" font-size="17">Retain reliable marks in suspensions.</text>
+    <rect x="456" y="394" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="428" font-size="22" font-weight="700">Attempt due sells</text>
+    <text x="480" y="460" font-size="17">Apply sell flags and executed fees</text>
+    <text x="480" y="486" font-size="17">Blocked exits retain capital</text>
+    <text x="480" y="512" font-size="17">No forced liquidation at cutoff.</text>
+    <rect x="864" y="394" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="428" font-size="22" font-weight="700">Fund signal targets</text>
+    <text x="888" y="460" font-size="17">Use available cash and capacity</text>
+    <text x="888" y="486" font-size="17">Charge fees on executed buys</text>
+    <text x="888" y="512" font-size="17">Unfilled targets are not backfilled.</text>
+    <path d="M 232 272 L 232 330" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 640 272 L 640 330" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 416 467 L 456 467" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 824 467 L 864 467" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 640 562 L 640 602" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="602" width="1184" height="144" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="72" y="636" font-size="23" font-weight="700">Published portfolio evidence</text>
+    <text x="72" y="671" font-size="17">signals = targets · orders = fills / unfilled reasons · positions = actual exposure · trades = completed holdings</text>
+    <text x="72" y="702" font-size="17">daily = equity / returns / costs · summary = original period metrics · incomplete_market_data = provisional evaluation</text>
+    <text x="72" y="730" font-size="17" fill="#52738f">Daily net return = equity / previous equity − 1</text>
+    <path d="M 1048 272 L 1250 272 L 1250 672 L 1232 672" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="7 6" />
+    <text x="48" y="799" font-size="16" fill="#52738f">Read the execution protocol, costs and data quality before interpreting results as a tradable strategy.</text>
   </g>
 </svg>

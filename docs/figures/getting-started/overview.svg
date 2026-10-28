@@ -1,81 +1,64 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="680" viewBox="0 0 1280 680" role="img" aria-labelledby="title desc">
-  <title id="title">AxonX · Agent-native Quantitative Research Harness</title>
-  <desc id="desc">A research prompt, AxonX Skill, and source tools guide external or built-in Agents to develop plugin code. Local CLI exec calls the TaskExecutor directly. Studio, remote CLI, MCP, and built-in Job tools use service Jobs; the cli Job starts a service-owned CLI subprocess for exec, kill, and plugin commands. Plugins define typed research Tasks, and the synchronous executor runs steps and child Tasks while writing status, progress, and logs. TaskIndex observes target-local workspace records; kill is an independent CLI command. The workspace stores records, artifact references, and lineage, with log references pointing to the configured log directory. Solid arrows show calls and recording; dashed arrows show plugin development and evidence queries.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
-    </marker>
-  </defs>
-  <rect x="8" y="5.9" width="1264" height="668.3" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="852" viewBox="0 0 1280 852" role="img" aria-labelledby="title desc">
+  <title id="title">AxonX</title>
+  <desc id="desc">Three layers: Agents with Skill and tools or Studio; direct CLI commands and Job services; six core capabilities. A service cli Job launches a command process. Task runtime executes research; application components query and manage evidence. Core cards are capabilities, not sequential stages.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="836" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
-    <text x="52" y="47" font-size="34" font-weight="700" text-anchor="start" fill="#18324b">AxonX</text>
-    <text x="52" y="84" font-size="20" font-weight="400" text-anchor="start" fill="#52738f">Agent-native quantitative research harness</text>
-    <text x="1228" y="60.0" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Prompt → Code → Experiments</text>
-    <rect x="52" y="101" width="560" height="73" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="80" y="129" font-size="22" font-weight="700">Research prompt + AxonX Skill</text>
-    <text x="80" y="154" font-size="17" fill="#52738f">Source + file / command tools</text>
-    <path d="M 332 174 V 201" fill="none" stroke="#52738f" stroke-width="2" marker-end="url(#arrow)" />
-    <g transform="translate(0 100)">
-    <rect x="52" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="80" y="132" font-size="23" font-weight="700" text-anchor="start" fill="#18324b">External / Built-in Agents</text>
-    <text x="80" y="158" font-size="17" font-weight="400" text-anchor="start" fill="#52738f">CLI / MCP / built-in Job tools</text>
-    <rect x="668" y="1" width="560" height="173.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="696" y="36" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
-    <text x="1200" y="36" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">HTTP / SSE</text>
-    <text x="696" y="70" font-size="18" fill="#52738f">Built-in Agent sessions</text>
-    <text x="696" y="100" font-size="18" fill="#18324b">Task control · Logs · Lineage</text>
-    <text x="696" y="130" font-size="18" fill="#18324b">Factors · Training curves · Predictions</text>
-    <text x="696" y="158" font-size="18" fill="#18324b">Backtests · Strategy comparisons</text>
-    <path d="M 188 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 480 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 948 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <rect x="52" y="203.4" width="252" height="82" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="80" y="237" font-size="25" font-weight="700">Local CLI</text>
-    <text x="80" y="263" font-size="17" fill="#52738f">exec · kill · plugin</text>
-    <rect x="344" y="203.4" width="884" height="82" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="786" y="232.7" font-size="27" font-weight="700" text-anchor="middle" fill="#18324b">Service Job interfaces</text>
-    <text x="432" y="262.7" font-size="18" font-weight="400" text-anchor="middle" fill="#18324b">Discover</text>
-    <path d="M 520 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="609" y="262.7" font-size="18" font-weight="400" text-anchor="middle" fill="#18324b">Task schemas</text>
-    <path d="M 697 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="786" y="262.7" font-size="18" font-weight="400" text-anchor="middle" fill="#18324b">CLI commands</text>
-    <path d="M 874 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="963" y="262.7" font-size="18" font-weight="400" text-anchor="middle" fill="#18324b">Inspect results</text>
-    <path d="M 1051 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="1140" y="262.7" font-size="18" font-weight="400" text-anchor="middle" fill="#18324b">Manage plugins</text>
-    <rect x="32" y="323" width="1216" height="236" rx="24" fill="#ffffff" stroke="#b8cadb" stroke-width="1.8" />
-    <text x="56" y="351" font-size="22" font-weight="700" text-anchor="start" fill="#18324b">Selected execution target</text>
-    <text x="1224" y="351" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Local / Remote</text>
-    <path d="M 188 285.4 V 303 H 430 V 360 H 584 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="306" y="298" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Direct exec</text>
-    <path d="M 716 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="734" y="311.7" font-size="16" font-weight="400" text-anchor="start" fill="#52738f">cli Job → exec</text>
-    <path d="M 1052 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6" marker-end="url(#arrow)" />
-    <text x="1070" y="311.7" font-size="16" font-weight="400" text-anchor="start" fill="#52738f">TaskIndex query</text>
-    <rect x="56" y="372" width="344" height="176" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="80" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Research plugins</text>
-    <path d="M 80 421 H 376" fill="none" stroke="#d1c6ed" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="80" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Data processing · Factors</text>
-    <text x="80" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Training · Prediction · Backtest</text>
-    <text x="80" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Typed Task inputs / outputs</text>
-    <rect x="468" y="372" width="344" height="176" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="492" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Task execution</text>
-    <path d="M 492 421 H 788" fill="none" stroke="#a9d7ca" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="492" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Synchronous CLI process</text>
-    <text x="492" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Steps · Child Tasks</text>
-    <text x="492" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Write status · Progress · Logs</text>
-    <rect x="880" y="372" width="344" height="176" rx="20" fill="#edf3fc" stroke="#bbcee5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="904" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Shared workspace</text>
-    <path d="M 904 421 H 1200" fill="none" stroke="#bbcee5" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="904" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Records · Parameters</text>
-    <text x="904" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Log references · Artifacts</text>
-    <text x="904" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Task graph · Upstream IDs</text>
-    <path d="M 400 469 H 468" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="434" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Define</text>
-    <path d="M 812 469 H 880" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="846" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Record</text>
-    </g>
-    <path d="M 52 237 H 22 V 544 H 56" fill="none" stroke="#52738f" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)" />
-    <text x="18" y="411" font-size="15" fill="#52738f" text-anchor="middle" transform="rotate(-90 18 411)">Develop plugin code</text>
+    <text x="48" y="51" font-size="31" font-weight="700">AxonX</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">Agent-native quantitative research harness · Prompt → Code → Experiments</text>
+    <text x="48" y="123" font-size="18" font-weight="700" fill="#52738f">01  Research interfaces</text>
+    <rect x="48" y="140" width="552" height="120" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="174" font-size="22" font-weight="700">Agents + AxonX Skill</text>
+    <text x="72" y="206" font-size="17">Research prompt · Source + file tools</text>
+    <text x="72" y="232" font-size="17">External CLI / MCP · Built-in CLI / Job tools</text>
+    <rect x="680" y="140" width="552" height="120" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="704" y="174" font-size="22" font-weight="700">AxonX Studio</text>
+    <text x="704" y="206" font-size="17">Agent sessions · Task control · Logs · Lineage</text>
+    <text x="704" y="232" font-size="17">Factors · Models · Predictions · Backtests · Comparisons</text>
+    <text x="48" y="302" font-size="18" font-weight="700" fill="#52738f">02  Commands &amp; services</text>
+    <rect x="48" y="320" width="552" height="120" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="354" font-size="22" font-weight="700">CLI commands</text>
+    <text x="72" y="386" font-size="17">exec · kill · plugin</text>
+    <text x="72" y="412" font-size="17">Run locally or through a service-owned child</text>
+    <rect x="680" y="320" width="552" height="120" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="704" y="354" font-size="22" font-weight="700">Job service · HTTP / SSE / MCP</text>
+    <text x="704" y="386" font-size="17">Discover schemas · Query status / logs / results</text>
+    <text x="704" y="412" font-size="17">Sessions · Workspace · Machine operations</text>
+    <path d="M 324 260 L 324 320" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 576 260 L 740 320" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 956 260 L 956 320" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 680 397 L 600 397" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="640" y="383" font-size="15" fill="#52738f" text-anchor="middle">cli Job</text>
+    <text x="48" y="482" font-size="18" font-weight="700" fill="#52738f">03  AxonX core</text>
+    <rect x="32" y="500" width="1216" height="306" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <rect x="48" y="516" width="384" height="128" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="550" font-size="22" font-weight="700">Task definitions</text>
+    <text x="72" y="582" font-size="17">Typed inputs / outputs · Research bases</text>
+    <text x="72" y="608" font-size="17">Steps · Child Tasks · Built-in Tasks</text>
+    <rect x="448" y="516" width="384" height="128" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="472" y="550" font-size="22" font-weight="700">Task runtime</text>
+    <text x="472" y="582" font-size="17">Catalog · Synchronous executor</text>
+    <text x="472" y="608" font-size="17">Lifecycle · Progress · Process control</text>
+    <rect x="848" y="516" width="384" height="128" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="872" y="550" font-size="22" font-weight="700">Application components</text>
+    <text x="872" y="582" font-size="17">Config · Providers · Jobs · Agent</text>
+    <text x="872" y="608" font-size="17">TaskIndex · Machine · Sync · Proxy</text>
+    <rect x="48" y="660" width="384" height="128" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="694" font-size="22" font-weight="700">Evidence &amp; artifacts</text>
+    <text x="72" y="726" font-size="17">Metadata · Parameters · Logs · Files</text>
+    <text x="72" y="752" font-size="17">Input snapshots · Recorded lineage</text>
+    <rect x="448" y="660" width="384" height="128" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="472" y="694" font-size="22" font-weight="700">Plugin system</text>
+    <text x="472" y="726" font-size="17">Task registration · Discovery</text>
+    <text x="472" y="752" font-size="17">Wheel build · Install · Fingerprints</text>
+    <rect x="848" y="660" width="384" height="128" rx="20" fill="#fff2df" stroke="#dfc89e" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="872" y="694" font-size="22" font-weight="700">Daemon &amp; scheduling</text>
+    <text x="872" y="726" font-size="17">Supervise service · Restart · Update</text>
+    <text x="872" y="752" font-size="17">App Cron → daemon-owned exec</text>
+    <path d="M 528 440 L 528 516" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="546" y="467" font-size="15" fill="#52738f">exec / kill</text>
+    <path d="M 1056 440 L 1056 516" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="1074" y="467" font-size="15" fill="#52738f">Query / manage</text>
+    <text x="48" y="831" font-size="16" fill="#52738f">Each execution target owns its installed code, data, processes and research evidence.</text>
   </g>
 </svg>

@@ -7,7 +7,7 @@ description: 选择外部 Agent 的 CLI / MCP 接入，或 Studio 中的内置 A
 
 AxonX 为 Agent 开发量化插件、执行实验和分析结果提供工具与运行环境。将研究 Prompt 与 AxonX Skill 或开发指南结合，选择外部宿主或配置好的 Studio 内置会话。具备源码与代码工具时，两条路径都可用于插件开发；模型配置和会话管理由不同一方负责。
 
-![相互独立的 Agent 接入路径](../../figures/agent/mcp-surfaces.svg)
+![外部与内置 Agent 入口及共同研究流程](../../figures/agent/workflow.svg)
 
 ## 从研究目标开始
 

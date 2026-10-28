@@ -2,8 +2,6 @@
 
 命名 proxy 组件把 `/proxy/{name}` 请求转发给配置的固定 HTTP(S) 上游，保留请求方法、查询、端到端头和正文。这个入口直接使用上游格式，不经过 JobResponse 封装，也不同于 targets 的远程 Job 转发。
 
-![HTTP 代理流程](../../figures/guides/http-proxy.svg)
-
 ## 启用一个代理
 
 创建 `proxy.yaml`：

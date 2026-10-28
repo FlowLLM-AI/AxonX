@@ -1,7 +1,5 @@
 # Streaming Events
 
-![Streaming events](../../figures/api/events.svg)
-
 ## Connection and framing
 
 POST `/jobs/NAME/events` with the ordinary Job envelope and token; consume `text/event-stream`. Frames contain `event: KIND` and one JSON `data:` line followed by a blank line. Kinds are progress, log, artifact, agent_message and result.

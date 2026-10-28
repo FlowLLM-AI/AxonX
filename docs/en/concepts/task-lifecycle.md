@@ -1,6 +1,6 @@
 # Task Lifecycle
 
-![Current Task lifecycle](../../figures/concepts/lifecycle.svg)
+![Execution owners, synchronous Task lifecycle and observation](../../figures/concepts/task-execution.svg)
 
 ## Names and execution identity
 

@@ -4,8 +4,6 @@ Sessions are owned by the configured Agent backend and persisted in its session 
 
 All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-![Agent session lifecycle](../../figures/api/agent-session.svg)
-
 ## Endpoint list
 
 | Job                    | Purpose                                                           |

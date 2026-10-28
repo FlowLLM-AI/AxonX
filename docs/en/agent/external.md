@@ -7,7 +7,7 @@ description: Develop quantitative plugins with Skill + prompt and execute experi
 
 External Agents use their own models, code tools, and session environments to develop or improve quantitative plugins, then execute and inspect research through AxonX. This guide uses CLI access; read [MCP integration](mcp-integration.md) when the host needs to discover service tools directly.
 
-![External Agent development and research workflow](../../figures/agent/external-workflow.svg)
+![Skill and tools lead from a research goal to Task evidence](../../figures/agent/workflow.svg)
 
 ## Prepare the service and instructions
 

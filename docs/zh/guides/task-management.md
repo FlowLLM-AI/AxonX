@@ -1,7 +1,5 @@
 # Task 执行与观察
 
-![Task 进程归属](../../figures/guides/task-management.svg)
-
 ## 发现并执行
 
 ```bash
@@ -33,6 +31,12 @@ CLI status/wait 默认摘要，完整详情包含输入输出、步骤和子任�
 当前文件接口为 `delete_entries --paths '["base/base#demo#add-01"]'`，不保护活动进程。确认写入者均停止，使用工作区相对路径并与并发执行协调。该操作也删除 persistent/，删除不能代替停止进程。
 
 ## Studio
+
+![Studio 0.3.0 grouped Task list](../../figures/studio/task-list.png)
+
+[查看高清原图](../../figures/studio/task-list.png)
+
+完整截图展示 Playground 合成 Task 的分组与状态。
 
 任务定义使用当前输入 Schema 构造表单，执行通过服务拥有的 CLI 命令并展示实时输出，metadata 独立观察。区分命令连接失败与 Task 失败，重跑比较 started_at，并确认所选机器。任务分组反映工作区记录，包括副本和其他进程结果。
 

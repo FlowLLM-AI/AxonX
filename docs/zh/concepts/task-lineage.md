@@ -2,7 +2,9 @@
 
 依赖图记录声明的输入引用，父子 metadata 单独记录同步调用关系。这些记录提供关系证据；阶段执行与数据兼容性校验仍由调用方完成。
 
-![Task 关系](../../figures/concepts/lineage.svg)
+![研究输入依赖与独立记录的父子调用关系](../../figures/research/workflow.svg)
+
+Alpha158 示例的上方展示输入依赖，下方区分调用记录。只有声明的 upstream 引用会成为 `get_task_graph` 的边。
 
 ## 传递上游身份
 
@@ -22,6 +24,12 @@ Python/HTTP 入参使用 JSON 数组，CLI exec 也接受逗号分隔 ID。名�
 `get_task_graph` 仅根据 `metadata.input_params.upstream_task_ids` 建边，返回包含缺失上游引用的输入依赖连通图。状态不是 `succeeded` 的已有节点标记为 `provisional`。`parent_task_id` 和 `children` 在 metadata 中描述进程内调用，不会增加依赖图边。因此，没有声明输入依赖的父 Task 即使执行了多个子任务，也可能在图中单独出现。
 
 ## 查询与检查
+
+![Studio 0.3.0 Task details and dependency graph](../../figures/studio/task-lineage.png)
+
+[查看高清原图](../../figures/studio/task-lineage.png)
+
+在 Studio 打开任务详情并选择 **上下游依赖**。完整截图使用 Playground 合成的 ETL、分析、训练、预测和回测记录。
 
 ```bash
 axonx get_task_graph --task-id 'predict#my-predict#prediction-01'

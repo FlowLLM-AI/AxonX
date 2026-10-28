@@ -33,8 +33,6 @@ npm run dev
 | `src/styles`        | 设计变量、外壳和业务样式                          |
 | `src/locales`       | 中文、英文翻译资源                                |
 
-![Studio 功能地图](../../figures/getting-started/studio-map.svg)
-
 单选下拉统一使用 `src/shared/ui/Select.tsx`：`Select` 保留原生 option 写法、change 事件及表单校验；带内联标签的工具栏选择器可使用接受选项列表的 `Picker`。两者共用 `styles/select.css` 的主题样式、键盘导航及视口避让，不再新增可见的原生 select 或重复的菜单实现。
 
 ## 增加页面

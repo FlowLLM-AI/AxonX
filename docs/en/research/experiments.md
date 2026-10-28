@@ -7,7 +7,7 @@ description: Fix controls, run ablations, lock a configuration, and evaluate evi
 
 AxonX preserves execution evidence; experiment design determines which conclusions that evidence supports. This guide organizes a parameter or feature change into an inspectable comparison. Plugin READMEs describe algorithms; concrete settings, metrics, and provenance live in the [Alpha158 case study](alpha158-case.md).
 
-![Screening, configuration lock, and independent confirmation](../../figures/research/experiments.svg)
+![Development screening, independent confirmation and paired comparison](../../figures/research/experiments.svg)
 
 ## Define the question and controls first
 

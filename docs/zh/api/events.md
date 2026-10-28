@@ -1,7 +1,5 @@
 # 流式事件
 
-![流式事件](../../figures/api/events.svg)
-
 ## 连接与帧格式
 
 向 `/jobs/NAME/events` POST 普通 Job 封装和 token，消费 `text/event-stream`。每帧含 `event: KIND`、一行 JSON `data:` 和空行，kind 为 progress、log、artifact、agent_message、result。

@@ -7,8 +7,6 @@ description: Download raw market-data partitions, static master data, and CSI 30
 
 The built-in `download_tushare_task` is an `api` Task that organizes request results into Parquet files in the workspace. It prepares raw data; the ETL plugin generates Alpha158 features.
 
-![Download and storage](../../figures/research/tushare-layout.svg)
-
 ## Configuring the data connection
 
 Set these variables in the service environment executing the Task:
@@ -33,9 +31,7 @@ Access scope, quotas, and authorization are determined upstream; this page only 
 
 ## Parameters and dates
 
-![Recorded Tushare download configuration form](../../figures/studio/tushare-submit.png)
-
-Open **Development tools → Task definitions** and select `download_tushare_task`. The form displays dates, calendar-day lookback, request timeout, and dataset groups according to the current task Schema. The screenshot records an earlier configuration form with default values; navigation and layout may differ. Confirm data credentials on the execution machine before running the Task.
+Open **Development tools → Task definitions** and select `download_tushare_task`. The form displays dates, calendar-day lookback, request timeout, and dataset groups according to the current task Schema. See [Using Studio](../getting-started/studio.md#execute-a-task-and-inspect-details) for the complete task-definition interface. Confirm data credentials on the execution machine before running the Task.
 
 | Field        | Default         | Purpose                                                               |
 | ------------ | --------------- | --------------------------------------------------------------------- |

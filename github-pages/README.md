@@ -149,17 +149,18 @@ The site framework lives in `github-pages/site/`, with shared build modules in `
 
 Keep assets in `docs/figures/` by the subject they explain. A page should use a diagram that answers its own question; a transport overview cannot substitute for a session, machine, or installation flow.
 
-| Directory               | Responsibility                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `getting-started/`      | Product overview, first execution, Studio navigation                                              |
-| `concepts/`             | Framework architecture, Job/Task boundaries, lifecycle, workspace, lineage                        |
-| `agent/`                | Independent access paths, external development, built-in evidence and configuration               |
-| `research/`             | Research dependencies, evidence reading, accounting, aligned comparisons, experiment confirmation |
-| `api/`                  | Protocol contracts and specific Task, session, machine, file, plugin/sync flows                   |
-| `guides/`, `reference/` | Operational procedures and configuration/extension contracts                                      |
-| `plugins/`              | Algorithm-specific feature composition                                                            |
-| `benchmark/`            | Historical quantitative results with sources, windows, and metric definitions                     |
-| `studio/`               | Actual UI screenshots used as visual evidence                                                     |
+| Directory          | Responsibility                                                                    |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `getting-started/` | Three-layer product overview: interfaces, services/commands and core capabilities |
+| `concepts/`        | Shared Task lifecycle, execution ownership and workspace evidence                 |
+| `agent/`           | Agent research workflow and independent session/Task identities                   |
+| `research/`        | Research dependencies, portfolio accounting and paired experiment evaluation      |
+| `api/`             | Service access, authentication, Job contracts and transport outcomes              |
+| `plugins/`         | Distribution identities, Task registration and remote wheel deployment            |
+| `benchmark/`       | Historical quantitative results with source settings and metric definitions       |
+| `studio/`          | Actual UI screenshots used as visual evidence                                     |
+
+Maintain nine shared concept diagrams: product architecture, Agent research loop, service protocol, Task execution, workspace evidence, plugin distribution, Alpha158 workflow, experiment comparison, and stock accounting. Embed a diagram only when the surrounding explanation uses those relationships. API field lists, configuration tables, proxy path mappings, and screenshot-led operation guides do not need a repeated overview. Related pages can share a diagram with a caption identifying the relevant part. Brand artwork and the two recorded benchmark charts retain their own data and visual roles.
 
 Use SVG for conceptual diagrams and quantitative charts, and PNG for screenshots. Share diagrams between languages and translate their surrounding explanations and alt text. Keep root README image paths stable. The overview introduces the product; architecture explains implementation; lineage describes recorded references; workflow describes explicit research stages; experiments explains selection and independent confirmation.
 

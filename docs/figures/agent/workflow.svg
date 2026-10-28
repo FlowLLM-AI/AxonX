@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="692" viewBox="0 0 1280 692" role="img" aria-labelledby="title desc">
+  <title id="title">From a research question to evidence</title>
+  <desc id="desc">External Agent hosts load the AxonX Skill and use CLI or public service MCP. Built-in Claude SDK sessions load the development guide and use CLI or configured Job tools. Both develop, install, execute and inspect research. Session UUIDs and research Task identities remain separate.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="676" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">From a research question to evidence</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">External hosts and built-in sessions share the research loop; each owns its model and session configuration.</text>
+    <rect x="48" y="120" width="552" height="146" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="154" font-size="22" font-weight="700">External Agent</text>
+    <text x="72" y="186" font-size="17">Host model + host sessions</text>
+    <text x="72" y="212" font-size="17">AxonX Skill + source / file / command tools</text>
+    <text x="72" y="238" font-size="17">CLI or the selected service /mcp</text>
+    <rect x="680" y="120" width="552" height="146" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="704" y="154" font-size="22" font-weight="700">Built-in Agent in Studio</text>
+    <text x="704" y="186" font-size="17">Server-side Claude SDK + development guide</text>
+    <text x="704" y="212" font-size="17">CLI or explicitly configured Job tools</text>
+    <text x="704" y="238" font-size="17">AxonX session store + session UUID</text>
+    <path d="M 324 266 L 324 314" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 956 266 L 956 314" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="32" y="314" width="1216" height="196" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="48" y="344" font-size="18" font-weight="700" fill="#52738f">One research loop · use the same execution target</text>
+    <rect x="48" y="362" width="272" height="128" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="396" font-size="20" font-weight="700">Define &amp; discover</text>
+    <text x="72" y="428" font-size="15.5">Objective · Baseline · Windows</text>
+    <text x="72" y="454" font-size="17">Read live Task schemas</text>
+    <rect x="352" y="362" width="272" height="128" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="376" y="396" font-size="20" font-weight="700">Develop &amp; install</text>
+    <text x="376" y="428" font-size="17">Edit and validate the plugin</text>
+    <text x="376" y="454" font-size="16">Install on the selected target</text>
+    <path d="M 320 426 L 352 426" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="656" y="362" width="272" height="128" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="680" y="396" font-size="20" font-weight="700">Execute &amp; wait</text>
+    <text x="680" y="428" font-size="17">exec the required stages</text>
+    <text x="680" y="454" font-size="15">Check exit code and Task state</text>
+    <path d="M 624 426 L 656 426" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="960" y="362" width="272" height="128" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="984" y="396" font-size="20" font-weight="700">Inspect &amp; refine</text>
+    <text x="984" y="428" font-size="17">Read artifacts and lineage</text>
+    <text x="984" y="454" font-size="15.5">Compare; plan the next change</text>
+    <path d="M 928 426 L 960 426" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="546" width="1184" height="100" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="72" y="579" font-size="22" font-weight="700">Retain Task ID + started_at + parameters + artifacts</text>
+    <text x="72" y="613" font-size="17">Session history explains the conversation. Task records and files preserve the research evidence.</text>
+    <text x="48" y="671" font-size="16" fill="#52738f">cancel_agent_turn interrupts a session turn; CLI kill manages an independent research execution.</text>
+  </g>
+</svg>

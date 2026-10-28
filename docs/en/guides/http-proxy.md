@@ -2,8 +2,6 @@
 
 A named proxy component forwards `/proxy/{name}` requests to a configured fixed HTTP(S) upstream, preserving the request method, query, end-to-end headers, and body. This entry uses the upstream format directly without JobResponse wrapping, and differs from remote Job forwarding through targets.
 
-![HTTP proxy flow](../../figures/guides/http-proxy.svg)
-
 ## Enable a proxy
 
 Create `proxy.yaml`:

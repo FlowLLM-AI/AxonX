@@ -2,7 +2,9 @@
 
 The dependency graph records declared input references. Parent/child metadata records synchronous invocations separately. These records provide evidence of relationships; callers still execute stages and validate data compatibility.
 
-![Task lineage](../../figures/concepts/lineage.svg)
+![Research input dependencies and separate parent-child invocations](../../figures/research/workflow.svg)
+
+The Alpha158 example shows input dependencies above and invocation records below. Only declared upstream references become edges in `get_task_graph`.
 
 ## Passing upstream identities
 
@@ -22,6 +24,12 @@ Python/HTTP inputs use a JSON array. CLI exec accepts that array or comma-separa
 `get_task_graph` builds edges only from `metadata.input_params.upstream_task_ids`. It returns the connected input-dependency component, including missing referenced upstreams. Nodes are `provisional` while their state is not `succeeded`. `parent_task_id` and `children` describe in-process invocations in metadata and do not add graph edges. A parent with no declared input dependencies may therefore appear alone even when it has executed children.
 
 ## Querying and inspecting
+
+![Studio 0.3.0 Task details and dependency graph](../../figures/studio/task-lineage.png)
+
+[Full-resolution screenshot](../../figures/studio/task-lineage.png)
+
+In Studio, open a Task's details and select **Dependencies**. This complete screenshot uses Playground's synthetic ETL, analysis, training, prediction, and backtest records.
 
 ```bash
 axonx get_task_graph --task-id 'predict#my-predict#prediction-01'

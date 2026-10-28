@@ -1,6 +1,8 @@
 # 插件 Manifest
 
-![Task 注册发现](../../figures/reference/plugin.svg)
+![发行包、插件入口与 Task 注册名是不同名称](../../figures/plugins/distribution.svg)
+
+上方对应插件使用的三种名称；下方说明该包如何部署到远程执行环境。
 
 ## 名称与包布局
 

@@ -1,7 +1,5 @@
 # Python Reference
 
-![Python integration paths](../../figures/reference/python-paths.svg)
-
 ## Import entry points
 
 ```python

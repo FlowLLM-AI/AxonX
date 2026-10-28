@@ -7,7 +7,7 @@ description: Connect data, factor analysis, training, prediction, and backtestin
 
 AxonX provides research task execution, records, artifacts, and Studio visualization. This page uses `plugins/qlib_a158/`, which adapts [Microsoft Qlib](https://github.com/microsoft/qlib)’s Alpha158 baseline, as a concrete algorithm implementation, building a complete path from Tushare data to backtest results. The enhanced `qlib_factor` plugin uses separate `qlib_factor_*` registration names and adds training feature-group parameters. Both share research stages and basic artifact structures, but cross-plugin upstream reuse still requires checking Task definitions, feature order, and protocols. See the [Qlib Factor](../../../plugins/qlib_factor/README.md) for usage.
 
-![From data to research evidence](../../figures/research/workflow.svg)
+![Alpha158 stages, published artifacts and independent factor analysis](../../figures/research/workflow.svg)
 
 ## Before you start
 
@@ -84,7 +84,7 @@ The default training target `label_return_rank` is a cross-sectional rank label.
 
 ## Viewing results in Studio
 
-See [interpreting results](results.md) for actual UI examples by stage. ETL, factor, training, and prediction views show dates, metrics, and artifacts. Screenshots come from existing remote-workspace experiments; this page's dates need not produce the same values.
+See [interpreting results](results.md) for complete Studio 0.3.0 screenshots by stage. ETL, factor, training, and prediction views show dates, metrics, and artifacts. Screenshots use Playground's synthetic data to illustrate the UI; they are not results of this page's commands.
 
 Open ETL, factor, training, prediction, and backtest pages in order and select the corresponding tasks. Research lists read `metadata.json` from successful tasks. Use the task page for status and logs of running tasks.
 

@@ -2,8 +2,6 @@
 
 在 macOS 或 Linux 上使用 Python 3.12+。先运行内置 Demo，再安装研究插件。
 
-![首个 Task](../../figures/getting-started/quickstart.svg)
-
 ## 安装
 
 ```bash

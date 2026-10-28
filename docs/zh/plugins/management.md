@@ -2,7 +2,7 @@
 
 插件是通过 `axonx.plugins` 入口点和 `plugin.yaml` 注册 Task 的 Python distribution。管理命令修改其实际执行的 Python 环境。
 
-![插件部署](../../figures/guides/plugin-deployment.svg)
+![插件包身份与显式远程 wheel 部署](../../figures/plugins/distribution.svg)
 
 ## 三种名称
 

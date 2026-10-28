@@ -2,7 +2,7 @@
 
 AxonX 分离应用能力、同步研究执行和文件证据。
 
-![架构](../../figures/concepts/architecture.svg)
+![AxonX 使用入口、服务命令与核心能力](../../figures/getting-started/overview.svg)
 
 ## 各层职责
 

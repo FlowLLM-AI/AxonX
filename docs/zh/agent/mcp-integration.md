@@ -9,7 +9,7 @@ AxonX HTTP 服务在 `/mcp` 提供 Streamable HTTP MCP，将公开 Job 映射为
 
 MCP 是[外部 Agent](external.md)的一种接入方式。宿主可同时使用 [AxonX Skill](../../../skills/axonx/SKILL.md)提供研究操作说明；通过 CLI 操作服务时不必配置 MCP。内置会话使用另一条组件桥接路径，见[接入总览](overview.md)。
 
-![相互独立的 Agent 接入路径](../../figures/agent/mcp-surfaces.svg)
+![服务连接路径与 HTTP、MCP、SSE 结果](../../figures/api/access.svg)
 
 ## 连接信息
 

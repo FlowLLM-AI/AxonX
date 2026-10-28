@@ -2,7 +2,7 @@
 
 AxonX separates application capabilities, synchronous research and file evidence.
 
-![Architecture](../../figures/concepts/architecture.svg)
+![AxonX interfaces, commands and core capabilities](../../figures/getting-started/overview.svg)
 
 ## Responsibilities by layer
 

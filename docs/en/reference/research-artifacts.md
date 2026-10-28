@@ -9,8 +9,6 @@ Research file records use `revision="<size>:<mtime_ns>"`, not content checksums.
 
 Research Tasks publish results through typed `output_params`. Studio extracts presentation fields from successful tasks' `metadata.json`, then reads artifacts through file previews. This page distinguishes three layers of requirements: required Python base-class fields, fields actually read by Studio, and extension contracts of specific plugins.
 
-![Artifact reading chain](../../figures/research/results-reading.svg)
-
 ## Shared protocol v1
 
 AxonX owns the shared research protocol in `axonx.task.models.artifacts`. Research protocol headers require `version=1` and a `TaskType` value in `task_type`. Readers reject missing headers and other versions.

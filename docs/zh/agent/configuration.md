@@ -7,8 +7,6 @@ description: 区分框架字段、Claude SDK 选项、会话存储与工具权�
 
 当前内置 Agent 后端是 `claude`，由 Claude Agent SDK 实现。AxonX 管理会话身份、Job 工具桥接和状态目录；SDK 管理模型调用及自身执行选项。
 
-![配置层次](../../figures/agent/configuration-layers.svg)
-
 ## 启用默认内置 Agent
 
 先完成[快速开始](../getting-started/quickstart.md)，在启动目录的 `.env` 中配置服务 token 和模型环境：

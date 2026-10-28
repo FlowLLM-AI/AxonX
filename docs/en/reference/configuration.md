@@ -1,7 +1,5 @@
 # Configuration Reference
 
-![Configuration resolution](../../figures/reference/config-resolution.svg)
-
 ## Minimal override configuration
 
 ```yaml

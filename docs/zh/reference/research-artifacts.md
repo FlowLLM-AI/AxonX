@@ -9,8 +9,6 @@ description: 标准研究输出、文件版本、训练曲线及回测表的生�
 
 研究 Task 使用类型化 `output_params` 发布结果，Studio 从成功任务的 `metadata.json` 提取展示字段，再通过文件预览读取产物。本页区分三层要求：Python 基类必填字段、Studio 实际读取字段、具体插件的扩展协议。
 
-![产物阅读链](../../figures/research/results-reading.svg)
-
 ## 统一协议 v1
 
 AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。研究协议头必须包含 `version=1`，在 `task_type` 中使用 `TaskType` 的值。读取时拒绝缺少协议头和其他版本的数据。

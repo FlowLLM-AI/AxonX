@@ -1,6 +1,8 @@
 # Plugin Manifest
 
-![Task registration discovery](../../figures/reference/plugin.svg)
+![Distribution, plugin entry and Task registration are distinct names](../../figures/plugins/distribution.svg)
+
+The upper row maps the three names used by a plugin. The lower row shows how the same package reaches a remote execution environment.
 
 ## Names and package layout
 

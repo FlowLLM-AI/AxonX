@@ -2,7 +2,9 @@
 
 Schedules launch local synchronous Task commands. The application determines future trigger times; the daemon owns launched processes.
 
-![Cron process ownership](../../figures/guides/scheduling.svg)
+![Cron launches daemon-owned Tasks alongside local and service-owned commands](../../figures/concepts/task-execution.svg)
+
+The upper-right path is scheduled execution: App Cron determines triggers, while the daemon owns launched commands. It shares the Task runtime with the two manual paths.
 
 ## Minimal configuration
 

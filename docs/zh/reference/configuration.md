@@ -1,7 +1,5 @@
 # 配置参考
 
-![配置解析](../../figures/reference/config-resolution.svg)
-
 ## 最小覆盖配置
 
 ```yaml

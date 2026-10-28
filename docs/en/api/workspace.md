@@ -4,8 +4,6 @@ File Jobs operate on the selected workspace. Artifact paths come from current Ta
 
 All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-![Upload, consume and clean up](../../figures/api/upload.svg)
-
 ## Endpoint list
 
 | Job                     | Purpose                                                               |

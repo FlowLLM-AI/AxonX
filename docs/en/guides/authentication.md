@@ -2,8 +2,6 @@
 
 The AxonX service protects protocol calls with a Bearer token. This credential grants access to the service's public capabilities; it is not a permission model separated by user, project, or role. Configuring a token is a necessary first step for running default task Jobs.
 
-![Authentication layers](../../figures/guides/authentication.svg)
-
 ## Configure service credentials
 
 The default configuration reads `AXONX_SERVICE_TOKEN`:

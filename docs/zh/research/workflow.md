@@ -7,7 +7,7 @@ description: 用 Alpha158 插件串联数据、因子分析、训练、预测与
 
 AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中适配 [Microsoft Qlib](https://github.com/microsoft/qlib) Alpha158 基线的 `plugins/qlib_a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `qlib_factor` 使用独立的 `qlib_factor_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)。
 
-![数据到研究证据](../../figures/research/workflow.svg)
+![Alpha158 阶段、发布产物与独立的因子分析分支](../../figures/research/workflow.svg)
 
 ## 开始前确认
 
@@ -84,7 +84,7 @@ qlib_a158 独立发布特征、原始标签、行情和日历产物。标签固�
 
 ## 在 Studio 查看结果
 
-各阶段的真实界面示例见[结果解读](results.md)：ETL、因子、训练与预测分别展示日期、指标与产物。截图来自远程工作区已有实验，不要求按本文日期得到相同数值。
+各阶段的 Studio 0.3.0 完整截图见[结果解读](results.md)：ETL、因子、训练与预测分别展示日期、指标与产物。截图使用 Playground 合成数据说明界面，不是执行本文命令得到的结果。
 
 依次进入 ETL、因子、训练、预测和回测页面，选中对应任务。研究列表读取成功任务的 `metadata.json`，运行中任务应去任务页面查看状态和日志。
 

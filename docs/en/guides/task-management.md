@@ -1,7 +1,5 @@
 # Task Execution and Observation
 
-![Task process ownership](../../figures/guides/task-management.svg)
-
 ## Discover and execute
 
 ```bash
@@ -33,6 +31,12 @@ Only confirmed dead local processes can be reconciled. A foreign or inaccessible
 The current file API is `delete_entries --paths '["base/base#demo#add-01"]'`. It has no active-process protection. Confirm all writers are stopped, use workspace-relative paths and coordinate against concurrent execution. It removes persistent/ too. Deletion does not stop a process.
 
 ## Studio
+
+![Studio 0.3.0 grouped Task list](../../figures/studio/task-list.png)
+
+[Full-resolution screenshot](../../figures/studio/task-list.png)
+
+The complete screenshot shows Playground's synthetic Task groups and states.
 
 Task definitions provide forms for current input schemas. Execute starts a service-owned CLI command and shows live output; task metadata is observed separately. Distinguish command connection failure from Task failure, compare started_at on reruns and inspect the selected machine. Grouped Task lists reflect records in that workspace, including replicas and other processes.
 

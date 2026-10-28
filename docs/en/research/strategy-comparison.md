@@ -9,7 +9,9 @@ The Studio strategy comparison page reads daily artifacts from two Backtest Task
 
 This page explains comparison UI calculations and operations. Define controls, selection rules, and independent confirmation windows beforehand using [experiment design and confirmation](experiments.md).
 
-![Common-window comparison](../../figures/research/comparison-window.svg)
+![Common-window comparison follows explicit experiment controls](../../figures/research/experiments.svg)
+
+The lower half shows the comparison page calculation: select matching reports, pair common valid dates, then recompute the visible-window metrics.
 
 ## Preparing two experiments
 
@@ -31,7 +33,9 @@ Wait for each task to succeed, then select A and B on the strategy comparison pa
 
 ![Strategy comparison overview](../../figures/studio/strategy-overview.png)
 
-The screenshot shows two existing experiments from a remote workspace. **Prediction sources differ** warns that upstream predictions differ; explain differences together with lineage. The displayed values are not expected returns for this page's parameter examples.
+[Full-resolution screenshot](../../figures/studio/strategy-overview.png)
+
+The complete Studio 0.3.0 screenshot compares Playground's synthetic `demo` and `volatile` backtests, including selection, shared-window metrics, and return curves. The displayed values are fictional UI examples. For real experiments, **Prediction sources differ** warns that upstream predictions differ; explain differences together with lineage.
 
 1. Select the current machine and two successful backtest records.
 2. Check input parameter differences and page warnings. The page flags incomplete market data and differing accounting protocol versions.
@@ -69,8 +73,6 @@ Even when both tasks originally include identical dates, shortening the window c
 
 ## Return and risk definitions
 
-![Strategy return and risk comparison](../../figures/studio/strategy-return-risk.png)
-
 Switch between Net and Gross in **Return & risk**. The chart's zoom bar can focus on the last segment. Local chart zoom and the page's start/end date filter are separate operations; still check the common page window when interpreting metrics.
 
 Cumulative net return compounds daily net returns; the gross return curve sums daily gross returns. Annualized volatility uses sample standard deviation. Maximum drawdown includes initial equity of 1. Only days with net return greater than zero count as wins.
@@ -81,9 +83,7 @@ With fewer than two observations in the common window, sample standard deviation
 
 ## Signal quality and target differences
 
-![Strategy signal quality comparison](../../figures/studio/strategy-quality.png)
-
-**Signal quality** supports IC or RankIC trends; the screenshot shows RankIC MA20. Missing values and valid observation counts still follow the pairing rules below.
+**Signal quality** supports IC or RankIC trends, including 20-row rolling curves. Missing values and valid observation counts follow the pairing rules below.
 
 `pairedMean` and `pairedRatio` additionally require both IC or RankIC values to be finite, so signal quality may have fewer valid days than the common net-return window. The 20-row rolling quality curves filter each side's valid values separately; read them together with valid samples and missing values.
 
@@ -98,11 +98,7 @@ It is neither the intersection divided by 30 nor capital-weighted overlap. The c
 
 ## Period returns and trading observations
 
-![Strategy period comparison](../../figures/studio/strategy-periods.png)
-
 **Periods** shows period net returns and the B−A difference within the common window by Year, Quarter, or Month. A strategy can perform differently across years; period results help locate the source of overall differences.
-
-![Strategy trading comparison](../../figures/studio/strategy-trading.png)
 
 **Trading & holdings** first shows average turnover, average daily costs, and turnover trends. When examining target intersections, retain the previous section's limitations on Top 30 fields; high target overlap is not actual capital-position overlap.
 

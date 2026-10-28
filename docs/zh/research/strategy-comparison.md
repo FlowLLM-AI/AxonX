@@ -9,7 +9,9 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 
 本页解释比较界面的计算与操作。比较方案的控制变量、筛选规则和独立确认窗口应事先按[实验设计与确认](experiments.md)定义。
 
-![共同窗口比较](../../figures/research/comparison-window.svg)
+![共同窗口比较建立在明确的实验控制之上](../../figures/research/experiments.svg)
+
+下半部分对应比较页的计算过程：选择匹配的报告，对齐共同有效日期，再重算可见窗口指标。
 
 ## 准备两组实验
 
@@ -31,7 +33,9 @@ axonx exec --task qlib_strategy_backtest --task-name rank-retention \
 
 ![Strategy comparison overview](../../figures/studio/strategy-overview.png)
 
-截图来自远程工作区已有的两个实验。**Prediction sources differ** 提醒上游预测不同，应结合血缘解释差异；页面数值不是本文参数示例的预期收益。
+[查看高清原图](../../figures/studio/strategy-overview.png)
+
+完整截图展示 Studio 0.3.0 对 Playground 合成 `demo` 与 `volatile` 回测的比较，包含任务选择、共同窗口指标和收益曲线。数值为虚构界面示例。比较真实实验时，**Prediction sources differ** 提醒上游预测不同，应结合血缘解释差异。
 
 1. 选择当前机器以及两条成功回测记录。
 2. 核对输入参数差异与页面警告。页面会提示行情不完整和记账协议版本不同。
@@ -69,8 +73,6 @@ B 日期：    02、03、04、05
 
 ## 收益与风险口径
 
-![Strategy return and risk comparison](../../figures/studio/strategy-return-risk.png)
-
 在 **Return & risk** 切换 Net 与 Gross。图内缩放条可以只观察末段走势；图表局部缩放与页面起止日期筛选是两种操作，解释指标时仍核对页面共同窗口。
 
 净累计收益按日净收益复利；毛收益曲线按日毛收益累加。年化波动使用样本标准差，最大回撤包含初始净值 1，胜率只把净收益大于零计为获胜。
@@ -81,9 +83,7 @@ B 日期：    02、03、04、05
 
 ## 信号质量与目标差异
 
-![Strategy signal quality comparison](../../figures/studio/strategy-quality.png)
-
-**Signal quality** 可选择 IC 或 RankIC 趋势，图中为 RankIC 的 MA20。空值与有效观测数仍按下面的配对规则处理。
+**Signal quality** 可选择 IC 或 RankIC 趋势，包含 20 行滚动曲线。空值与有效观测数按下面的配对规则处理。
 
 `pairedMean` 和 `pairedRatio` 会再次要求双方 IC 或 RankIC 都有限，因此信号质量的有效天数可能少于净收益共同窗口。20 行滚动质量曲线分别过滤各侧有效值，应连同有效样本与空值阅读。
 
@@ -98,11 +98,7 @@ A = {a, b, c}，B = {b, c, d}：交集 2 / 并集 4 = 50%
 
 ## 分期收益与交易观察
 
-![Strategy period comparison](../../figures/studio/strategy-periods.png)
-
 **Periods** 按 Year、Quarter 或 Month 查看共同窗口内的分期净收益及 B−A 差值。同一策略可以在不同年份表现不同，分期结果帮助定位总体差异来自哪一段。
-
-![Strategy trading comparison](../../figures/studio/strategy-trading.png)
 
 **Trading & holdings** 先展示平均换手、日均成本与换手走势。继续观察目标交集时，沿用上一节对 Top 30 字段的限制，不能把高目标重合当作真实资金仓位重合。
 

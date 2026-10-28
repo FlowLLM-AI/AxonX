@@ -7,7 +7,7 @@ description: 固定控制变量、执行消融、锁定方案，并用独立窗�
 
 AxonX 保存执行证据，实验设计决定这些证据能支持什么结论。本页说明如何把一次参数或特征修改组织为可检查的研究比较；具体算法由插件 README 维护，具体设定、指标与来源见 [Alpha158 改进实验](alpha158-case.md)。
 
-![筛选、配置锁定与独立确认](../../figures/research/experiments.svg)
+![开发筛选、独立确认与配对比较](../../figures/research/experiments.svg)
 
 ## 先定义问题与控制变量
 

@@ -1,6 +1,6 @@
 # Task 生命周期
 
-![当前 Task 生命周期](../../figures/concepts/lifecycle.svg)
+![执行归属、同步 Task 生命周期与观察](../../figures/concepts/task-execution.svg)
 
 ## 名称与执行身份
 

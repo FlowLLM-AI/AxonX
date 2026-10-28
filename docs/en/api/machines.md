@@ -4,8 +4,6 @@ Inspect the selected interpreter, machine and application. Diagnostic output rep
 
 All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-![Machine targeting](../../figures/api/machine-target.svg)
-
 ## Endpoint list
 
 | Job                 | Purpose                                                                                                                                                    |

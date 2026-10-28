@@ -2,8 +2,6 @@
 
 Use Python 3.12+ on macOS or Linux. Start with the bundled Demo before installing research plugins.
 
-![Your first Task](../../figures/getting-started/quickstart.svg)
-
 ## Install
 
 ```bash

@@ -33,8 +33,6 @@ If a mounted Studio build is removed while the service is running, page requests
 | `src/styles`        | Design variables, shell, and feature styles                                              |
 | `src/locales`       | Chinese and English translation resources                                                |
 
-![Studio feature map](../../figures/getting-started/studio-map.svg)
-
 Use `src/shared/ui/Select.tsx` for single-value dropdowns. `Select` preserves native option markup, change events and form validation; `Picker` accepts an option list for labelled toolbar controls. Both share the same themed menu, keyboard navigation and viewport-aware positioning in `styles/select.css`. Do not add visible native selects or duplicate menu implementations.
 
 ## Adding a page

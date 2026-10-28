@@ -45,7 +45,7 @@
 - **Alpha158 experiments:** risk factors and rank retention improved Top20 net annualized returns by **+1.36 pp and +24.70 pp** over the adapted baseline. See [results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features).
 - **Studio Playground:** explore Tasks and charts with simulated data. <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try it online</a>.
 
-![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
+![AxonX interfaces, commands and core capabilities](docs/figures/getting-started/overview.svg)
 
 <a id="quick-start"></a>
 

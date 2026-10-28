@@ -4,8 +4,6 @@ Execution goes through the native CLI or the service-owned `cli` command Job; ob
 
 All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-![Task execution and observation](../../figures/api/task-call.svg)
-
 ## Endpoint list
 
 | Job                  | Purpose                                                                                                                                                  |

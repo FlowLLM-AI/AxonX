@@ -2,7 +2,7 @@
 
 Plugins are Python distributions that register Tasks through `axonx.plugins` entry points and `plugin.yaml`. Management commands modify the Python environment in which they execute.
 
-![Plugin deployment](../../figures/guides/plugin-deployment.svg)
+![Plugin package identities and explicit remote wheel deployment](../../figures/plugins/distribution.svg)
 
 ## Three names
 

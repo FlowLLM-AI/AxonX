@@ -7,9 +7,7 @@ description: Read Studio research results from data quality and factor diagnosti
 
 Studio organizes successful task results by ETL, factors, training, prediction, and backtesting. Each card corresponds to metadata and file artifacts in the workspace. Charts describe only the data in those artifacts and must be interpreted with the plugin protocol.
 
-![Result reading order](../../figures/research/results-reading.svg)
-
-Screenshots on this page show historical research results from a remote workspace in the English UI. Some use earlier plugin versions; their feature counts, labels, and metrics illustrate those runs, not the current Alpha158 baseline or the README three-version comparison. Use each Task's metadata and plugin version to interpret it. Algorithm descriptions below refer to the current `qlib_a158` implementation.
+Screenshots show the complete English Studio 0.3.0 interface with Playground's synthetic data. Feature counts, labels, curves, and metrics illustrate the UI, not the Alpha158 baseline or the README three-version comparison. Use each real Task's metadata and plugin version to interpret its results. Algorithm descriptions below refer to the current `qlib_a158` implementation.
 
 ## From run pages to result pages
 
@@ -20,6 +18,8 @@ After selecting a result, first check task identity, creation time, source tasks
 ## ETL: assess data reliability first
 
 ![ETL dates, feature columns and labels](../../figures/studio/etl-results.png)
+
+[Full-resolution screenshot](../../figures/studio/etl-results.png)
 
 The result summary presents date range, row count, and feature/label columns together. Check coverage before continuing with downstream analysis.
 
@@ -42,6 +42,8 @@ ETL `statistics` files are a plugin extension. The generic base class does not r
 
 ![Factor scores by metric and label](../../figures/studio/factor-results.png)
 
+[Full-resolution screenshot](../../figures/studio/factor-results.png)
+
 Select metrics and labels through Metric and Label. Both bar direction and value express factor scores.
 
 qlib_a158 produces `factor_analysis.csv` and `factor_quantiles.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
@@ -54,7 +56,9 @@ Studio's `scores` panel uses a plugin-provided “metric group → value” mapp
 
 ## Training: validation and the final model
 
-![Model training summary and effective parameters](../../figures/studio/training-results.png)
+![Studio 0.3.0 training summary, parameters, curves and artifacts](../../figures/studio/training-results.png)
+
+[Full-resolution screenshot](../../figures/studio/training-results.png)
 
 Training details show samples, features, target column, and effective parameters together to help verify experiment configuration.
 
@@ -68,9 +72,7 @@ qlib_a158's training window includes the start and excludes the end, reserving t
 
 ### Reading training curves
 
-![Training and validation curves on separate axes](../../figures/studio/training-curves.png)
-
-Solid lines show training and dashed lines validation. L2 and L1 use left and right axes. Use the bottom zoom bar to inspect selected iterations; do not compare curve heights across axes.
+The complete training screenshot above includes the summary and curves together. Playground's synthetic `train` and `validation` series both use the left axis. Check the legend and axis labels for the selected Task; plugins can publish separate left- and right-axis series with different units.
 
 Each position in `training_curve.x` represents an iteration or an ordered time point. All series share the same x; left and right axes allow two groups with different units. Visually close lines do not establish comparable values; first check axes and metric units.
 
@@ -85,6 +87,8 @@ gain is cumulative gain from splits, while split is the number of splits using a
 ## Prediction: scores and coverage
 
 ![Prediction scores, sample coverage and output columns](../../figures/studio/prediction-results.png)
+
+[Full-resolution screenshot](../../figures/studio/prediction-results.png)
 
 The prediction overview shows score distribution, sample coverage, and output fields. Scores in the screenshot belong to that model and are not return probabilities.
 

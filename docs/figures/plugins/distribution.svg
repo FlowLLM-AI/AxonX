@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="712" viewBox="0 0 1280 712" role="img" aria-labelledby="title desc">
+  <title id="title">From a plugin package to an executable Task</title>
+  <desc id="desc">A Python distribution contributes an axonx.plugins entry pointing to a package with plugin.yaml. The manifest registers Task classes selected by exec --task. Remote deployment builds and uploads a wheel, installs its absolute staged location on the target, cleans the staged relative path, then restarts and verifies the persistent service catalog. Local forwarding does not copy source files.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
+  <rect x="8" y="8" width="1264" height="696" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
+    <text x="48" y="51" font-size="31" font-weight="700">From a plugin package to an executable Task</text>
+    <text x="48" y="83" font-size="18" fill="#52738f">Keep distribution names, plugin entries and Task registration names distinct.</text>
+    <text x="48" y="123" font-size="18" font-weight="700" fill="#52738f">Package contract</text>
+    <rect x="48" y="140" width="368" height="126" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="174" font-size="22" font-weight="700">Python distribution</text>
+    <text x="72" y="206" font-size="17">pyproject.toml · project.name</text>
+    <text x="72" y="232" font-size="17">pip installation / uninstallation</text>
+    <rect x="456" y="140" width="368" height="126" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="480" y="174" font-size="22" font-weight="700">Plugin entry → package</text>
+    <text x="480" y="206" font-size="17">axonx.plugins entry point</text>
+    <text x="480" y="232" font-size="17">Package contains plugin.yaml</text>
+    <rect x="864" y="140" width="368" height="126" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="888" y="174" font-size="22" font-weight="700">Task registration → class</text>
+    <text x="888" y="206" font-size="17">plugin.yaml: tasks</text>
+    <text x="888" y="232" font-size="17">exec --task REGISTRATION</text>
+    <path d="M 416 203 L 456 203" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 824 203 L 864 203" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="48" y="318" font-size="18" font-weight="700" fill="#52738f">Deployment from local source to a remote execution service</text>
+    <rect x="48" y="338" width="272" height="146" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="72" y="372" font-size="20" font-weight="700">Build &amp; inspect</text>
+    <text x="72" y="404" font-size="17">Create the wheel</text>
+    <text x="72" y="430" font-size="17">Retain its SHA-256</text>
+    <rect x="352" y="338" width="272" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="376" y="372" font-size="20" font-weight="700">Upload</text>
+    <text x="376" y="404" font-size="17">POST /upload</text>
+    <text x="376" y="430" font-size="17">Keep path + location</text>
+    <path d="M 320 411 L 352 411" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="656" y="338" width="272" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="680" y="372" font-size="20" font-weight="700">Install on target</text>
+    <text x="680" y="404" font-size="17">cli: plugin install</text>
+    <text x="680" y="430" font-size="17">Use absolute location</text>
+    <path d="M 624 411 L 656 411" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="960" y="338" width="272" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
+    <text x="984" y="372" font-size="20" font-weight="700">Restart &amp; verify</text>
+    <text x="984" y="404" font-size="17">Refresh service catalog</text>
+    <text x="984" y="430" font-size="17">Query Task definitions</text>
+    <path d="M 928 411 L 960 411" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="48" y="526" width="1184" height="126" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
+    <text x="72" y="561" font-size="22" font-weight="700">Release staged files, even when installation fails</text>
+    <text x="72" y="595" font-size="17">DELETE /upload?path=PATH uses the workspace-relative path; cleanup does not undo the installation.</text>
+    <text x="72" y="627" font-size="16" fill="#52738f">Keep upload, install and verification on the same service. New exec processes discover installed registrations.</text>
+    <text x="48" y="688" font-size="16" fill="#52738f">--target forwards commands. Local source files need an explicit transfer before target-side installation.</text>
+  </g>
+</svg>

@@ -45,7 +45,7 @@
 - **Alpha158 实验：** 风险因子与排名保留策略的 Top20 净年化收益，相比适配基线分别提升 **+1.36 pp 和 +24.70 pp**。见[结果与证据边界](#benchmark-agent-开发市场横截面增强特征)。
 - **Studio Playground：** 使用模拟数据体验任务和图表。<a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>。
 
-![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
+![AxonX 使用入口、服务命令与核心能力](docs/figures/getting-started/overview.svg)
 
 <a id="快速开始"></a>
 

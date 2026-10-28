@@ -2,8 +2,6 @@
 
 AxonX 服务使用一个 Bearer token 保护协议调用。这个凭据代表对服务公开能力的访问，不是按用户、项目或角色细分的权限模型。配置 token 是运行默认任务 Job 的必要入门步骤。
 
-![鉴权层次](../../figures/guides/authentication.svg)
-
 ## 配置服务凭据
 
 默认配置读取 `AXONX_SERVICE_TOKEN`：

@@ -7,7 +7,7 @@ description: Choose external CLI / MCP access or built-in agent sessions in Stud
 
 AxonX gives Agents tools and a runtime to develop quantitative plugins, execute experiments, and analyze results. Combine a research prompt with the AxonX Skill or development guide, then use an external host or configured built-in sessions in Studio. Both paths can support plugin development when source and code tools are available; model configuration and sessions are managed by different parties.
 
-![Independent Agent integration paths](../../figures/agent/mcp-surfaces.svg)
+![External and built-in Agent paths and the shared research loop](../../figures/agent/workflow.svg)
 
 ## Start with a research objective
 

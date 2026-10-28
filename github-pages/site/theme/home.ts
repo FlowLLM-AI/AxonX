@@ -1,7 +1,7 @@
 import signalQuality from "../../figures/benchmark/qlib-signal-quality.svg";
 import portfolioResults from "../../figures/benchmark/qlib-topn-results.svg";
 import lineage from "../../figures/studio/task-lineage.png";
-import training from "../../figures/studio/training-curves.png";
+import training from "../../figures/studio/training-results.png";
 import backtest from "../../figures/studio/backtest-overall.png";
 import comparison from "../../figures/studio/strategy-overview.png";
 
@@ -70,32 +70,32 @@ export const screens = [
     image: lineage,
     page: "concepts/task-lineage",
     label: "TASK LINEAGE",
-    width: 796,
-    height: 442,
+    width: 3456,
+    height: 2200,
   },
   {
     id: "training",
     image: training,
     page: "research/results",
     label: "MODEL TRAINING",
-    width: 1190,
-    height: 532,
+    width: 3456,
+    height: 2560,
   },
   {
     id: "backtest",
     image: backtest,
     page: "research/backtest",
     label: "BACKTESTING",
-    width: 1190,
-    height: 388,
+    width: 3456,
+    height: 2320,
   },
   {
     id: "comparison",
     image: comparison,
     page: "research/strategy-comparison",
     label: "STRATEGY COMPARISON",
-    width: 1168,
-    height: 630,
+    width: 3456,
+    height: 2720,
   },
 ] as const;
 

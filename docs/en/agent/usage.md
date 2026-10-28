@@ -9,8 +9,6 @@ AxonX Agent uses the Claude backend and a development guide loaded by default to
 
 This page covers built-in Studio sessions. For external hosts such as Codex or Claude Code, see [external agents](external.md); see the [integration overview](overview.md) for prerequisites of each path.
 
-![Agent evidence loop](../../figures/agent/evidence-loop.svg)
-
 ## Before you start
 
 1. Configure a service token and start an available backend.
@@ -23,6 +21,8 @@ Ordinary tasks do not require Agent calls. Agent calls require an additional mod
 ## Starting an analysis
 
 ![AxonX Agent new chat workspace](../../figures/studio/agent-new-chat.png)
+
+[Full-resolution screenshot](../../figures/studio/agent-new-chat.png)
 
 Enter a question in **New chat** under **Agent**. Press Enter to send or Shift+Enter for a newline. The screenshot shows an empty new session in the static Playground, including the research prompt and development setup guidance. No model request has been sent; data and execution are simulated, and no private history is shown.
 

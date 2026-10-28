@@ -1,6 +1,6 @@
 # HTTP 与 MCP 协议
 
-![统一 Job 协议](../../figures/api/protocol.svg)
+![Job 接入、分发与各传输方式的结果](../../figures/api/access.svg)
 
 ## 路由
 

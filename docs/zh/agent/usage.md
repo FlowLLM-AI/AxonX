@@ -9,8 +9,6 @@ AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完�
 
 本页介绍 Studio 中的内置会话。使用 Codex、Claude Code 等外部宿主时，见[外部 Agent](external.md)；两种路径的前置条件见[接入总览](overview.md)。
 
-![Agent 证据闭环](../../figures/agent/evidence-loop.svg)
-
 ## 开始前准备
 
 1. 配置服务 token 并启动可用后端。
@@ -23,6 +21,8 @@ AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完�
 ## 发起一次分析
 
 ![AxonX Agent new chat workspace](../../figures/studio/agent-new-chat.png)
+
+[查看高清原图](../../figures/studio/agent-new-chat.png)
 
 在 **Agent** 的 **New chat** 输入问题，可按 Enter 发送、Shift+Enter 换行。截图展示静态 Playground 的空白新会话，包含研究 Prompt 和开发配置引导；未发送模型请求，数据与执行均为模拟，也未展示私人历史。
 

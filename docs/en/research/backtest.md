@@ -9,9 +9,15 @@ Alpha158 and enhanced Alpha158 use the same `BaseStockBacktestTask` and position
 
 The shared implementation lives in `axonx.task.builtins.stock`; new plugins should import from this package.
 
-![Stock backtest signals and daily equity accounting](../../figures/research/backtest-accounting.svg)
+![Independent signals, market inputs, actual positions and portfolio reports](../../figures/research/backtest-accounting.svg)
 
 ## Data contracts
+
+![Studio 0.3.0 backtest universe, overall metrics and Top N summary](../../figures/studio/backtest-overall.png)
+
+[Full-resolution screenshot](../../figures/studio/backtest-overall.png)
+
+The complete screenshot shows Playground's synthetic backtest with **Overall** selected. Its metrics illustrate the UI and are not an Alpha158 result.
 
 The Studio backtest page places the universe selector and report before the artifact inventory. Each published file appears once in the inventory below the report.
 
@@ -85,6 +91,12 @@ Adjusted-price units preserve value across corporate-action price changes. Marke
 `daily` retains `topN_*` columns and `dimensions` describes available portfolio sizes and benchmarks. `top30_holdings` is a signal target list; it is not the actual position book. Use `positions` for actual exposure. Unfinished positions remain in that artifact even when no completed trade exists.
 
 ## Signal diagnostics and benchmarks
+
+![Studio 0.3.0 net-return chart and Top 30 signal targets](../../figures/studio/backtest-net-return.png)
+
+[Full-resolution screenshot](../../figures/studio/backtest-net-return.png)
+
+The **Net return** tab combines the date window, return chart, and signal-target table. This complete screenshot uses the same synthetic backtest.
 
 IC, RankIC and NDCG use the same signal-day buyable candidate pool as target selection, including the selected plugin universe. IC and RankIC compare scores with valid fixed-one-market-day raw returns. NDCG measures top-ranked signal quality against the same available return sample; missing labels do not refill the selected ranking. These diagnostics belong to the signal date. Returns and valuation belong to the portfolio calendar date.
 

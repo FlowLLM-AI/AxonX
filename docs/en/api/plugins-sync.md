@@ -4,8 +4,6 @@ Plugin management runs through the ordinary `cli` Job; synchronization retains d
 
 All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
 
-![Plugin deployment and display sync](../../figures/api/plugin-sync.svg)
-
 ## Endpoint list
 
 | Job               | Purpose                                                  |

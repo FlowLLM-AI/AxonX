@@ -2,7 +2,9 @@
 
 Synchronization creates bounded display replicas, not executable workspace backups. Ordinary Tasks are selected after terminal completion. Opt-in live_task_ids select parent groups and their exact child execution snapshots. task_names filters the final Task ID segment; an empty list includes every name.
 
-![Display snapshot synchronization](../../figures/guides/task-sync.svg)
+![Source evidence and read-only display replicas in separate workspaces](../../figures/concepts/workspace.svg)
+
+Follow the dashed copy path to the display workspace. Research consumers continue to read verified source artifacts; the replica path is for inspection.
 
 ## Content and semantics
 

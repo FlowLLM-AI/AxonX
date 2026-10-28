@@ -2,7 +2,9 @@
 
 调度启动本地同步 Task 命令。应用计算后续触发时点，Daemon 拥有已经启动的进程。
 
-![Cron 进程归属](../../figures/guides/scheduling.svg)
+![Cron 启动 Daemon 拥有的 Task，与本地及服务命令分别管理](../../figures/concepts/task-execution.svg)
+
+图中右上方是定时执行路径：App Cron 计算触发时间，Daemon 拥有已启动的命令。它与两种手动路径共用 Task 运行时。
 
 ## 最小配置
 

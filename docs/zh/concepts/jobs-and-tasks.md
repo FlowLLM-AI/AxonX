@@ -2,7 +2,7 @@
 
 Job 暴露应用能力，Task 同步执行研究并持久化证据。CLI、HTTP、MCP 和 Studio 访问相同的已配置 Job，原生 Task 执行是独立的 CLI 操作。
 
-![Job、命令与 Task 结果](../../figures/concepts/jobs-tasks.svg)
+![Job 命令归属、Task 执行与持久化证据](../../figures/concepts/task-execution.svg)
 
 ## 对照
 

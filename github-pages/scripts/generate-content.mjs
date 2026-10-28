@@ -67,7 +67,7 @@ for (const [route, original] of Object.entries(sourceMap)) {
     const source = path.posix.normalize(pathname);
     if (source.startsWith("../"))
       throw new Error(`Link outside repository in ${original}: ${href}`);
-    if (image) {
+    if (image || /\.(?:png|jpe?g|svg|webp|gif)$/i.test(source)) {
       const target = `media/${source}`;
       assets.set(target, source);
       return `/${target}${suffix}`;
