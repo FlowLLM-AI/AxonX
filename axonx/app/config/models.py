@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shlex
 from functools import cached_property
@@ -21,6 +22,17 @@ class CronConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     expression: str
     command: str
+
+    @field_validator("command", mode="before", json_schema_input_type=str | list[Any])
+    @classmethod
+    def normalize_command(cls, value: Any) -> Any:
+        """YAML argument lists can reuse structured values through anchors."""
+        if isinstance(value, list):
+            return shlex.join(
+                item if isinstance(item, str) else json.dumps(item, ensure_ascii=False, allow_nan=False)
+                for item in value
+            )
+        return value
 
     @field_validator("expression")
     @classmethod

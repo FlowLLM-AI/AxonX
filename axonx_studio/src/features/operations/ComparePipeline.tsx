@@ -5,7 +5,6 @@ import { parseHash, routeHash } from "../../app/routes";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import type { TaskMetadata } from "../../shared/api/contracts";
 import type { TaskStepStatus } from "../../shared/api/event";
-import { selectOptions } from "../../shared/lib/values";
 import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { Picker, Select } from "../../shared/ui/Select";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
@@ -334,7 +333,7 @@ export function ComparePipeline({
                 onChange={setModel}
                 label={t("onlineWorkbench.model")}
                 className="online-model-picker"
-                options={selectOptions(models.map((m) => m.name))}
+                options={models.map((m) => ({ value: m.name, label: m.label }))}
               />
             }
           />
@@ -346,7 +345,7 @@ export function ComparePipeline({
           >
             {!preparation && !selectedSteps.length && model && (
               <div className="compare-active-model">
-                <strong>{model.name}</strong>
+                <strong>{model.label}</strong>
                 <small>{model.provider}</small>
                 {badge(model.state)}
               </div>

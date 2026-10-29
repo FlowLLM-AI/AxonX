@@ -63,6 +63,8 @@ cron:
     command: "axonx exec --task download_tushare_task --days-back 7"
 ```
 
+`command` accepts a string or an argument list, such as `[axonx, exec, --task, download_tushare_task, --days-back, 7]`. Mapping and list arguments are JSON-encoded; YAML anchors can share one structured argument between schedules. Loading normalizes the argument list to a command string.
+
 Only five numeric cron fields and local `axonx exec --task NAME` commands are supported by CLI startup. Commands are tokenized without a shell; client options are rejected. Lists replace inherited schedules. Triggers use application timezone, do not replay missed occurrences and require restart to reload. See [Scheduling](../guides/scheduling.md).
 
 ## TargetConfig

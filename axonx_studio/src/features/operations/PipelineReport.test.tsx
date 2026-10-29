@@ -201,28 +201,29 @@ it("shows the business reason when a missed input window never started a child",
 it("shows nightly model plans, skipped comparisons and nested history task logs", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: [{ task_name: "demo", feature_provider: "a_stock" }],
-    trade_time: "1445",
+    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
   };
   parent.steps = [
     {
       ...child.steps[0],
-      name: "demo:etl",
-      group: "demo",
+      name: "demo-1445:etl",
+      group: "demo-1445",
       label: "etl",
       state: "done",
     },
     {
       ...child.steps[0],
-      name: "demo:comparison",
-      group: "demo",
+      name: "demo-1445:comparison",
+      group: "demo-1445",
       label: "comparison",
       state: "skipped",
       error: "online_source_unavailable",
     },
   ];
   parent.output_params = {
-    models: { demo: { status: "done", comparison: { status: "skipped" } } },
+    models: {
+      "1445": { demo: { status: "done", comparison: { status: "skipped" } } },
+    },
   };
   const history = structuredClone(child);
   history.task_id = "base#a_stock_history#demo-1445";
@@ -280,14 +281,13 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
 it("keeps nightly stages visible when a comparison report is malformed", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: [{ task_name: "demo", feature_provider: "a_stock" }],
-    trade_time: "1445",
+    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
   };
   child.reg_name = "a_stock_prediction_compare";
   child.report_kind = "online";
   child.output_params = { comparisons: [{ key: "bad", status: "invalid" }] };
   parent.children[0].reg_name = child.reg_name;
-  parent.children[0].node_name = "demo-a_stock_prediction_compare";
+  parent.children[0].node_name = "demo-1445-a_stock_prediction_compare";
   await render();
   expect(container.textContent).toContain(i18n.t("onlinePipeline.nightly"));
   await clickTab("results");
@@ -297,10 +297,11 @@ it("keeps nightly stages visible when a comparison report is malformed", async (
 it("settles unfinished nightly model summaries after download failure and cancellation", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: [{ task_name: "demo", feature_provider: "a_stock" }],
-    trade_time: "1445",
+    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
   };
-  parent.output_params = { models: { demo: { status: "pending" } } };
+  parent.output_params = {
+    models: { "1445": { demo: { status: "pending" } } },
+  };
   parent.children = [];
   parent.steps = [];
   parent.state = "failed";

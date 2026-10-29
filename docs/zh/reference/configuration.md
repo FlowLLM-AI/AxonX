@@ -63,6 +63,8 @@ cron:
     command: "axonx exec --task download_tushare_task --days-back 7"
 ```
 
+`command` 支持字符串或参数列表，例如 `[axonx, exec, --task, download_tushare_task, --days-back, 7]`。参数中的映射和列表自动编码为 JSON，可通过 YAML 锚点在多个计划间复用同一份结构化参数。加载后统一为命令字符串。
+
 CLI 启动只支持五字段数字 cron 和本地 `axonx exec --task NAME`。命令不经 shell，拒绝客户端连接选项。列表整体替换继承计划。触发使用应用时区，不补跑错过时点，配置变化需重启。详见[调度](../guides/scheduling.md)。
 
 ## TargetConfig

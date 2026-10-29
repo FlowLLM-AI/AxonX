@@ -113,7 +113,7 @@ it.each(["en", "zh"])(
     ).toBe(true);
     expect(container.querySelector("pre")).toBeNull();
     expect(container.textContent).not.toContain("[object Object]");
-    await chooseModel("missing");
+    await chooseModel("missing · 14:45");
     expect(container.querySelectorAll("tbody tr")).toHaveLength(0);
     expect(container.textContent).not.toContain("pred: 2");
   },
@@ -123,18 +123,20 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   const error = "ValueError: Source training task failed";
   parent.state = "failed";
   parent.error = "Task exited with code 1";
-  const step = parent.steps.find((s) => s.name === "nightly:etl")!;
+  const step = parent.steps.find((s) => s.name === "nightly-1445:etl")!;
   step.state = "failed";
   step.error = `ChildTaskError: Child Task 'history' failed: ${error}`;
   parent.steps
-    .filter((s) => s.group === "nightly" && s !== step)
+    .filter((s) => s.group === "nightly-1445" && s !== step)
     .forEach((s) => {
       s.state = "skipped";
       s.error = "upstream_failed";
     });
   parent.output_params.models = {
-    nightly: { status: "failed", error: step.error },
-    missing: { status: "done" },
+    "1445": {
+      nightly: { status: "failed", error: step.error },
+      missing: { status: "done" },
+    },
   };
   const history = nodes.find((n) => n.record.reg_name.includes("history"))!;
   history.record.state = "failed";
@@ -176,7 +178,7 @@ it("keeps model logs isolated and refuses to substitute a restarted task", async
   expect(container.querySelector('[role="alert"]')?.textContent).toBe(
     "Task restarted",
   );
-  await chooseModel("missing");
+  await chooseModel("missing · 14:45");
   expect(container.querySelector("pre")).toBeNull();
   expect(container.querySelectorAll("option")).toHaveLength(0);
   await click("logs");
@@ -199,7 +201,9 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
     { record: old, status: null, error: "old error" },
     { record: unrelated, status: null, error: "unrelated error" },
   );
-  const model = compareModels(parent, nodes).find((m) => m.name === "nightly")!;
+  const model = compareModels(parent, nodes).find(
+    (m) => m.name === "nightly-1445",
+  )!;
   expect(
     model.children.some((n) =>
       ["2026-01-01T00:00:00Z", "2026-01-16T00:00:00Z"].includes(
@@ -226,7 +230,7 @@ it("omits backtests even when an older comparison task contains one", async () =
     reg_name: "a_stock_backtest",
     child_task_id: task.task_id,
     started_at: task.started_at,
-    node_name: "nightly-a_stock_backtest",
+    node_name: "nightly-1445-a_stock_backtest",
   };
   parent.children.push(record);
   nodes.push({ record, status: task, error: "" });
@@ -235,6 +239,27 @@ it("omits backtests even when an older comparison task contains one", async () =
     container.querySelector('[role="tab"][id$="-portfolio-tab"]'),
   ).toBeNull();
   expect(container.querySelector(".embedded-backtest")).toBeNull();
+});
+
+it("keeps the same model isolated across signal times", () => {
+  parent.input_params.models = {
+    "1445": [{ task_name: "same", feature_family: "a_stock" }],
+    "0945": [{ task_name: "same", feature_family: "a_stock" }],
+  };
+  parent.output_params.models = {
+    "0945": { same: { status: "failed", error: "morning failed" } },
+    "1445": { same: { status: "done" } },
+  };
+  parent.children = [];
+  parent.steps = [];
+  const models = compareModels(parent, []);
+  expect(models.map((model) => model.name)).toEqual(["same-0945", "same-1445"]);
+  expect(models.map((model) => model.label)).toEqual([
+    "same · 09:45",
+    "same · 14:45",
+  ]);
+  expect(models.map((model) => model.state)).toEqual(["failed", "done"]);
+  expect(models[1].outcome.error).toBeUndefined();
 });
 
 it("keeps shared download logs outside model stages", async () => {
@@ -256,7 +281,7 @@ it("keeps shared download logs outside model stages", async () => {
   await render();
   await click("download");
   expect(container.querySelector("pre")?.dataset.task).toBe(download.task_id);
-  await chooseModel("missing");
+  await chooseModel("missing · 14:45");
   expect(container.querySelector("pre")?.dataset.task).toBe(download.task_id);
   await click("prediction");
   expect(container.querySelector("pre")).toBeNull();

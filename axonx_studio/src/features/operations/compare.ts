@@ -2,6 +2,7 @@ import type { ChildTaskRecord, TaskMetadata } from "../../shared/api/contracts";
 import type { TaskStepStatus } from "../../shared/api/event";
 import { isRecord } from "../../shared/lib/values";
 import type { TaskNode } from "../tasks/tree";
+import { slotLabel } from "./daily";
 
 /** Resolve only the latest owned attempt and its exact descendant Tasks. */
 export function ownedCompareNodes(
@@ -36,71 +37,76 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
   const records = [
     ...new Map(parent.children.map((r) => [r.node_name, r])).values(),
   ];
-  return (
-    Array.isArray(parent.input_params.models) ? parent.input_params.models : []
-  )
-    .filter(isRecord)
-    .map((model) => {
-      const name = String(model.task_name);
-      const value = outcomes[name];
-      const outcome = isRecord(value) ? value : {};
-      const roots = records.filter(
-        (r) =>
-          r.node_name === `${name}-${r.reg_name}` ||
-          r.node_name ===
-            `${name}-${parent.input_params.trade_time}-${r.reg_name}`,
-      );
-      const children = ownedCompareNodes(roots, nodes);
-      const steps = parent.steps.filter((step) => step.group === name);
-      let state = String(outcome.status || "pending");
-      if (
-        steps.some((step) => step.state === "failed") ||
-        roots.some((r) => r.state === "failed") ||
-        children.some((node) => node.status?.state === "failed")
-      )
-        state = "failed";
-      else if (
-        !["running"].includes(parent.state) &&
-        ["pending", "waiting", "running"].includes(state)
-      )
-        state = "skipped";
-      else if (steps.some((step) => step.state === "running"))
-        state = "running";
-      const comparison = isRecord(outcome.comparison)
-        ? outcome.comparison
-        : null;
-      const reported = children
-        .flatMap((n) =>
-          Array.isArray(n.status?.output_params.comparisons)
-            ? n.status.output_params.comparisons
-            : [],
+  const schedule = isRecord(parent.input_params.models)
+    ? parent.input_params.models
+    : {};
+  return Object.entries(schedule)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([slot, entries]) =>
+      (Array.isArray(entries) ? entries : []).filter(isRecord).map((model) => {
+        const taskName = String(model.task_name);
+        const name = `${taskName}-${slot}`;
+        const label = `${taskName} · ${slotLabel(slot)}`;
+        const slotOutcomes = isRecord(outcomes[slot]) ? outcomes[slot] : {};
+        const value = slotOutcomes[taskName];
+        const outcome = isRecord(value) ? value : {};
+        const roots = records.filter(
+          (r) => r.node_name === `${name}-${r.reg_name}`,
+        );
+        const children = ownedCompareNodes(roots, nodes);
+        const steps = parent.steps.filter((step) => step.group === name);
+        let state = String(outcome.status || "pending");
+        if (
+          steps.some((step) => step.state === "failed") ||
+          roots.some((r) => r.state === "failed") ||
+          children.some((node) => node.status?.state === "failed")
         )
-        .filter(isRecord);
-      const skipped = steps.find(
-        (step) => step.name.endsWith(":comparison") && step.state === "skipped",
-      );
-      const findings: Record<string, unknown>[] = reported.length
-        ? reported
-        : comparison
-          ? [comparison]
-          : skipped
-            ? [{ status: "skipped", reason: skipped.error }]
-            : [];
-      const finding =
-        findings.find(
-          (r) => r.status !== "consistent" && r.status !== "skipped",
-        ) || findings[0];
-      return {
-        name,
-        provider: String(model.feature_provider || ""),
-        outcome,
-        roots,
-        children,
-        steps,
-        state,
-        finding,
-      };
-    });
+          state = "failed";
+        else if (
+          !["running"].includes(parent.state) &&
+          ["pending", "waiting", "running"].includes(state)
+        )
+          state = "skipped";
+        else if (steps.some((step) => step.state === "running"))
+          state = "running";
+        const comparison = isRecord(outcome.comparison)
+          ? outcome.comparison
+          : null;
+        const reported = children
+          .flatMap((n) =>
+            Array.isArray(n.status?.output_params.comparisons)
+              ? n.status.output_params.comparisons
+              : [],
+          )
+          .filter(isRecord);
+        const skipped = steps.find(
+          (step) =>
+            step.name.endsWith(":comparison") && step.state === "skipped",
+        );
+        const findings: Record<string, unknown>[] = reported.length
+          ? reported
+          : comparison
+            ? [comparison]
+            : skipped
+              ? [{ status: "skipped", reason: skipped.error }]
+              : [];
+        const finding =
+          findings.find(
+            (r) => r.status !== "consistent" && r.status !== "skipped",
+          ) || findings[0];
+        return {
+          name,
+          label,
+          provider: String(model.feature_family || ""),
+          outcome,
+          roots,
+          children,
+          steps,
+          state,
+          finding,
+        };
+      }),
+    );
 }
 export type CompareModel = ReturnType<typeof compareModels>[number];
 

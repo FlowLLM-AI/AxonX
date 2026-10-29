@@ -12,6 +12,7 @@ import yaml
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.config.models import ApplicationConfig, CronConfig
 from axonx.app.core.application import Application
+from axonx.cli.parser import parse_command, validate_cron_command
 from axonx.daemon.supervisor import Supervisor
 
 
@@ -20,6 +21,25 @@ def test_cron_config_preserves_argv_without_executing_a_shell():
     entry = CronConfig(expression="* * * * *", command=command)
     assert entry.argv == ("axonx", "exec", "--task", "demo", "--message", "a b; $(touch unwanted)")
     assert entry.model_dump(mode="json") == {"expression": "* * * * *", "command": command}
+
+
+def test_structured_cron_commands_share_yaml_arguments_without_shell_expansion():
+    values = yaml.safe_load("""
+cron:
+  - expression: "0 9 * * 1-5"
+    command: [axonx, exec, --task, first, --models, &models {"0945": [{task_name: "a b; $(touch unwanted)"}]}]
+  - expression: "30 21 * * 1-5"
+    command: [axonx, exec, --task, second, --models, *models]
+""")
+    config = ApplicationConfig.model_validate(values)
+    arguments = []
+    for entry in config.cron:
+        validate_cron_command(entry.argv)
+        command, _ = parse_command(entry.argv[1:])
+        arguments.append(command.arguments)
+        assert isinstance(entry.command, str)
+    assert [entry["task"] for entry in arguments] == ["first", "second"]
+    assert arguments[0]["models"] == arguments[1]["models"] == {"0945": [{"task_name": "a b; $(touch unwanted)"}]}
 
 
 def test_cron_preserves_commands_without_interpreting_their_options():

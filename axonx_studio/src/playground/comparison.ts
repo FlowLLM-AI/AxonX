@@ -12,11 +12,13 @@ export function seedNightly(
   parent.input_params = {
     task_name: "demo",
     trade_date: "2026-01-05",
-    trade_time: "1445",
-    models: [
-      { task_name: "nightly", feature_provider: "a_stock" },
-      { task_name: "missing", feature_provider: "v1" },
-    ],
+    models: {
+      "0945": [{ task_name: "morning", feature_family: "a_stock" }],
+      "1445": [
+        { task_name: "nightly", feature_family: "a_stock" },
+        { task_name: "missing", feature_family: "v1" },
+      ],
+    },
   };
   const template = tasks
     .get("base#playground_online#demo")!
@@ -103,7 +105,7 @@ export function seedNightly(
   parent.children = [
     record(download, "tushare_mins"),
     record(history, "nightly-1445-a_stock_history"),
-    record(comparison, "nightly-a_stock_prediction_compare"),
+    record(comparison, "nightly-1445-a_stock_prediction_compare"),
   ];
   parent.steps = [
     step("download", "download", "done"),
@@ -111,8 +113,8 @@ export function seedNightly(
       ["etl", "online_source", "prediction", "comparison", "backtest"].map(
         (stage) =>
           step(
-            `${model}:${stage}`,
-            model,
+            `${model}-1445:${stage}`,
+            `${model}-1445`,
             model === "missing" && stage !== "etl" ? "skipped" : "done",
             model === "missing" && stage !== "etl"
               ? "online_source_unavailable"
@@ -122,7 +124,18 @@ export function seedNightly(
     ),
   ];
   parent.output_params = {
-    models: { nightly: { status: "done" }, missing: { status: "done" } },
+    models: {
+      "0945": {
+        morning: {
+          status: "done",
+          comparison: {
+            status: "skipped",
+            reason: "online_source_unavailable",
+          },
+        },
+      },
+      "1445": { nightly: { status: "done" }, missing: { status: "done" } },
+    },
   };
   for (const task of [parent, download, history, etl, comparison]) {
     task.output_params.artifacts = {};
