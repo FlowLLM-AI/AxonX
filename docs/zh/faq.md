@@ -22,7 +22,7 @@ Task ID 标识当前目录，started_at 每次执行改变。wait_task 捕获该
 
 ## 停止 Agent 为何研究还在运行？
 
-Agent 轮次与独立 Task 所有权不同。cancel_agent_turn 中断模型会话，CLI kill 停止经验证的 Task 进程，子任务共享根进程。取消远程 cli 请求也可能停止该请求拥有的子进程组。
+Agent 轮次与独立 Task 所有权不同。cancel_agent_turn 中断模型会话，CLI kill 停止经验证的 Task 进程，子任务共享根进程。默认远程 cli Job 在客户端断连后继续执行。停止 Task 使用 CLI kill；服务关闭也会终止其手动命令进程组。
 
 ## 如何删除 Task？
 

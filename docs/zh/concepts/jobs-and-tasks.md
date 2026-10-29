@@ -21,7 +21,7 @@ Job 暴露应用能力，Task 同步执行研究并持久化证据。CLI、HTTP�
 
 ## 本地与远程执行
 
-本地 `exec` 在 CLI 进程执行。`exec --target HOST:PORT` 调用目标服务的 `cli` Job，由它拥有命令子进程并传输 stdout/stderr 直到完成。HTTP/MCP 调用方可用 `argv: ["exec", "--task", "demo", ...]` 调用 `cli`。命令响应包含 stdout、stderr、exit_code 和截断标志。连接取消可能停止其拥有的命令，重试前先检查证据。
+本地 `exec` 在 CLI 进程执行。`exec --target HOST:PORT` 调用目标服务的 `cli` Job，由它拥有命令子进程并传输 stdout/stderr 直到完成。HTTP/MCP 调用方可用 `argv: ["exec", "--task", "demo", ...]` 调用 `cli`。命令响应包含 stdout、stderr、exit_code 和截断标志。默认 cli Job 在连接关闭后继续执行，持续读取 stdout/stderr 并丢弃无人订阅的输出事件。停止执行使用 Task kill；服务关闭会停止其命令进程组。重试前先检查证据。
 
 ## 选择抽象
 

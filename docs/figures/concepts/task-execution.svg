@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="816" viewBox="0 0 1280 816" role="img" aria-labelledby="title desc">
   <title id="title">Who runs a Task, and where its result lives</title>
-  <desc id="desc">Local CLI exec runs in its caller. A service cli Job owns a command child process. App Cron asks the daemon to launch scheduled exec processes that survive service restart. All run the synchronous TaskExecutor, which publishes running then succeeded or failed metadata. TaskIndex observes these records; kill explicitly verifies and stops the root process.</desc>
+  <desc id="desc">Local CLI exec runs in its caller. The default service cli Job owns a command child process that continues after client disconnection and stops with the service. App Cron asks the daemon to launch scheduled exec processes that survive service restart. All run the synchronous TaskExecutor, which publishes running then succeeded or failed metadata. TaskIndex observes these records; kill explicitly verifies and stops the root process.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
   <rect x="8" y="8" width="1264" height="800" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
@@ -15,7 +15,7 @@
     <rect x="456" y="140" width="368" height="147" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="480" y="174" font-size="22" font-weight="700">Service cli Job</text>
     <text x="480" y="206" font-size="17">Service owns the CLI child group</text>
-    <text x="480" y="232" font-size="17">Streams stdout and stderr</text>
+    <text x="480" y="232" font-size="17">Continues after client disconnect</text>
     <text x="480" y="258" font-size="17">Service shutdown stops the group.</text>
     <rect x="864" y="140" width="368" height="147" rx="20" fill="#fff2df" stroke="#dfc89e" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="888" y="174" font-size="22" font-weight="700">App Cron → daemon</text>

@@ -124,7 +124,7 @@ CLI 的 `status`、`wait_task` 默认返回摘要，`--detail full` 返回输入
 
 执行配置优先级为显式 CLI 字段 > 服务 `get_config` > 默认值。共享字段为 `workspace_dir`、`log_dir`、`timezone`、`execution_target`、`log_to_console`、`log_to_file`、`environment`，显式环境变量按键合并。只有连接失败允许回退；认证或配置非法会失败。工作区覆盖只影响该命令，服务查询仍观察服务工作区。客户端默认超时 60 秒，`--client-timeout` 与业务截止时间分开。
 
-命令连接中断后先检查 Task 记录再重试。取消远程命令或关闭其服务可能终止所属进程组；取消观察流不会停止被观察 Task。
+默认 cli Job 在远程命令断连后只结束观察，执行继续由服务管理。停止执行使用 Task kill；服务关闭也会终止其手动命令进程组。重试前先检查 Task 记录。取消观察流不会停止被观察 Task。
 
 ## 开发并打包 Task
 
@@ -274,7 +274,7 @@ axonx list_task_defs --include-schemas false --target node-b:1024
 axonx get_task_def --task qlib_a158_etl --target node-b:1024
 ```
 
-重启返回已接受操作的 `update_id`，用 `get_update_status --update-id ID` 跟踪该操作，不仅依赖最近记录。安装失败或连接中断可能留下部分环境变更，重试前先核验已安装元数据。
+重启返回已接受操作的 `update_id`，用 `get_update_status --update-id ID` 跟踪该操作，不仅依赖最近记录。默认 cli Job 在连接中断后继续安装，重试前等待命令结束并核验已安装元数据。安装失败可能留下部分环境变更。
 
 ## 执行与改进研究
 

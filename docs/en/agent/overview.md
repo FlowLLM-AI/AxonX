@@ -39,7 +39,7 @@ axonx exec --task demo --task-name agent-check --x 2 --y 3 --target 192.0.2.10:1
 axonx status --task-id 'base#demo#agent-check' --detail full --target 192.0.2.10:1024
 ```
 
-Replace the example address. Exec waits and prints business output. Check exit code, Task state and `started_at`; inspect the record before retrying a disconnected command, since cancellation can stop its owned process.
+Replace the example address. Exec waits and prints business output. Check exit code, Task state and `started_at`. The default cli Job continues after client disconnection; inspect the record before retrying. Stop the Task explicitly with kill.
 
 ## Research prompt
 

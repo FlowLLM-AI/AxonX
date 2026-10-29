@@ -14,6 +14,7 @@ from axonx.app.components.job import command
 from axonx.app.components.job.base import RESPONSE_CALLBACKS, fold_events
 from axonx.app.components.job.pipeline import PipelineJob
 from axonx.app.components.registry import provider
+from axonx.app.config.loader import ConfigLoader
 from axonx.app.core.application import Application
 from axonx.app.steps.base import BaseStep
 from axonx.client.config import AXONX_CLI_REQUEST_ID, AXONX_SERVICE_TARGET
@@ -94,6 +95,12 @@ def test_step_system_schema_stays_private_and_cannot_be_overridden(make_app):
 def test_event_buffer_must_be_a_positive_integer(make_app, size):
     with pytest.raises(ValueError, match="event_buffer_size"):
         make_app(event_buffer_size=size)
+
+
+@pytest.mark.parametrize("value", [None, 0, 1, "false"])
+def test_disconnect_policy_must_be_a_boolean(make_app, value):
+    with pytest.raises(ValueError, match="cancel_on_disconnect"):
+        make_app(cancel_on_disconnect=value)
 
 
 async def test_pipeline_calls_use_fresh_steps_contexts_and_responses(make_app):
@@ -224,6 +231,85 @@ async def test_cancellation_waits_for_step_cleanup_and_skips_later_steps(make_ap
         skipped.assert_not_awaited()
 
 
+async def test_disconnected_pipeline_releases_concurrent_blocked_emitters_and_finishes(make_app):
+    attempted = [asyncio.Event(), asyncio.Event()]
+    completed = asyncio.Event()
+
+    async def produce(step):
+        await step.emit(LogEvent(content="ready"))
+
+        async def writer(index):
+            if index == 0:
+                await step.emit(LogEvent(content="fill the queue"))
+            attempted[index].set()
+            for _ in range(100):
+                await step.emit(LogEvent(content=str(index)))
+
+        await asyncio.gather(writer(0), writer(1))
+
+    async def finish(step):
+        step.response.answer = "done"
+        completed.set()
+
+    app = make_app(produce, finish, event_buffer_size=1, cancel_on_disconnect=False)
+    async with app, aclosing(app.stream_job("work")) as stream:
+        assert (await anext(stream)).content == "ready"
+        await asyncio.wait_for(asyncio.gather(*(event.wait() for event in attempted)), 1)
+        assert not completed.is_set()
+        await asyncio.wait_for(stream.aclose(), 1)
+        await asyncio.wait_for(completed.wait(), 1)
+        await asyncio.gather(*app.context.jobs["work"]._active_runs)
+        await asyncio.sleep(0)
+        assert not app.context.jobs["work"]._active_runs
+
+
+async def test_cancelling_consumer_detaches_service_owned_pipeline_until_application_close(make_app):
+    started, cleaned = asyncio.Event(), asyncio.Event()
+
+    async def wait(step):
+        try:
+            await step.emit(LogEvent(content="ready"))
+            started.set()
+            await asyncio.Event().wait()
+        finally:
+            cleaned.set()
+
+    app = make_app(wait, cancel_on_disconnect=False)
+    async with app:
+        consumer = asyncio.create_task(app.run_job("work"))
+        await asyncio.wait_for(started.wait(), 1)
+        consumer.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await consumer
+        assert not cleaned.is_set()
+        assert app.context.jobs["work"]._active_runs
+        await asyncio.wait_for(app.close(), 1)
+        assert cleaned.is_set()
+        assert not app.context.jobs["work"]._active_runs
+
+
+async def test_detached_output_producer_remains_cancellable_by_job_close(make_app):
+    completed, cleaned = asyncio.Event(), asyncio.Event()
+
+    async def produce(step):
+        try:
+            await step.emit(LogEvent(content="ready"))
+            for _ in range(10000):
+                await step.emit(LogEvent(content="output"))
+            completed.set()
+        finally:
+            cleaned.set()
+
+    app = make_app(produce, cancel_on_disconnect=False, event_buffer_size=1)
+    async with app, aclosing(app.stream_job("work")) as stream:
+        assert (await anext(stream)).content == "ready"
+        await stream.aclose()
+        await asyncio.sleep(0)
+        await asyncio.wait_for(app.context.jobs["work"].close(), 1)
+        assert cleaned.is_set()
+        assert not completed.is_set()
+
+
 async def test_empty_pipeline_restarts_and_rejects_execution_while_stopped(make_app):
     job = make_app().context.jobs["work"]
     for _ in range(2):
@@ -304,6 +390,93 @@ def command_app(tmp_path, source, *, service=False):
         environment={"JOB_TEST_VALUE": "configured"},
         service={"backend": "http", "token": "test"} if service else None,
     )
+
+
+@pytest.mark.parametrize("stop", ["complete", "kill", "application"])
+async def test_cli_http_disconnect_keeps_process_owned_and_drains_both_output_pipes(tmp_path, stop):
+    gate, completed = tmp_path / "continue", tmp_path / "completed"
+    source = (
+        "import os, pathlib, signal, sys, time; "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        "print(os.getpid(), flush=True); "
+        "gate = pathlib.Path(sys.argv[1]); "
+        "exec('while not gate.exists(): time.sleep(0.01)'); "
+        "sys.stdout.write('o' * (2 * 1024 * 1024)); sys.stdout.flush(); "
+        "sys.stderr.write('e' * (2 * 1024 * 1024)); sys.stderr.flush(); "
+        "pathlib.Path(sys.argv[2]).write_text('done')"
+    )
+    cli = ConfigLoader().load("default")["jobs"]["cli"]
+    cli["event_buffer_size"] = 1
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        command=(sys.executable, "-u", "-c", source),
+        service={"backend": "http", "token": "test", "web_enabled": False},
+        jobs={"cli": cli},
+    )
+    disconnected, started = asyncio.Event(), asyncio.Event()
+    process_ids = []
+    received = False
+
+    async def receive():
+        nonlocal received
+        if not received:
+            received = True
+            return {
+                "type": "http.request",
+                "body": json.dumps({"arguments": {"argv": [str(gate), str(completed)]}}).encode(),
+            }
+        await disconnected.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            for line in message.get("body", b"").decode().splitlines():
+                if line.startswith("data:"):
+                    event = json.loads(line.removeprefix("data:"))
+                    if event["kind"] == "log":
+                        process_ids.append(int(event["content"].strip()))
+                        started.set()
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/jobs/cli/events",
+        "query_string": b"",
+        "headers": [(b"authorization", b"Bearer test"), (b"content-type", b"application/json")],
+    }
+    async with app:
+        server = app.context.service.build_service(app)
+        request = asyncio.create_task(server(scope, receive, send))
+        try:
+            await asyncio.wait_for(started.wait(), 5)
+            disconnected.set()
+            await asyncio.wait_for(request, 5)
+            assert process_ids[0] in app.context.service.cli_processes
+            os.kill(process_ids[0], 0)
+            job = app.context.jobs["cli"]
+            if stop == "application":
+                await asyncio.wait_for(app.close(), 5)
+            else:
+                if stop == "kill":
+                    app.context.service.stop_cli_processes(force=True)
+                else:
+                    gate.touch()
+                await asyncio.wait_for(asyncio.gather(*job._active_runs), 5)
+            assert completed.exists() is (stop == "complete")
+            assert not job._active_runs
+            assert not app.context.service.cli_processes
+            assert not app.context.service.cli_callbacks
+            with pytest.raises(ProcessLookupError):
+                os.kill(process_ids[0], 0)
+        finally:
+            disconnected.set()
+            request.cancel()
+            await asyncio.gather(request, return_exceptions=True)
 
 
 async def test_command_preserves_exit_status_and_streams_beyond_the_capture_limit(tmp_path, monkeypatch):

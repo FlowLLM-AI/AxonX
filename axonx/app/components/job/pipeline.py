@@ -46,12 +46,16 @@ class PipelineJob(BaseJob):
         steps: Sequence[ComponentConfig | Mapping[str, Any]] = (),
         defaults: Mapping[str, Any] | None = None,
         event_buffer_size: int = 64,
+        cancel_on_disconnect: bool = True,
         **kwargs,
     ) -> None:
         if isinstance(event_buffer_size, bool) or not isinstance(event_buffer_size, int) or event_buffer_size < 1:
             raise ValueError("event_buffer_size must be a positive integer")
+        if not isinstance(cancel_on_disconnect, bool):
+            raise ValueError("cancel_on_disconnect must be a boolean")
         self._defaults = deepcopy(dict(defaults or {}))
         self._event_buffer_size = event_buffer_size
+        self._cancel_on_disconnect = cancel_on_disconnect
         self._active_runs: set[asyncio.Task[None]] = set()
         self._accepting = False
         self._steps = tuple(self._resolve_step(app_context, raw) for raw in steps)
@@ -146,7 +150,19 @@ class PipelineJob(BaseJob):
 
         context = _RuntimeContext(self._defaults, arguments, system)
         events: asyncio.Queue[JobEvent] = asyncio.Queue(self._event_buffer_size)
-        task = asyncio.create_task(self._execute(context, events.put), name=f"axonx-job:{self.name}")
+        observing = True
+
+        async def emit(event: JobEvent) -> None:
+            if observing:
+                await events.put(event)
+            if not observing:
+                # Release writers already blocked on a full queue at disconnect.
+                while not events.empty():
+                    events.get_nowait()
+                # Keep a busy producer interruptible by Job/application shutdown.
+                await asyncio.sleep(0)
+
+        task = asyncio.create_task(self._execute(context, emit), name=f"axonx-job:{self.name}")
         self._active_runs.add(task)
         task.add_done_callback(self._active_runs.discard)
         try:
@@ -154,4 +170,8 @@ class PipelineJob(BaseJob):
                 async for event in stream:
                     yield event
         finally:
-            await self._cancel_runs(task)
+            observing = False
+            while not events.empty():
+                events.get_nowait()
+            if self._cancel_on_disconnect:
+                await self._cancel_runs(task)

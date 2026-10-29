@@ -26,4 +26,4 @@ Task synchronization copies terminal display snapshots and optional live parent/
 
 ## Preserve evidence while maintaining the service
 
-Retain distinct Task identities for experiments. A fixed-name rerun replaces a finished directory; deletion removes records and artifacts. Explicit Task termination and service-owned command cancellation stop execution without resuming it later. Daemon-owned scheduled commands survive service restart. Read [task lifecycle](../concepts/jobs-and-tasks.md) before choosing cleanup or recovery actions.
+Retain distinct Task identities for experiments. A fixed-name rerun replaces a finished directory; deletion removes records and artifacts. Explicit Task termination stops execution. The default remote cli Job continues after client disconnection; service shutdown stops its manual commands without resuming them later. Daemon-owned scheduled commands survive service restart. Read [task lifecycle](../concepts/jobs-and-tasks.md) before choosing cleanup or recovery actions.

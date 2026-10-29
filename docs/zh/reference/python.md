@@ -82,7 +82,7 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## 文件上传
 
-`copy_file` 返回含 path、size、绝对 location 的 StagedFile。目标机插件安装使用 location，清理和同步使用 path。在 finally 中调用 discard_file。完整远程安装示例见[插件管理](../plugins/management.md)。
+`copy_file` 返回含 path、size、绝对 location 的 StagedFile。目标机插件安装使用 location，清理和同步使用 path。确认命令结束后在 finally 中调用 discard_file；命令结果不明时保留上传文件。完整远程安装示例见[插件管理](../plugins/management.md)。
 
 ## MCP 客户端
 
@@ -94,6 +94,6 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## 错误与清理
 
-RemoteConnectionError 表示无法连接或连接超时，RemoteServiceError 表示协议/HTTP 失败并含可选 status_code。另行检查 JobResponse.success。命令流中断可能无法判断是否已接受执行，重试前检查 Task 启动时间。取消会关闭连接，并可能终止服务拥有的 CLI 子进程。
+RemoteConnectionError 表示无法连接或连接超时，RemoteServiceError 表示协议/HTTP 失败并含可选 status_code。另行检查 JobResponse.success。命令流中断可能无法判断是否已接受执行，重试前检查 Task 启动时间。取消会关闭客户端连接。默认 cli Job 继续执行；服务关闭仍会终止其手动命令进程组。
 
 源码：[Application](../../../axonx/app/core/application.py)、[HTTP](../../../axonx/client/http.py)、[MCP](../../../axonx/client/mcp.py)。

@@ -17,7 +17,7 @@ axonx list_task_statuses --detail summary
 
 ## 执行失败或断开
 
-分别检查原生命令 exit_code、Task state/error、进程身份和业务输出。断开后重试前确认 Task 是否已启动、started_at 是否改变。手动远程 CLI 请求拥有进程，取消请求或服务关闭可能终止其进程组。
+分别检查原生命令 exit_code、Task state/error、进程身份和业务输出。断开后重试前确认 Task 是否已启动、started_at 是否改变。手动远程 CLI 进程由服务管理。默认 cli Job 在客户端断连后继续执行；显式 Task kill 或服务关闭可终止执行。
 
 ## 失效记录
 

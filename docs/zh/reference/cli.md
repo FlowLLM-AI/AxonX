@@ -46,7 +46,7 @@ axonx kill --task-id 'base#demo#check' --timeout 5 --force false
 
 `exec` 同步执行。服务不可连接时可使用默认执行配置；认证、协议或 `get_config` 失败均报错。共享执行选项为 `workspace_dir`、`log_dir`、`timezone`、`execution_target`、`log_to_console`、`log_to_file` 和 `environment.KEY`。优先级为显式 CLI 参数 > 服务 `get_config` > 默认值。显式环境变量按键合并。
 
-远程执行添加 `--target HOST:PORT` 并设置 `AXONX_TARGET_TOKEN`。原生命令实时传输 stdout/stderr，保留目标进程退出码。`--client-timeout` 控制连接，不是 Task 业务截止时间。中断远程命令请求可能终止它拥有的进程组，重试前先检查 metadata。
+远程执行添加 `--target HOST:PORT` 并设置 `AXONX_TARGET_TOKEN`。原生命令实时传输 stdout/stderr，保留目标进程退出码。`--client-timeout` 控制连接，不是 Task 业务截止时间。默认 cli Job 在远程命令请求中断后只结束观察，执行继续运行。停止 Task 使用 kill；服务关闭也会终止其手动命令进程组。重试前先检查 metadata。
 
 ## 轻量查询默认值
 

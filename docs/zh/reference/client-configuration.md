@@ -33,4 +33,4 @@ Daemon/服务注入 AXONX_SERVICE_TARGET，供原生 CLI 子进程查询执行�
 
 ## 处理连接失败
 
-只有连接失败允许本地 exec/kill 回退内置执行默认值。认证、协议、get_config 失败均向上传播。观察超时不代表 Task 失败，原生命令取消可能终止拥有的远程进程组，重试前应检查当前 metadata。
+只有连接失败允许本地 exec/kill 回退内置执行默认值。认证、协议、get_config 失败均向上传播。观察超时不代表 Task 失败，默认 cli Job 在连接取消后继续执行原生命令，重试前应检查当前 metadata。显式 Task kill 或服务关闭仍可停止执行。

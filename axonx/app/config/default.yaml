@@ -112,7 +112,8 @@ service:
 
 jobs:
   cli:
-    description: Run an AxonX CLI command in a child process on this service machine. Paths belong to this machine; start and nested remote forwarding are not supported.
+    description: Run a service-owned AxonX CLI command that continues after client disconnection. Paths belong to this machine; start and nested remote forwarding are not supported.
+    cancel_on_disconnect: false
     parameters:
       type: object
       properties:

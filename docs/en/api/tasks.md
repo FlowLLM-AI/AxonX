@@ -46,7 +46,7 @@ Run an AxonX CLI command in a child process on this service machine. Paths belon
 }
 ```
 
-Runs argv without a shell in the service workspace. The configured command/interpreter owns a child process group. Returns stdout, stderr, exit_code and per-channel truncation flags (each retained output is limited to a 1 MiB prefix); streamed log events identify stdout/stderr. A disconnect/cancellation can terminate the owned group. Nested forwarding and service startup are rejected. Use argv `["plugin", "install", absolute_location]` for an already uploaded wheel.
+Runs argv without a shell in the service workspace. The configured command/interpreter owns a child process group. Returns stdout, stderr, exit_code and per-channel truncation flags (each retained output is limited to a 1 MiB prefix); streamed log events identify stdout/stderr. The default cli Job continues after client disconnection, drains both output pipes and discards unobserved events. Explicit Task kill or service shutdown terminates execution. Nested forwarding and service startup are rejected. Use argv `["plugin", "install", absolute_location]` for an already uploaded wheel.
 
 ## list_task_defs
 

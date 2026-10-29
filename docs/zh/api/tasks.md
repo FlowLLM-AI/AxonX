@@ -46,7 +46,7 @@
 }
 ```
 
-在服务工作区不经 shell 执行 argv，使用配置的命令/解释器并拥有子进程组。返回 stdout、stderr、exit_code 和各通道截断标志（各通道在结果中最多保留前 1 MiB），日志事件区分 stdout/stderr。断开/取消可能终止所属进程组，拒绝嵌套转发和启动服务。安装已上传 wheel 使用 argv `["plugin", "install", absolute_location]`。
+在服务工作区不经 shell 执行 argv，使用配置的命令/解释器并拥有子进程组。返回 stdout、stderr、exit_code 和各通道截断标志（各通道在结果中最多保留前 1 MiB），日志事件区分 stdout/stderr。默认 cli Job 在断连后继续执行，持续消费两个输出管道并丢弃无人订阅的事件。显式 Task kill 或服务关闭会停止执行。拒绝嵌套转发和启动服务。安装已上传 wheel 使用 argv `["plugin", "install", absolute_location]`。
 
 ## list_task_defs
 

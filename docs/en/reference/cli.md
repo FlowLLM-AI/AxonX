@@ -46,7 +46,7 @@ axonx kill --task-id 'base#demo#check' --timeout 5 --force false
 
 `exec` is synchronous. Without a service it can fall back to execution defaults; authentication, protocol and failed `get_config` responses are errors. Shared options are `workspace_dir`, `log_dir`, `timezone`, `execution_target`, `log_to_console`, `log_to_file` and `environment.KEY`. Precedence is explicit CLI options > service `get_config` > defaults. Explicit environment keys merge with the returned execution environment.
 
-For remote execution, add `--target HOST:PORT` and set `AXONX_TARGET_TOKEN`. The native command streams stdout/stderr and preserves the target process exit code. `--client-timeout` controls the connection, not the Task's business deadline. Interrupting a remote command request can terminate its owned process group; inspect metadata before retrying.
+For remote execution, add `--target HOST:PORT` and set `AXONX_TARGET_TOKEN`. The native command streams stdout/stderr and preserves the target process exit code. `--client-timeout` controls the connection, not the Task's business deadline. With the default cli Job, interrupting a remote command request stops observation while execution continues. Use kill to stop the Task; service shutdown also terminates its manual command groups. Inspect metadata before retrying.
 
 ## Lightweight query defaults
 

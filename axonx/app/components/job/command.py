@@ -1,4 +1,4 @@
-"""Execute a service-owned CLI command with streaming output and cancellation cleanup."""
+"""Execute a service-owned CLI command with output draining and process cleanup."""
 
 from __future__ import annotations
 

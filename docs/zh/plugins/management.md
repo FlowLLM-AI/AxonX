@@ -57,7 +57,7 @@ editable 仍会先构建并校验 wheel，要求源码目录，不能传 `--outp
 4. 使用返回的工作区相对 `path` 清理暂存文件。
 5. 重启常驻服务，刷新 Task 目录并验证定义。
 
-以下脚本在本地构建 wheel 后运行，需替换文件名、目标地址和 token；脚本检查安装结果，并在成功或失败后清理上传文件：
+以下脚本在本地构建 wheel 后运行，需替换文件名、目标地址和 token；脚本检查安装结果，收到终态响应后清理上传文件，安装失败也会清理。若连接在响应前中断，则保留暂存 wheel，确认命令结束后再清理：
 
 ```python
 import asyncio
@@ -76,10 +76,10 @@ async def deploy():
         timeout=600.0,
     ) as client:
         uploaded = await client.copy_file(wheel)
+        response = await client.run_job("cli", {
+            "argv": ["plugin", "install", uploaded.location],
+        })
         try:
-            response = await client.run_job("cli", {
-                "argv": ["plugin", "install", uploaded.location],
-            })
             result = response.answer
             if not response.success or result["exit_code"] != 0:
                 raise RuntimeError(str(result))
@@ -93,7 +93,7 @@ async def deploy():
 asyncio.run(deploy())
 ```
 
-这里显式比较本地哈希与安装结果，在安装后确认 wheel 一致。CLI 不接受调用方传入预期哈希。安装器另行核验已安装来源与目标机所读 wheel 的一致性。清理不会回滚安装。安装请求被中断或超时后，应检查目标环境再决定是否重试，pip 可能已经修改文件。
+这里显式比较本地哈希与安装结果，在安装后确认 wheel 一致。CLI 不接受调用方传入预期哈希。安装器另行核验已安装来源与目标机所读 wheel 的一致性。清理不会回滚安装。默认 cli Job 在安装请求中断或超时后继续执行，重试或清理保留的上传文件前，应确认命令结束并检查目标环境；安装失败可能留下部分环境变更。
 
 使用 curl 时，通过 `/upload` 的 `-F 'file=@LOCAL.whl'` 上传，再执行 `axonx plugin install '<answer.location>' --target HOST:PORT --client-timeout 600`，最后用 `DELETE /upload?path=<answer.path>` 清理。CLI 认证读取 `AXONX_TARGET_TOKEN`。上传、安装、清理和验证必须使用同一服务。
 

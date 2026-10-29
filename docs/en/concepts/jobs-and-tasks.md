@@ -21,7 +21,7 @@ A registration such as `demo` resolves a class; `task_name` identifies an instan
 
 ## Local and remote execution
 
-Local `exec` runs in the CLI process. `exec --target HOST:PORT` calls the destination's `cli` Job, which owns a child command and streams stdout/stderr until completion. HTTP/MCP callers can invoke `cli` with `argv: ["exec", "--task", "demo", ...]`. A command response contains stdout, stderr, exit_code and truncation flags. Connection cancellation can stop the owned command; inspect evidence before retrying.
+Local `exec` runs in the CLI process. `exec --target HOST:PORT` calls the destination's `cli` Job, which owns a child command and streams stdout/stderr until completion. HTTP/MCP callers can invoke `cli` with `argv: ["exec", "--task", "demo", ...]`. A command response contains stdout, stderr, exit_code and truncation flags. The default cli Job continues after connection closure, drains stdout/stderr and discards unobserved output events. Use Task kill to stop execution; service shutdown stops its command groups. Inspect evidence before retrying.
 
 ## Choosing an abstraction
 

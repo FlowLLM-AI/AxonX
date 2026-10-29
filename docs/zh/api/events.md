@@ -47,6 +47,6 @@ async with HttpClient(target=target, token=token, timeout=600.0) as client:
 
 ## 断开、取消与重试
 
-消费者离开时关闭流。取消观察不会停止被观察 Task；取消服务拥有的 cli 调用可能终止其进程组。取消 Agent 轮次中断模型会话，也可能影响该轮次拥有的工具；独立执行需显式管理生命周期。exec/install 请求结果不明确时，先检查持久化证据或目标环境再重试。
+消费者离开时关闭流。取消观察不会停止被观察 Task；默认 cli Job 在客户端断连后继续执行，持续消费输出且不累积无人订阅的事件；显式 Task kill 或服务关闭会停止执行。取消 Agent 轮次中断模型会话，也可能影响该轮次拥有的工具；独立执行需显式管理生命周期。exec/install 请求结果不明确时，先检查持久化证据或目标环境再重试。
 
 源码：[Job 事件](../../../axonx/client/events.py)、[Task 事件](../../../axonx/task/models/events.py)、[HTTP 帧](../../../axonx/app/components/service/http/jobs.py)。

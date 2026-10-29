@@ -59,7 +59,7 @@ axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
 axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:1024
 ```
 
-Ordinary Jobs call the target directly. Native commands forward argv through cli. Exec waits and streams target stdout/stderr, preserving the target exit code. Retain target, Task ID and started_at for follow-up observations. Connection cancellation may stop the owned remote execution; inspect before retrying.
+Ordinary Jobs call the target directly. Native commands forward argv through cli. Exec waits and streams target stdout/stderr, preserving the target exit code. Retain target, Task ID and started_at for follow-up observations. The default cli Job keeps execution running after the connection closes. Observe it with status, wait_task or stream_task and inspect records before retrying. Service shutdown still stops its manual commands.
 
 ### Studio backend forwarding
 

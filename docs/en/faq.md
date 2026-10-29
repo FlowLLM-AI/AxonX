@@ -22,7 +22,7 @@ Confirm the target interpreter and plugin list. Native remote commands do not up
 
 ## Why does stopping an Agent not stop research?
 
-An Agent turn and independent Task execution have separate ownership. cancel_agent_turn interrupts the model session. CLI kill stops a verified Task process; children share the root process. Cancelling an owned remote cli request can also stop that request's child process group.
+An Agent turn and independent Task execution have separate ownership. cancel_agent_turn interrupts the model session. CLI kill stops a verified Task process; children share the root process. The default remote cli Job continues after client disconnection. Use CLI kill to stop its Task; service shutdown also terminates its manual command groups.
 
 ## How do I remove a Task?
 

@@ -129,7 +129,7 @@ A Task ID is `task_type#registration#task_name`; types are `base`, `api`, `etl`,
 
 Execution configuration resolves as explicit CLI fields > service `get_config` > defaults. Shared fields are `workspace_dir`, `log_dir`, `timezone`, `execution_target`, `log_to_console`, `log_to_file`, `environment`; explicit environment keys merge. Only connection failures allow fallback. Authentication or invalid configuration fails. A workspace override affects that command; service queries still observe the service workspace. Default client timeout is 60 seconds; `--client-timeout` is separate from business deadlines.
 
-After a command disconnect, inspect its Task record before retrying. Cancelling a remote command or shutting down its service can terminate its process group. Cancelling an observation stream does not terminate the observed Task.
+With the default cli Job, disconnecting a remote command stops observation while execution continues on the service. Use Task kill to stop it; service shutdown also terminates its manual command groups. Inspect the Task record before retrying. Cancelling an observation stream does not terminate the observed Task.
 
 ## Author and package a Task
 
@@ -279,7 +279,7 @@ axonx list_task_defs --include-schemas false --target node-b:1024
 axonx get_task_def --task qlib_a158_etl --target node-b:1024
 ```
 
-Restart returns an accepted `update_id`; use it with `get_update_status --update-id ID` to track that operation rather than relying on the latest record. Installation failures or disconnects may leave partial environment changes; inspect installed metadata before retrying.
+Restart returns an accepted `update_id`; use it with `get_update_status --update-id ID` to track that operation rather than relying on the latest record. The default cli Job continues installations after disconnection; wait for completion and inspect installed metadata before retrying. Failed installations can leave partial environment changes.
 
 ## Run and improve research
 

@@ -59,7 +59,7 @@ axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
 axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:1024
 ```
 
-普通 Job 直接调用目标，原生命令通过 cli 转发 argv。Exec 等待完成、传输目标 stdout/stderr 并保留退出码。保留 target、Task ID、started_at 以继续观察。连接取消可能停止所拥有的远程执行，重试前先检查记录。
+普通 Job 直接调用目标，原生命令通过 cli 转发 argv。Exec 等待完成、传输目标 stdout/stderr 并保留退出码。保留 target、Task ID、started_at 以继续观察。默认 cli Job 在连接关闭后继续执行。通过 status、wait_task 或 stream_task 观察，重试前先检查记录。服务关闭仍会停止其手动命令。
 
 ### Studio 后端转发
 

@@ -53,6 +53,8 @@ The category selects a capability domain, `default` is an instance name, `backen
 
 Jobs support `backend` (default `pipeline`), `description`, JSON object `parameters`, `enable_serve`, `enable_stream`, `requires_auth`, `steps`, and `defaults`. Step provider options remain separate from public arguments. System-injected fields are validated separately and cannot be supplied by callers. Extra backend options are retained by ComponentConfig. Public availability depends on both serving flags and authentication configuration.
 
+The pipeline backend accepts `event_buffer_size` (positive integer, default 64) and `cancel_on_disconnect` (boolean, default true). Setting `cancel_on_disconnect: false` keeps the invocation running under the service when its caller disconnects. Output is still consumed, but unobserved events are discarded; the invocation remains managed until completion or Job/application shutdown. The bundled `cli` Job sets this option to false. Other Jobs cancel on disconnect by default. Use Task `kill` to stop a remote research execution explicitly.
+
 ## CronConfig
 
 ```yaml

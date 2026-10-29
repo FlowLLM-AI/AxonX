@@ -17,7 +17,7 @@ Use service/daemon logs for connectivity, process launch and update problems. Ta
 
 ## Execution fails or disconnects
 
-Check native command exit_code, Task state/error, process identity and business outputs separately. Before retrying after a disconnect, inspect whether the Task started and whether started_at changed. Manual remote CLI requests own processes; cancellation or service shutdown can terminate their groups.
+Check native command exit_code, Task state/error, process identity and business outputs separately. Before retrying after a disconnect, inspect whether the Task started and whether started_at changed. The service owns manual remote CLI processes. The default cli Job continues after client disconnection; explicit Task kill or service shutdown can terminate execution.
 
 ## Stale records
 

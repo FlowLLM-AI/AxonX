@@ -39,7 +39,7 @@ axonx exec --task demo --task-name agent-check --x 2 --y 3 --target 192.0.2.10:1
 axonx status --task-id 'base#demo#agent-check' --detail full --target 192.0.2.10:1024
 ```
 
-替换示例地址。Exec 等待并输出业务结果，核对退出码、Task 状态和 `started_at`。连接取消可能停止所拥有的进程，重试断开的命令前先检查记录。
+替换示例地址。Exec 等待并输出业务结果，核对退出码、Task 状态和 `started_at`。默认 cli Job 在客户端断连后继续执行，重试前先检查记录。停止 Task 使用显式 kill。
 
 ## 研究 Prompt
 

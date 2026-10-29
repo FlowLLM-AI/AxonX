@@ -33,4 +33,4 @@ The daemon/service supplies AXONX_SERVICE_TARGET so native CLI children can quer
 
 ## Handling connection failures
 
-Only a connection failure lets local exec/kill fall back to built-in execution defaults. Authentication, protocol or failed get_config responses propagate. An observation timeout does not prove Task failure. A native command cancellation may terminate the owned remote process group; inspect current metadata before retrying.
+Only a connection failure lets local exec/kill fall back to built-in execution defaults. Authentication, protocol or failed get_config responses propagate. An observation timeout does not prove Task failure. With the default cli Job, a native command continues after connection cancellation; inspect current metadata before retrying. Explicit Task kill or service shutdown can still stop execution.

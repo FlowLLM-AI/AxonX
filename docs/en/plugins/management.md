@@ -57,7 +57,7 @@ A target forwards the command; it does not transfer local files. `plugin install
 4. Clean up the upload using its workspace-relative `path`.
 5. Restart the persistent service to refresh its Task catalog and verify definitions.
 
-The following script runs after local wheel construction; replace the filename, service address and token. It validates installation and cleans up on success or failure:
+The following script runs after local wheel construction; replace the filename, service address and token. It validates installation and cleans up after a terminal response, including installation failure. If the connection fails before the response, it retains the staged wheel until command completion is confirmed:
 
 ```python
 import asyncio
@@ -76,10 +76,10 @@ async def deploy():
         timeout=600.0,
     ) as client:
         uploaded = await client.copy_file(wheel)
+        response = await client.run_job("cli", {
+            "argv": ["plugin", "install", uploaded.location],
+        })
         try:
-            response = await client.run_job("cli", {
-                "argv": ["plugin", "install", uploaded.location],
-            })
             result = response.answer
             if not response.success or result["exit_code"] != 0:
                 raise RuntimeError(str(result))
@@ -93,7 +93,7 @@ async def deploy():
 asyncio.run(deploy())
 ```
 
-The explicit local hash comparison verifies the installed wheel against the local artifact after installation. The CLI does not accept a caller-provided expected hash. The installer separately verifies installed provenance against the wheel read on the target. Cleanup does not roll back an installation. Interrupted or timed-out installation requests require checking the target environment before retrying; pip may already have changed files.
+The explicit local hash comparison verifies the installed wheel against the local artifact after installation. The CLI does not accept a caller-provided expected hash. The installer separately verifies installed provenance against the wheel read on the target. Cleanup does not roll back an installation. The default cli Job continues installations after client disconnection or timeout. Confirm command completion and inspect the target environment before retrying or cleaning up a retained upload; failed installations can leave partial environment changes.
 
 If using curl, upload with `-F 'file=@LOCAL.whl'` to `/upload`, then run `axonx plugin install '<answer.location>' --target HOST:PORT --client-timeout 600`. Use `DELETE /upload?path=<answer.path>` for cleanup. Set `AXONX_TARGET_TOKEN` for CLI authentication. Keep upload, install, cleanup and queries on the same service.
 

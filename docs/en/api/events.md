@@ -47,6 +47,6 @@ Use fetch with an AbortSignal and parse SSE across arbitrary network chunk bound
 
 ## Disconnection, cancellation and retries
 
-Close streams when consumers leave. Cancelling an observation does not kill the observed Task. Cancelling a service-owned cli invocation can terminate its process group; cancelling an Agent turn interrupts the model session and may affect tools owned by that turn. Independent executions need explicit lifecycle management. Do not repeat uncertain exec/install requests without inspecting persisted evidence or the target environment.
+Close streams when consumers leave. Cancelling an observation does not kill the observed Task. The default cli Job keeps executing after its client disconnects; it drains output without retaining unobserved events. Explicit Task kill or service shutdown terminates execution; cancelling an Agent turn interrupts the model session and may affect tools owned by that turn. Independent executions need explicit lifecycle management. Do not repeat uncertain exec/install requests without inspecting persisted evidence or the target environment.
 
 Sources: [Job events](../../../axonx/client/events.py), [Task events](../../../axonx/task/models/events.py), [HTTP framing](../../../axonx/app/components/service/http/jobs.py).

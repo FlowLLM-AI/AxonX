@@ -82,7 +82,7 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## File upload
 
-`copy_file` returns StagedFile with path, size and absolute location. Use location for target-side plugin install and path for staged-file cleanup or sync. Clean up with discard_file in finally. A complete remote installation example is in [Plugin management](../plugins/management.md).
+`copy_file` returns StagedFile with path, size and absolute location. Use location for target-side plugin install and path for staged-file cleanup or sync. Clean up with discard_file in finally after command completion is confirmed; retain the upload if the command outcome is unknown. A complete remote installation example is in [Plugin management](../plugins/management.md).
 
 ## MCP client
 
@@ -94,6 +94,6 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## Errors and cleanup
 
-RemoteConnectionError identifies unreachable/time-out connections. RemoteServiceError covers protocol/HTTP failures and carries optional status_code. Check JobResponse.success separately. A dropped command stream can leave execution acceptance uncertain; inspect Task start time before retrying. Cancellation closes owned connections and can terminate service-owned CLI children.
+RemoteConnectionError identifies unreachable/time-out connections. RemoteServiceError covers protocol/HTTP failures and carries optional status_code. Check JobResponse.success separately. A dropped command stream can leave execution acceptance uncertain; inspect Task start time before retrying. Cancellation closes the client connection. The default cli Job continues executing; service shutdown still terminates its manual command groups.
 
 Sources: [Application](../../../axonx/app/core/application.py), [HTTP](../../../axonx/client/http.py), [MCP](../../../axonx/client/mcp.py).
