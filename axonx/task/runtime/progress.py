@@ -7,18 +7,22 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
+from ..models.identity import TaskState
 from ..models.lifecycle import TaskMetadata, TaskStepStatus
 from ..storage.logs import TaskJournal
-from ..storage.workspace import EVENTS_FILE, write_task_metadata
+from ..storage.workspace import EVENTS_FILE, PERSISTENT_DIR, write_task_metadata
 
 
 class TaskProgress:
     """Own one execution's step state, progress throttling and ordered publication."""
 
-    def __init__(self, directory: Path, status: TaskMetadata) -> None:
+    def __init__(self, directory: Path, status: TaskMetadata, *, previous_started_at: datetime | None = None) -> None:
         self.directory = directory
         self.status = status
         self.journal = TaskJournal(directory / EVENTS_FILE)
+        self.runs = TaskJournal(directory / PERSISTENT_DIR / "runs.jsonl")
+        self.previous_started_at = previous_started_at
+        self._published_state: TaskState | None = None
         self.current: TaskStepStatus | None = None
         self._published: dict[tuple[str, str], float] = {}
 
@@ -26,6 +30,10 @@ class TaskProgress:
         """Write events first; terminal metadata includes every final step snapshot."""
         self.journal.append_snapshots(self.status.steps if self.status.state.is_terminal else steps)
         write_task_metadata(self.directory, self.status)
+        if self.status.state != self._published_state:
+            previous = self.previous_started_at if self.status.state == TaskState.RUNNING else None
+            self.runs.append_run(self.status, previous_started_at=previous)
+            self._published_state = self.status.state
 
     def report(self, percentage: float | None = None, *, name: str | None = None, **changes) -> None:
         step = self.current

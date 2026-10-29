@@ -37,11 +37,11 @@ The executor runs synchronous callables from `build_task_steps()`, records their
 
 ## Lifecycle record publication
 
-`metadata.json` is the current lifecycle document. Atomic replacement publishes complete snapshots; a step event journal supports observation. Final metadata contains typed business output and terminal state together. There is no directory coordination lock: callers serialize same-name execution and concurrent mutations.
+`metadata.json` is the current lifecycle document. Atomic replacement publishes complete snapshots; a step event journal supports observation. Final metadata contains typed business output and terminal state together. The runtime holds the existing file lock at `persistent/task.lock` throughout execution and replacement. Concurrent same-ID executions are rejected without a shared lock directory. Arbitrary filesystem deletion remains the caller’s responsibility.
 
 ## Rerunning a fixed name
 
-The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer.
+The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer. Every Task type appends `started` and `finished` events to `persistent/runs.jsonl`; each line contains `event` and the complete Task metadata, including inputs, outputs, child calls and artifact revisions. Exceptions and reconciled dead processes also append a finished record. Appends are locked, flushed and recover an incomplete trailing line. The journal retains metadata rather than old payloads.
 
 ## Waiting and termination
 

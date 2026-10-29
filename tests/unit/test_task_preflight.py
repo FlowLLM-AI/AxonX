@@ -74,7 +74,7 @@ def test_local_dead_process_logs_repair_before_overwrite(task, monkeypatch):
     original, status, directory = task
     running(status, directory)
     persistent = directory / "persistent"
-    persistent.mkdir()
+    persistent.mkdir(exist_ok=True)
     (persistent / "history.txt").write_text("keep")
     monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
     messages = []

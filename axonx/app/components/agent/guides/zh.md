@@ -378,7 +378,7 @@ Task ID 为 `task_type#registration#task_name`，实例名为 1–32 个字母�
 
 `status`/`wait_task` 默认摘要，`--detail full` 返回完整输入输出；`get_task_context` 提供完整选中记录、路径和输入关系。日志用 `next_offset` 续读，`--started-at TIMESTAMP` 可防止读到同名新执行。列表与图可能有索引刷新延迟，单任务状态直接读取 metadata。
 
-固定名字保存在 `<workspace>/tasks/<task_type>/<task_id>/`；匹配 `YYYYMMDDHH` 加四位字母数字的名字（包括继承名字）保存在 `<workspace>/tmp/tasks/<task_type>/<task_id>/`。两者包含 `metadata.json`、`events.jsonl`、相对 Task 目录的 `log_path`（启用文件日志时为 `task.log`）及可选的 `persistent/`。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
+固定名字保存在 `<workspace>/tasks/<task_type>/<task_id>/`；匹配 `YYYYMMDDHH` 加四位字母数字的名字（包括继承名字）保存在 `<workspace>/tmp/tasks/<task_type>/<task_id>/`。两者包含 `metadata.json`、`events.jsonl`、相对 Task 目录的 `log_path`（启用文件日志时为 `task.log`）及 `persistent/runs.jsonl`。执行器为所有 Task 类型统一追加 `started`、`finished` 事件及完整执行元信息，同名重跑保留该日志；执行期间复用 `persistent/task.lock` 文件锁，不创建全局锁目录。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
 
 ```bash
 axonx list_entries --path ''

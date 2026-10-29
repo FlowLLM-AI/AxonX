@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import shlex
+from contextlib import ExitStack, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
@@ -14,13 +15,17 @@ import psutil
 from ...utils.logging import get_logger
 from ..models.identity import TaskState, is_generated_task_name, task_type_from_id
 from ..models.lifecycle import TaskMetadata
+from ..storage.files import file_lock
 from ..storage.logs import TaskJournal
 from ..storage.workspace import (
     EVENTS_FILE,
+    PERSISTENT_DIR,
     load_task_metadata,
     read_task_metadata,
     reset_task_directory,
+    resolve_relative_path,
     scan_entries,
+    task_directory,
     task_path,
     write_task_metadata,
 )
@@ -30,19 +35,42 @@ if TYPE_CHECKING:
     from ..core.base import BaseTask
 
 
-def prepare_task_directory(task: BaseTask) -> datetime | None:
-    """Check replacement eligibility before clearing files; retain persistent data."""
+@contextmanager
+def prepare_task_directory(task: BaseTask):
+    """Reuse the file lease inside persistent/ throughout replacement and execution."""
     if task_type_from_id(task.task_id) != task.task_type:
         raise ValueError(f"Task type does not match its ID: {task.task_id}")
-    directory = task.workspace_path
-    for part in task.task_dir.relative_to(directory).parts:
-        directory /= part
-        if directory.is_symlink():
-            raise ValueError(f"Task directory cannot traverse a symlink: {directory}")
-    if not task.task_dir.exists():
-        task.task_dir.mkdir(parents=True)
-        return None
+    directory = resolve_relative_path(task.workspace_path, task_directory(task.task_id))
+    try:
+        directory.mkdir(parents=True)
+        created = True
+    except FileExistsError:
+        created = False
+    lock = resolve_relative_path(directory, f"{PERSISTENT_DIR}/task.lock")
+    # Creating a lease must not mutate an unowned directory.
+    if not created and not lock.is_file():
+        _previous_execution(task)
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(file_lock(lock))
+        except BlockingIOError:
+            previous = read_task_metadata(task.task_dir, task.task_id)
+            message = (
+                conflict_message(task.workspace_path, previous) if previous else f"Task is running: {task.task_id}"
+            )
+            raise FileExistsError(message) from None
+        previous = None if created else _previous_execution(task)
+        if previous is not None:
+            task.logger.info(
+                f"Overwrite task_id={task.task_id} started_at={previous.started_at.isoformat()} "
+                f"state={previous.state.value}"
+            )
+            reset_task_directory(directory)
+        yield previous.started_at if previous is not None else None
 
+
+def _previous_execution(task: BaseTask) -> TaskMetadata:
+    """Check eligibility before acquiring a lease or replacing any existing files."""
     previous = load_task_metadata(task.task_dir, task.task_id)
     if previous.replica is not None:
         raise ValueError("Display replicas are read-only; execute on the source service")
@@ -56,11 +84,7 @@ def prepare_task_directory(task: BaseTask) -> datetime | None:
         task.context.parent_task_id is None or previous.parent_task_id != task.context.parent_task_id
     ):
         raise FileExistsError(f"Task directory already exists: {task.task_dir}")
-    task.logger.info(
-        f"Overwrite task_id={task.task_id} started_at={previous.started_at.isoformat()} state={previous.state.value}"
-    )
-    reset_task_directory(task.task_dir)
-    return previous.started_at
+    return previous
 
 
 def finish_task(metadata: TaskMetadata, *, exit_code: int, error: str = "") -> None:
@@ -97,6 +121,7 @@ def reconcile_record(directory: Path, metadata: TaskMetadata) -> TaskMetadata:
         child.state, child.exit_code, child.error = TaskState.FAILED, 1, reason
     TaskJournal(directory / EVENTS_FILE).append_snapshots(metadata.steps)
     write_task_metadata(directory, metadata)
+    TaskJournal(directory / PERSISTENT_DIR / "runs.jsonl").append_run(metadata)
     get_logger("task").warning(
         f"Reconciled stale Task task_id={metadata.task_id} machine_id={metadata.machine_id} "
         f"started_at={metadata.started_at.isoformat()} state=running->failed: {reason}"

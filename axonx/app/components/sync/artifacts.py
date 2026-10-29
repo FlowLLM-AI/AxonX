@@ -115,7 +115,8 @@ def source_revision(
     if log is not None and logs.is_task_log(log) and log.is_file():
         stat = log.stat()
         files.append(("display/log.log", stat.st_size, stat.st_mtime_ns))
-    return fingerprint([metadata.started_at.isoformat(), files])
+    children = [child.model_dump(mode="json") for child in metadata.current_children()]
+    return fingerprint([metadata.started_at.isoformat(), files, children])
 
 
 def verify_replica(root: Path, task_id: str, *, metadata: TaskMetadata | None = None) -> None:

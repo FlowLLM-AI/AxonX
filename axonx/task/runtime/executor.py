@@ -163,7 +163,7 @@ class TaskExecutor:
             try:
                 try:
                     execution_target = normalize_execution_target(task.context.execution_target)
-                    previous_start = prepare_task_directory(task)
+                    previous_start = stack.enter_context(prepare_task_directory(task))
                     started_at = datetime.now(UTC)
                     if previous_start is not None:
                         started_at = max(started_at, previous_start + timedelta(microseconds=1))
@@ -185,7 +185,7 @@ class TaskExecutor:
                         started_at=started_at,
                         log_path=LOG_FILE if log_path else "",
                     )
-                    progress = TaskProgress(task.task_dir, status)
+                    progress = TaskProgress(task.task_dir, status, previous_started_at=previous_start)
                     task._metadata = status
                     task._persist_metadata = progress.publish
                     task._progress = progress.report

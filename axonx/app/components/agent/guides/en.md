@@ -378,7 +378,7 @@ A Task ID is `task_type#registration#task_name`. Instance names contain 1–32 l
 
 `status`/`wait_task` default to summaries; `--detail full` returns complete inputs and outputs. `get_task_context` provides the selected full record, paths and input relationships. Continue logs with `next_offset`; `--started-at TIMESTAMP` guards against reading a same-name replacement. Lists and graphs may lag behind index refreshes; single-Task status reads metadata directly.
 
-Fixed names use `<workspace>/tasks/<task_type>/<task_id>/`; names matching `YYYYMMDDHH` plus four alphanumeric characters use `<workspace>/tmp/tasks/<task_type>/<task_id>/`, including inherited names. Both contain `metadata.json`, `events.jsonl`, Task-relative `log_path` (`task.log` when file logging is enabled), and optional `persistent/`. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
+Fixed names use `<workspace>/tasks/<task_type>/<task_id>/`; names matching `YYYYMMDDHH` plus four alphanumeric characters use `<workspace>/tmp/tasks/<task_type>/<task_id>/`, including inherited names. Both contain `metadata.json`, `events.jsonl`, Task-relative `log_path` (`task.log` when file logging is enabled), and `persistent/runs.jsonl`. The executor appends `started` and `finished` events with complete execution metadata for every Task type; same-name reruns retain this journal. Execution reuses the file lock at `persistent/task.lock`, with no shared lock directory. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
 
 ```bash
 axonx list_entries --path ''

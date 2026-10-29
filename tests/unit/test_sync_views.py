@@ -149,13 +149,20 @@ def test_model_views_roundtrip_without_foreign_parameters_results_steps_or_logs(
 
 def test_excluded_restarted_branch_does_not_block_the_selected_model(workflow, tmp_path):
     source, status = workflow
+    target = tmp_path / "target"
+    send(source, status, target, tmp_path, ("axon2-*",))
     native = next(child for child in status.children if child.node_name.startswith("axon2-0945-"))
     metadata = read_entry(source, native.child_task_id)
     metadata.started_at += timedelta(seconds=1)
     write_task_metadata(task_path(source, native.child_task_id), metadata)
     assert task_group(source, status.task_id, ("axon-v1",))
-    with pytest.raises(SnapshotChangedError, match="Run changed"):
-        task_group(source, status.task_id, ("axon2-*",))
+    group = task_group(source, status.task_id, ("axon2-*",))
+    assert native.child_task_id not in group
+    assert all(child.child_task_id != native.child_task_id for child in group[status.task_id].children)
+    # Source invocation history stays intact; a replica contains only available runs.
+    assert read_entry(source, status.task_id).children == status.children
+    send(source, status, target, tmp_path, ("axon2-*",))
+    assert read_entry(target, status.task_id).output_params["models"]["0945"]["axon2-0945"]["status"] == "done"
 
 
 def test_changing_a_view_removes_only_obsolete_owned_replicas(workflow, tmp_path):

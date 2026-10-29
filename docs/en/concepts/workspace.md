@@ -15,7 +15,7 @@ The following shows runtime data under the default configuration. Directories ar
 │       ├── metadata.json                # Authoritative current execution record
 │       ├── events.jsonl                 # Progress events
 │       ├── task.log                     # Written when file logging is enabled
-│       ├── persistent/                  # Optional cumulative data retained on rerun
+│       ├── persistent/                  # Execution history and cumulative data retained on rerun
 │       └── ...                          # Plugin models, reports and comparisons
 ├── tmp/
 │   ├── tasks/<task_type>/<task_id>/      # Generated names; same Task contents
@@ -65,18 +65,19 @@ Fixed names use `tasks/<task_type>/<task_id>/`. The reserved generated format is
 
 For example, a fixed-name training Task uses `tasks/train/train#qlib_a158_train#baseline/`, while a generated one uses `tmp/tasks/train/train#qlib_a158_train#2026102912aB3d/`. Classification depends only on the final name, without an additional storage-category field. Parameter comparisons are ordinary analysis Tasks, with `summary.csv` and `comparison.json` inside their Task directory.
 
-The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and display synchronization replaces the target directory with selected published outputs. Plugins own its schema, updates, and locking. It must be a regular directory, not a symbolic link.
+The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and display synchronization replaces the target directory with selected published outputs. The framework owns `persistent/task.lock` and `persistent/runs.jsonl`; the existing `TaskJournal` appends started/finished execution metadata; a replacement start records `previous_started_at`. Plugins own other business files and must not overwrite this journal. It must be a regular directory, not a symbolic link.
 
 ## Runtime Records
 
-| File            | Lifecycle                                 | Contents                                                                                                             |
-| --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `metadata.json` | Execution startup through terminal state  | Task ID, started_at, process identity, input/output, state, steps, error, exit code, log path, and child invocations |
-| `events.jsonl`  | Appended as the executor reports progress | Replayable progress events, one JSON object per line                                                                 |
+| File                    | Lifecycle                                                      | Contents                                                                                                             |
+| ----------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `metadata.json`         | Execution startup through terminal state                       | Task ID, started_at, process identity, input/output, state, steps, error, exit code, log path, and child invocations |
+| `persistent/runs.jsonl` | Appended at execution start and finish, retained across reruns | Event, complete execution metadata and the previous execution start time                                             |
+| `events.jsonl`          | Appended as the executor reports progress                      | Replayable progress events, one JSON object per line                                                                 |
 
 One atomic metadata snapshot is the authoritative Task record. `TaskExecutor` updates it in the synchronous execution process, including child invocations, cleanup and final output. Runtime preparation and explicit `kill` can reconcile confirmed dead local processes; queries only observe files. Each rerun replaces `metadata.json` and `events.jsonl`; neither file is an archive of previous executions.
 
-Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Synchronizing or deleting a parent does not include its children automatically.
+Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Workflow synchronization selects available matching child executions; deleting a parent does not automatically delete children.
 
 Readers treat malformed, unsafe, or identity-mismatched records as missing. They never read FIFOs or follow symbolic links. Transient I/O errors can be retried by lifecycle operations.
 

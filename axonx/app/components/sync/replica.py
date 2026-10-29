@@ -329,7 +329,7 @@ def _project(value, excluded: set[str]):
 
 
 def task_group(root: Path, task_id: str, model_names: Sequence[str] = ()) -> dict[str, TaskMetadata]:
-    """Follow exact child runs; excluded branches cannot block another model."""
+    """Follow available child runs, excluding executions replaced under the same ID."""
     parent = read_entry(root, task_id)
     if parent is None or parent.replica is not None:
         raise SnapshotChangedError(f"Task source is unavailable: {task_id}")
@@ -385,6 +385,15 @@ def task_group(root: Path, task_id: str, model_names: Sequence[str] = ()) -> dic
             status.steps = steps
             status.error = f"Task exited with code {status.exit_code}" if status.exit_code else ""
             status.log_path = ""
+        # Reusing a fixed Task name replaces its payload. Preserve invocation history
+        # at the source, but never attach a newer child to this older parent snapshot.
+        replaced = set()
+        for child in status.current_children():
+            if child.child_task_id and child.started_at is not None:
+                current = read_entry(root, child.child_task_id)
+                if current is not None and current.replica is None and current.started_at > child.started_at:
+                    replaced.add(child.child_task_id)
+        status.children = [child for child in status.children if child.child_task_id not in replaced]
         result[identity] = status
         pending.extend(
             (child.child_task_id, child.started_at)

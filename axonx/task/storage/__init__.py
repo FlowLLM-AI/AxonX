@@ -4,7 +4,7 @@ files: Atomic writes, filesystem revisions, snapshots and publication leases.
 workspace: Task directory layout, lifecycle records and incremental metadata scans.
 artifacts: Published file references and payload size/revision verification.
 inputs: Successful upstream records, artifact bundles and model-collection snapshots.
-logs: Append-only progress journals and byte-offset text-log readers.
+logs: Progress and execution journals, with byte-offset text-log readers.
 online: Atomic online commits, frozen history chains and pinned histories.
 replay: Portable replay manifests and isolated payload snapshots.
 """

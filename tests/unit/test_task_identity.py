@@ -11,7 +11,6 @@ import pytest
 
 from axonx.app.components.sync.applier import TaskArchiveApplier
 from axonx.app.components.sync.archive import build_archive
-from axonx.app.components.sync.models import SnapshotChangedError
 from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.components.task_index.stream import TaskEventStream
 from axonx.app.steps.task import WaitTaskStep
@@ -116,7 +115,7 @@ def test_rerun_replaces_current_outputs_and_preserves_only_explicit_history(exec
     directory = task_path(tmp_path, first.task_id)
     (directory / "old-output.txt").write_text("old")
     persistent = directory / "persistent"
-    persistent.mkdir()
+    persistent.mkdir(exist_ok=True)
     (persistent / "history.txt").write_text("retained")
     second = executor.execute(
         DemoTask({"task_name": "same", "x": 10, "y": 20}, workspace_path=tmp_path, reg_name="demo")
@@ -326,8 +325,10 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     assert replica.replica.snapshot.root_started_at == parent.started_at
     assert read_entry(target, child.task_id).started_at == second.started_at
     executor.execute(DemoTask({"task_name": "repeat", "x": 99, "y": 1}, workspace_path=workspace, reg_name="demo"))
-    with pytest.raises(SnapshotChangedError, match="Task source Run changed"):
-        task_group(workspace, parent.task_id)
+    group = task_group(workspace, parent.task_id)
+    assert child.task_id not in group
+    assert not group[parent.task_id].children
+    assert read_entry(workspace, parent.task_id).children == parent.children
 
     # A pending child must not pull the previous contents of its named directory.
     parent.children[-1].started_at = None
