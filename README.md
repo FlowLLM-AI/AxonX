@@ -120,7 +120,7 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx restart_service
 ```
 
-Research plugins are installed from source. Install extensions in **Alpha158 → factor → strategy** order. Restart persistent services after code changes; reinstall after dependency or entry-point changes. Wait for the service to be ready before querying definitions.
+Research plugins are installed from source. Install **Alpha158** first, then **factor** or **strategy** as needed; the two extensions do not depend on each other. Restart persistent services after code changes; reinstall after dependency or entry-point changes. Wait for the service to be ready before querying definitions.
 
 Provide the checkout, file/command tools and [AxonX Skill](skills/axonx/SKILL.md). Install the Skill from `main` with GitHub CLI (`--agent claude-code` for Claude Code):
 

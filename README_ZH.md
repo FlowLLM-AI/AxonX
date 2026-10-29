@@ -120,7 +120,7 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx restart_service
 ```
 
-研究插件从源码安装，扩展按 **Alpha158 → factor → strategy** 顺序安装。源码变化后重启常驻服务；依赖或入口点变化后重新安装。服务重新就绪后再查询定义。
+研究插件从源码安装，先安装 **Alpha158**，再按需安装 **factor** 或 **strategy**，两个扩展彼此不依赖。源码变化后重启常驻服务；依赖或入口点变化后重新安装。服务重新就绪后再查询定义。
 
 提供源码、文件/命令工具和 [AxonX Skill](skills/axonx/SKILL.md)。通过 GitHub CLI 从 `main` 安装 Skill，Claude Code 将 `--agent` 改为 `claude-code`：
 
