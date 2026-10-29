@@ -1,3 +1,4 @@
+import { taskDirectory } from "../shared/lib/tasks";
 import type { TaskMetadata } from "../shared/api/contracts";
 import type { WorkspacePreview } from "../shared/api/workspace";
 import { json, taskStatus } from "./data";
@@ -127,6 +128,6 @@ export function seedNightly(
     task.output_params.artifacts = {};
     task.reg_name = task.task_id.split("#")[1];
     tasks.set(task.task_id, task);
-    files.set(`${task.task_type}/${task.task_id}/metadata.json`, json(task));
+    files.set(`${taskDirectory(task.task_id)}/metadata.json`, json(task));
   }
 }

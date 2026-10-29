@@ -314,7 +314,7 @@ export function createPlayground(): Transport {
             ];
             {
               for (const [path, file] of files)
-                if (path.startsWith(`${id.split("#")[0]}/${id}/`))
+                if (path.startsWith(`${taskDirectory(id)}/`))
                   events.push({
                     kind: "artifact",
                     path,
@@ -458,9 +458,9 @@ export function createPlayground(): Transport {
             directory(String(args.path || ""), Number(args.offset || 0)),
           );
         case "list_task_directories": {
-          const dir = directory(String(args.task_type));
-          dir.entries = dir.entries.filter(
-            (entry) => tasks.get(entry.name)?.task_type === args.task_type,
+          const dir = directory(String(args.path));
+          dir.entries = dir.entries.filter((entry) =>
+            files.has(`${entry.path}/metadata.json`),
           );
           return response(dir);
         }

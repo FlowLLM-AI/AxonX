@@ -49,7 +49,7 @@ For a long-running execution, run observations in another terminal. `wait_task -
 
 ## Inspect persistent records
 
-The current record is `.axonx/base/base#demo#quickstart/metadata.json`; it includes `started_at`, state, process identity, steps, input/output parameters and child invocations. Task states are `running`, `succeeded`, and `failed`. Logs live under the configured `log_dir`, referenced by metadata.
+The current record is `.axonx/tasks/base/base#demo#quickstart/metadata.json`; it includes `started_at`, state, process identity, steps, input/output parameters and child invocations. Task states are `running`, `succeeded`, and `failed`. Task logs live in `task.log` inside the Task directory when file logging is enabled; `log_path` is Task-relative. Service logs use the separate `log_dir`.
 
 An explicit same-name rerun replaces current files after the previous execution has stopped; `persistent/` is retained. It is not an immutable run archive. Stop an active execution explicitly with `axonx kill --task-id ID`; see [Task management](../guides/task-management.md).
 

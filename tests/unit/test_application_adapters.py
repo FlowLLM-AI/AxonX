@@ -325,9 +325,7 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     status = TaskExecutor().execute(
         DemoTask({"task_name": "replica", "x": 3, "y": 4}, workspace_path=source, reg_name="demo")
     )
-    plan = ReplicaBuilder(
-        source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(tmp_path / "logs")
-    ).prepare()
+    plan = ReplicaBuilder(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(source)).prepare()
     archive = tmp_path / "replica.tar.gz"
     build_archive({status.task_id: plan}, archive)
     response = client.post("/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name})

@@ -1,6 +1,5 @@
 """Exercise real CPU research, dependency selection and failure propagation."""
 
-import argparse
 import json
 import math
 from datetime import date, timedelta
@@ -18,10 +17,10 @@ from axonx.task.runtime.catalog import TaskCatalog
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.files import atomic_write_json
 from axonx.task.storage.workspace import read_entry
+from axonx_qlib_a158.comparison import ParameterComparisonTask
 from axonx_qlib_a158.etl import Alpha158Task
 from axonx_qlib_a158.predict import LgbmPredictTask
 from axonx_qlib_a158.research import Alpha158ResearchTask, ResearchInputParams
-from axonx_qlib_a158.scripts.compare_parameters import run_comparison
 from axonx_qlib_factor.features import CONTEXT_FEATURES
 from axonx_qlib_factor.tasks import FactorETLTask
 
@@ -216,28 +215,28 @@ def test_feature_consumers_reject_incomplete_protocol(tmp_path, market, catalog,
     assert read_entry(tmp_path, consumer.task_id).state == TaskState.FAILED
 
 
-def test_parameter_comparison_records_current_execution_provenance(tmp_path, market):
+def test_parameter_comparison_records_current_execution_provenance(tmp_path, market, catalog):
     etl = Alpha158Task(
         {"start_date": market[60], "end_date": market[100]}, workspace_path=tmp_path, reg_name="qlib_a158_etl"
     )
     TaskExecutor().execute(etl)
-    result = run_comparison(
-        argparse.Namespace(
-            workspace_dir=tmp_path,
-            etl_task=etl.task_id,
-            labels=["rank", "csz"],
-            train_start=market[60],
-            train_end=market[85],
-            pred_start=market[85],
-            pred_end=market[95],
-            num_threads=1,
-            num_boost_round=4,
-            top_ns=[5],
-            buy_cost_rate=0.0005,
-            sell_cost_rate=0.0015,
-        )
+    task = ParameterComparisonTask(
+        {
+            "task_name": "comparison",
+            "upstream_task_ids": [etl.task_id],
+            "labels": ["rank", "csz"],
+            "train": {"train_start": market[60], "train_end": market[85], "num_threads": 1, "num_boost_round": 4},
+            "predict": {"pred_start": market[85], "pred_end": market[95]},
+            "backtest": {"top_ns": [5]},
+        },
+        workspace_path=tmp_path,
+        reg_name="qlib_a158_compare",
     )
-    output = Path(result["output_dir"])
+    TaskExecutor(resolve_task=catalog.resolve).execute(task)
+    output = task.task_dir
+    assert len(task.children) == 12
+    assert output == tmp_path / "tasks/analysis" / task.task_id
+    assert set(task.output["artifacts"]) == {"summary", "comparison"}
     saved = json.loads((output / "comparison.json").read_text())
     assert saved["etl_started_at"] == etl.metadata.model_dump(mode="json", include={"started_at"})["started_at"]
     assert set(saved["presets"]) == {"rank_axonx", "rank_qlib", "csz_axonx", "csz_qlib"}

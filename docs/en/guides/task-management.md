@@ -28,7 +28,7 @@ Only confirmed dead local processes can be reconciled. A foreign or inaccessible
 
 ## Delete stopped task directories
 
-The current file API is `delete_entries --paths '["base/base#demo#add-01"]'`. It has no active-process protection. Confirm all writers are stopped, use workspace-relative paths and coordinate against concurrent execution. It removes persistent/ too. Deletion does not stop a process.
+The current file API is `delete_entries --paths '["tasks/base/base#demo#add-01"]'`. It has no active-process protection. Confirm all writers are stopped, use workspace-relative paths and coordinate against concurrent execution. It removes persistent/ too. Deletion does not stop a process.
 
 ## Studio
 

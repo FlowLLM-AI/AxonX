@@ -13,7 +13,7 @@ Keep the execution machine, workspace, Task ID and started_at together. Local pl
 
 ## Log sources
 
-Use service/daemon logs for connectivity, process launch and update problems. Task metadata.log_path identifies execution logs; read_task_log provides bounded byte chunks. Scheduled stdout/stderr is also captured in the configured log directory under cron/entry-N.log. File existence is not proof of successful business evaluation.
+Use service/daemon logs for connectivity, process launch and update problems. Task metadata.log_path identifies a file relative to its own Task directory; read_task_log provides bounded byte chunks. Scheduled stdout/stderr is also captured in the configured log directory under cron/entry-N.log. File existence is not proof of successful business evaluation.
 
 ## Execution fails or disconnects
 

@@ -30,7 +30,7 @@ export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
 
-默认端口为 `1024`，运行数据位于 `.axonx/`，服务/CLI 日志位于 `logs/`。可选凭据与内置配置变量见 [example.env](example.env)。CLI 启动时从当前目录或最多五级父目录加载最近的 `.env`，保留已有环境变量。代理与构建设置见 [Studio 开发](docs/zh/development/studio.md)。
+默认端口为 `1024`，运行数据位于 `.axonx/`，Task 日志保存在各自 Task 目录，服务/启动日志位于 `logs/`。可选凭据与内置配置变量见 [example.env](example.env)。CLI 启动时从当前目录或最多五级父目录加载最近的 `.env`，保留已有环境变量。代理与构建设置见 [Studio 开发](docs/zh/development/studio.md)。
 
 YAML 继承与安装配置见[服务端配置](docs/zh/reference/configuration.md)，执行选项见 [CLI 参考](docs/zh/reference/cli.md)。自定义配置只有显式声明 `extends: default` 才继承默认值。凭据和运行产物不得提交。
 

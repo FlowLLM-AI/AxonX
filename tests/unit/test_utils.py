@@ -90,19 +90,18 @@ def test_env_expansion_handles_nested_defaults_without_mutating_input(monkeypatc
 
 def test_log_cleanup_protects_active_locked_recent_and_unowned_files(tmp_path):
     prefix = f"2000-01-01_00-00-00_{os.getpid()}"
-    identity = "a" * 64
     active = tmp_path / f"{prefix}.log"
-    locked = tmp_path / f"{prefix}_{identity}.log"
-    finished = tmp_path / f"{prefix}_{'b' * 64}.log"
+    locked = tmp_path / f"{prefix}.2000-01-02_00-00-01.log"
+    finished = tmp_path / f"{prefix}.2000-01-02_00-00-02.log"
     archive = tmp_path / f"{prefix}.2000-01-02_00-00-00.log.zip"
-    recent = tmp_path / f"{prefix}_{'c' * 64}.log"
+    recent = tmp_path / f"{prefix}.2000-01-02_00-00-03.log"
     unowned = tmp_path / "service.log"
     old = time() - LOG_RETENTION_SECONDS - 60
     for path in (active, locked, finished, archive, recent, unowned):
         path.write_text("log")
         if path != recent:
             os.utime(path, (old, old))
-    symlink = tmp_path / f"{prefix}_{'d' * 64}.log"
+    symlink = tmp_path / f"{prefix}.2000-01-02_00-00-04.log"
     symlink.symlink_to(finished)
     with locked.open("rb") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -46,7 +46,10 @@ class TaskEventStream:
             if started_at is not None and status.started_at != started_at:
                 raise ValueError(f"Task restarted: {task_id}")
             started_at = status.started_at
-            current_log_path = self.logs.path(status)
+            try:
+                current_log_path = self.logs.path(status)
+            except ValueError:
+                current_log_path = None
             if current_log_path != log_path:
                 log_path = current_log_path
                 log_offset = 0
@@ -74,7 +77,7 @@ class TaskEventStream:
             if limit <= 0:
                 return
             try:
-                chunk = await asyncio.to_thread(self.logs.read_status, self.workspace, status, log_offset, limit)
+                chunk = await asyncio.to_thread(self.logs.read_status, status, log_offset, limit)
             except (OSError, ValueError) as exc:
                 log_has_more = log_advanced = False
                 if not log_warned:

@@ -42,7 +42,7 @@
 ```json
 {
   "arguments": {
-    "path": "tmp/ACTUAL_UPLOAD_PATH/archive.tar.gz"
+    "path": "tmp/uploads/ACTUAL_UPLOAD_PATH/archive.tar.gz"
   }
 }
 ```

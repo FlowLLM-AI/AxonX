@@ -40,6 +40,7 @@ TASK_ID_SEPARATOR = "#"
 _REG_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 _TASK_NAME = re.compile(r"^[A-Za-z0-9-]{1,32}$")
 _RANDOM_ALPHABET = string.ascii_letters + string.digits
+_GENERATED_NAME = re.compile(r"^[0-9]{10}[A-Za-z0-9]{4}$")
 
 
 def validate_task_name(name: str) -> str:
@@ -53,6 +54,17 @@ def generated_task_name(created_at: datetime) -> str:
     """Return a sortable anonymous Task name with an hour prefix."""
     suffix = "".join(secrets.choice(_RANDOM_ALPHABET) for _ in range(4))
     return f"{created_at:%Y%m%d%H}{suffix}"
+
+
+def is_generated_task_name(name: str) -> bool:
+    """Recognize the reserved hour-and-random-suffix namespace, including inherited names."""
+    if not _GENERATED_NAME.fullmatch(name):
+        return False
+    try:
+        datetime.strptime(name[:10], "%Y%m%d%H")
+    except ValueError:
+        return False
+    return True
 
 
 def task_type_from_id(task_id: str) -> TaskType:

@@ -40,6 +40,29 @@ def source_task(tmp_path):
     return source, status, directory
 
 
+@pytest.mark.parametrize("name", ["named", "2026102915aB3x"])
+def test_task_local_logs_roundtrip_through_display_sync(tmp_path, name):
+    configure_logging(LoggingConfig(log_dir=tmp_path / "logs", log_to_console=False))
+    source = tmp_path / "source"
+    status = TaskExecutor().execute(
+        DemoTask({"task_name": name, "x": 1, "y": 2}, workspace_path=source, reg_name="demo")
+    )
+    content = (task_path(source, status.task_id) / status.log_path).read_text()
+    prepared = task_path(tmp_path / "prepared", status.task_id)
+    budget = 1_000_000
+    plan = ReplicaBuilder(source, status.task_id, prepared, budget, TaskLogReader(source)).prepare()
+    archive = tmp_path / "replica.tar.gz"
+    build_archive({status.task_id: plan}, archive)
+    target = tmp_path / "target"
+    TaskArchiveApplier(target, budget).apply(archive, [])
+    replica = read_entry(target, status.task_id)
+    chunk = TaskLogReader(target).read_status(replica, 0)
+    assert chunk.content == content
+    assert chunk.next_offset == len(content.encode())
+    assert replica.log_path == ""
+    assert not (task_path(target, status.task_id) / "task.log").exists()
+
+
 @pytest.mark.parametrize("budget", [0, -1, True, None])
 def test_task_archive_budget_is_validated_before_mutation(tmp_path, budget):
     with pytest.raises(ValueError, match="positive integer"):
@@ -102,7 +125,7 @@ def test_live_metadata_delta_reuses_the_verified_remote_publication(tmp_path, so
     status.finished_at = None
     write_task_metadata(directory, status)
     budget = 1_000_000
-    logs = TaskLogReader(tmp_path / "logs")
+    logs = TaskLogReader(source)
     plans = prepare_group(source, status.task_id, tmp_path / "first", budget, logs, {})
     target = tmp_path / "target"
     target.mkdir()
@@ -202,7 +225,7 @@ def test_commit_failure_restores_the_previous_replica(tmp_path, source_task, mon
     replace = os.replace
 
     def fail_install(incoming, final):
-        if incoming.parent.parent.name == "incoming":
+        if "incoming" in incoming.parts and final == destination:
             raise OSError("commit failed")
         return replace(incoming, final)
 
@@ -219,7 +242,7 @@ def test_metadata_only_refresh_rechecks_source_and_hydrated_budget(tmp_path, sou
     status.state = TaskState.RUNNING
     status.finished_at = None
     write_task_metadata(directory, status)
-    logs = TaskLogReader(tmp_path / "logs")
+    logs = TaskLogReader(source)
     budget = 1_000_000
     plans = prepare_group(source, status.task_id, tmp_path / "first", budget, logs, {})
     replica_metadata = read_entry(tmp_path / "first", status.task_id)

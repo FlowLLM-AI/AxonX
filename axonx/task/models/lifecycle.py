@@ -104,7 +104,7 @@ class TaskStatus(TaskModel):
     finished_at: datetime | None = None
     error: str = ""
     exit_code: int = Field(default=0, ge=0, le=255)
-    log_path: str = ""
+    log_path: str = Field(default="", description="Task-relative text log path; empty when file logging is disabled.")
 
 
 class ChildTaskRecord(TaskModel):

@@ -182,6 +182,28 @@ def test_plugin_usage_errors_return_a_code_instead_of_exiting(capsys):
     assert "--editable cannot be combined with --output" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("explicit", [False, True])
+def test_plugin_build_uses_the_selected_workspace_without_a_service(tmp_path, monkeypatch, capsys, explicit):
+    from axonx.plugin import installer
+
+    selected = tmp_path / ("explicit" if explicit else "environment")
+    monkeypatch.setenv("AXONX_WORKSPACE_DIR", str(tmp_path / "environment"))
+    calls = []
+
+    def prepare(source, *, cache_dir, output):
+        calls.append((source, cache_dir, output))
+        return {"wheel": "example.whl"}
+
+    monkeypatch.setattr(installer, "prepare_artifact", prepare)
+    monkeypatch.setattr(client, "run_remote_job", lambda *a, **k: pytest.fail("Build must work offline"))
+    argv = ["plugin", "build", "."]
+    if explicit:
+        argv.extend(["--workspace-dir", str(selected)])
+    assert main(argv) == 0
+    assert calls == [(".", selected / "tmp/plugins", None)]
+    assert "example.whl" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("override", [False, True])
 def test_exec_and_kill_share_service_configuration_and_cli_overrides(tmp_path, monkeypatch, capsys, override):
     service_workspace = tmp_path / "service"

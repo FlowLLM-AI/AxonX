@@ -49,7 +49,7 @@ axonx get_task_graph --task-id 'base#demo#quickstart'
 
 ## 检查持久化记录
 
-当前记录位于 `.axonx/base/base#demo#quickstart/metadata.json`，包含 `started_at`、状态、进程身份、步骤、输入输出参数和子任务调用。Task 状态为 `running`、`succeeded`、`failed`。日志位于配置的 `log_dir`，由 metadata 引用。
+当前记录位于 `.axonx/tasks/base/base#demo#quickstart/metadata.json`，包含 `started_at`、状态、进程身份、步骤、输入输出参数和子任务调用。Task 状态为 `running`、`succeeded`、`failed`。启用文件日志时，Task 日志保存在自身目录的 `task.log`，`log_path` 为 Task 相对路径；服务日志仍使用独立的 `log_dir`。
 
 显式同名重跑会在旧执行停止后替换当前文件，并保留 `persistent/`。任务目录不是不可变的执行历史。停止活动执行使用 `axonx kill --task-id ID`，详见[任务管理](../guides/task-management.md)。
 

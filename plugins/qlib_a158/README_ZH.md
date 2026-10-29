@@ -141,7 +141,7 @@ axonx exec --task qlib_a158_research --task-name baseline \
 | Task                 | 上游             | 产物                                 |
 | -------------------- | ---------------- | ------------------------------------ |
 | `qlib_a158_etl`      | 工作区行情数据   | 特征、标签、交易状态和统计           |
-| `qlib_a158_analysis`   | ETL 任务标识     | 因子诊断与分析结果                   |
+| `qlib_a158_analysis` | ETL 任务标识     | 因子诊断与分析结果                   |
 | `qlib_a158_train`    | ETL 任务标识     | 模型、训练协议、验证曲线和特征重要性 |
 | `qlib_a158_predict`  | Train + 可选 ETL | 全横截面预测与预测统计               |
 | `qlib_a158_backtest` | Predict 任务标识 | 日级回测、分期汇总与持仓相关产物     |
@@ -211,14 +211,14 @@ python -m pytest \
 
 覆盖 CPU 组合研究流程、新数据预测、特征协议校验、标签/预设对照和共享股票账本。跨插件测试需要安装全部三个研究插件。
 
-使用已成功完成的 ETL 在本地比较标签与参数预设：
+使用已成功完成的 ETL 运行比较 analysis Task。汇总表和比较清单保存在该 Task 目录，metadata 记录子任务身份：
 
 ```bash
-python -m axonx_qlib_a158.scripts.compare_parameters \
-  --workspace-dir /tmp/axonx-research --etl-task '<etl_task_id>' --labels rank csz
+axonx exec --task qlib_a158_compare --task-name preset-comparison \
+  --workspace-dir /tmp/axonx-research --upstream-task-ids '["<etl_task_id>"]' --labels '["rank","csz"]'
 ```
 
-该本地 Python 工具直接调用 `TaskExecutor`，不查询服务配置。输出 `summary.csv` 和 `comparison.json`，记录各阶段 Task ID、`started_at` 和输入版本。
+比较任务使用普通 CLI 执行配置和子任务生命周期，`summary.csv` 与 `comparison.json` 记录各阶段 Task ID、`started_at` 和输入版本。嵌套的 `train`、`predict`、`backtest` 选项复用对应阶段参数及默认值；`predict.pred_start` 必须不早于 `train.train_end`。子任务名字、依赖、训练预设与标签、回测输入与截止日由比较任务控制，不接受对应嵌套选项。
 
 ## 实验记录
 

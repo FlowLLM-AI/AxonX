@@ -28,7 +28,7 @@ class Workspace:
         self,
         root: str | Path,
         *,
-        copy_dir: str = "tmp",
+        copy_dir: str = "tmp/uploads",
         transfer_budget_bytes: int | None = None,
         upload_retention_days: int = DEFAULT_UPLOAD_RETENTION_DAYS,
     ) -> None:

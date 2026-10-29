@@ -109,6 +109,7 @@ def _run_kill(command: Command, options: ClientOptions) -> int:
 def _run_plugin(command: Command, _options: ClientOptions) -> int:
     from ..plugin.discovery import get_installed_plugin, list_installed_plugins
     from ..plugin.installer import install_plugin, prepare_artifact, uninstall_plugin
+    from ..task.runtime.settings import ExecutionSettings
 
     try:
         args = parse_plugin_arguments(command.raw_arguments)
@@ -121,13 +122,17 @@ def _run_plugin(command: Command, _options: ClientOptions) -> int:
         result = get_installed_plugin(args.plugin)
     elif args.command == "inspect" and not Path(args.plugin).expanduser().exists():
         result = get_installed_plugin(args.plugin)
-    elif args.command in {"inspect", "build"}:
-        result = prepare_artifact(args.plugin, output=args.output)
-    elif args.command == "install":
-        source = Path(args.plugin).expanduser().resolve() if args.editable else None
+    elif args.command in {"inspect", "build", "install"}:
+        source = Path(args.plugin).expanduser().resolve() if getattr(args, "editable", False) else None
         if source is not None and not source.is_dir():
             raise ValueError(f"Editable plugin path must be a project directory: {source}")
-        result = install_plugin(prepare_artifact(args.plugin, output=args.output), editable_source=source)
+        workspace = (
+            Path(args.workspace_dir or os.environ.get("AXONX_WORKSPACE_DIR") or ExecutionSettings().workspace_dir)
+            .expanduser()
+            .resolve()
+        )
+        artifact = prepare_artifact(args.plugin, cache_dir=workspace / "tmp/plugins", output=args.output)
+        result = install_plugin(artifact, editable_source=source) if args.command == "install" else artifact
     else:
         result = uninstall_plugin(args.plugin)
     print_json(result)

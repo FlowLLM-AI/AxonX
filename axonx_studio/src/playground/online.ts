@@ -1,3 +1,4 @@
+import { taskDirectory } from "../shared/lib/tasks";
 import type { TaskMetadata } from "../shared/api/contracts";
 import type { WorkspacePreview } from "../shared/api/workspace";
 import { dailyRows, epoch, json, table, taskStatus } from "./data";
@@ -107,7 +108,7 @@ export function seedOnline(
     task.output_params = { ...sample.result, artifacts: {} };
     if (sample.kind === "inference") seedStockOnline(files, task);
     tasks.set(id, task);
-    files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(task));
+    files.set(`${taskDirectory(id)}/metadata.json`, json(task));
   }
   const child = tasks.get("inference#playground_online#demo")!;
   const id = "base#playground_online#demo";
@@ -214,7 +215,7 @@ export function seedOnline(
   parent.children[0].reg_name = child.task_id.split("#")[1];
   parent.children[0].node_name = `demo-1445-${parent.children[0].reg_name}`;
   tasks.set(id, parent);
-  files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(parent));
+  files.set(`${taskDirectory(id)}/metadata.json`, json(parent));
 }
 
 function seedStockOnline(
@@ -361,7 +362,7 @@ function seedStockOnline(
     const put = (role: string, preview: WorkspacePreview, suffix: string) => {
       const path = `persistent/online/commits/${commitId}/${role}.${suffix}`;
       artifacts[role] = { path, size: preview.size, revision: "1:1" };
-      files.set(`inference/${task.task_id}/${path}`, preview);
+      files.set(`${taskDirectory(task.task_id)}/${path}`, preview);
     };
     for (const [role, rows] of Object.entries(tables))
       put(role, table(rows), "parquet");
@@ -449,9 +450,9 @@ function seedStockOnline(
   task.started_at = commit.started_at;
   task.finished_at = commit.committed_at;
   const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
-  files.set(`inference/${task.task_id}/${historyPath}`, json(history));
+  files.set(`${taskDirectory(task.task_id)}/${historyPath}`, json(history));
   files.set(
-    `inference/${task.task_id}/persistent/online/manifest.json`,
+    `${taskDirectory(task.task_id)}/persistent/online/manifest.json`,
     json(history),
   );
   task.output_params = {

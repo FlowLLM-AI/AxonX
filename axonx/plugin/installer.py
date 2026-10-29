@@ -24,7 +24,7 @@ def _pip(action: str, *arguments: str) -> None:
 
 def prepare_artifact(
     source: Path | str,
-    cache_dir: Path | str = ".axonx/plugins/artifacts",
+    cache_dir: Path | str,
     *,
     output: Path | str | None = None,
 ) -> PluginArtifact:

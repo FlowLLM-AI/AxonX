@@ -54,7 +54,7 @@ it("loads current signals metadata through both report readers with pagination a
   ).toHaveLength(2);
   expect(previewWorkspaceFile).toHaveBeenLastCalledWith(
     {
-      path: "backtest/backtest#demo#test/daily.parquet",
+      path: "tasks/backtest/backtest#demo#test/daily.parquet",
       offset: 5000,
       limit: 5000,
     },

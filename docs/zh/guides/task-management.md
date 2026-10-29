@@ -28,7 +28,7 @@ CLI status/wait 默认摘要，完整详情包含输入输出、步骤和子任�
 
 ## 删除已停止目录
 
-当前文件接口为 `delete_entries --paths '["base/base#demo#add-01"]'`，不保护活动进程。确认写入者均停止，使用工作区相对路径并与并发执行协调。该操作也删除 persistent/，删除不能代替停止进程。
+当前文件接口为 `delete_entries --paths '["tasks/base/base#demo#add-01"]'`，不保护活动进程。确认写入者均停止，使用工作区相对路径并与并发执行协调。该操作也删除 persistent/，删除不能代替停止进程。
 
 ## Studio
 

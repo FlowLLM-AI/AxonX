@@ -45,12 +45,13 @@ export const catalog: JobCatalog = {
     if (name === "preview_file")
       properties.path = {
         ...properties.path,
-        default: "backtest/backtest#playground_backtest#demo/metadata.json",
+        default:
+          "tasks/backtest/backtest#playground_backtest#demo/metadata.json",
       };
     if (name === "delete_entries")
       properties.paths = {
         ...properties.paths,
-        default: ["backtest/backtest#playground_backtest#volatile"],
+        default: ["tasks/backtest/backtest#playground_backtest#volatile"],
       };
     return {
       ...job,

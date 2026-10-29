@@ -68,6 +68,7 @@ async def run_command(
         **os.environ,
         **app_context.app_config.environment,
         AXONX_CLI_REQUEST_ID: request_id,
+        "AXONX_WORKSPACE_DIR": str(workspace),
     }
     if service is not None:
         environment.update(

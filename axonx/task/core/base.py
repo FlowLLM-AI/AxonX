@@ -69,7 +69,6 @@ class BaseTask(ABC):
             raise ValueError(f"Unknown timezone: {timezone!r}") from None
         created_at = created_at or datetime.now(task_timezone)
 
-        self.is_generated_name = self.input_params.task_name is None
         resolved_name = self.input_params.task_name or generated_task_name(created_at)
         self.input_params.task_name = resolved_name
         task_id = TASK_ID_SEPARATOR.join((self.task_type.value, registration_name, resolved_name))

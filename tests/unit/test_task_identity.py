@@ -17,12 +17,21 @@ from axonx.app.components.task_index.stream import TaskEventStream
 from axonx.app.steps.task import WaitTaskStep
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask
-from axonx.task.models.identity import TaskState
+from axonx.task.models.identity import TaskState, is_generated_task_name
 from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import read_entry, scan_metadata, task_path, write_task_metadata
+from axonx.task.storage.workspace import (
+    parse_task_directory,
+    read_entry,
+    scan_entries,
+    scan_metadata,
+    task_directory,
+    task_id_from_path,
+    task_path,
+    write_task_metadata,
+)
 from axonx.utils.logging import LoggingConfig, configure_logging, get_logger
 
 
@@ -30,6 +39,76 @@ from axonx.utils.logging import LoggingConfig, configure_logging, get_logger
 def executor(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
     return TaskExecutor()
+
+
+@pytest.mark.parametrize(
+    "name,root",
+    [
+        ("baseline", "tasks"),
+        ("2026102915aB3x", "tmp/tasks"),
+        ("2026023015aB3x", "tasks"),
+        ("2026102924aB3x", "tasks"),
+        ("2026102915aB3x-extra", "tasks"),
+    ],
+)
+def test_task_paths_and_scans_share_the_resolved_name_rule(tmp_path, name, root):
+    task = DemoTask({"task_name": name, "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    status = TaskExecutor().execute(task)
+    relative = f"{root}/base/{task.task_id}"
+    assert is_generated_task_name(name) == (root == "tmp/tasks")
+    assert task_directory(task.task_id) == relative
+    assert parse_task_directory(relative) == task.task_type
+    assert task_id_from_path(tmp_path, str(task.task_dir / "nested/output.parquet")) == task.task_id
+    assert scan_entries(tmp_path) == {task.task_id: status}
+    other = "tasks" if root == "tmp/tasks" else "tmp/tasks"
+    with pytest.raises(ValueError):
+        parse_task_directory(f"{other}/base/{task.task_id}")
+
+
+def test_generated_children_keep_their_partition_and_can_retry(tmp_path, executor):
+    class Parent(DemoTask):
+        def initialize(self):
+            super().initialize()
+            self.run_task("demo", x=1, y=2)
+            self.run_task("demo", x=3, y=4)
+            self.run_task("demo", task_name="retained", node_name="retained", x=5, y=6)
+
+    task = Parent({"x": 1, "y": 2}, workspace_path=tmp_path, reg_name="parent")
+    status = TaskExecutor(resolve_task=lambda _: DemoTask).execute(task)
+    assert task.task_dir.is_relative_to(tmp_path / "tmp/tasks")
+    first, retry, retained = status.children
+    assert first.child_task_id == retry.child_task_id
+    assert retry.started_at > first.started_at
+    assert task_path(tmp_path, first.child_task_id).is_relative_to(tmp_path / "tmp/tasks")
+    assert task_path(tmp_path, retained.child_task_id).is_relative_to(tmp_path / "tasks")
+
+
+def test_generated_root_collision_never_replaces_an_existing_execution(tmp_path, executor, monkeypatch):
+    monkeypatch.setattr("axonx.task.models.identity.secrets.choice", lambda _: "A")
+    created_at = datetime(2026, 10, 29, 15, tzinfo=UTC)
+    first = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo", created_at=created_at)
+    executor.execute(first)
+    before = first.metadata_path.read_bytes()
+    second = DemoTask({"x": 3, "y": 4}, workspace_path=tmp_path, reg_name="demo", created_at=created_at)
+    with pytest.raises(FileExistsError, match="already exists"):
+        executor.execute(second)
+    assert first.metadata_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("base", ["tasks", "tmp", "tmp/tasks"])
+def test_task_partitions_never_follow_symlinks(tmp_path, executor, base):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    workspace = tmp_path / "workspace"
+    target = workspace / base
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.symlink_to(outside, target_is_directory=True)
+    name = "2026102915aB3x" if base.startswith("tmp") else "named"
+    task = DemoTask({"task_name": name, "x": 1, "y": 2}, workspace_path=workspace, reg_name="demo")
+    with pytest.raises(ValueError, match="symlink"):
+        executor.execute(task)
+    assert not list(outside.iterdir())
+    assert scan_entries(workspace) == {}
 
 
 def test_rerun_replaces_current_outputs_and_preserves_only_explicit_history(executor, tmp_path):
@@ -49,7 +128,7 @@ def test_rerun_replaces_current_outputs_and_preserves_only_explicit_history(exec
     assert (persistent / "history.txt").read_text() == "retained"
     assert len(list(directory.parent.iterdir())) == 1
     assert "run_id" not in second.model_dump()
-    assert {path.name for path in tmp_path.iterdir()} == {"base"}
+    assert {path.name for path in tmp_path.iterdir()} == {"tasks"}
 
 
 def test_same_name_cannot_replace_a_running_task(tmp_path):
@@ -101,7 +180,7 @@ def test_metadata_scans_leave_dead_local_tasks_unchanged(executor, tmp_path):
     assert cached[status.task_id] is entries[status.task_id]
     assert unchanged_versions == versions
     assert {path: path.read_bytes() for path in directory.iterdir() if path.is_file()} == before
-    assert {path.name for path in tmp_path.iterdir()} == {"base"}
+    assert {path.name for path in tmp_path.iterdir()} == {"tasks"}
 
 
 def test_explicit_reconciliation_keeps_a_newer_execution_unchanged(executor, tmp_path, monkeypatch):

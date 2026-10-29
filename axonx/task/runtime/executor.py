@@ -13,7 +13,6 @@ from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from functools import partial
-from hashlib import sha256
 from time import perf_counter
 from typing import TYPE_CHECKING, Literal
 
@@ -24,6 +23,7 @@ from ..core.base import ChildTaskError
 from ..models.artifacts import PROTOCOL_VERSION
 from ..models.identity import TaskState, validate_registration_name
 from ..models.lifecycle import ChildTaskRecord, ChildTaskResult, TaskMetadata
+from ..storage.workspace import LOG_FILE
 from .lifecycle import finish_task, prepare_task_directory
 from .process import machine_id, process_started_at
 from .progress import TaskProgress
@@ -36,18 +36,16 @@ _LOG_TASKS: ContextVar[tuple[str, ...]] = ContextVar("axonx_log_tasks", default=
 
 
 @contextmanager
-def _task_log_scope(task_id: str, started_at: datetime):
+def _task_log_scope(task: BaseTask, started_at: datetime):
     """Capture this Task and nested children while excluding sibling executions."""
-    scope = f"{task_id}:{started_at.isoformat()}"
+    scope = f"{task.task_id}:{started_at.isoformat()}"
     tasks = (*_LOG_TASKS.get(), scope)
     token = _LOG_TASKS.set(tasks)
     try:
         with ExitStack() as stack:
-            process_path = get_log_path()
             path = None
-            if process_path is not None:
-                identity = sha256(scope.encode("utf-8")).hexdigest()
-                path = process_path.with_name(f"{process_path.stem}_{identity}.log")
+            if get_log_path() is not None:
+                path = task.task_dir / LOG_FILE
                 handle = stack.enter_context(path.open("ab"))
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 stack.enter_context(log_file(path, predicate=lambda record: scope in record["extra"].get("tasks", ())))
@@ -169,7 +167,7 @@ class TaskExecutor:
                     started_at = datetime.now(UTC)
                     if previous_start is not None:
                         started_at = max(started_at, previous_start + timedelta(microseconds=1))
-                    log_path = stack.enter_context(_task_log_scope(task.task_id, started_at))
+                    log_path = stack.enter_context(_task_log_scope(task, started_at))
                     status = TaskMetadata(
                         version=PROTOCOL_VERSION,
                         task_id=task.task_id,
@@ -185,7 +183,7 @@ class TaskExecutor:
                         process_started_at=process_started_at(),
                         created_at=task.created_at,
                         started_at=started_at,
-                        log_path=str(log_path or ""),
+                        log_path=LOG_FILE if log_path else "",
                     )
                     progress = TaskProgress(task.task_dir, status)
                     task._metadata = status

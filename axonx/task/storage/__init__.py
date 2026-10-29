@@ -13,6 +13,7 @@ from . import artifacts, files, inputs, logs, online, replay, workspace
 from .workspace import (
     EVENTS_FILE,
     KINDS,
+    LOG_FILE,
     METADATA_FILE,
     PERSISTENT_DIR,
     FileVersion,
@@ -33,6 +34,7 @@ __all__ = [
     "EVENTS_FILE",
     "FileVersion",
     "KINDS",
+    "LOG_FILE",
     "METADATA_FILE",
     "PERSISTENT_DIR",
     "artifacts",

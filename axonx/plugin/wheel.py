@@ -1,6 +1,7 @@
 """Build and inspect plugin wheels without importing plugin code."""
 
 import configparser
+import fcntl
 import subprocess
 import sys
 from email.parser import Parser
@@ -19,12 +20,18 @@ def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
     ``use_cache`` reuses an existing wheel when ``output`` holds exactly one. It
     does not check that the wheel matches ``source``, so an output directory must
     be keyed by the source revision — as every caller does by building under
-    ``artifacts/<source digest>``.
+    ``tmp/plugins/<source digest>``.
     """
     output.mkdir(parents=True, exist_ok=True)
-    existing = list(output.glob("*.whl"))
-    if use_cache and len(existing) == 1:
-        return existing[0]
+    with (output / ".build.lock").open("a+b") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        existing = list(output.glob("*.whl"))
+        if use_cache and len(existing) == 1:
+            return existing[0]
+        return _build_wheel(source, output)
+
+
+def _build_wheel(source: Path, output: Path) -> Path:
     with TemporaryDirectory(prefix=".build-", dir=output) as temporary:
         build_output = Path(temporary)
         command = [

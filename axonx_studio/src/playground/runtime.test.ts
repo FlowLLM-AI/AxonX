@@ -226,7 +226,7 @@ describe("static Playground", () => {
         const runs = await api.invoke<WorkspaceListing>(
           "list_task_directories",
           {
-            task_type,
+            path: `tasks/${task_type}`,
           },
         );
         expect(runs.entries.length).toBeGreaterThan(0);

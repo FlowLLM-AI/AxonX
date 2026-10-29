@@ -41,6 +41,7 @@ def test_all_shipped_registrations_resolve_with_current_schemas():
         "qlib_a158_research",
         "qlib_a158_etl",
         "qlib_a158_analysis",
+        "qlib_a158_compare",
         "qlib_a158_train",
         "qlib_a158_predict",
         "qlib_a158_backtest",
@@ -169,3 +170,35 @@ def test_training_rejects_nonfinite_numeric_settings(parameter, value):
 
     with pytest.raises(ValueError):
         LgbmTrainInputParams(**{parameter: value})
+
+
+@pytest.mark.parametrize(
+    "inputs",
+    [
+        {"train": {"parameter_preset": "qlib"}},
+        {"train": {"label_column": "label_return_csz"}},
+        {"backtest": {"as_of_date": "20261029"}},
+    ],
+)
+def test_comparison_rejects_overrides_of_experiment_owned_inputs(inputs):
+    from axonx_qlib_a158.comparison import ComparisonInputParams
+
+    with pytest.raises(ValueError, match="Comparison owns"):
+        ComparisonInputParams(upstream_task_ids=["etl#qlib_a158_etl#source"], **inputs)
+
+
+def test_comparison_uses_stage_date_defaults_and_validates_before_training():
+    from axonx_qlib_a158.comparison import ComparisonInputParams
+    from axonx_qlib_a158.predict import LgbmPredictInputParams
+
+    source = ["etl#qlib_a158_etl#source"]
+    params = ComparisonInputParams(upstream_task_ids=source, train={"train_end": "20220101"})
+    assert params.predict.pred_start == LgbmPredictInputParams().pred_start
+    with pytest.raises(ValueError, match="pred_start"):
+        ComparisonInputParams(upstream_task_ids=source, train={"train_end": "20250101"})
+    with pytest.raises(ValueError, match="pred_start"):
+        ComparisonInputParams(
+            upstream_task_ids=source,
+            train={"train_end": "20250101"},
+            predict={"pred_start": "20250101", "pred_end": "20240101"},
+        )

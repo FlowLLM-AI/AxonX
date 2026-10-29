@@ -36,14 +36,14 @@ List one directory inside the configured workspace.
 
 List Task directories containing metadata.json.
 
-| Argument    | Type     | Required | Default / constraints                                     |
-| ----------- | -------- | -------- | --------------------------------------------------------- |
-| `task_type` | `string` | yes      | `{"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9_-]*$"}` |
+| Argument | Type     | Required | Default / constraints |
+| -------- | -------- | -------- | --------------------- |
+| `path`   | `string` | yes      | `{"minLength":1}`     |
 
 ```json
 {
   "arguments": {
-    "task_type": "base"
+    "path": "tasks/base"
   }
 }
 ```
@@ -64,7 +64,7 @@ Preview one supported file inside the configured workspace.
 ```json
 {
   "arguments": {
-    "path": "base/base#demo#api-check/metadata.json",
+    "path": "tasks/base/base#demo#api-check/metadata.json",
     "limit": 20,
     "max_bytes": 8192
   }
@@ -82,7 +82,7 @@ Delete multiple files or directories inside the configured workspace.
 ```json
 {
   "arguments": {
-    "paths": ["base/base#demo#api-check"]
+    "paths": ["tasks/base/base#demo#api-check"]
   }
 }
 ```
@@ -99,7 +99,7 @@ curl --fail-with-body 'http://HOST:1024/upload' \
   -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-The JobResponse answer is `StagedFile`: `{ "path": "tmp/UUID/file.whl", "location": "/absolute/workspace/tmp/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `sync_tasks` or `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
+The JobResponse answer is `StagedFile`: `{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `sync_tasks` or `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
 
 ## Preview response types
 

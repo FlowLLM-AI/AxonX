@@ -18,6 +18,7 @@ from ....task.storage.workspace import (
     resolve_relative_path,
     scan_entries,
     task_directory,
+    task_id_from_path,
 )
 from ....utils.logging import get_logger
 from .artifacts import artifact_path, verify_replica
@@ -53,7 +54,9 @@ class TaskArchiveApplier:
         removed = self._deletions(deletions)
         if archive_path is not None and archive_path.stat().st_size > self.transfer_budget_bytes:
             raise ValueError(f"Sync archive exceeds {self.transfer_budget_bytes} bytes")
-        with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.root) as temporary:
+        temporary_root = resolve_relative_path(self.root, "tmp/sync")
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="receive-", dir=temporary_root) as temporary:
             staging = Path(temporary)
             extracted = staging / "incoming"
             replacements, files = self._extract(archive_path, extracted)
@@ -106,12 +109,10 @@ class TaskArchiveApplier:
 
     @staticmethod
     def _task_of(name: str) -> str:
-        parts = PurePosixPath(name).parts
-        if len(parts) < 3 or ".." in parts:
+        identity = task_id_from_path(Path(), name)
+        if identity is None or ".." in PurePosixPath(name).parts or name == task_directory(identity):
             raise ValueError(f"Sync archive member is not inside a task directory: {name}")
-        relative_path = "/".join(parts[:2])
-        parse_task_directory(relative_path)
-        return relative_path
+        return task_directory(identity)
 
     def _deletions(self, deletions: Sequence[str]) -> list[str]:
         if isinstance(deletions, (str, bytes)):
@@ -129,7 +130,7 @@ class TaskArchiveApplier:
         expanded = TAR_PADDING_BYTES + sum(archived_bytes(p.stat().st_size) for p in root.rglob("*") if p.is_file())
         for relative_path in tasks:
             directory = root / relative_path
-            task_id = relative_path.split("/", 1)[1]
+            task_id = relative_path.rsplit("/", 1)[1]
             status = read_task_metadata(directory, task_id)
             if status is None or status.replica is None or status.replica.snapshot is None:
                 continue
@@ -155,7 +156,7 @@ class TaskArchiveApplier:
     @staticmethod
     def _validate_snapshots(root: Path, tasks: set[str]) -> None:
         for relative_path in tasks:
-            task_id = relative_path.split("/", 1)[1]
+            task_id = relative_path.rsplit("/", 1)[1]
             status = read_task_metadata(root / relative_path, task_id)
             if status is None or status.replica is None:
                 raise ValueError(f"Sync archive Task is missing a display replica status: {relative_path}")
@@ -202,9 +203,9 @@ class TaskArchiveApplier:
                     continue
                 if target.is_symlink() or not target.is_dir():
                     raise ValueError(f"Task target is not a directory: {relative_path}")
-                status = read_task_metadata(target, relative_path.split("/", 1)[1], strict_io=True)
+                status = read_task_metadata(target, relative_path.rsplit("/", 1)[1], strict_io=True)
                 incoming = (
-                    read_task_metadata(extracted / relative_path, relative_path.split("/", 1)[1])
+                    read_task_metadata(extracted / relative_path, relative_path.rsplit("/", 1)[1])
                     if relative_path in replacements
                     else None
                 )

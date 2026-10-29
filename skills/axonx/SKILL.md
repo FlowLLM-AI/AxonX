@@ -290,7 +290,7 @@ Verify installation exit code 0 and compare the target plugin's version, `sha256
 ```bash
 curl --fail-with-body --request DELETE --get \
   --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --data-urlencode 'path=tmp/ACTUAL_UPLOAD_PATH.whl' \
+  --data-urlencode 'path=tmp/uploads/ACTUAL_UPLOAD_PATH.whl' \
   http://node-b:1024/upload
 ```
 
@@ -382,11 +382,11 @@ A Task ID is `task_type#registration#task_name`. Instance names contain 1–32 l
 
 `status`/`wait_task` default to summaries; `--detail full` returns complete inputs and outputs. `get_task_context` provides the selected full record, paths and input relationships. Continue logs with `next_offset`; `--started-at TIMESTAMP` guards against reading a same-name replacement. Lists and graphs may lag behind index refreshes; single-Task status reads metadata directly.
 
-Workspace directories follow `<workspace>/<task_type>/<task_id>/`, containing `metadata.json`, `events.jsonl` and `persistent/`. Find the actual text log in `log_path`. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
+Fixed names use `<workspace>/tasks/<task_type>/<task_id>/`; names matching `YYYYMMDDHH` plus four alphanumeric characters use `<workspace>/tmp/tasks/<task_type>/<task_id>/`, including inherited names. Both contain `metadata.json`, `events.jsonl`, Task-relative `log_path` (`task.log` when file logging is enabled), and optional `persistent/`. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
 
 ```bash
 axonx list_entries --path ''
-axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
+axonx preview_file --path 'tasks/base/base#demo#check/metadata.json' --max-bytes 8192
 ```
 
 `preview_file` uses workspace-relative paths and defaults to 20 rows and 8192 bytes in the CLI. Check parsing errors and truncation flags; page tables with `offset`/`limit` and continue logs with `next_offset`. Queries usually return `{answer, success, metadata}`. `success` establishes query completion; inspect the Task state and research results in `answer` as well.
@@ -396,7 +396,7 @@ To find an instance name or existing experiments, list the records:
 ```bash
 axonx list_task_ids
 axonx list_task_statuses --task-type backtest --state succeeded
-axonx list_task_directories --task-type backtest
+axonx list_task_directories --path tasks/backtest
 ```
 
 ## 5. Compare results and iterate
@@ -428,7 +428,7 @@ axonx status --task-id 'base#demo#check' --detail full
 `kill` verifies process identity and resolves a child Task to its root process owner. Delete directories only after confirming execution has stopped and its evidence is no longer needed. Uninstall the example plugin when it is no longer needed:
 
 ```bash
-axonx delete_entries --paths '["base/base#demo#check"]'
+axonx delete_entries --paths '["tasks/base/base#demo#check"]'
 axonx plugin uninstall axonx-example
 ```
 
@@ -476,7 +476,7 @@ To inspect research across machines, query the target's display snapshots. For a
 
 ```bash
 axonx task_sync_index --target node-b:1024
-axonx sync_tasks --path 'tmp/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+axonx sync_tasks --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
 ```
 
 Applying the archive removes its staged copy. With a configured sync component and command, `axonx sync_flush` can initiate synchronization from the source; it is disabled by default. Display replicas may omit or sample files and cannot execute or serve as research inputs. Complete backups require the workspace, external logs, configuration, source and dependency versions.

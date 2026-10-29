@@ -13,7 +13,7 @@ axonx list_task_statuses --detail summary
 
 ## 日志来源
 
-连接、启动、更新问题检查服务/Daemon 日志。Task metadata.log_path 指向执行日志，read_task_log 返回有限字节块。定时 stdout/stderr 还记录在日志目录的 cron/entry-N.log。文件存在不代表业务评价成功。
+连接、启动、更新问题检查服务/Daemon 日志。Task metadata.log_path 指向自身 Task 目录内的相对日志文件，read_task_log 返回有限字节块。定时 stdout/stderr 还记录在日志目录的 cron/entry-N.log。文件存在不代表业务评价成功。
 
 ## 执行失败或断开
 

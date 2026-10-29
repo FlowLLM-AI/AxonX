@@ -207,7 +207,7 @@ def test_graph_and_context_include_missing_upstream_but_exclude_unrelated_tasks(
     assert context.relations.direct_downstream == [downstream.task_id]
     assert context.relations.missing == [missing]
     assert context.relations.provisional == [downstream.task_id]
-    assert context.metadata_path == f"predict/{selected.task_id}/metadata.json"
+    assert context.metadata_path == f"tasks/predict/{selected.task_id}/metadata.json"
     assert context.graph.edges[0].model_dump() == {"from": missing, "to": left.task_id}
     assert {task_id: item.model_dump_json() for task_id, item in entries.items()} == before
 
@@ -332,10 +332,11 @@ def test_task_order_uses_creation_time_then_id_and_places_undated_records_last()
 
 
 async def test_followers_replay_progress_and_multibyte_logs_with_independent_cursors(tmp_path):
-    path = tmp_path / "task.log"
+    path = task_path(tmp_path, record().task_id) / "task.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
     content = "a" * (LOG_WINDOW_BYTES - 1) + "汉字" * 20 + "b" * LOG_WINDOW_BYTES
     path.write_text(content, encoding="utf-8")
-    status = record(log_path=str(path))
+    status = record(log_path=path.name)
     directory = task_path(tmp_path, status.task_id)
     write_task_metadata(directory, status)
     progress = ProgressEvent(name="finished", state="done")
@@ -356,10 +357,11 @@ async def test_followers_replay_progress_and_multibyte_logs_with_independent_cur
 
 
 async def test_terminal_follow_stops_at_its_snapshot_when_a_shared_log_keeps_growing(tmp_path, monkeypatch):
-    path = tmp_path / "process.log"
+    path = task_path(tmp_path, record().task_id) / "task.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
     content = b"x" * (LOG_WINDOW_BYTES + 10)
     path.write_bytes(content)
-    status = record(log_path=str(path))
+    status = record(log_path=path.name)
     logs = TaskLogReader(tmp_path)
     read = logs.read_status
 
@@ -380,11 +382,12 @@ async def test_terminal_follow_stops_at_its_snapshot_when_a_shared_log_keeps_gro
 
 @pytest.mark.parametrize("change_path", [False, True])
 async def test_follow_resets_after_log_truncation_or_a_path_change(tmp_path, change_path):
-    path = tmp_path / "task.log"
+    path = task_path(tmp_path, record().task_id) / "task.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("before")
-    running = record(log_path=str(path), state=TaskState.RUNNING)
-    replacement = tmp_path / "replacement.log" if change_path else path
-    terminal = record(log_path=str(replacement))
+    running = record(log_path=path.name, state=TaskState.RUNNING)
+    replacement = path.with_name("replacement.log") if change_path else path
+    terminal = record(log_path=replacement.name)
     calls = 0
 
     async def read_metadata(_):
@@ -419,7 +422,7 @@ async def test_follow_preserves_replica_source_offsets(tmp_path):
     directory = task_path(tmp_path, status.task_id)
     write_task_metadata(directory, status)
     (directory / "display.log").write_bytes(content)
-    stream = TaskEventStream(tmp_path, TaskLogReader(tmp_path / "logs"), AsyncMock(return_value=status), Mock())
+    stream = TaskEventStream(tmp_path, TaskLogReader(tmp_path), AsyncMock(return_value=status), Mock())
 
     (event,) = await collect(stream, status.task_id)
 

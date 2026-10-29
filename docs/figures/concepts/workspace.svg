@@ -6,7 +6,7 @@
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
     <text x="48" y="51" font-size="31" font-weight="700">Publish, read and synchronize research evidence</text>
     <text x="48" y="83" font-size="18" fill="#52738f">A Task directory is the current execution record; complete upstream artifacts and display replicas serve different readers.</text>
-    <text x="48" y="122" font-size="18" font-weight="700" fill="#52738f">Source workspace · &lt;task_type&gt;/&lt;task_id&gt;/</text>
+    <text x="48" y="122" font-size="18" font-weight="700" fill="#52738f">Task directory · tasks/ or tmp/tasks/</text>
     <rect x="32" y="140" width="1216" height="194" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
     <rect x="48" y="156" width="368" height="160" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="72" y="190" font-size="22" font-weight="700">metadata.json</text>
@@ -20,7 +20,7 @@
     <text x="480" y="274" font-size="17">revision = size:mtime_ns</text>
     <rect x="864" y="156" width="368" height="160" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="888" y="190" font-size="22" font-weight="700">Other Task-owned files</text>
-    <text x="888" y="222" font-size="17">events.jsonl: progress journal</text>
+    <text x="888" y="222" font-size="17">events.jsonl · task.log: execution logs</text>
     <text x="888" y="248" font-size="17">persistent/: retained across reruns</text>
     <text x="888" y="274" font-size="16.5">Same-name reruns replace current files.</text>
     <path d="M 416 237 L 456 237" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
@@ -49,7 +49,7 @@
     <text x="888" y="542" font-size="17">Read-only evidence; no process restore</text>
     <rect x="48" y="610" width="1184" height="98" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
     <text x="72" y="645" font-size="22" font-weight="700">Preserve separately for reproduction</text>
-    <text x="72" y="678" font-size="17">Raw market data · log_dir text logs · Agent sessions · Plugin source / environment · Service configuration</text>
+    <text x="72" y="678" font-size="17">Raw market data · Service logs · Agent sessions · Plugin source / environment · Service configuration</text>
     <text x="48" y="741" font-size="16" fill="#52738f">Task-relative artifact paths resolve under their producer directory. Parent/child directories remain independent.</text>
   </g>
 </svg>

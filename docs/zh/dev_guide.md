@@ -284,7 +284,7 @@ axonx plugin show axonx-example --target node-b:1024
 ```bash
 curl --fail-with-body --request DELETE --get \
   --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --data-urlencode 'path=tmp/ACTUAL_UPLOAD_PATH.whl' \
+  --data-urlencode 'path=tmp/uploads/ACTUAL_UPLOAD_PATH.whl' \
   http://node-b:1024/upload
 ```
 
@@ -376,11 +376,11 @@ Task ID 为 `task_type#registration#task_name`，实例名为 1–32 个字母�
 
 `status`/`wait_task` 默认摘要，`--detail full` 返回完整输入输出；`get_task_context` 提供完整选中记录、路径和输入关系。日志用 `next_offset` 续读，`--started-at TIMESTAMP` 可防止读到同名新执行。列表与图可能有索引刷新延迟，单任务状态直接读取 metadata。
 
-工作区目录为 `<workspace>/<task_type>/<task_id>/`，含 `metadata.json`、`events.jsonl` 和 `persistent/`；真实文本日志位置见 `log_path`。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
+固定名字保存在 `<workspace>/tasks/<task_type>/<task_id>/`；匹配 `YYYYMMDDHH` 加四位字母数字的名字（包括继承名字）保存在 `<workspace>/tmp/tasks/<task_type>/<task_id>/`。两者包含 `metadata.json`、`events.jsonl`、相对 Task 目录的 `log_path`（启用文件日志时为 `task.log`）及可选的 `persistent/`。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
 
 ```bash
 axonx list_entries --path ''
-axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
+axonx preview_file --path 'tasks/base/base#demo#check/metadata.json' --max-bytes 8192
 ```
 
 `preview_file` 使用工作区相对路径，CLI 默认 20 行、8192 字节。检查解析错误与截断标记，表格按 `offset`/`limit` 翻页，日志按 `next_offset` 续读。查询通常返回 `{answer, success, metadata}`，`success` 只说明查询完成，还需检查 `answer` 中的 Task 状态和研究结果。
@@ -390,7 +390,7 @@ axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
 ```bash
 axonx list_task_ids
 axonx list_task_statuses --task-type backtest --state succeeded
-axonx list_task_directories --task-type backtest
+axonx list_task_directories --path tasks/backtest
 ```
 
 ## 5. 比较结果与迭代
@@ -422,7 +422,7 @@ axonx status --task-id 'base#demo#check' --detail full
 `kill` 核验进程身份，子任务会解析到根进程所有者。确认任务已停止且不再需要证据后，才清理目录；不再需要示例插件时可卸载：
 
 ```bash
-axonx delete_entries --paths '["base/base#demo#check"]'
+axonx delete_entries --paths '["tasks/base/base#demo#check"]'
 axonx plugin uninstall axonx-example
 ```
 
@@ -470,7 +470,7 @@ axonx app --config scheduled.yaml
 
 ```bash
 axonx task_sync_index --target node-b:1024
-axonx sync_tasks --path 'tmp/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+axonx sync_tasks --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
 ```
 
 应用后会清理暂存归档。已配置同步组件及对应命令时，也可用 `axonx sync_flush` 从源端发起同步，默认未启用。展示副本可能省略或采样文件，不能执行或作为研究输入；完整备份须保留工作区、外部日志、配置、源码和依赖版本。

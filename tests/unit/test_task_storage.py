@@ -12,7 +12,7 @@ from axonx.task.core.clock import DeadlineBudget, WindowClock
 from axonx.task.models.artifacts import ArtifactRecord, task_protocol
 from axonx.task.models.events import ProgressEvent
 from axonx.task.models.identity import TaskState, TaskType
-from axonx.task.models.lifecycle import DisplayReplica, TaskMetadata, TaskStepStatus
+from axonx.task.models.lifecycle import DisplayReplica, ReplicaFile, ReplicaLog, TaskMetadata, TaskStepStatus
 from axonx.task.models.reports import HISTORY_BLOCK_SIZE
 from axonx.task.runtime.replay import ReplayClock
 from axonx.task.storage.artifacts import artifact_record, verify_artifact
@@ -260,6 +260,27 @@ def test_log_reader_rejects_paths_linked_outside_the_log_directory(tmp_path):
     linked.symlink_to(external)
     with pytest.raises(ValueError, match="outside the configured log directory"):
         TaskLogReader(directory).read(linked)
+
+
+@pytest.mark.parametrize("relative", ["tasks", "tasks/base", "tasks/base/base#demo#stored"])
+@pytest.mark.parametrize("replica", [False, True])
+def test_task_log_reader_rejects_symlinked_task_ancestors(tmp_path, record, relative, replica):
+    directory = task_path(tmp_path, record.task_id)
+    (directory / "task.log").write_text("private")
+    record.log_path = "task.log"
+    if replica:
+        record.replica = DisplayReplica(
+            source_revision="source",
+            policy_revision="policy",
+            files={"task.log": ReplicaFile(size=7, revision="1")},
+            log=ReplicaLog(path="task.log", start=0, end=7),
+        )
+    linked = tmp_path / relative
+    destination = tmp_path / "moved"
+    linked.rename(destination)
+    linked.symlink_to(destination, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlinks"):
+        TaskLogReader(tmp_path).read_status(record)
 
 
 def test_artifact_verification_rejects_symlinks_and_inconsistent_sizes(tmp_path):

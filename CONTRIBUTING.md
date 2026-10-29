@@ -30,7 +30,7 @@ export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
 
-The default port is `1024`; runtime data goes into `.axonx/` and service/CLI logs into `logs/`. Use [example.env](example.env) for optional credentials and bundled configuration variables. CLI startup loads the nearest `.env` from the current directory or up to five parents, preserving existing environment values. See [Studio development](docs/en/development/studio.md) for proxy and build settings.
+The default port is `1024`; runtime data goes into `.axonx/`, Task logs into each Task directory, and service/startup logs into `logs/`. Use [example.env](example.env) for optional credentials and bundled configuration variables. CLI startup loads the nearest `.env` from the current directory or up to five parents, preserving existing environment values. See [Studio development](docs/en/development/studio.md) for proxy and build settings.
 
 Use [server configuration](docs/en/reference/configuration.md) for YAML inheritance and installed configs, and [CLI reference](docs/en/reference/cli.md) for execution options. Custom configs inherit defaults only with `extends: default`. Keep credentials and runtime outputs out of commits.
 

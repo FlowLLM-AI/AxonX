@@ -113,6 +113,7 @@ def test_parquet_preview_preserves_schema_and_pagination(tmp_path):
 async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path):
     workspace = Workspace(tmp_path)
     copied = workspace.uploads.stage_bytes(b"hello", "copy.txt")
+    assert Path(copied.location).is_relative_to(tmp_path / "tmp/uploads")
     assert isinstance(copied, StagedFile)
     assert Path(copied.location).read_bytes() == b"hello"
 
@@ -132,6 +133,17 @@ async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path)
         "location": streamed.location,
         "size": 6,
     }
+
+
+def test_upload_retention_cannot_remove_tasks_sync_files_or_plugin_caches(tmp_path):
+    expired = time() - 8 * 24 * 60 * 60
+    paths = [tmp_path / "tmp" / name / "keep.bin" for name in ("tasks", "sync", "plugins")]
+    for path in paths:
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"keep")
+        os.utime(path, (expired, expired))
+    Workspace(tmp_path).uploads.stage_bytes(b"new", "new.txt")
+    assert all(path.read_bytes() == b"keep" for path in paths)
 
 
 @pytest.mark.parametrize("streamed", [False, True])

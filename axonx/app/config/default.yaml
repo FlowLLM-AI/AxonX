@@ -397,12 +397,11 @@ jobs:
     parameters:
       type: object
       properties:
-        task_type:
+        path:
           type: string
           minLength: 1
-          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"
-          description: Workspace-relative task type directory.
-      required: [task_type]
+          description: Workspace-relative Task type directory, such as tasks/train or tmp/tasks/train.
+      required: [path]
       additionalProperties: false
     steps:
       - backend: task_directories

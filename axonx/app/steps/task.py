@@ -126,7 +126,7 @@ class ListTaskDirectoriesStep(BaseStep):
     async def execute(self):
         self.response.answer = await asyncio.to_thread(
             self.workspace.list_entries,
-            self.context["task_type"],
+            self.context["path"],
             include=_is_task_directory,
         )
 

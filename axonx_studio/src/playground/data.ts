@@ -1,3 +1,4 @@
+import { taskDirectory } from "../shared/lib/tasks";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
 import type { TaskDefinition } from "../features/tasks/model";
@@ -93,10 +94,10 @@ export function taskStatus(
       finished_at: epoch,
       percentage: 100,
     })),
-    output_params: { output_dir: `${id.split("#")[0]}/${id}` },
+    output_params: { output_dir: taskDirectory(id) },
     error: "",
     exit_code: 0,
-    log_path: `${id.split("#")[0]}/${id}/task.log`,
+    log_path: "task.log",
     replica: null,
   };
 }
@@ -184,7 +185,7 @@ export function addArtifacts(
   strategy = "steady",
   upstreamIds: string[] = [],
 ) {
-  const path = `${task.task_type}/${task.task_id}`;
+  const path = taskDirectory(task.task_id);
   const daily = dailyRows(strategy);
   const periods: SummaryRow[] = [];
   for (const type of ["overall", "year", "quarter", "month"] as const) {

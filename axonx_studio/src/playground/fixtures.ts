@@ -1,3 +1,4 @@
+import { taskDirectory } from "../shared/lib/tasks";
 import type { TaskMetadata } from "../shared/api/contracts";
 import type { WorkspacePreview } from "../shared/api/workspace";
 import { seedNightly } from "./comparison";
@@ -117,7 +118,7 @@ export function seed() {
   failed.output_params = {};
   tasks.set(failed.task_id, failed);
   for (const task of tasks.values()) {
-    const path = `${task.task_type}/${task.task_id}`;
+    const path = taskDirectory(task.task_id);
     files.set(`${path}/metadata.json`, json(task));
     const rows = task.steps.map((step, index) => {
       const data = {

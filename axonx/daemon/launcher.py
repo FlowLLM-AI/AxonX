@@ -110,9 +110,12 @@ def start(
 
         async def launch(index: int, entry: CronConfig):
             await ready_to_launch.wait()
+            command = [*command_prefix, *entry.argv[1:]]
+            if "--log-to-console" not in entry.argv:
+                command.extend(["--log-to-console", "false"])
             await run_blocking(
                 daemon.launch,
-                [*command_prefix, *entry.argv[1:]],
+                command,
                 {
                     **os.environ,
                     **environment,

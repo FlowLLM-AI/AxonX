@@ -41,7 +41,7 @@ CLI_USAGE = f"""Usage:
   axonx kill --task-id ID [--workspace-dir PATH] [--timeout SECONDS] [--force true] [--target HOST:PORT]
   axonx app [--config NAME_OR_PATH]
   axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
-  axonx plugin build SOURCE [--output DIRECTORY] [--target HOST:PORT]
+  axonx plugin build SOURCE [--workspace-dir PATH] [--output DIRECTORY] [--target HOST:PORT]
   axonx plugin install -e SOURCE
 
 --help and -h show offline CLI usage; help queries the selected service's Jobs.
@@ -177,6 +177,7 @@ def parse_plugin_arguments(argv: Sequence[str]) -> argparse.Namespace:
             command.add_argument("-e", "--editable", action="store_true", help="Install a local source directory.")
         if name in {"inspect", "build", "install"}:
             command.add_argument("--output", help="Wheel output directory.")
+            command.add_argument("--workspace-dir", help="Workspace containing tmp/plugins build caches.")
     args = parser.parse_args(argv)
     if args.command == "install" and args.editable and args.output is not None:
         parser.error("--editable cannot be combined with --output")

@@ -182,11 +182,11 @@ def test_preparation_reuses_source_cache_and_explicit_output_rebuilds(tmp_path, 
     assert installer.prepare_artifact(source, cache_dir=tmp_path / "cache").sha256 == first.sha256
     assert len(builds) == 1
     assert not list(first.wheel.parent.glob(".build-*"))
-    installer.prepare_artifact(source, output=tmp_path / "output")
-    installer.prepare_artifact(source, output=tmp_path / "output")
+    installer.prepare_artifact(source, cache_dir=tmp_path / "cache", output=tmp_path / "output")
+    installer.prepare_artifact(source, cache_dir=tmp_path / "cache", output=tmp_path / "output")
     assert len(builds) == 3
     with pytest.raises(ValueError, match="existing wheel"):
-        installer.prepare_artifact(first.wheel, output=tmp_path / "output")
+        installer.prepare_artifact(first.wheel, cache_dir=tmp_path / "cache", output=tmp_path / "output")
 
 
 def test_install_preserves_the_host_and_checks_provenance_and_content(tmp_path, monkeypatch):

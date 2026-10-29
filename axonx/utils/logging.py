@@ -23,9 +23,7 @@ from loguru import logger
 LOG_RETENTION_SECONDS = 7 * 24 * 60 * 60
 LOG_CLEANUP_INTERVAL = 60 * 60
 LOG_ARGUMENT_MAX_LENGTH = 1000
-_LOG_NAME = re.compile(
-    r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(?P<pid>\d+)(?P<task>_[a-f0-9]{64})?(?P<archive>\..+)?\.log(?:\.zip)?"
-)
+_LOG_NAME = re.compile(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(?P<pid>\d+)(?P<archive>\..+)?\.log(?:\.zip)?")
 _LOG_FORMAT = (
     "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
     "{extra[name]} | {file}:{line} | {function} | {message}"
@@ -94,6 +92,8 @@ def configure_logging(config: LoggingConfig) -> None:
                 rotation="00:00",
                 compression="zip",
                 encoding="utf-8",
+                delay=True,
+                filter=lambda record: not record["extra"].get("tasks"),
             )
 
 
@@ -122,7 +122,7 @@ def log_file(path: Path, *, predicate: Callable[[dict], bool]):
 
 
 def cleanup_log_files(directory: Path) -> None:
-    """Remove expired logs, protecting live process logs and locked Task logs."""
+    """Remove expired service/startup logs, protecting live processes and locked files."""
     cutoff = time() - LOG_RETENTION_SECONDS
     try:
         paths = list(directory.glob("*.log*"))
@@ -132,12 +132,7 @@ def cleanup_log_files(directory: Path) -> None:
         match = _LOG_NAME.fullmatch(path.name)
         if match is None:
             continue
-        if (
-            match["task"] is None
-            and match["archive"] is None
-            and path.suffix == ".log"
-            and psutil.pid_exists(int(match["pid"]))
-        ):
+        if match["archive"] is None and path.suffix == ".log" and psutil.pid_exists(int(match["pid"])):
             continue
         try:
             # Refuse symlinks and avoid blocking on a non-regular file.

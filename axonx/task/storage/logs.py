@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ..models.events import LogChunk, ProgressEvent
 from ..models.lifecycle import TaskMetadata, TaskStepStatus
-from .workspace import read_entry, task_path
+from .workspace import read_entry, resolve_relative_path, task_directory
 
 LOG_WINDOW_BYTES = 65_536
 
@@ -50,20 +50,19 @@ class TaskJournal:
 
 
 class TaskLogReader:
-    """Read logs while confining recorded paths to the configured log directory."""
+    """Read Task-local logs and bounded display snapshots inside one workspace."""
 
     def __init__(self, directory: Path) -> None:
         self.directory = directory.expanduser().resolve()
 
-    @staticmethod
-    def path(status: TaskMetadata | None) -> Path | None:
+    def path(self, status: TaskMetadata | None) -> Path | None:
         if status is None or not status.log_path:
             return None
-        return Path(status.log_path).expanduser().resolve()
+        directory = resolve_relative_path(self.directory, task_directory(status.task_id))
+        return resolve_relative_path(directory, status.log_path)
 
     def read_status(
         self,
-        workspace: Path,
         status: TaskMetadata,
         offset: int = -1,
         limit: int = LOG_WINDOW_BYTES,
@@ -75,17 +74,15 @@ class TaskLogReader:
         log = status.replica.log
         if log is None:
             return LogChunk()
-        directory = task_path(workspace, status.task_id)
-        path = directory / log.path
-        if not path.resolve().is_relative_to(directory.resolve()) or any(p.is_symlink() for p in (path, *path.parents)):
-            raise ValueError("Replica log path escapes its Task")
+        directory = resolve_relative_path(self.directory, task_directory(status.task_id))
+        path = resolve_relative_path(directory, log.path)
         record = status.replica.files.get(log.path)
         if record is None or record.size != log.end - log.start or path.stat().st_size != record.size:
             raise ValueError("Replica log snapshot differs from its manifest")
         reset = offset >= 0 and (offset < log.start or offset > log.end)
         local = -1 if offset < 0 or reset else offset - log.start
-        chunk = TaskLogReader(directory).read(path, local, limit)
-        current = read_entry(workspace, status.task_id)
+        chunk = self.read(path, local, limit)
+        current = read_entry(self.directory, status.task_id)
         if current is None or current.started_at != status.started_at or current.replica != status.replica:
             raise ValueError("Replica changed while reading logs; retry the current snapshot")
         return chunk.model_copy(
@@ -109,7 +106,7 @@ class TaskLogReader:
         if not self.is_task_log(path):
             raise ValueError("Task log path is outside the configured log directory")
         if not path.is_file():
-            raise FileNotFoundError(f"Task log is unavailable (retained for 7 days): {path.name}")
+            raise FileNotFoundError(f"Task log is unavailable: {path.name}")
         file_size = path.stat().st_size
         reset = offset > file_size
         tail = offset < 0 or reset

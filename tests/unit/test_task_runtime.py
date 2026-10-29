@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 from pydantic import Field
@@ -274,15 +273,23 @@ def test_task_logs_include_children_and_exclude_siblings(tmp_path):
         sibling = executor.execute(
             DemoTask({"task_name": "sibling", "x": 10, "y": 20}, workspace_path=workspace, reg_name="demo")
         )
-        parent_log = Path(parent.log_path).read_text(encoding="utf-8")
-        child_log = Path(child.log_path).read_text(encoding="utf-8")
-        sibling_log = Path(sibling.log_path).read_text(encoding="utf-8")
+        parent_log = (task_path(workspace, parent.task_id) / parent.log_path).read_text(encoding="utf-8")
+        child_log = (task_path(workspace, child.task_id) / child.log_path).read_text(encoding="utf-8")
+        sibling_log = (task_path(workspace, sibling.task_id) / sibling.log_path).read_text(encoding="utf-8")
         assert "Demo initialized x=2 y=3" in parent_log
         assert "Demo initialized x=2 y=3" in child_log
         assert f"Task started task_id={parent.task_id}" not in child_log
         assert "Demo initialized x=10 y=20" not in parent_log + child_log
         assert "Demo initialized x=10 y=20" in sibling_log
         assert "Demo initialized x=2 y=3" not in sibling_log
+        assert parent.log_path == child.log_path == sibling.log_path == "task.log"
+        assert not list((tmp_path / "logs").glob("*.log"))
+        rerun = executor.execute(
+            DemoTask({"task_name": "sibling", "x": 30, "y": 40}, workspace_path=workspace, reg_name="demo")
+        )
+        current = (task_path(workspace, rerun.task_id) / rerun.log_path).read_text()
+        assert "Demo initialized x=30 y=40" in current
+        assert "Demo initialized x=10 y=20" not in current
     finally:
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 

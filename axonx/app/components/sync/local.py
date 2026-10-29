@@ -229,10 +229,12 @@ class LocalSyncComponent(BaseSyncComponent):
 
     async def _transfer(self, pending: Sequence[str]) -> SyncReport:
         report = SyncReport()
-        logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
+        logs = TaskLogReader(self.root)
         ordered = sorted(pending)
         ordered = [i for i in ordered if i > self._last_task] + [i for i in ordered if i <= self._last_task]
-        with tempfile.TemporaryDirectory(prefix="axonx-display-", dir=self.root) as temporary:
+        temporary_root = self.workspace.resolve("tmp/sync")
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="send-", dir=temporary_root) as temporary:
             staging = Path(temporary)
             groups = {}
             for position, task_id in enumerate(ordered):

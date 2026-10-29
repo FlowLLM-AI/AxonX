@@ -136,7 +136,7 @@ Prediction starts at the training cutoff when omitted. The plugin owns nested re
 | Task                 | Upstream              | Outputs                                                             |
 | -------------------- | --------------------- | ------------------------------------------------------------------- |
 | `qlib_a158_etl`      | Workspace market data | Features, labels, trading status, and statistics                    |
-| `qlib_a158_analysis`   | ETL Task ID           | Factor diagnostics and analysis                                     |
+| `qlib_a158_analysis` | ETL Task ID           | Factor diagnostics and analysis                                     |
 | `qlib_a158_train`    | ETL Task ID           | Model, training protocol, validation curves, and feature importance |
 | `qlib_a158_predict`  | Train + optional ETL  | Full-cross-section predictions and statistics                       |
 | `qlib_a158_backtest` | Predict Task ID       | Daily backtests, period summaries, and holding-related artifacts    |
@@ -206,14 +206,14 @@ python -m pytest \
 
 These checks run the composed CPU research workflow, new-data prediction, feature protocol validation, label/preset comparisons and the shared stock ledger. Install all three research plugins to run the cross-plugin tests.
 
-For a local label/preset comparison using an existing successful ETL, run:
+To compare labels and presets using an existing successful ETL, run the analysis Task. Its summary and comparison manifest stay in its Task directory; child stage identities are recorded in metadata:
 
 ```bash
-python -m axonx_qlib_a158.scripts.compare_parameters \
-  --workspace-dir /tmp/axonx-research --etl-task '<etl_task_id>' --labels rank csz
+axonx exec --task qlib_a158_compare --task-name preset-comparison \
+  --workspace-dir /tmp/axonx-research --upstream-task-ids '["<etl_task_id>"]' --labels '["rank","csz"]'
 ```
 
-This local Python helper uses `TaskExecutor` directly and does not query service configuration. It writes `summary.csv` and `comparison.json`, including per-stage Task IDs, `started_at` and input revisions.
+The comparison uses the ordinary CLI execution settings and child Task lifecycle. Its `summary.csv` and `comparison.json` record stage Task IDs, `started_at` and input revisions. Nested `train`, `predict` and `backtest` options reuse the corresponding stage parameters and defaults; `predict.pred_start` must be at or after `train.train_end`. The comparison owns child names, dependencies, training preset/label, and backtest inputs/cutoff; omit those nested options.
 
 ## Experiments
 

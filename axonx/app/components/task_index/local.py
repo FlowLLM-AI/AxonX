@@ -6,7 +6,6 @@ import asyncio
 import math
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
-from pathlib import Path
 
 from ....task.models.events import LogChunk, TaskEvent
 from ....task.models.lifecycle import TaskMetadata
@@ -29,7 +28,7 @@ class LocalTaskIndex(BaseTaskIndex):
         if not math.isfinite(poll_interval) or poll_interval <= 0:
             raise ValueError("poll_interval must be finite and positive")
         self.root = self.workspace.root
-        self.logs = TaskLogReader(Path(self.app_config.log_dir))
+        self.logs = TaskLogReader(self.root)
         self.poll_interval = poll_interval
         self._query = TaskQuery({})
         self._versions: dict[str, FileVersion] = {}
@@ -104,7 +103,7 @@ class LocalTaskIndex(BaseTaskIndex):
         return self._query.context(status)
 
     async def read_log(self, status: TaskMetadata, offset: int, limit: int) -> LogChunk:
-        return await asyncio.to_thread(self.logs.read_status, self.root, status, offset, limit)
+        return await asyncio.to_thread(self.logs.read_status, status, offset, limit)
 
     def stream(self, task_id: str, poll_interval: float) -> AsyncIterator[TaskEvent]:
         return TaskEventStream(self.root, self.logs, self.entry, self.logger).follow(task_id, poll_interval)

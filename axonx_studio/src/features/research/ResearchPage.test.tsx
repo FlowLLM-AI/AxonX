@@ -27,7 +27,7 @@ it.each(["en", "zh"])(
         ? tasks.get("backtest#playground_backtest#demo")!
         : [tasks.get("backtest#playground_backtest#demo")!],
     );
-    const path = "backtest/backtest#playground_backtest#demo";
+    const path = "tasks/backtest/backtest#playground_backtest#demo";
     vi.mocked(previewWorkspaceFile).mockImplementation(
       async ({ path: key }) => {
         const preview = files.get(key);
@@ -129,7 +129,7 @@ it("reads training member count from the canonical model manifest", async () => 
     });
     expect(previewWorkspaceFile).toHaveBeenCalledWith(
       {
-        path: "train/train#playground_train#demo/models.json",
+        path: "tasks/train/train#playground_train#demo/models.json",
         offset: 0,
         limit: 1,
       },

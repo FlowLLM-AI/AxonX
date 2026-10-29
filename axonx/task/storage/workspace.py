@@ -7,14 +7,15 @@ import os
 import shutil
 import stat
 from collections.abc import Iterator
+from itertools import product
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from ..models.identity import TaskType, task_type_from_id
+from ..models.identity import TaskType, is_generated_task_name, task_type_from_id
 from ..models.lifecycle import TaskMetadata
 from .files import atomic_write_json
 
-#: One workspace directory per producer type holds that type's task directories.
+#: Producer types present under both tasks/ and tmp/tasks/.
 KINDS = tuple(kind.value for kind in TaskType)
 
 PERSISTENT_DIR = "persistent"
@@ -22,12 +23,15 @@ METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
 EVENTS_FILE = "events.jsonl"
+LOG_FILE = "task.log"
 FileVersion = tuple[int, int, int, int]
 
 
 def task_directory(task_id: str) -> str:
-    """Return the workspace-relative ``<task kind>/<task id>`` of a task."""
-    return f"{task_type_from_id(task_id).value}/{task_id}"
+    """Locate a Task by its stable identity in tasks/ or tmp/tasks/."""
+    kind = task_type_from_id(task_id)
+    root = "tmp/tasks" if is_generated_task_name(task_id.rsplit("#", 1)[1]) else "tasks"
+    return f"{root}/{kind.value}/{task_id}"
 
 
 def task_path(root: Path, task_id: str) -> Path:
@@ -36,22 +40,13 @@ def task_path(root: Path, task_id: str) -> Path:
 
 
 def parse_task_directory(path: str) -> TaskType:
-    """Read the kind of one workspace-relative ``<task kind>/<task id>``.
-
-    Exactly two parts that agree name one task directory. Everything else is
-    refused - a bare task kind names every task of that kind at once, and a path
-    below a task directory names one file inside it.
-    """
+    """Require the canonical workspace-relative directory of exactly one Task."""
     if not isinstance(path, str):
         raise TypeError("Task directory must be a string")
     parts = PurePosixPath(path).parts
-    if len(parts) != 2:
-        raise ValueError(f"Task directories are <task kind>/<task id>: {path!r}")
-    kind, task_id = parts
-    task_type = task_type_from_id(task_id)
-    if task_type.value != kind:
-        raise ValueError(f"Task directory kind does not match its ID: {path!r}")
-    return task_type
+    if not parts or path != task_directory(parts[-1]):
+        raise ValueError(f"Invalid Task directory: {path!r}")
+    return task_type_from_id(parts[-1])
 
 
 def is_task_directory(directory: Path) -> bool:
@@ -63,8 +58,12 @@ def is_task_directory(directory: Path) -> bool:
     than missing directories so callers can retry instead of treating them as gone.
     """
     try:
-        return all(stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory))
-    except FileNotFoundError:
+        parts = PurePosixPath(task_directory(directory.name)).parts
+        depth = len(parts)
+        if directory.parts[-depth:] != parts:
+            return False
+        return all(stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory, *directory.parents[:depth]))
+    except (FileNotFoundError, ValueError):
         return False
 
 
@@ -93,20 +92,20 @@ def read_entry(root: Path, task_id: str) -> TaskMetadata | None:
 
 def _task_directories(root: Path) -> Iterator[Path]:
     """Visit only valid type/Task directories, never following symlinks."""
-    for kind in KINDS:
-        parent = root / kind
+    for base, kind in product(("tasks", "tmp/tasks"), KINDS):
         try:
+            parent = resolve_relative_path(root, f"{base}/{kind}")
             if not stat.S_ISDIR(parent.lstat().st_mode):
                 continue
             children = os.scandir(parent)
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError):
             continue
         with children:
             for child in children:
                 if not child.is_dir(follow_symlinks=False):
                     continue
                 try:
-                    parse_task_directory(f"{kind}/{child.name}")
+                    parse_task_directory(f"{base}/{kind}/{child.name}")
                 except ValueError:
                     continue
                 yield Path(child.path)
@@ -213,13 +212,14 @@ def task_id_from_path(root: Path, raw_path: str) -> str | None:
         parts = Path(raw_path).relative_to(root).parts
     except ValueError:
         return None
-    if len(parts) < 2:
-        return None
-    try:
-        parse_task_directory(f"{parts[0]}/{parts[1]}")
-    except ValueError:
-        return None
-    return parts[1]
+    for depth in (3, 4):
+        if len(parts) >= depth:
+            try:
+                parse_task_directory("/".join(parts[:depth]))
+            except ValueError:
+                continue
+            return parts[depth - 1]
+    return None
 
 
 def resolve_relative_path(root: Path, relative_path: str) -> Path:

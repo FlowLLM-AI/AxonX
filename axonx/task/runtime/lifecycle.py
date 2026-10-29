@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import psutil
 
 from ...utils.logging import get_logger
-from ..models.identity import TaskState, task_type_from_id
+from ..models.identity import TaskState, is_generated_task_name, task_type_from_id
 from ..models.lifecycle import TaskMetadata
 from ..storage.logs import TaskJournal
 from ..storage.workspace import (
@@ -34,10 +34,11 @@ def prepare_task_directory(task: BaseTask) -> datetime | None:
     """Check replacement eligibility before clearing files; retain persistent data."""
     if task_type_from_id(task.task_id) != task.task_type:
         raise ValueError(f"Task type does not match its ID: {task.task_id}")
-    if task.task_dir.parent.is_symlink():
-        raise ValueError(f"Task type directory cannot be a symlink: {task.task_dir.parent}")
-    if task.task_dir.is_symlink():
-        raise ValueError(f"Task directory cannot be a symlink: {task.task_dir}")
+    directory = task.workspace_path
+    for part in task.task_dir.relative_to(directory).parts:
+        directory /= part
+        if directory.is_symlink():
+            raise ValueError(f"Task directory cannot traverse a symlink: {directory}")
     if not task.task_dir.exists():
         task.task_dir.mkdir(parents=True)
         return None
@@ -51,7 +52,9 @@ def prepare_task_directory(task: BaseTask) -> datetime | None:
         raise FileExistsError(conflict_message(task.workspace_path, previous, process_verified=False)) from None
     if previous.state == TaskState.RUNNING:
         raise FileExistsError(conflict_message(task.workspace_path, previous))
-    if task.is_generated_name:
+    if is_generated_task_name(task.task_id.rsplit("#", 1)[1]) and (
+        task.context.parent_task_id is None or previous.parent_task_id != task.context.parent_task_id
+    ):
         raise FileExistsError(f"Task directory already exists: {task.task_dir}")
     task.logger.info(
         f"Overwrite task_id={task.task_id} started_at={previous.started_at.isoformat()} state={previous.state.value}"

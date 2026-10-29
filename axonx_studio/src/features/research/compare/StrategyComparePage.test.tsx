@@ -86,7 +86,7 @@ it.each(["en", "zh"])(
       const values = await Promise.all(
         ["a", "b"].map(async (name) => {
           const preview = await previewWorkspaceFile(
-            { path: `backtest/${name}/metadata.json` },
+            { path: `tasks/backtest/${name}/metadata.json` },
             {},
           );
           if (preview.kind !== "json") throw new Error("Expected metadata");
@@ -118,7 +118,7 @@ it.each(["en", "zh"])(
     for (const name of ["a", "b"]) {
       expect(previewWorkspaceFile).toHaveBeenCalledWith(
         {
-          path: `backtest/backtest#${name}/daily.parquet`,
+          path: `tasks/backtest/backtest#${name}/daily.parquet`,
           offset: 0,
           limit: 5000,
         },

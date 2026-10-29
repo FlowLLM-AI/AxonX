@@ -36,14 +36,14 @@
 
 列出指定类型目录下含 metadata.json 的 Task 目录。
 
-| 参数        | 类型     | 必填 | 默认/约束                                                 |
-| ----------- | -------- | ---- | --------------------------------------------------------- |
-| `task_type` | `string` | 是   | `{"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9_-]*$"}` |
+| 参数   | 类型     | 必填 | 默认/约束         |
+| ------ | -------- | ---- | ----------------- |
+| `path` | `string` | 是   | `{"minLength":1}` |
 
 ```json
 {
   "arguments": {
-    "task_type": "base"
+    "path": "tasks/base"
   }
 }
 ```
@@ -64,7 +64,7 @@
 ```json
 {
   "arguments": {
-    "path": "base/base#demo#api-check/metadata.json",
+    "path": "tasks/base/base#demo#api-check/metadata.json",
     "limit": 20,
     "max_bytes": 8192
   }
@@ -82,7 +82,7 @@
 ```json
 {
   "arguments": {
-    "paths": ["base/base#demo#api-check"]
+    "paths": ["tasks/base/base#demo#api-check"]
   }
 }
 ```
@@ -99,7 +99,7 @@ curl --fail-with-body 'http://HOST:1024/upload' \
   -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/UUID/file.whl", "location": "/absolute/workspace/tmp/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_tasks` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
+JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_tasks` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
 
 ## 预览响应类型
 
