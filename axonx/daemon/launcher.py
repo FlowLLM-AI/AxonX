@@ -15,8 +15,6 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
 from ..app.config.loader import ConfigLoader
 from ..app.config.models import ApplicationConfig, CronConfig
 from ..app.core.banner import print_logo
@@ -25,8 +23,6 @@ from ..task.runtime.settings import ExecutionSettings
 from ..utils.async_work import run_blocking
 from ..utils.env import load_env
 from .client import SOCKET, DaemonClient
-
-_COLOR_SYSTEM = "AXONX_DAEMON_COLOR_SYSTEM"
 
 VERIFICATION = (
     "from axonx.app.core.application import Application; from axonx_studio import static_dir; "
@@ -136,19 +132,16 @@ def start(
         app.context.service.on_ready = ready
         service = app.context.service
         if app.app_config.enable_logo:
-            color_system = os.environ.get(_COLOR_SYSTEM) or None
-            print_logo(
-                app.app_config,
-                service,
-                console=Console(color_system=color_system, force_terminal=color_system is not None),
-            )
+            print_logo(app.app_config, service)
         service.run_app(app)
         return 0
+    # The worker's file-backed stdout cannot detect the launch terminal.
+    if sys.stdout.isatty() and "FORCE_COLOR" not in os.environ:
+        inherited["FORCE_COLOR"] = "1"
     plan = {
         "python": sys.executable,
         "cwd": str(cwd),
-        # The worker writes to a log file; retain Rich's detection from the launch terminal.
-        "environment": {**inherited, _COLOR_SYSTEM: Console().color_system or ""},
+        "environment": inherited,
         "command": [*command_prefix, *startup_arguments],
         "stop_timeout": service.get("cleanup_timeout", 15) + 1,
     }

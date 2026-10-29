@@ -25,6 +25,7 @@ from axonx.daemon.launcher import runtime_directory
 from axonx.task.storage.workspace import task_path
 
 
+@pytest.mark.parametrize("dotenv", [False, True])
 @pytest.mark.parametrize(
     ("terminal", "environment", "expected_color"),
     [
@@ -40,7 +41,7 @@ from axonx.task.storage.workspace import task_path
     ],
 )
 def test_cli_banner_preserves_launch_terminal_colors(
-    tmp_path, monkeypatch, capsys, terminal, environment, expected_color
+    tmp_path, monkeypatch, capsys, terminal, environment, expected_color, dotenv
 ):
     from axonx.app.components.service.http.service import HttpService
     from axonx.cli.main import main
@@ -48,10 +49,13 @@ def test_cli_banner_preserves_launch_terminal_colors(
 
     for name in ("TERM", "COLORTERM", "FORCE_COLOR", "NO_COLOR", "TTY_COMPATIBLE", daemon.SOCKET):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("TERM", "xterm-256color")
-    for name, value in environment.items():
-        monkeypatch.setenv(name, value)
-    monkeypatch.setattr(launcher, "load_env", lambda: {})
+    monkeypatch.chdir(tmp_path)
+    environment = {"TERM": "xterm-256color", **environment}
+    if dotenv:
+        (tmp_path / ".env").write_text("".join(f"{name}={value}\n" for name, value in environment.items()))
+    else:
+        for name, value in environment.items():
+            monkeypatch.setenv(name, value)
     plans = []
     monkeypatch.setattr(launcher, "_launch", lambda plan, _directory: plans.append(plan))
     monkeypatch.setattr(HttpService, "run_app", lambda *_: None)
@@ -75,8 +79,7 @@ def test_cli_banner_preserves_launch_terminal_colors(
 
     # Start the worker with the daemon's environment, but a redirected stdout.
     for name, value in plans[0]["environment"].items():
-        if name.startswith("AXONX_DAEMON_"):
-            monkeypatch.setenv(name, value)
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv(daemon.SOCKET, str(tmp_path / "daemon.sock"))
     monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
     assert main(argv) == 0

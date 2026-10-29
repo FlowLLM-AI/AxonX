@@ -29,7 +29,7 @@ def _rgb(hue: float) -> tuple[int, int, int]:
     return int(red * 255), int(green * 255), int(blue * 255)
 
 
-def print_logo(app_config: ApplicationConfig, service: BaseService, *, console: Console | None = None) -> None:
+def print_logo(app_config: ApplicationConfig, service: BaseService) -> None:
     """Print the AxonX logo and effective service endpoints."""
     ascii_art = (
         r" █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗██╗  ██╗",
@@ -72,4 +72,4 @@ def print_logo(app_config: ApplicationConfig, service: BaseService, *, console: 
         padding=(1, 4),
         expand=False,
     )
-    (console or Console()).print(Group("\n", panel, "\n"))
+    Console().print(Group("\n", panel, "\n"))
