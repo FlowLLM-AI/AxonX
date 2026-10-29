@@ -23,6 +23,10 @@ export type StockOnlineReport = Omit<ReportContract, "commit"> & {
 export type OnlineHistory = Omit<HistoryContract, "commits"> & {
   commits: OnlineCommit[];
 };
+export type OnlineHistoryNode = Omit<OnlineHistory, "kind"> & {
+  kind: "online_history_node";
+  previous: ArtifactRecord | null;
+};
 const strings = (value: unknown): value is Record<string, string> =>
   isRecord(value) &&
   Object.values(value).every((item) => typeof item === "string");
@@ -159,6 +163,29 @@ export function parseHistory(value: unknown): OnlineHistory {
     revisions.set(key, revision);
   }
   return { ...(value as unknown as OnlineHistory), commits };
+}
+export function parseHistoryNode(value: unknown): OnlineHistoryNode {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    value.task_type !== "inference" ||
+    value.kind !== "online_history_node" ||
+    !digest(value.strategy_identity) ||
+    !Array.isArray(value.commits) ||
+    value.commits.length < 1 ||
+    value.commits.length > 16 ||
+    (value.previous != null &&
+      (!isArtifactRecord(value.previous) ||
+        !/^persistent\/online\/commits\/[a-f0-9]{32}\/history\.json$/.test(
+          value.previous.path,
+        )))
+  )
+    throw new Error("Invalid online history node");
+  return {
+    ...(value as unknown as OnlineHistoryNode),
+    commits: value.commits.map(parseCommit),
+    previous: (value.previous as ArtifactRecord | null) ?? null,
+  };
 }
 export function activeCommits(history: OnlineHistory) {
   const latest = new Map(

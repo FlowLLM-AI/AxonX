@@ -277,7 +277,7 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 
 `BaseWindowTask` 接收有序 `ExecutionWindow`，起止时间必须带时区；逐窗口发布 `WindowResult`，状态为 `done`、`skipped`、`incomplete` 或 `failed`。这些是业务结果，与 Task 生命周期状态分开。`BaseRealtimeApiTask` 轮询 `collect()`，`BaseInferenceTask` 在整次执行中固定非空模型身份。网络调用与重试应以 `DeadlineBudget.remaining_seconds` 限制。
 
-`OnlineStore` 将不可变提交文件写入 `persistent/online/commits/<commit_id>/`，通过原子替换 `persistent/online/manifest.json` 发布所选历史。提交记录生产者 `task_id`、`started_at`、信号日期/时间、按信号连续递增的 revision、模型身份、协议和产物。策略身份变化需要使用新的实例名。`read_online_history()` 同时读取完整清单与冻结历史链；报告或回放前使用 `pin_online_history()` 核验引用文件，并固定到消费者目录。
+`OnlineStore` 将不可变提交文件写入 `persistent/online/commits/<commit_id>/`，通过原子替换 `persistent/online/manifest.json` 发布所选历史。提交记录生产者 `task_id`、`started_at`、信号日期/时间、按信号连续递增的 revision、模型身份、协议和产物。策略身份变化需要使用新的实例名。`read_online_history()` 同时读取完整清单与冻结历史链；报告或回放前使用 `pin_online_history()` 核验引用文件，并固定到消费者目录。 Studio 按顺序读取冻结的历史分块，校验完整历史后展示信号结果。
 
 `ReplayStream.create()` 固定文件快照，在新目录中发布 `stream.json`，拒绝覆盖已有数据集；打开流时按大小和 revision 核验所有引用文件。事件按带时区的 `available_at` 排序。向 Task 注入 `ReplayClock`，通过 `ReplayCursor` 仅在业务截止时间之前交付事件。只有创建时钟的线程可以推进回放时间，生命周期时间戳与执行耗时仍使用真实时间。
 
