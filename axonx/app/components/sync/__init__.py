@@ -4,7 +4,7 @@ applier: Apply archives atomically and index verified installed replicas.
 archive: Pack complete Task groups and build deterministic bounded archives.
 artifacts: Discover, identify, validate and sample published display artifacts.
 base: Component contract for replicating workspace task directories to a target service.
-local: Reconcile and transfer bounded display replicas with opt-in live Task groups.
+local: Reconcile and transfer selected workflow views using live or terminal rules.
 models: Replica plans, transfer results, source-change errors and archive budget accounting.
 replica: Prepare bounded, valid display artifacts without modifying source files.
 """

@@ -5,8 +5,8 @@ from collections.abc import Awaitable
 from contextlib import suppress
 
 
-async def run_blocking(function, *args):
-    return await complete_on_cancel(asyncio.to_thread(function, *args))
+async def run_blocking(function, *args, **kwargs):
+    return await complete_on_cancel(asyncio.to_thread(function, *args, **kwargs))
 
 
 async def complete_on_cancel[T](awaitable: Awaitable[T]) -> T:

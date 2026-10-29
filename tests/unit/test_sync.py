@@ -81,6 +81,23 @@ def test_sync_timeout_must_be_finite_and_positive(timeout):
         LocalSyncComponent(target="example:1024", timeout_seconds=timeout)
 
 
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"model_names": "axon-v1"},
+        {"model_names": [""]},
+        {"rules": {"workflow": "sometimes"}},
+        {"rules": {"not a registration": "terminal"}},
+        {"rules": ["workflow"]},
+        {"task_names": ["axon-v1"]},
+        {"live_task_ids": ["base#workflow#combined"]},
+    ],
+)
+def test_sync_configuration_rejects_ambiguous_or_invalid_selection(options):
+    with pytest.raises((TypeError, ValueError)):
+        LocalSyncComponent(target="example:1024", **options)
+
+
 def test_replica_sampling_keeps_complete_days_and_preserves_the_source(tmp_path, source_task):
     source, status, directory = source_task
     artifact = directory / "features.parquet"
@@ -135,7 +152,7 @@ def test_live_metadata_delta_reuses_the_verified_remote_publication(tmp_path, so
     applier.apply(archive, [])
     previous = read_entry(target, status.task_id).replica.snapshot
 
-    remote = snapshot_index(target, frozenset(), frozenset({status.task_id}))
+    remote = snapshot_index(target, frozenset({status.task_id}))
     plans = prepare_group(source, status.task_id, tmp_path / "second", budget, logs, remote)
     assert [item.relative for item in plans[status.task_id].files] == [METADATA_FILE]
     build_archive(plans, archive)

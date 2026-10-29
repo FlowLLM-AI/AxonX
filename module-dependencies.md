@@ -137,7 +137,7 @@ flowchart TD
 
   调用方：[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)。
 
-- [task.models.lifecycle](axonx/task/models/lifecycle.py)（`task`）：同步组件使用 `DisplayReplica`、`LiveSnapshot`、`ReplicaFile`、`ReplicaLog` 和 `TaskMetadata` 描述副本；TaskIndex 使用 `TaskMetadata` 表达运行元数据。
+- [task.models.lifecycle](axonx/task/models/lifecycle.py)（`task`）：同步组件使用 `DisplayReplica`、`TaskSnapshot`、`ReplicaFile`、`ReplicaLog` 和 `TaskMetadata` 描述副本；TaskIndex 使用 `TaskMetadata` 表达运行元数据。
 
   调用方：[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)、[app.components.task_index.base](axonx/app/components/task_index/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
 

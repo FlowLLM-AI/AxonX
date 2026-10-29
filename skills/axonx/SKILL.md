@@ -215,6 +215,8 @@ The distribution name `axonx-example` is used for package management, entry-poin
 - Declare data dependencies with `upstream_task_ids`; this does not execute upstream Tasks. Call child Tasks synchronously with `self.run_task(...)` and check `success`, `child_task_id` and typed `output_params`. Parent/child calls and input dependencies are separate relationships.
 - Children share the process and workspace and inherit the parent instance name by default. The same registration and instance name reuse one directory; use distinct `task_name` values for repeated calls or pin artifacts before reuse.
 
+For model-specific synchronization, reuse model `task_name`, logical child `node_name` and progress `name`/`group`. Child nodes begin with the model name and a hyphen; calls with hashed Task directory names supply the logical name explicitly. Shared calls retain their default registration node name. Sync `rules` maps workflow registrations to `live` or `terminal`, while `model_names` selects model names with shell-style patterns. Both modes publish the same exact Task tree; terminal rules wait for its completion.
+
 Research bases are in `axonx.task.core.research`, inputs/outputs in `axonx.task.models.params`, and protocols in `axonx.task.models.artifacts`. Main required fields for standard research outputs:
 
 | Stage          | Fields                                               |

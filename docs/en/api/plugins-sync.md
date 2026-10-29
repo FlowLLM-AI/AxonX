@@ -17,18 +17,17 @@ Read verified display snapshots for reconciliation.
 
 | Argument        | Type    | Required | Default / constraints |
 | --------------- | ------- | -------- | --------------------- |
-| `task_names`    | `array` | no       | `—`                   |
-| `live_task_ids` | `array` | no       | `—`                   |
+| `root_task_ids` | `array` | no       | `[]`                  |
 
 ```json
 {
   "arguments": {
-    "task_names": ["experiment"]
+    "root_task_ids": ["base#research#experiment"]
   }
 }
 ```
 
-Returns verified display-snapshot revisions for reconciliation. `task_names` matches the final Task ID segment (1–32 letters, digits or hyphens); empty or omitted includes all names. `live_task_ids` selects opt-in live parent groups. Snapshot identity uses `root_started_at` and an ordered revision.
+Returns verified display-snapshot revisions for reconciliation. `root_task_ids` selects workflow groups by their root Task IDs; empty or omitted includes every group. Snapshot identity uses `root_started_at` and an ordered revision. Model filtering is performed by the sender's `model_names` and `rules` configuration.
 
 ## sync_tasks
 
@@ -47,7 +46,7 @@ Replace task directories from one uploaded sync archive.
 }
 ```
 
-Applies an uploaded sync archive and optional deletions. Uploads use relative path here, not the absolute plugin-install location. Returns `archive`, `applied`, `deleted` and `files`. The archive must contain verified display-replica metadata and regular files in canonical Task directories; gzip tar archives are bounded by the transfer budget. Applying refuses active original Task directories. Replicas support inspection and cannot execute or serve as research inputs.
+Applies an uploaded sync archive and optional deletions. A group replacement also removes obsolete display replicas owned by the same source/root. Uploads use relative path here, not the absolute plugin-install location. Returns `archive`, `applied`, `deleted` and `files`. The archive must contain verified display-replica metadata and regular files in canonical Task directories; gzip tar archives are bounded by the transfer budget. Applying refuses active original Task directories. Replicas support inspection and cannot execute or serve as research inputs.
 
 ## Plugin commands
 

@@ -112,9 +112,5 @@ def validate_task_names(values: Collection[str] | None) -> frozenset[str]:
     return _validate_selection(values, validate_task_name, "task_names must be a list of task names")
 
 
-def matches_task_name(task_id: str, task_names: frozenset[str]) -> bool:
-    return not task_names or task_id.rsplit(TASK_ID_SEPARATOR, 1)[-1] in task_names
-
-
 def validate_task_ids(values: Collection[str] | None) -> frozenset[str]:
     return _validate_selection(values, task_type_from_id, "task_ids must be a list of Task IDs")

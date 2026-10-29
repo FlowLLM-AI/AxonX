@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import socket
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import polars as pl
@@ -13,10 +15,10 @@ import pyarrow.parquet as pq
 from ....task.models.artifacts import fingerprint
 from ....task.models.lifecycle import (
     DisplayReplica,
-    LiveSnapshot,
     ReplicaFile,
     ReplicaLog,
     TaskMetadata,
+    TaskSnapshot,
 )
 from ....task.storage.files import snapshot_file
 from ....task.storage.logs import TaskLogReader
@@ -53,7 +55,7 @@ class ReplicaBuilder:
         budget: int,
         logs: TaskLogReader | None = None,
         *,
-        snapshot: LiveSnapshot | None = None,
+        snapshot: TaskSnapshot | None = None,
         metadata: TaskMetadata | None = None,
         remote: dict | None = None,
     ) -> None:
@@ -63,6 +65,7 @@ class ReplicaBuilder:
         self.budget = budget
         self.logs = logs
         self.snapshot = snapshot
+        self.policy = policy_revision(budget, (snapshot.when, snapshot.model_names) if snapshot else None)
         self.metadata = metadata.model_copy(deep=True) if metadata is not None else None
         self.remote = remote
         self.source = task_path(root, task_id)
@@ -78,7 +81,12 @@ class ReplicaBuilder:
 
     def prepare(self) -> TaskPlan:
         """Capture, bound and verify one source snapshot before returning its archive plan."""
-        self.before = plan_task(self.root, self.task_id, snapshot=self.metadata if self.snapshot else None)
+        self.before = plan_task(
+            self.root,
+            self.task_id,
+            snapshot=self.metadata if self.snapshot else None,
+            live=self.snapshot.when == "live" if self.snapshot else False,
+        )
         self.metadata = self.metadata or read_entry(self.root, self.task_id)
         if self.metadata is None:
             raise SnapshotChangedError(f"Task disappeared: {self.task_id}")
@@ -97,7 +105,7 @@ class ReplicaBuilder:
             and self.remote
             and (self.remote.get("started_at") == self.metadata.started_at.isoformat())
             and (self.remote.get("source_revision") == self.identity)
-            and (self.remote.get("policy_revision") == policy_revision(self.budget))
+            and (self.remote.get("policy_revision") == self.policy)
         ):
             prepared = self._refresh_snapshot()
             self._check_source()
@@ -275,7 +283,7 @@ class ReplicaBuilder:
             )
         self.metadata.replica = DisplayReplica(
             source_revision=self.identity,
-            policy_revision=policy_revision(self.budget),
+            policy_revision=self.policy,
             files=files,
             omitted=dict(self.omitted),
             source_log_path=self.source_log_path,
@@ -297,32 +305,92 @@ class ReplicaBuilder:
                 raise SnapshotChangedError(f"Published artifact changed during capture: {item.path}")
 
 
-def task_group(root: Path, task_id: str) -> dict:
-    """Check child start times; never silently substitute a restarted child."""
-    result = {}
+_OMIT = object()
 
-    pending = [(task_id, None)]
+
+def _project(value, excluded: set[str]):
+    """Retain selected model entries and drop empty schedule slots."""
+    if isinstance(value, dict):
+        if value.get("task_name") in excluded:
+            return _OMIT
+        result = {}
+        removed = False
+        for key, item in value.items():
+            filtered = _OMIT if key in excluded else _project(item, excluded)
+            if filtered is _OMIT:
+                removed = True
+            else:
+                result[key] = filtered
+        return _OMIT if removed and not result else result
+    if isinstance(value, list):
+        result = [filtered for item in value if (filtered := _project(item, excluded)) is not _OMIT]
+        return _OMIT if value and not result else result
+    return value
+
+
+def task_group(root: Path, task_id: str, model_names: Sequence[str] = ()) -> dict[str, TaskMetadata]:
+    """Follow exact child runs; excluded branches cannot block another model."""
+    parent = read_entry(root, task_id)
+    if parent is None or parent.replica is not None:
+        raise SnapshotChangedError(f"Task source is unavailable: {task_id}")
+    models = parent.input_params.get("models", [])
+    schedule = models.items() if isinstance(models, dict) else [("", models)]
+    nodes = {
+        f"{model['task_name']}-{slot}" if slot else model["task_name"]: model["task_name"]
+        for slot, entries in schedule
+        for model in entries
+    }
+    names = set(nodes.values()) or {parent.input_params.get("task_name") or task_id.rsplit("#", 1)[1]}
+    selected = {name for name in names if not model_names or any(fnmatchcase(name, pattern) for pattern in model_names)}
+    if not selected:
+        return {}
+    partial = bool(names - selected)
+    result = {}
+    pending = [(task_id, parent.started_at)]
     while pending:
         identity, started_at = pending.pop()
         status = read_entry(root, identity)
-        if status is None or status.replica is not None or (started_at is not None and status.started_at != started_at):
-            raise SnapshotChangedError(f"Live source Task is unavailable: {identity}/{started_at}")
+        if status is None or status.replica is not None or status.started_at != started_at:
+            raise SnapshotChangedError(f"Task source Run changed: {identity}/{started_at}")
         previous = result.get(identity)
         if previous is not None:
             if previous.started_at != status.started_at:
                 raise SnapshotChangedError(f"Conflicting child start times: {identity}")
             continue
+        if partial and identity == task_id:
+            status = status.model_copy(deep=True)
+            children = []
+            for child in status.children:
+                model = nodes.get(child.node_name.removesuffix("-" + child.reg_name))
+                if model is None and child.node_name != child.reg_name:
+                    raise SnapshotChangedError(f"Shared Task child has no model node name: {child.node_name}")
+                if model is None or model in selected:
+                    children.append(child)
+            status.children = children
+            for field in ("input_params", "output_params"):
+                projected = _project(getattr(status, field), names - selected)
+                setattr(status, field, {} if projected is _OMIT else projected)
+            schedule = status.input_params.get("models")
+            outcomes = status.output_params.get("models")
+            if isinstance(schedule, dict) and isinstance(outcomes, dict):
+                status.output_params["models"] = {slot: value for slot, value in outcomes.items() if slot in schedule}
+            status.output_params.pop("artifacts", None)
+            steps = []
+            for step in status.steps:
+                model = next((nodes[key] for key in (step.group, *step.name.split(":")) if key in nodes), None)
+                if model is None or model in selected:
+                    if model is None:
+                        step.error = ""
+                    steps.append(step)
+            status.steps = steps
+            status.error = f"Task exited with code {status.exit_code}" if status.exit_code else ""
+            status.log_path = ""
         result[identity] = status
         pending.extend(
-            reversed(
-                [
-                    (child.child_task_id, child.started_at)
-                    for child in status.current_children()
-                    if child.child_task_id and child.started_at is not None
-                ]
-            )
+            (child.child_task_id, child.started_at)
+            for child in reversed(status.current_children())
+            if child.child_task_id and child.started_at is not None
         )
-
     return result
 
 
@@ -333,24 +401,39 @@ def prepare_group(
     budget: int,
     logs: TaskLogReader,
     remote: dict,
+    *,
+    model_names: tuple[str, ...] = (),
+    when: str = "live",
 ) -> dict[str, TaskPlan]:
-    group = task_group(root, task_id)
+    group = task_group(root, task_id, model_names)
+    if not group:
+        return {}
+    if when == "terminal" and any(not status.state.is_terminal for status in group.values()):
+        raise SnapshotChangedError(f"Task group has not completed: {task_id}")
     member_budget = archive_budget(budget) // len(group)
-    policy = policy_revision(member_budget)
+    policy = policy_revision(member_budget, (when, list(model_names)))
     if all(
         status.state.is_terminal
         and remote.get(identity, {}).get("source_revision")
-        == source_revision(root, identity, snapshot=status, logs=logs)
+        == source_revision(
+            root,
+            identity,
+            snapshot=status,
+            logs=logs,
+            plan=plan_task(root, identity, snapshot=status, live=when == "live"),
+        )
         and remote.get(identity, {}).get("policy_revision") == policy
         for identity, status in group.items()
     ):
         return {}
-    snapshot = LiveSnapshot(
+    snapshot = TaskSnapshot(
         source_id=fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())}),
         root_task_id=task_id,
         root_started_at=group[task_id].started_at,
         captured_at=datetime.now(UTC),
         revision=time.time_ns(),
+        when=when,
+        model_names=list(model_names),
     )
     plans = {}
     for identity, status in group.items():

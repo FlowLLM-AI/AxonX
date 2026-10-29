@@ -191,7 +191,7 @@ export type DisplayReplica = {
   files: Record<string, ReplicaFile>;
   omitted: Record<string, string>;
   source_log_path: string;
-  snapshot: LiveSnapshot | null;
+  snapshot: TaskSnapshot | null;
   log: ReplicaLog | null;
 };
 
@@ -241,14 +241,6 @@ export type JsonlRow = {
   content: string;
   data: unknown;
   parse_error: string | null;
-};
-
-export type LiveSnapshot = {
-  source_id: string;
-  root_task_id: string;
-  root_started_at: string;
-  captured_at: string;
-  revision: number;
 };
 
 export type LogChunk = {
@@ -542,6 +534,16 @@ export type TaskRelations = {
   direct_downstream: Array<string>;
   missing: Array<string>;
   provisional: Array<string>;
+};
+
+export type TaskSnapshot = {
+  source_id: string;
+  root_task_id: string;
+  root_started_at: string;
+  captured_at: string;
+  revision: number;
+  when: "live" | "terminal";
+  model_names: Array<string>;
 };
 
 export type TaskState = "running" | "succeeded" | "failed";

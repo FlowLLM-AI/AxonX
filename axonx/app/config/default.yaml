@@ -95,8 +95,9 @@ components:
   #   default:
   #     backend: local
   #     target: ${AXONX_SYNC_TARGET}
-  #     task_names: []
-  #     live_task_ids: []
+  #     model_names: []
+  #     rules:
+  #       demo: terminal
   #     max_archives_per_flush: 4
   #     timeout_seconds: 300
 
@@ -469,12 +470,7 @@ jobs:
     parameters:
       type: object
       properties:
-        task_names:
-          type: array
-          items:
-            type: string
-            pattern: "^[A-Za-z0-9-]{1,32}$"
-        live_task_ids:
+        root_task_ids:
           type: array
           items:
             type: string

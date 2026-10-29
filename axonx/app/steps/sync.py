@@ -3,7 +3,7 @@
 import asyncio
 from contextlib import suppress
 
-from ...task.models.identity import validate_task_ids, validate_task_names
+from ...task.models.identity import validate_task_ids
 from ...utils.async_work import run_blocking
 from ..components.registry import provider
 from ..components.sync.applier import TaskArchiveApplier, snapshot_index
@@ -47,9 +47,8 @@ class SyncFlushStep(BaseStep):
 @provider("task_sync_index_step")
 class TaskSyncIndexStep(BaseStep):
     async def execute(self):
-        names = validate_task_names(self.context.get("task_names"))
-        roots = validate_task_ids(self.context.get("live_task_ids"))
+        roots = validate_task_ids(self.context.get("root_task_ids"))
         self.response.answer = {
             "transfer_budget_bytes": self.app_config.transfer_budget_bytes,
-            "tasks": await asyncio.to_thread(snapshot_index, self.workspace_path, names, roots),
+            "tasks": await asyncio.to_thread(snapshot_index, self.workspace_path, roots),
         }

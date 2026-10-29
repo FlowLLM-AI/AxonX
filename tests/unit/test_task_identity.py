@@ -326,7 +326,7 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     assert replica.replica.snapshot.root_started_at == parent.started_at
     assert read_entry(target, child.task_id).started_at == second.started_at
     executor.execute(DemoTask({"task_name": "repeat", "x": 99, "y": 1}, workspace_path=workspace, reg_name="demo"))
-    with pytest.raises(SnapshotChangedError, match="Live source Task is unavailable"):
+    with pytest.raises(SnapshotChangedError, match="Task source Run changed"):
         task_group(workspace, parent.task_id)
 
     # A pending child must not pull the previous contents of its named directory.

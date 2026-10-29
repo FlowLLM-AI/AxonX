@@ -47,14 +47,16 @@ class ReplicaFile(TaskModel):
     dates: list[str] = Field(default_factory=list)
 
 
-class LiveSnapshot(TaskModel):
-    """One ordered, read-only snapshot of a parent Task and its children."""
+class TaskSnapshot(TaskModel):
+    """One ordered display view of a parent Task and its selected descendants."""
 
     source_id: str = Field(min_length=1)
     root_task_id: str = Field(min_length=1)
     root_started_at: AwareDatetime
     captured_at: AwareDatetime
     revision: int = Field(gt=0)
+    when: Literal["live", "terminal"] = "live"
+    model_names: list[str] = Field(default_factory=list)
 
 
 class ReplicaLog(TaskModel):
@@ -70,7 +72,7 @@ class DisplayReplica(TaskModel):
     files: dict[str, ReplicaFile]
     omitted: dict[str, str] = Field(default_factory=dict)
     source_log_path: str = ""
-    snapshot: LiveSnapshot | None = None
+    snapshot: TaskSnapshot | None = None
     log: ReplicaLog | None = None
 
 

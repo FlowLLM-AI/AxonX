@@ -57,6 +57,8 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 
 执行子任务时需向 TaskExecutor 提供解析器；CLI 根据已安装插件构造目录并传入 resolve 方法。
 
+子调用 `node_name` 标识逻辑调用，与物理 Task 目录独立。按模型发布视图时，模型节点名以模型名称开头，共享调用保留默认注册名。进度复用已有步骤的 `name` 和 `group`，后代任务使用记录的子 Task ID 和启动时间。
+
 ## 产物记录
 
 文件记录包含相对 path、size 和 revision，路径必须位于 Task 目录内。共享模型位于 `models.artifacts`，研究结果位于 `models.reports`。用 `storage.inputs` 核验并固定上游产物。原子发布 metadata 不保护目录免受并发写入。
@@ -67,7 +69,7 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 
 ## 展示副本
 
-副本记录源/策略修订、采样或省略文件和可选活动父任务快照。LiveSnapshot 包含 source_id、root_task_id、root_started_at、captured_at 和有序 revision。副本不能执行，也不应作为可修改的研究源。
+副本记录源/策略修订、采样或省略文件和可选工作流分支快照。TaskSnapshot 包含 source_id、root_task_id、root_started_at、captured_at、有序 revision、when 和 model_names。副本不能执行，也不应作为可修改的研究源。
 
 ## 业务时钟与事件回放
 

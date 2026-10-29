@@ -1303,14 +1303,7 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "task_names": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9-]{1,32}$"
-            }
-          },
-          "live_task_ids": {
+          "root_task_ids": {
             "type": "array",
             "items": {
               "type": "string",

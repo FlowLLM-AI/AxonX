@@ -57,6 +57,8 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 
 Supply a Task resolver to TaskExecutor when executing children. The CLI constructs a catalog from installed plugins and supplies its resolve method.
 
+Child `node_name` identifies a logical invocation independently of its physical Task directory. Keep the model name at its start when publishing model-specific views, and retain the default registration name for shared calls. Progress uses the existing step `name` and `group`; descendants use recorded child Task IDs and start times.
+
 ## Artifact records
 
 File records contain relative path, size and revision; paths must remain inside the Task directory. Shared models live in `models.artifacts`, research results in `models.reports`. Use `storage.inputs` to validate and pin upstream artifacts. Atomic metadata publication is not protection against concurrent directory writers.
@@ -67,7 +69,7 @@ File records contain relative path, size and revision; paths must remain inside 
 
 ## Display replicas
 
-Replica metadata identifies source/policy revisions, sampled or omitted files and optional live parent snapshots. LiveSnapshot uses source_id, root_task_id, root_started_at, captured_at and ordered revision. Replicas cannot execute or serve as mutable research sources.
+Replica metadata identifies source/policy revisions, sampled or omitted files and optional selected workflow snapshots. TaskSnapshot uses source_id, root_task_id, root_started_at, captured_at, ordered revision, when and model_names. Replicas cannot execute or serve as mutable research sources.
 
 ## Business clocks and event replay
 

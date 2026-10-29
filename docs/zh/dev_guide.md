@@ -209,6 +209,8 @@ example_plugin = ["plugin.yaml"]
 - 用 `upstream_task_ids` 声明数据依赖，它不会自动执行上游。用 `self.run_task(...)` 同步调用子任务，并检查返回的 `success`、`child_task_id` 和类型化 `output_params`。父子调用与输入依赖是两种关系。
 - 子任务共享进程与工作区，默认继承父实例名；同一注册名和实例名会复用同一目录，多次调用需使用不同 `task_name` 或先固定产物。
 
+按模型同步时复用模型 `task_name`、子调用逻辑 `node_name` 和进度 `name`/`group`。模型子节点以模型名和连字符开头，哈希 Task 目录显式提供逻辑节点名；共享调用保留默认注册节点名。同步 `rules` 将工作流注册名映射到 `live` 或 `terminal`，`model_names` 使用通配模式筛选模型。两种模式发布同一套精确任务树，terminal 规则等待任务树结束。
+
 研究基类在 `axonx.task.core.research`，输入/输出在 `axonx.task.models.params`，协议在 `axonx.task.models.artifacts`。标准研究输出的主要必填字段：
 
 | 阶段           | 字段                                             |

@@ -1,21 +1,17 @@
-"""Reconcile and transfer bounded display replicas with opt-in live Task groups."""
+"""Reconcile workflow views through one queue, snapshot builder and sender."""
 
 from __future__ import annotations
 
 import asyncio
 import math
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
 
 from ....client import http as client
 from ....client.base import RemoteServiceError
-from ....task.models.identity import (
-    matches_task_name,
-    validate_task_ids,
-    validate_task_names,
-)
+from ....task.models.identity import validate_registration_name
 from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
@@ -28,10 +24,9 @@ from ....utils.async_work import run_blocking
 from ..registry import provider
 from ..task_index.base import BaseTaskIndex
 from .archive import SYNC_ARCHIVE_NAME, archive_budget, build_archive, pack_batches
-from .artifacts import policy_revision, source_revision
 from .base import BaseSyncComponent
 from .models import ReplicaBudgetError, SyncReport, TaskPlan
-from .replica import ReplicaBuilder, prepare_group
+from .replica import prepare_group
 
 
 @provider("local")
@@ -44,8 +39,8 @@ class LocalSyncComponent(BaseSyncComponent):
         task_index: str = "default",
         max_archives_per_flush: int = 4,
         timeout_seconds: float = 300,
-        task_names: Sequence[str] | None = None,
-        live_task_ids: Sequence[str] | None = None,
+        model_names: Sequence[str] = (),
+        rules: Mapping[str, str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,8 +60,14 @@ class LocalSyncComponent(BaseSyncComponent):
         self.depend("index", task_index, BaseTaskIndex)
         self.max_archives_per_flush = max_archives_per_flush
         self.timeout = timeout_seconds
-        self.task_names = validate_task_names(task_names)
-        self.live_task_ids = validate_task_ids(live_task_ids)
+        if isinstance(model_names, str) or any(not isinstance(name, str) or not name for name in model_names):
+            raise ValueError("model_names must be a sequence of nonempty patterns")
+        self.model_names = tuple(sorted(set(model_names)))
+        self.rules = dict(rules or {})
+        for task, when in self.rules.items():
+            validate_registration_name(task)
+            if when not in {"live", "terminal"}:
+                raise ValueError("Sync rules must select 'live' or 'terminal'")
         self._remote_index: dict = {}
         self._last_task = ""
         self.root = self.workspace.root
@@ -85,40 +86,21 @@ class LocalSyncComponent(BaseSyncComponent):
         configured = self.app_config.resolve_target(self.target)
         return client.HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
 
-    def _missing(self, remote: dict) -> set[str]:
-        policy = policy_revision(self.budget)
-        missing = set()
-        members = self._group_members()
-        for task_id, metadata in scan_entries(self.root).items():
-            if (
-                metadata.replica is not None
-                or not metadata.state.is_terminal
-                or not self._should_sync(task_id)
-                or task_id in members
-            ):
-                continue
-            try:
-                expected = {
-                    "source_revision": source_revision(self.root, task_id),
-                    "policy_revision": policy,
-                }
-                if any(remote.get(task_id, {}).get(key) != value for key, value in expected.items()):
-                    missing.add(task_id)
-            except (OSError, ValueError) as exc:
-                self.logger.warning(f"Cannot index display source {task_id}: {exc}")
-                missing.add(task_id)
-        return missing
+    def _roots(self) -> dict:
+        return {
+            identity: status
+            for identity, status in scan_entries(self.root).items()
+            if status.replica is None and status.reg_name in self.rules
+        }
 
-    async def _reconcile(self, *, sources: bool = True) -> None:
-        if sources:
-            self._needs_reconcile = False
+    async def _reconcile(self, roots: dict) -> bool:
+        sources = self._needs_reconcile
         try:
             async with self._client() as remote:
                 response = await remote.run_job(
                     "task_sync_index",
                     {
-                        "task_names": sorted(self.task_names),
-                        "live_task_ids": sorted(self.live_task_ids),
+                        "root_task_ids": sorted(roots),
                     },
                 )
             payload = response.answer
@@ -146,17 +128,23 @@ class LocalSyncComponent(BaseSyncComponent):
             sources |= self._remote_budget is not None and self._remote_budget != budget
             self._remote_budget = budget
             self._remote_index = remote
-            if sources:
-                self._pending.update(await run_blocking(self._missing, remote))
+            self._pending.update(
+                identity
+                for identity, status in roots.items()
+                if sources or remote.get(identity, {}).get("started_at") != status.started_at.isoformat()
+            )
+            self._needs_reconcile = False
             self.logger.info(
                 f"Display sync reconciled target={self.target}: queued={len(self._pending)} budget={self.budget}"
             )
+            return True
         except asyncio.CancelledError:
             self._needs_reconcile = True
             raise
         except (OSError, ValueError, RemoteServiceError) as exc:
             self._needs_reconcile = True
             self.logger.warning(f"Display sync reconciliation will retry target={self.target}: {exc}")
+            return False
 
     async def _start(self) -> None:
         self.app_config.resolve_target(self.target)
@@ -171,39 +159,17 @@ class LocalSyncComponent(BaseSyncComponent):
         self._pending.clear()
 
     def _on_change(self, task_ids: frozenset[str]) -> None:
-        self._pending.update(task_id for task_id in task_ids if self._should_sync(task_id))
-
-    def _should_sync(self, task_id: str) -> bool:
-        return matches_task_name(task_id, self.task_names)
-
-    def _group_members(self) -> set[str]:
-        """Reserve owned child directories even when their next execution has not started yet."""
-        pending = list(self.live_task_ids)
-        members = set()
-        while pending:
-            identity = pending.pop()
-            if identity in members:
-                continue
-            members.add(identity)
-            status = read_task_metadata(task_path(self.root, identity), identity)
-            if status is not None and status.replica is None:
-                pending.extend(child.child_task_id for child in status.children if child.child_task_id)
-        return members
-
-    def _settled(self, task_ids: Sequence[str]) -> list[str]:
-        members = self._group_members()
-        return [
-            identity
-            for identity in task_ids
-            if (status := read_task_metadata(task_path(self.root, identity), identity)) is not None
-            and status.replica is None
-            and (
-                identity in self.live_task_ids
-                or status.state.is_terminal
-                and identity not in members
-                and self._should_sync(identity)
-            )
-        ]
+        for identity in task_ids:
+            seen = set()
+            while identity and identity not in seen:
+                seen.add(identity)
+                status = read_task_metadata(task_path(self.root, identity), identity)
+                if status is None or status.replica is not None:
+                    break
+                if status.reg_name in self.rules:
+                    self._pending.add(identity)
+                    break
+                identity = status.parent_task_id
 
     async def _send(self, remote: client.HttpClient, archive: Path) -> None:
         staged = None
@@ -227,7 +193,7 @@ class LocalSyncComponent(BaseSyncComponent):
             self.max_archives_per_flush,
         )
 
-    async def _transfer(self, pending: Sequence[str]) -> SyncReport:
+    async def _transfer(self, pending: Sequence[str], roots: dict) -> SyncReport:
         report = SyncReport()
         logs = TaskLogReader(self.root)
         ordered = sorted(pending)
@@ -240,27 +206,17 @@ class LocalSyncComponent(BaseSyncComponent):
             for position, task_id in enumerate(ordered):
                 try:
                     group_root = staging / task_id
-                    if task_id in self.live_task_ids:
-                        plans = await run_blocking(
-                            prepare_group,
-                            self.root,
-                            task_id,
-                            group_root,
-                            self.budget,
-                            logs,
-                            self._remote_index,
-                        )
-                    else:
-                        plan = await run_blocking(
-                            ReplicaBuilder(
-                                self.root,
-                                task_id,
-                                task_path(group_root, task_id),
-                                self.budget,
-                                logs,
-                            ).prepare,
-                        )
-                        plans = {task_id: plan}
+                    plans = await run_blocking(
+                        prepare_group,
+                        self.root,
+                        task_id,
+                        group_root,
+                        self.budget,
+                        logs,
+                        self._remote_index,
+                        model_names=self.model_names,
+                        when=self.rules[roots[task_id].reg_name],
+                    )
                     if plans:
                         groups[task_id] = plans
                         _, _, deferred = self._pack(groups)
@@ -301,15 +257,23 @@ class LocalSyncComponent(BaseSyncComponent):
 
     async def flush(self) -> SyncReport:
         async with self._flush_lock:
-            # Active and completed replicas share one index, queue, budget and sender.
-            if self._needs_reconcile or self.live_task_ids:
-                await self._reconcile(sources=self._needs_reconcile)
-                if self._needs_reconcile:
-                    return SyncReport(deferred=[task_directory(i) for i in sorted(self.live_task_ids)])
-            queued, self._pending = self._pending | self.live_task_ids, set()
+            roots = await run_blocking(self._roots)
+            self._pending.intersection_update(roots)
+            if not roots:
+                return SyncReport()
+            if not await self._reconcile(roots):
+                return SyncReport(deferred=[task_directory(identity) for identity in sorted(roots)])
+            self._pending.update(
+                identity for identity, status in roots.items() if self.rules[status.reg_name] == "live"
+            )
+            ready = {
+                identity
+                for identity in self._pending
+                if self.rules[roots[identity].reg_name] == "live" or roots[identity].state.is_terminal
+            }
+            self._pending.difference_update(ready)
             try:
-                pending = await run_blocking(self._settled, sorted(queued))
-                return await self._transfer(pending) if pending else SyncReport()
+                return await self._transfer(sorted(ready), roots) if ready else SyncReport()
             except BaseException:
-                self._pending.update(queued)
+                self._pending.update(ready)
                 raise

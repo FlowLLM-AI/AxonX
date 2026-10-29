@@ -28,10 +28,11 @@ def artifact_path(directory: Path, name: str) -> Path:
     return path
 
 
-def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None) -> TaskPlan:
+def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None, live: bool | None = None) -> TaskPlan:
     """Only published outputs and their manifest dependencies belong to a replica."""
     directory = task_path(root, task_id)
     metadata = snapshot or read_entry(root, task_id)
+    live = snapshot is not None if live is None else live
     if metadata is None or (snapshot is None and not metadata.state.is_terminal) or metadata.replica is not None:
         raise SnapshotChangedError(f"Task is not a terminal source snapshot: {task_id}")
     paths = {METADATA_FILE}
@@ -45,7 +46,7 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
             # Only publication containers own files. Protocol provenance and
             # parent Task summaries may contain paths belonging to other Tasks.
             for role, record in value.get("artifacts", {}).items():
-                if snapshot is not None and (
+                if live and (
                     role
                     in {
                         "features",
@@ -92,8 +93,8 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
     return TaskPlan.capture(directory, paths, omitted=omitted)
 
 
-def policy_revision(budget: int) -> str:
-    return f"display-replica-3:{budget}:latest-whole-days"
+def policy_revision(budget: int, view=None) -> str:
+    return f"display-replica-4:{budget}:latest-whole-days:{fingerprint(view)}"
 
 
 def source_revision(

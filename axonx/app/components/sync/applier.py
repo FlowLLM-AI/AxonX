@@ -9,7 +9,6 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ....task.models.identity import matches_task_name
 from ....task.storage.files import snapshot_file
 from ....task.storage.workspace import (
     parse_task_directory,
@@ -63,7 +62,22 @@ class TaskArchiveApplier:
             overlap = replacements & set(removed)
             if overlap:
                 raise ValueError(f"Tasks cannot be replaced and deleted together: {', '.join(sorted(overlap))}")
-            deleted = self._commit(extracted, replacements, removed, staging / "backup")
+            snapshots = {
+                (status.replica.snapshot.source_id, status.replica.snapshot.root_task_id)
+                for relative in replacements
+                if (status := read_task_metadata(extracted / relative, relative.rsplit("/", 1)[1])) is not None
+                and status.replica is not None
+                and status.replica.snapshot is not None
+            }
+            obsolete = {
+                task_directory(identity)
+                for identity, status in scan_entries(self.root).items()
+                if status.replica is not None
+                and status.replica.snapshot is not None
+                and (status.replica.snapshot.source_id, status.replica.snapshot.root_task_id) in snapshots
+                and task_directory(identity) not in replacements
+            }
+            deleted = self._commit(extracted, replacements, sorted(set(removed) | obsolete), staging / "backup")
         return SyncTasksReport(archive_name, sorted(replacements), deleted, files)
 
     def _extract(self, archive_path: Path | None, target: Path) -> tuple[set[str], int]:
@@ -87,7 +101,7 @@ class TaskArchiveApplier:
                 target.mkdir()
                 archive.extractall(target, members=members, filter=self._member)
                 self._hydrate(target, tasks)
-                self._validate_snapshots(target, tasks)
+                _validate_snapshots(target, tasks)
                 return tasks, len(members)
         except tarfile.TarError as exc:
             raise ValueError(f"Invalid sync archive: {exc}") from exc
@@ -153,38 +167,6 @@ class TaskArchiveApplier:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 snapshot_file(source, target)
 
-    @staticmethod
-    def _validate_snapshots(root: Path, tasks: set[str]) -> None:
-        for relative_path in tasks:
-            task_id = relative_path.rsplit("/", 1)[1]
-            status = read_task_metadata(root / relative_path, task_id)
-            if status is None or status.replica is None:
-                raise ValueError(f"Sync archive Task is missing a display replica status: {relative_path}")
-            snapshot = status.replica.snapshot
-            if snapshot is not None:
-                if task_directory(snapshot.root_task_id) not in tasks:
-                    raise ValueError("Live snapshot must include its parent Task")
-                parent = read_entry(root, snapshot.root_task_id)
-                if (
-                    parent is None
-                    or parent.replica is None
-                    or parent.started_at != snapshot.root_started_at
-                    or parent.replica.snapshot != snapshot
-                ):
-                    raise ValueError("Live snapshot parent identity differs")
-                for child in status.current_children():
-                    if child.child_task_id is None or child.started_at is None:
-                        continue
-                    linked = read_entry(root, child.child_task_id)
-                    if (
-                        linked is None
-                        or linked.started_at != child.started_at
-                        or linked.replica is None
-                        or linked.replica.snapshot != snapshot
-                    ):
-                        raise ValueError("Live snapshot child identity differs")
-            verify_replica(root, task_id, metadata=status)
-
     def _commit(
         self,
         extracted: Path,
@@ -223,7 +205,7 @@ class TaskArchiveApplier:
                     else:
                         conflict = new.source_id != old.source_id or new.revision <= old.revision
                     if conflict:
-                        raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
+                        raise ValueError(f"Stale or conflicting Task snapshot: {relative_path}")
                 if status is not None and status.replica is not None and incoming is not None:
                     if (
                         status.started_at == incoming.started_at
@@ -231,7 +213,12 @@ class TaskArchiveApplier:
                         and not incoming.state.is_terminal
                     ):
                         raise ValueError(f"Cannot regress a terminal Task: {relative_path}")
-                if status is not None and not status.state.is_terminal and (old is None or new is None):
+                if (
+                    status is not None
+                    and not status.state.is_terminal
+                    and (old is None or new is None)
+                    and not (relative_path in deletions and status.replica is not None)
+                ):
                     raise ValueError(f"Cannot overwrite active Task: {relative_path}")
                 backup = backup_root / relative_path
                 backup.parent.mkdir(parents=True, exist_ok=True)
@@ -257,22 +244,60 @@ class TaskArchiveApplier:
         return deleted
 
 
-def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str] = frozenset()) -> dict:
-    """One verified index for all selected display replicas."""
-    result = {}
+def _validate_snapshots(root: Path, tasks: set[str]) -> None:
+    for relative_path in tasks:
+        task_id = relative_path.rsplit("/", 1)[1]
+        status = read_task_metadata(root / relative_path, task_id)
+        if status is None or status.replica is None:
+            raise ValueError(f"Sync archive Task is missing a display replica status: {relative_path}")
+        snapshot = status.replica.snapshot
+        if snapshot is not None:
+            if task_directory(snapshot.root_task_id) not in tasks:
+                raise ValueError("Task snapshot must include its parent Task")
+            parent = read_entry(root, snapshot.root_task_id)
+            if (
+                parent is None
+                or parent.replica is None
+                or parent.started_at != snapshot.root_started_at
+                or parent.replica.snapshot != snapshot
+            ):
+                raise ValueError("Task snapshot parent identity differs")
+            for child in status.current_children():
+                if child.child_task_id is None or child.started_at is None:
+                    continue
+                linked = read_entry(root, child.child_task_id)
+                if (
+                    linked is None
+                    or linked.started_at != child.started_at
+                    or linked.replica is None
+                    or linked.replica.snapshot != snapshot
+                ):
+                    raise ValueError("Task snapshot child identity differs")
+        verify_replica(root, task_id, metadata=status)
+
+
+def snapshot_index(root: Path, root_task_ids: frozenset[str] = frozenset()) -> dict:
+    """Index complete, verified groups so a missing member triggers reconciliation."""
+    groups = {}
     for identity, metadata in scan_entries(root).items():
         replica = metadata.replica
         if replica is None:
             continue
-        selected = metadata.state.is_terminal and matches_task_name(identity, task_names)
-        if not selected and not (replica.snapshot and replica.snapshot.root_task_id in roots):
+        owner = replica.snapshot.root_task_id if replica.snapshot else identity
+        if root_task_ids and owner not in root_task_ids:
             continue
+        groups.setdefault(owner, {})[identity] = metadata
+    result = {}
+    for owner, group in groups.items():
         try:
-            verify_replica(root, identity, metadata=metadata)
-            result[identity] = {
-                "started_at": metadata.started_at.isoformat(),
-                **replica.model_dump(mode="json"),
-            }
+            _validate_snapshots(root, {task_directory(identity) for identity in group})
         except (OSError, ValueError) as exc:
-            get_logger("task-sync-index").warning(f"Skipping invalid display replica {identity}: {exc}")
+            get_logger("task-sync-index").warning(f"Skipping invalid display group {owner}: {exc}")
+            continue
+        result.update(
+            {
+                identity: {"started_at": metadata.started_at.isoformat(), **metadata.replica.model_dump(mode="json")}
+                for identity, metadata in group.items()
+            }
+        )
     return result

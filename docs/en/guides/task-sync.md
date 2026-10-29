@@ -1,6 +1,6 @@
 # Result Display Synchronization
 
-Synchronization creates bounded display replicas, not executable workspace backups. Ordinary Tasks are selected after terminal completion. Opt-in live_task_ids select parent groups and their exact child execution snapshots. task_names filters the final Task ID segment; an empty list includes every name.
+Synchronization creates bounded display replicas. Each rule selects a registered workflow and a publication time: `terminal` waits for the parent and its selected descendants to succeed or fail; `live` captures their current state on each flush. `model_names` selects model branches with shell-style patterns; an empty list includes every model. An empty `rules` mapping selects no workflows.
 
 ![Source evidence and read-only display replicas in separate workspaces](../../figures/concepts/workspace.svg)
 
@@ -27,8 +27,11 @@ components:
       backend: local
       target: http://display:1024
       task_index: default
-      task_names: []
-      live_task_ids: []
+      model_names: ["experiment-*"]
+      rules:
+        research: terminal
+        online: live
+        compare: terminal
       max_archives_per_flush: 4
       timeout_seconds: 300
 jobs:
@@ -45,9 +48,13 @@ Invoke `axonx sync_flush` explicitly after configuring this optional Job. The de
 
 Index events queue eligible source records; flush reconciles missed events, prepares bounded batches, uploads archives and applies them via sync_tasks. Temporary failures remain eligible for later flushes; unsafe or oversized evidence reports errors/omissions. Inspect the returned synchronization report. Upload cleanup and target reconciliation belong to synchronization consumers.
 
-## Continuous parent snapshots
+## Selected workflow snapshots
 
-LiveSnapshot records source_id, root_task_id, root_started_at, captured_at and ordered revision. The child set follows the recorded parent invocation, not merely a name match. Stable publication and unchanged source checks prevent mixed snapshots. Replica metadata includes file/policy revisions, sampling, omissions and optional bounded log information.
+`TaskSnapshot` records `source_id`, `root_task_id`, `root_started_at`, `captured_at`, ordered `revision`, `when` and `model_names`. Both publication modes use the same task-tree selection, budget, delta transfer and atomic replacement. Child membership follows recorded Task IDs and start times. Excluded branches are not read, so their replacement cannot block another model's snapshot.
+
+Selection reuses input `models`, each model's `task_name` and existing child `node_name`. Model lists use `MODEL-REGISTRATION` nodes; signal-time mappings use `MODEL-SLOT-REGISTRATION`. Normal `run_task(task_name=...)` calls derive this name automatically. Calls with hashed Task directory names supply the explicit logical `node_name`. Shared calls keep the default node name equal to their registration. Selected branches retain all exact descendant Runs. Parent progress matches the model node (`MODEL` or `MODEL-SLOT`) in step `group` or colon-separated `name` parts. A partially selected parent with an unrecognized child node is rejected.
+
+For a partial view, the sender projects named model entries in parent inputs/results, keeps selected and shared children/steps, and omits aggregated parent artifacts and mixed parent logs. Selected child publications and bounded logs remain available. The source metadata is unchanged. Replacing a view removes obsolete display replicas owned by that same source/root group; unrelated Tasks are retained.
 
 ## Verification
 
