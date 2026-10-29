@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import math
 from pathlib import Path
 
 import polars as pl
@@ -24,10 +23,11 @@ def run_comparison(options: argparse.Namespace) -> dict:
     _, metadata = read_upstream_metadata(workspace, options.etl_task)
     dataset = metadata["output_params"]["artifacts"]["dataset"]
     records, summaries = {}, []
+    executor = TaskExecutor()
 
     def run(cls, name, **params):
         task = cls(params, workspace_path=workspace, reg_name=name)
-        status = TaskExecutor().execute(task)
+        status = executor.execute(task)
         if status.exit_code != 0:
             raise RuntimeError(f"{task.task_id}: {status.error or f'exit code {status.exit_code}'}")
         return task.task_id, status.output_params, status.model_dump(mode="json", include={"started_at"})["started_at"]
@@ -79,10 +79,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
             },
             "parameters": train["parameters"],
             "best_iteration": train["best_iteration"],
-            "validation_metrics": {
-                key: value if value is not None and math.isfinite(value) else None
-                for key, value in train["validation_metrics"].items()
-            },
+            "metrics": train["metrics"],
             "evaluation_status": {key: report["evaluation_status"] for key, report in backtest["universes"].items()},
             "input_revisions": backtest["protocol"]["input_revisions"],
         }

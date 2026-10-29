@@ -1,6 +1,0 @@
-# AxonX 0.3 application configuration; start with: axonx app --config qlib_factor
-# Installed plugin.yaml contributions are discovered from the Python environment.
-# Training defaults to context_groups=none (158 base features).
-# Select optional context groups, labels, model presets and fees when submitting Tasks.
-# exec settings: CLI options > service get_config > built-in defaults.
-extends: default

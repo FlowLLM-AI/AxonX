@@ -7,8 +7,8 @@ import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
 
-from axonx_qlib_a158.internal.etl_pipeline import FEATURES
-from axonx_qlib_factor.internal.cross_section import (
+from axonx_qlib_a158.internal.features import FEATURES
+from axonx_qlib_factor.features import (
     CONTEXT_FEATURES,
     FEATURE_GROUPS,
     GLOBAL_FEATURES,
@@ -105,7 +105,7 @@ def test_empty_singleton_flat_pool_and_labels_ignored():
     source = panel().with_columns(pl.lit(10.0).alias("_close"))
     features, daily = calculate_context(source)
     changed, changed_daily = calculate_context(
-        source.with_columns(pl.lit(False).alias("is_buyable"), pl.lit(1e9).alias("label_return"))
+        source.with_columns(pl.lit(False).alias("is_buyable_at_signal"), pl.lit(1e9).alias("label_return"))
     )
     assert_frame_equal(features, changed)
     assert_frame_equal(daily, changed_daily)
@@ -117,29 +117,29 @@ def test_empty_singleton_flat_pool_and_labels_ignored():
 
 
 def test_invalid_groups_and_baseline_selection():
-    from axonx_qlib_factor.train import LgbmTrainInputParams, LgbmTrainTask
+    from axonx_qlib_factor.tasks import FactorTrainInputParams, FactorTrainTask
 
     assert len(FEATURES) == 158
-    assert selected_features("variance,mean") == (*FEATURE_GROUPS["mean"], *FEATURE_GROUPS["variance"])
-    assert not selected_features("none")
-    for group in ("unknown", "none,mean", ""):
+    assert selected_features(["variance", "mean"]) == (*FEATURE_GROUPS["mean"], *FEATURE_GROUPS["variance"])
+    assert not selected_features([])
+    for group in (["unknown"], ["none", "mean"], "mean", None):
         with pytest.raises(ValueError):
-            LgbmTrainInputParams(context_groups=group)
-    task = object.__new__(LgbmTrainTask)
-    task.input_params = LgbmTrainInputParams()
+            FactorTrainInputParams(context_groups=group)
+    task = object.__new__(FactorTrainTask)
+    task.input_params = FactorTrainInputParams()
     unsupported = ("f_context_unknown",)
     with pytest.raises(ValueError, match="unsupported context features"):
         task.select_features((*FEATURES, *CONTEXT_FEATURES, *unsupported))
     assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == FEATURES
-    task.input_params = LgbmTrainInputParams(context_groups="mean")
+    task.input_params = FactorTrainInputParams(context_groups=["mean"])
     assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == (*FEATURES, *FEATURE_GROUPS["mean"])
 
 
 def test_horizon_ablation_selects_only_requested_columns_and_validates_inputs():
-    from axonx_qlib_factor.train import LgbmTrainInputParams, LgbmTrainTask
+    from axonx_qlib_factor.tasks import FactorTrainInputParams, FactorTrainTask
 
-    task = object.__new__(LgbmTrainTask)
-    task.input_params = LgbmTrainInputParams(context_groups="mean,variance", context_windows=[10, 3, 10])
+    task = object.__new__(FactorTrainTask)
+    task.input_params = FactorTrainInputParams(context_groups=["mean", "variance"], context_windows=[10, 3, 10])
     assert task.input_params.context_windows == [3, 10]
     assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == (
         *FEATURES,
@@ -150,7 +150,7 @@ def test_horizon_ablation_selects_only_requested_columns_and_validates_inputs():
     )
     for windows in ([], [2], [0, 1]):
         with pytest.raises(ValueError):
-            LgbmTrainInputParams(context_windows=windows)
+            FactorTrainInputParams(context_windows=windows)
     with pytest.raises(ValueError, match="missing requested"):
         task.select_features(FEATURES)
 
@@ -218,7 +218,7 @@ def test_stock_features_remain_causal_with_full_beta_history():
     expected = baseline.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code")
     assert_frame_equal(expected, changed.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code"))
     assert_frame_equal(expected, prefix.sort("trade_date", "ts_code"))
-    assert selected_features("neutral,risk", (10,)) == (*FEATURE_GROUPS["neutral"], *FEATURE_GROUPS["risk"])
+    assert selected_features(["neutral", "risk"], (10,)) == (*FEATURE_GROUPS["neutral"], *FEATURE_GROUPS["risk"])
 
 
 def test_nonfinite_endpoints_are_excluded_and_undefined_beta_stays_null():

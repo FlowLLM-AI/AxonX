@@ -1,12 +1,15 @@
 """Compose the Alpha158 research stages through ordinary child Tasks."""
 
+from collections.abc import Iterable
+from typing import Self
+
 from pydantic import Field, model_validator
 
-from axonx.task.core.base import BaseTask
+from axonx.task.builtins.stock.models import StockBacktestInput
+from axonx.task.core.base import BaseTask, TaskStep
 from axonx.task.models.params import BaseInputParams, BaseOutputParams
 
 from .analysis import FactorAnalysisInputParams
-from .backtest import Alpha158BacktestInputParams
 from .etl import Alpha158InputParams
 from .predict import LgbmPredictInputParams
 from .train import LgbmTrainInputParams
@@ -16,11 +19,11 @@ class ResearchInputParams(BaseInputParams):
     etl: Alpha158InputParams = Field(default_factory=lambda: Alpha158InputParams(start_date="20150101"))
     train: LgbmTrainInputParams = Field(default_factory=LgbmTrainInputParams)
     predict: LgbmPredictInputParams = Field(default_factory=LgbmPredictInputParams)
-    backtest: Alpha158BacktestInputParams = Field(default_factory=Alpha158BacktestInputParams)
+    backtest: StockBacktestInput = Field(default_factory=StockBacktestInput)
     analysis: FactorAnalysisInputParams | None = None
 
     @model_validator(mode="after")
-    def validate_chain(self):
+    def validate_chain(self) -> Self:
         if self.upstream_task_ids:
             raise ValueError("Research builds its own ETL; use the leaf Tasks to reuse existing inputs")
         for name in ("etl", "train", "predict", "backtest", "analysis"):
@@ -36,8 +39,6 @@ class ResearchInputParams(BaseInputParams):
             self.predict.pred_start = self.train.train_end
         if self.predict.pred_start < self.train.train_end:
             raise ValueError("predict.pred_start must be at or after train.train_end")
-        if self.predict.pred_end and self.predict.pred_end < self.predict.pred_start:
-            raise ValueError("predict.pred_end must be at or after predict.pred_start")
         return self
 
 
@@ -55,7 +56,7 @@ class Alpha158ResearchTask(BaseTask):
     input_cls = ResearchInputParams
     output_cls = ResearchOutputParams
 
-    def build_task_steps(self):
+    def build_task_steps(self) -> Iterable[TaskStep]:
         self.state["stage_task_ids"] = {}
         yield self.prepare_dataset
         if self.input_params.analysis is not None:
@@ -64,7 +65,7 @@ class Alpha158ResearchTask(BaseTask):
         yield self.predict
         yield self.backtest
 
-    def stage(self, name, registration, params, *upstream):
+    def stage(self, name: str, registration: str, params: BaseInputParams, *upstream: str) -> None:
         result = self.run_task(
             registration,
             node_name=name,
@@ -72,13 +73,12 @@ class Alpha158ResearchTask(BaseTask):
             **params.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
         )
         self.state["stage_task_ids"][name] = result.child_task_id
-        return result
 
     def prepare_dataset(self):
         self.stage("etl", "qlib_a158_etl", self.input_params.etl)
 
     def analyze_factors(self):
-        self.stage("analysis", "qlib_a158_factor", self.input_params.analysis, self.state["stage_task_ids"]["etl"])
+        self.stage("analysis", "qlib_a158_analysis", self.input_params.analysis, self.state["stage_task_ids"]["etl"])
 
     def train_model(self):
         self.stage("train", "qlib_a158_train", self.input_params.train, self.state["stage_task_ids"]["etl"])
@@ -97,5 +97,5 @@ class Alpha158ResearchTask(BaseTask):
             "backtest", "qlib_a158_backtest", self.input_params.backtest, self.state["stage_task_ids"]["predict"]
         )
 
-    def build_output_params(self):
+    def build_output_params(self) -> ResearchOutputParams:
         return self.output_cls(stage_task_ids=self.state["stage_task_ids"])

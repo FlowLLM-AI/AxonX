@@ -25,7 +25,7 @@ AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的量化插件，提供
 
 ## 训练参数
 
-训练默认 `parameter_preset=axonx`；`--parameter-preset qlib` 只切换超参数默认值，标签、股票池、种子、线程数、验证和重拟合流程保持一致；显式参数覆盖预设。
+训练默认 `parameter_preset=axonx`；`--parameter-preset qlib` 只切换超参数默认值，标签、股票池、种子、线程数、验证和重拟合流程保持一致；显式参数覆盖预设；数值训练参数必须为有限值。
 
 | 参数                            | axonx   | qlib                |
 | ------------------------------- | ------- | ------------------- |
@@ -81,10 +81,10 @@ axonx plugin list --target 'http://<host>:1024'
 
 执行配置优先级为：显式 CLI 参数 → 服务 `get_config` → 内置默认值。使用 `--workspace-dir /absolute/path` 明确选择研究工作区；ETL 相对输入路径从工作区解析。本地和远程命令必须使用上游 Task 所在的工作区。
 
-可选应用预设仅包含 `extends: default`，通过 `axonx.configs` 注册，继承标准服务、组件和 Job。已安装插件的 `plugin.yaml` 独立贡献 Task 注册；研究输入通过 `exec` 参数传入：
+使用标准应用配置，已安装插件的 `plugin.yaml` 贡献 Task 注册；研究输入通过 `exec` 参数传入：
 
 ```bash
-axonx app --config qlib_a158 --workspace-dir /tmp/axonx-research
+axonx app --workspace-dir /tmp/axonx-research
 # 在另一终端执行；该工作区需已准备历史数据：
 axonx exec --task qlib_a158_research --task-name baseline --workspace-dir /tmp/axonx-research
 axonx status --task-id 'base#qlib_a158_research#baseline' --detail full
@@ -141,7 +141,7 @@ axonx exec --task qlib_a158_research --task-name baseline \
 | Task                 | 上游             | 产物                                 |
 | -------------------- | ---------------- | ------------------------------------ |
 | `qlib_a158_etl`      | 工作区行情数据   | 特征、标签、交易状态和统计           |
-| `qlib_a158_factor`   | ETL 任务标识     | 因子诊断与分析结果                   |
+| `qlib_a158_analysis`   | ETL 任务标识     | 因子诊断与分析结果                   |
 | `qlib_a158_train`    | ETL 任务标识     | 模型、训练协议、验证曲线和特征重要性 |
 | `qlib_a158_predict`  | Train + 可选 ETL | 全横截面预测与预测统计               |
 | `qlib_a158_backtest` | Predict 任务标识 | 日级回测、分期汇总与持仓相关产物     |
@@ -152,7 +152,7 @@ axonx exec --task qlib_a158_research --task-name baseline \
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # ETL 成功后
-axonx exec --task qlib_a158_factor --upstream-task-ids '["<etl_task_id>"]'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '["<etl_task_id>"]'
 axonx exec --task qlib_a158_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101
 
@@ -218,7 +218,7 @@ python -m axonx_qlib_a158.scripts.compare_parameters \
   --workspace-dir /tmp/axonx-research --etl-task '<etl_task_id>' --labels rank csz
 ```
 
-该本地 Python 工具直接调用 `TaskExecutor`，不查询服务配置。输出 `summary.csv` 和 `comparison.json`，记录各阶段 Task ID、`started_at` 和输入版本。包内 `scripts/run_pipeline.sh` 将参数传给 `axonx exec --task qlib_a158_research`。
+该本地 Python 工具直接调用 `TaskExecutor`，不查询服务配置。输出 `summary.csv` 和 `comparison.json`，记录各阶段 Task ID、`started_at` 和输入版本。
 
 ## 实验记录
 

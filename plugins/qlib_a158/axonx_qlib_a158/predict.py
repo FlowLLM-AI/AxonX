@@ -8,7 +8,7 @@ from typing import Self
 
 import numpy as np
 import polars as pl
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.core.base import TaskStep
@@ -18,7 +18,7 @@ from axonx.task.models.artifacts import (
     fingerprint,
     prediction_protocol,
 )
-from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.base import DateString
 from axonx.task.models.identity import (
     TaskType,
     task_type_from_id,
@@ -34,8 +34,7 @@ from axonx.task.storage.inputs import (
     upstream_artifact,
 )
 
-from .internal.modeling import feature_matrix
-from .internal.protocol import feature_identity, validate_feature_protocol
+from .internal.modeling import feature_contract, feature_identity, feature_matrix, load_lightgbm
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
@@ -46,19 +45,14 @@ class LgbmPredictOutputParams(BasePredictOutputParams):
 class LgbmPredictInputParams(BaseInputParams):
     """Configure an out-of-sample prediction interval for a training task."""
 
-    pred_start: str = Field(
+    pred_start: DateString = Field(
         default="20230101",
         description="First prediction date in YYYYMMDD format; must follow the training period.",
     )
-    pred_end: str | None = Field(
+    pred_end: DateString | None = Field(
         default=None,
         description="Last prediction date in YYYYMMDD format; omit for the latest dataset date.",
     )
-
-    @field_validator("pred_start", "pred_end", mode="before")
-    @classmethod
-    def normalize_date(cls, value: object) -> str | None:
-        return normalize_yyyymmdd(value, optional=True)
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:
@@ -131,21 +125,18 @@ class LgbmPredictTask(BasePredictTask):
         etl_task_id = etl_upstream_ids[0]
         _, etl_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         feature_protocol = etl_metadata["output_params"]["protocol"]
-        validate_feature_protocol(feature_protocol)
         if feature_identity(feature_protocol) != feature_identity(self.state["model_collection"]["feature_protocol"]):
             raise ValueError("Feature protocol differs from training")
         (dataset_path,) = pin_upstream_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
         self.state.update(
             etl_task_id=etl_task_id,
-            etl_metadata=etl_metadata,
+            feature_protocol=feature_contract(feature_protocol),
             dataset_path=dataset_path,
         )
         self.logger.info(f"Prediction dataset resolved etl_task_id={etl_task_id} dataset={dataset_path}")
 
     def load_and_validate_prediction_data(self) -> None:
         path: Path = self.state["dataset_path"]
-        if not path.is_file():
-            raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
         features = tuple(self.state["model_collection"]["members"]["model"]["model"]["feature_names"])
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
@@ -191,7 +182,6 @@ class LgbmPredictTask(BasePredictTask):
             frame=frame,
             features=features,
             index_columns=index_columns,
-            actual_pred_end=pred_end,
         )
         self.report_progress(95)
         self.logger.info(
@@ -200,10 +190,7 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def load_model(self) -> None:
-        try:
-            import lightgbm as lgb
-        except ImportError as exc:
-            raise RuntimeError("预测需要安装 lightgbm；请重新安装项目依赖") from exc
+        lgb = load_lightgbm()
         model = lgb.Booster(model_file=str(self.state["model_path"]))
         if tuple(model.feature_name()) != self.state["features"]:
             raise ValueError("模型特征名称或顺序与训练 metadata 不一致")
@@ -302,8 +289,8 @@ class LgbmPredictTask(BasePredictTask):
                             for key, value in self.state["model_collection"]["members"].items()
                         }
                     ),
-                    "features_sha256": feature_identity(self.state["etl_metadata"]["output_params"]["protocol"]),
-                    "family": self.state["etl_metadata"]["output_params"]["protocol"]["feature_family"],
+                    "features_sha256": feature_identity(self.state["feature_protocol"]),
+                    "family": self.state["feature_protocol"]["feature_family"],
                     "trade_time": "1500",
                     "return_unit": "decimal",
                 },

@@ -43,8 +43,6 @@ classifiers = [
 dependencies = [
     "axonx>=0.3.0",
     "axonx-qlib-a158>=0.3.0",
-    "lightgbm>=4.7.0",
-    "numpy>=2.5.3",
     "polars>=1.44.2",
     "pydantic>=2.13.5",
 ]
@@ -58,12 +56,10 @@ Source = "https://github.com/FlowLLM-AI/AxonX"
 [project.entry-points."axonx.plugins"]
 qlib_factor = "axonx_qlib_factor"
 
-[project.entry-points."axonx.configs"]
-qlib_factor = "axonx_qlib_factor.config:qlib_factor_demo"
-
 [tool.setuptools.packages.find]
 where = ["."]
+namespaces = false
 include = ["axonx_qlib_factor", "axonx_qlib_factor.*"]
 
 [tool.setuptools.package-data]
-axonx_qlib_factor = ["plugin.yaml", "config/*.yaml"]
+axonx_qlib_factor = ["plugin.yaml"]

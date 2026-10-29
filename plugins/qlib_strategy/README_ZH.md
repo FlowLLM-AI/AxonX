@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_strategy` 继承 `qlib_factor` 和 `qlib_a158`，在同一预测上研究持仓策略。框架统一处理报价、涨跌停、估值、现金、分侧费用、订单、持仓和成交。
+`qlib_strategy` 扩展 `qlib_a158`，在同一预测上研究持仓策略。框架统一处理报价、涨跌停、估值、现金、分侧费用、订单、持仓和成交。
 
 ## 排名保留策略
 
@@ -11,7 +11,7 @@
 - 每侧每天最多成交 `max(1,floor(N × replacement_fraction))` 只，首次建仓豁免。
 - 无法退出的持仓继续占用资金；买入失败不补位，先卖后买。新仓最多分配 1/N 权益，保留仓位不再平衡。
 
-默认 `minimum_holding_days=10`、`replacement_fraction=0.2`、`rank_buffer=1`。Top5/10/20/30 的每日数量上限为 1/2/4/6 只；它不是资金换手上限。不提供固定到期参数，`planned_exit_date` 为空。
+默认 `minimum_holding_days=10`、`replacement_fraction=0.2`、`rank_buffer=1`。Top5/10/20/30 的每日数量上限为 1/2/4/6 只；它不是资金换手上限。`rank_buffer` 必须为有限值。不提供固定到期参数，`planned_exit_date` 为空。
 
 插件版本 0.3.0 要求 Python 3.12+、AxonX `>=0.3.0` 和上游研究插件 `>=0.3.0`。按依赖顺序安装，研究产物使用协议 v1。
 
@@ -21,7 +21,6 @@
 
 ```bash
 axonx plugin install -e plugins/qlib_a158
-axonx plugin install -e plugins/qlib_factor
 axonx plugin install -e plugins/qlib_strategy
 ```
 
@@ -34,11 +33,11 @@ axonx exec --task qlib_strategy_backtest --upstream-task-ids '["<predict_task_id
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-可复用成功的基础或增强预测。从执行日志或 `status --detail full` 保存 Task ID 和 `started_at`，成功后再读取结果。上游 `qlib_strategy_etl`、`qlib_strategy_analysis`、`qlib_strategy_train`、`qlib_strategy_predict` 注册因子层实现；策略比较直接复用已有预测。安装修改所选解释器；新 CLI 进程发现已安装插件，定义查询和 Studio 则保留服务启动时的目录，直到重启。安装或核验失败时停止并报告。
+可复用成功的基础或增强预测。从执行日志或 `status --detail full` 保存 Task ID 和 `started_at`，成功后再读取结果。本插件仅注册 `qlib_strategy_backtest`，策略比较复用已有基础或增强预测。安装修改所选解释器；新 CLI 进程发现已安装插件，定义查询和 Studio 则保留服务启动时的目录，直到重启。安装或核验失败时停止并报告。
 
 ## 执行与配置
 
-策略层仅贡献 Task 注册，没有独立应用预设。使用标准 `axonx app` 配置或 `--config qlib_factor`。策略参数属于 `qlib_strategy_backtest`，其余上游注册复用因子/基础层实现。预测可指定一个 Train 和一个可选兼容 ETL，用已有模型预测新数据。
+使用标准 `axonx app` 配置。本插件仅注册 `qlib_strategy_backtest`，依赖 `qlib_a158`；`qlib_factor` 为可选依赖。使用基础或增强训练任务及 `qlib_a158_predict` 生成预测；预测可指定一个 Train 和一个可选兼容 ETL，用已有模型预测新数据。
 
 ## 本地验证
 

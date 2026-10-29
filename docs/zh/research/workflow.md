@@ -24,7 +24,7 @@ axonx plugin install ./plugins/qlib_a158
 
 本机 Agent 修改插件时使用 `axonx plugin install -e ./plugins/qlib_a158`。远程部署需要本地构建、上传、目标机安装与清理；仅追加 `--target` 不会传输源码，详见[插件管理](../plugins/management.md)。
 
-安装或 editable 源码变更后需重启常驻服务，以刷新 Task 注册快照和已缓存的定义。运行 `axonx list_task_defs` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict`、`qlib_a158_backtest` 以及父任务 `qlib_a158_research`。
+安装或 editable 源码变更后需重启常驻服务，以刷新 Task 注册快照和已缓存的定义。运行 `axonx list_task_defs` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_analysis`、`qlib_a158_train`、`qlib_a158_predict`、`qlib_a158_backtest` 以及父任务 `qlib_a158_research`。
 
 ## 研究链中每一步产生什么
 
@@ -32,7 +32,7 @@ axonx plugin install ./plugins/qlib_a158
 | -------- | ----------------------- | ----------------- | ------------------------------- |
 | 下载     | `download_tushare_task` | Tushare 接口      | 工作区 `tushare/` 原始分区      |
 | ETL      | `qlib_a158_etl`         | 原始分区与主数据  | `alpha158.parquet`、统计 CSV    |
-| 因子分析 | `qlib_a158_factor`      | 一个 ETL Task     | 因子诊断与分层收益 CSV          |
+| 因子分析 | `qlib_a158_analysis`    | 一个 ETL Task     | 因子诊断与分层收益 CSV          |
 | 训练     | `qlib_a158_train`       | 一个 ETL Task     | LightGBM 模型、重要性、验证历史 |
 | 预测     | `qlib_a158_predict`     | 一个 Train Task   | 全截面预测 Parquet              |
 | 回测     | `qlib_a158_backtest`    | 一个 Predict Task | 日频与汇总 Parquet              |
@@ -54,7 +54,7 @@ Exec 等待完成、输出业务结果并返回 Task 退出码。从 metadata �
 
 ```bash
 # ETL 成功后，可独立做因子分析
-axonx exec --task qlib_a158_factor --upstream-task-ids '<ETL Task ID>'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '<ETL Task ID>'
 
 # 训练结束日期不包含在训练区间内
 axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
@@ -94,15 +94,9 @@ qlib_a158 独立发布特征、原始标签、行情和日历产物。标签固�
 
 一次完整执行提供参数与产物；评估改进还需要控制变量、消融、筛选与独立确认。按[实验设计与确认](experiments.md)制定比较方案，再用[策略比较](strategy-comparison.md)检查共同窗口。Agent 开发增强特征的具体过程与复现入口见 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)。
 
-## 使用仓库脚本
+## 执行研究 Task
 
-[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) 直接调用已注册的 `qlib_a158_research` 父 Task，执行前先安装插件并准备历史数据：
-
-```bash
-bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
-```
-
-脚本将参数转交同步 `exec`，不会安装包或下载行情。各阶段使用嵌套参数配置：
+先安装插件并准备历史数据，再通过嵌套参数配置各阶段：
 
 ```bash
 axonx get_task_def --task qlib_a158_research

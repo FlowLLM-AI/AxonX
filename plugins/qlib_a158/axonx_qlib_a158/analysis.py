@@ -17,9 +17,8 @@ from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write
 from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
 
-from .internal.analysis import FactorMetricsCalculator
-from .internal.etl_pipeline import LABELS
-from .internal.protocol import validate_feature_protocol
+from .internal.analysis import LABEL, FactorMetricsCalculator
+from .internal.modeling import feature_contract
 
 
 class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
@@ -71,13 +70,13 @@ class FactorAnalysisTask(BaseAnalysisTask):
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
         _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
-        validate_feature_protocol(source_metadata["output_params"]["protocol"])
+        protocol = feature_contract(source_metadata["output_params"]["protocol"])
         dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir
         self.state.update(
-            source_metadata=source_metadata,
+            features=tuple(protocol["feature_columns"]),
             dataset_path=dataset_path,
             labels_path=labels_path,
             result_path=output_dir / "factor_analysis.csv",
@@ -90,17 +89,12 @@ class FactorAnalysisTask(BaseAnalysisTask):
 
     def load_and_validate_dataset(self) -> None:
         dataset_path: Path = self.state["dataset_path"]
-        if not dataset_path.is_file():
-            raise FileNotFoundError(f"Alpha158 数据不存在: {dataset_path}")
-        metadata = self.state["source_metadata"]
-        features = tuple(metadata["output_params"]["protocol"]["default_feature_cols"])
-        if not features:
-            raise ValueError("ETL metadata 缺少 feature_columns")
+        features = self.state["features"]
         schema = pl.read_parquet_schema(dataset_path)
         self.report_progress(15)
         required = ("trade_date", "trade_time", "ts_code", *features)
         if self.input_params.tradable_only:
-            required = (*required, "is_buyable")
+            required = (*required, "is_buyable_at_signal")
         if missing := [column for column in required if column not in schema]:
             raise ValueError(f"Alpha158 数据缺少字段: {', '.join(missing[:20])}")
         stats = (
@@ -133,7 +127,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
             batch = features[offset : offset + self.input_params.feature_batch_size]
             columns = ("trade_date", "trade_time", "ts_code", *batch)
             if self.input_params.tradable_only:
-                columns = (*columns, "is_buyable")
+                columns = (*columns, "is_buyable_at_signal")
             source = pl.scan_parquet(self.state["dataset_path"]).select(columns)
             source = source.join(
                 pl.scan_parquet(self.state["labels_path"]),
@@ -142,7 +136,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 validate="1:1",
             ).filter("label_valid")
             if self.input_params.tradable_only:
-                source = source.filter("is_buyable").drop("is_buyable")
+                source = source.filter("is_buyable_at_signal").drop("is_buyable_at_signal")
             frame = source.collect()
             batch_results, batch_quantiles = calculator.analyze_batch(frame, batch)
             results.append(batch_results)
@@ -170,8 +164,6 @@ class FactorAnalysisTask(BaseAnalysisTask):
         ).sort("label", "rank_by_abs_rankic")
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.task_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
         outputs = (
             ("results", "result_path"),
             ("quantile_results", "quantiles_path"),
@@ -197,7 +189,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
                     scores.setdefault(f"{metric}/{row['label']}", {})[row["factor"]] = float(value)
         return self.output_cls(
             feature_count=len(self.state["features"]),
-            labels=list(LABELS),
+            labels=[LABEL],
             rows=self.state["results"].height,
             scores=scores,
             definitions={
@@ -206,7 +198,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 "quantile_spread": "highest quantile mean raw return minus lowest quantile mean raw return",
                 "quantile_monotonicity": "Spearman correlation between quantile order and mean raw return",
                 "sample_filter": (
-                    "valid fixed-one-market-day raw label, and is_buyable"
+                    "valid fixed-one-market-day raw label, and is_buyable_at_signal"
                     if self.input_params.tradable_only
                     else "valid fixed-one-market-day raw label"
                 ),

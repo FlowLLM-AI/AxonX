@@ -278,7 +278,7 @@ axonx get_task_def --task qlib_a158_etl --target node-b:1024
 
 ## 执行与改进研究
 
-参考主链为 ETL → Train → Predict → Backtest，因子分析通过 `qlib_a158_factor` 从 ETL 独立分支。先安装 `qlib_a158` 并准备足够的 Tushare 历史。数据令牌与 AxonX 服务令牌不同；兼容数据服务可额外配置 `AXONX_TUSHARE_BASE_URL`。
+参考主链为 ETL → Train → Predict → Backtest，因子分析通过 `qlib_a158_analysis` 从 ETL 独立分支。先安装 `qlib_a158` 并准备足够的 Tushare 历史。数据令牌与 AxonX 服务令牌不同；兼容数据服务可额外配置 `AXONX_TUSHARE_BASE_URL`。
 
 以下选择一个历史示例窗口。各命令分别执行，确认退出码与完整 metadata 后再运行下一阶段，脚本须遇错停止。已有完整原始历史时可复用，不必重新下载：
 

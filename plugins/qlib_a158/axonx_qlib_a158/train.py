@@ -9,7 +9,7 @@ from typing import Literal, Self
 
 import numpy as np
 import polars as pl
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from axonx.task.builtins.stock.data import transform_labels
 from axonx.task.core.base import TaskStep
@@ -18,25 +18,20 @@ from axonx.task.models.artifacts import (
     ModelCollection,
     task_protocol,
 )
-from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.base import DateString
 from axonx.task.models.identity import TaskType
 from axonx.task.models.params import BaseInputParams, BaseTrainOutputParams
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write, atomic_write_json
 from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
 
-from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
-from .internal.modeling import feature_matrix
-from .internal.protocol import feature_contract, validate_feature_protocol
+from .internal.modeling import feature_contract, feature_matrix, load_lightgbm
 from .internal.reference import DEVIATIONS, QLIB_PARAMETERS, QLIB_REFERENCE
-
-MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)
 
 
 class LgbmTrainOutputParams(BaseTrainOutputParams):
     best_iteration: int
     rows: dict[str, int]
-    validation_metrics: dict
 
 
 class LgbmTrainInputParams(BaseInputParams):
@@ -46,12 +41,12 @@ class LgbmTrainInputParams(BaseInputParams):
         default="axonx",
         description="Hyperparameter defaults only; both presets keep the AxonX labels, validation and refit lifecycle.",
     )
-    train_start: str = Field(
+    train_start: DateString = Field(
         default="20150101",
         description="First training date in YYYYMMDD format, inclusive.",
     )
-    train_end: str = Field(default="20230101", description="Training cutoff in YYYYMMDD format, exclusive.")
-    label_column: str = Field(
+    train_end: DateString = Field(default="20230101", description="Training cutoff in YYYYMMDD format, exclusive.")
+    label_column: Literal["label_return", "label_return_rank", "label_return_csz"] = Field(
         default="label_return_rank",
         # Default target: daily cross-sectional ranks of T -> T+1 returns.
         # Qlib instead uses T+1/T+2 returns followed by sample-std CSZScoreNorm.
@@ -85,7 +80,9 @@ class LgbmTrainInputParams(BaseInputParams):
         gt=0,
         description="Rounds without validation improvement before stopping.",
     )
-    learning_rate: float = Field(default=0.03, gt=0.0, description="Step size applied to each boosting round.")
+    learning_rate: float = Field(
+        default=0.03, gt=0.0, allow_inf_nan=False, description="Step size applied to each boosting round."
+    )
     num_leaves: int = Field(default=31, ge=2, description="Maximum number of leaves in each tree.")
     max_depth: int = Field(default=-1, ge=-1, description="Maximum tree depth; -1 allows unlimited depth.")
     min_data_in_leaf: int = Field(default=20, gt=0, description="Minimum number of training rows in a leaf.")
@@ -106,8 +103,12 @@ class LgbmTrainInputParams(BaseInputParams):
         ge=0,
         description="Boosting rounds between bagging samples; 0 disables bagging.",
     )
-    lambda_l1: float = Field(default=0.0, ge=0.0, description="L1 penalty applied to leaf weights.")
-    lambda_l2: float = Field(default=0.0, ge=0.0, description="L2 penalty applied to leaf weights.")
+    lambda_l1: float = Field(
+        default=0.0, ge=0.0, allow_inf_nan=False, description="L1 penalty applied to leaf weights."
+    )
+    lambda_l2: float = Field(
+        default=0.0, ge=0.0, allow_inf_nan=False, description="L2 penalty applied to leaf weights."
+    )
     random_seed: int = Field(default=42, ge=0, description="Seed for reproducible LightGBM sampling.")
     num_threads: int = Field(default=8, gt=0, description="Number of CPU threads used by LightGBM.")
 
@@ -118,18 +119,6 @@ class LgbmTrainInputParams(BaseInputParams):
         if isinstance(values, dict) and values.get("parameter_preset") == "qlib":
             values = {**QLIB_PARAMETERS, **values}
         return values
-
-    @field_validator("train_start", "train_end", mode="before")
-    @classmethod
-    def normalize_date(cls, value: object) -> str:
-        return normalize_yyyymmdd(value)
-
-    @field_validator("label_column")
-    @classmethod
-    def validate_label(cls, value: str) -> str:
-        if value not in MODEL_LABELS:
-            raise ValueError(f"label_column 必须是: {', '.join(MODEL_LABELS)}")
-        return value
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:
@@ -160,20 +149,17 @@ class LgbmTrainTask(BaseTrainTask):
         yield self.calculate_feature_importance
         yield self.write_outputs
 
-    @property
-    def raw_label(self) -> str:
-        return self.input_params.label_column.removesuffix("_rank").removesuffix("_csz")
-
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
         _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
-        validate_feature_protocol(source_metadata["output_params"]["protocol"])
+        protocol = feature_contract(source_metadata["output_params"]["protocol"])
         dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir
         self.state.update(
-            source_metadata=source_metadata,
+            feature_protocol=protocol,
+            parameters=self._parameters(),
             dataset_path=dataset_path,
             labels_path=labels_path,
             model_path=output_dir / "model.txt",
@@ -187,12 +173,7 @@ class LgbmTrainTask(BaseTrainTask):
 
     def load_and_validate_train_data(self) -> None:
         path: Path = self.state["dataset_path"]
-        if not path.is_file():
-            raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.state["source_metadata"]["output_params"]["protocol"]["default_feature_cols"])
-        if not features:
-            raise ValueError("ETL metadata 缺少 feature_columns")
-        features = self.select_features(features)
+        features = self.select_features(tuple(self.state["feature_protocol"]["feature_columns"]))
         required = (
             "trade_date",
             "trade_time",
@@ -228,8 +209,6 @@ class LgbmTrainTask(BaseTrainTask):
         self.state.update(
             frame=frame,
             features=features,
-            valid_label="label_valid",
-            loaded_rows=frame.height,
         )
 
     def select_features(self, features: tuple[str, ...]) -> tuple[str, ...]:
@@ -238,7 +217,7 @@ class LgbmTrainTask(BaseTrainTask):
 
     def trim_daily_label_tails(self) -> None:
         frame: pl.DataFrame = self.state["frame"]
-        raw = pl.col(self.raw_label)
+        raw = pl.col("label_return")
         lower = raw.quantile(self.input_params.trim_tail, interpolation="linear").over("trade_date")
         upper = raw.quantile(1 - self.input_params.trim_tail, interpolation="linear").over("trade_date")
         trimmed = frame.filter(raw.is_between(lower, upper, closed="both"))
@@ -247,7 +226,7 @@ class LgbmTrainTask(BaseTrainTask):
         self.state.update(frame=trimmed, pre_trim_rows=frame.height)
         self.report_progress(95)
         self.logger.info(
-            f"Training tails trimmed raw_label={self.raw_label} tail={self.input_params.trim_tail:.2%} "
+            f"Training tails trimmed raw_label=label_return tail={self.input_params.trim_tail:.2%} "
             f"before={frame.height} after={trimmed.height}",
         )
 
@@ -255,6 +234,7 @@ class LgbmTrainTask(BaseTrainTask):
         # Deliberately retain AxonX's simple one-cutoff workflow instead of Qlib's
         # independent train/valid/test segments. Purge labels crossing the split.
         frame: pl.DataFrame = self.state["frame"]
+        frame = transform_labels(frame, reference=pl.lit(True), winsorize_tail=self.input_params.label_winsorize_tail)
         dates = frame["trade_date"].unique().sort().to_list()
         if len(dates) < 2:
             raise ValueError("训练至少需要两个有效交易日")
@@ -266,19 +246,17 @@ class LgbmTrainTask(BaseTrainTask):
         if fit.is_empty() or validation.is_empty():
             raise ValueError("无法构造时间顺序训练/验证集")
 
-        def convert(data: pl.DataFrame) -> pl.DataFrame:
-            return transform_labels(
-                data,
-                reference=pl.lit(True),
-                winsorize_tail=self.input_params.label_winsorize_tail,
-            )
-
-        frame, fit, validation = convert(frame), convert(fit), convert(validation)
         self.state["frame"] = frame
         self.state.update(
             tuning_train=fit,
             validation=validation,
             validation_start=validation_start,
+            rows={
+                "before_trim": self.state.pop("pre_trim_rows"),
+                "after_trim": frame.height,
+                "tuning_train": fit.height,
+                "validation": validation.height,
+            },
         )
         self.logger.info(
             f"Temporal validation split train_rows={fit.height} validation_rows={validation.height} "
@@ -314,14 +292,6 @@ class LgbmTrainTask(BaseTrainTask):
             "verbosity": -1,
         }
 
-    @staticmethod
-    def _lightgbm():
-        try:
-            import lightgbm as lgb
-        except ImportError as exc:
-            raise RuntimeError("训练需要安装 lightgbm；请重新安装项目依赖") from exc
-        return lgb
-
     def _progress_callback(self, total: int, phase: str, *, start: float = 0, end: float = 95):
         last_milestone = -1
 
@@ -339,10 +309,11 @@ class LgbmTrainTask(BaseTrainTask):
         return callback
 
     def select_best_iteration(self) -> None:
-        lgb = self._lightgbm()
+        lgb = load_lightgbm()
         fit_x, fit_y = self._matrix(self.state["tuning_train"])
         self.report_progress(10)
         valid_x, valid_y = self._matrix(self.state["validation"])
+        self.state["validation_matrix"] = (valid_x, valid_y)
         self.report_progress(20)
         history: dict[str, dict[str, list[float]]] = {}
         train_dataset = lgb.Dataset(
@@ -352,7 +323,7 @@ class LgbmTrainTask(BaseTrainTask):
         )
         validation_dataset = lgb.Dataset(valid_x, label=valid_y, reference=train_dataset)
         model = lgb.train(
-            self._parameters(),
+            self.state["parameters"],
             train_dataset,
             num_boost_round=self.input_params.num_boost_round,
             valid_sets=[train_dataset, validation_dataset],
@@ -380,7 +351,7 @@ class LgbmTrainTask(BaseTrainTask):
 
     def evaluate_validation(self) -> None:
         validation: pl.DataFrame = self.state["validation"]
-        valid_x, valid_y = self._matrix(validation)
+        valid_x, valid_y = self.state.pop("validation_matrix")
         self.report_progress(25)
         pred = np.asarray(
             self.state["tuning_model"].predict(valid_x, num_iteration=self.state["best_iteration"]),
@@ -401,12 +372,12 @@ class LgbmTrainTask(BaseTrainTask):
                 pl.corr("pred", "actual", method="spearman").alias("rank_ic"),
             )
         )
-        self.state["validation_metrics"] = {
+        self.state["metrics"] = {
             "l2": float(np.mean(np.square(pred - valid_y))),
             "ic_mean": self._finite_mean(diagnostic["ic"]),
             "rankic_mean": self._finite_mean(diagnostic["rank_ic"]),
         }
-        evaluation_history = self.state["evaluation_history"]
+        evaluation_history = self.state.pop("evaluation_history")
         history_columns = {
             f"{dataset}_{metric}": values
             for dataset, metrics in evaluation_history.items()
@@ -419,18 +390,19 @@ class LgbmTrainTask(BaseTrainTask):
         self.report_progress(95)
 
     def fit_final_model(self) -> None:
+        for key in ("tuning_model", "tuning_train", "validation"):
+            self.state.pop(key)
         # Unlike Qlib's benchmark, reuse the selected round count to refit all
         # cutoff-safe training rows. Prediction remains after the training cutoff.
-        lgb = self._lightgbm()
+        lgb = load_lightgbm()
         full_x, full_y = self._matrix(self.state["frame"])
         self.report_progress(15)
         self.state["model"] = lgb.train(
-            self._parameters(),
+            self.state["parameters"],
             lgb.Dataset(full_x, label=full_y, feature_name=list(self.state["features"])),
             num_boost_round=self.state["best_iteration"],
             callbacks=[self._progress_callback(self.state["best_iteration"], "final-fit", start=15)],
         )
-        self.state.pop("tuning_model", None)
         self.report_progress(95)
         self.logger.info(f"Final LightGBM fitted rows={len(full_y)} iterations={self.state['best_iteration']}")
 
@@ -470,100 +442,71 @@ class LgbmTrainTask(BaseTrainTask):
         return {}
 
     def build_output_params(self) -> LgbmTrainOutputParams:
-        output_dir: Path = self.task_dir
-        frame: pl.DataFrame = self.state["frame"]
-        artifacts = {}
-        artifact_paths = (
-            ("model", "model_path"),
-            ("feature_importance", "importance_path"),
-            ("evaluation_history", "history_path"),
-        )
-        for name, path_key in artifact_paths:
-            artifacts[name] = artifact_record(self.state[path_key], output_dir)
-        model = {
-            "library": "lightgbm",
-            "library_version": self._lightgbm().__version__,
-            "parameters": self._parameters(),
-            "best_iteration": self.state["best_iteration"],
-            "feature_names": list(self.state["features"]),
+        artifacts = {
+            name: artifact_record(self.state[path_key], self.task_dir)
+            for name, path_key in (
+                ("model", "model_path"),
+                ("feature_importance", "importance_path"),
+                ("evaluation_history", "history_path"),
+            )
         }
-        values = {
-            "protocol": {
-                **self.additional_training_protocol(),
-                "qlib_reference": QLIB_REFERENCE,
-                "qlib_deviations": {key: DEVIATIONS[key] for key in ("label", "training")},
-                "parameter_preset": self.input_params.parameter_preset,
-                "train_start_inclusive": self.input_params.train_start,
-                "train_end_exclusive": self.input_params.train_end,
-                "validation_start_inclusive": self.state["validation_start"],
-                "label_column": self.input_params.label_column,
-                **task_protocol(TaskType.TRAIN),
-                "label_transform": {
-                    "reference": "cutoff-safe eligible training rows",
-                    "winsorize_tail": self.input_params.label_winsorize_tail,
-                    "rank": "average (rank-1)/(n-1); singleton=.5",
-                    "csz_ddof": 0,
-                },
-                "raw_label_for_trimming": self.raw_label,
-                "daily_trim_tail": self.input_params.trim_tail,
-                "prediction_rows_are_not_trimmed": True,
-                "sample_filter": (
-                    "signal-date buyability, valid fixed-one-day label available before exclusive cutoff, "
-                    "label_target_date < train_end; transforms after temporal filtering"
-                ),
-            },
-            "feature_columns": list(self.state["features"]),
-            "target_columns": [self.input_params.label_column],
-            "model_name": "LightGBM",
-            "metrics": {
-                name: value
-                for name, value in self.state["validation_metrics"].items()
-                if isinstance(value, (int, float)) and math.isfinite(value)
-            },
-            "parameters": self._parameters(),
-            "training_curve": {
-                "x": [str(iteration) for iteration in self.state["history"]["iteration"].to_list()],
-                # L2 is mean squared error and L1 is mean absolute error.
-                # Their numeric ranges differ, so training and validation
-                # series for each metric share one dedicated y-axis.
-                "y_left": {
-                    column: self.state["history"][column].to_list()
-                    for column in self.state["history"].columns
-                    if column.endswith("_l2")
-                },
-                "y_right": {
-                    column: self.state["history"][column].to_list()
-                    for column in self.state["history"].columns
-                    if column.endswith("_l1")
-                },
-            },
-            "rows": {
-                "loaded": self.state["loaded_rows"],
-                "eligible": self.state["pre_trim_rows"],
-                "before_trim": self.state["pre_trim_rows"],
-                "after_trim": frame.height,
-                "tuning_train": self.state["tuning_train"].height,
-                "validation": self.state["validation"].height,
-            },
-            "validation_metrics": self.state["validation_metrics"],
-            "artifacts": artifacts,
-            "train_rows": frame.height,
-            "best_iteration": self.state["best_iteration"],
-        }
-
+        parameters = self.state["parameters"]
         collection = ModelCollection(
-            **values["protocol"],
+            **task_protocol(TaskType.TRAIN),
+            **self.additional_training_protocol(),
+            qlib_reference=QLIB_REFERENCE,
+            qlib_deviations={key: DEVIATIONS[key] for key in ("label", "training")},
+            parameter_preset=self.input_params.parameter_preset,
+            train_start_inclusive=self.input_params.train_start,
+            train_end_exclusive=self.input_params.train_end,
+            validation_start_inclusive=self.state["validation_start"],
+            label_column=self.input_params.label_column,
+            label_transform={
+                "reference": "cutoff-safe eligible training rows",
+                "winsorize_tail": self.input_params.label_winsorize_tail,
+                "rank": "average (rank-1)/(n-1); singleton=.5",
+                "csz_ddof": 0,
+            },
+            raw_label_for_trimming="label_return",
+            daily_trim_tail=self.input_params.trim_tail,
+            prediction_rows_are_not_trimmed=True,
+            sample_filter=(
+                "signal-date buyability, valid fixed-one-day label available before exclusive cutoff, "
+                "label_target_date < train_end; per-date transforms after eligibility and tail filtering"
+            ),
             members={
                 "model": {
                     "model_artifact": "model",
-                    "model": model,
+                    "model": {
+                        "library": "lightgbm",
+                        "library_version": load_lightgbm().__version__,
+                        "parameters": parameters,
+                        "best_iteration": self.state["best_iteration"],
+                        "feature_names": list(self.state["features"]),
+                    },
                 }
             },
-            feature_protocol=feature_contract(self.state["source_metadata"]["output_params"]["protocol"]),
+            feature_protocol=self.state["feature_protocol"],
             artifacts=artifacts,
-        ).model_dump(mode="json")
-        manifest_path = output_dir / "models.json"
-        atomic_write_json(manifest_path, collection)
-        values["artifacts"]["model_manifest"] = artifact_record(manifest_path, output_dir)
-        del values["protocol"]
-        return self.output_cls(**values)
+        )
+        manifest_path = self.task_dir / "models.json"
+        atomic_write_json(manifest_path, collection.model_dump(mode="json"))
+        artifacts["model_manifest"] = artifact_record(manifest_path, self.task_dir)
+        history = self.state["history"]
+        return self.output_cls(
+            model_name="LightGBM",
+            train_rows=self.state["frame"].height,
+            feature_columns=list(self.state["features"]),
+            target_columns=[self.input_params.label_column],
+            parameters=parameters,
+            best_iteration=self.state["best_iteration"],
+            rows=self.state["rows"],
+            metrics={name: value for name, value in self.state["metrics"].items() if math.isfinite(value)},
+            training_curve={
+                "x": [str(iteration) for iteration in history["iteration"].to_list()],
+                # L2 and L1 have different numeric ranges; each metric gets one axis.
+                "y_left": {column: history[column].to_list() for column in history.columns if column.endswith("_l2")},
+                "y_right": {column: history[column].to_list() for column in history.columns if column.endswith("_l1")},
+            },
+            artifacts=artifacts,
+        )

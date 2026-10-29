@@ -6,53 +6,6 @@ from pathlib import Path
 
 import polars as pl
 
-WINDOWS = (5, 10, 20, 30, 60)
-KBAR = ("KMID", "KLEN", "KMID2", "KUP", "KUP2", "KLOW", "KLOW2", "KSFT", "KSFT2")
-PRICE = ("OPEN0", "HIGH0", "LOW0", "VWAP0")
-ROLLING = (
-    "ROC",
-    "MA",
-    "STD",
-    "BETA",
-    "RSQR",
-    "RESI",
-    "MAX",
-    "MIN",
-    "QTLU",
-    "QTLD",
-    "RANK",
-    "RSV",
-    "IMAX",
-    "IMIN",
-    "IMXD",
-    "CORR",
-    "CORD",
-    "CNTP",
-    "CNTN",
-    "CNTD",
-    "SUMP",
-    "SUMN",
-    "SUMD",
-    "VMA",
-    "VSTD",
-    "WVMA",
-    "VSUMP",
-    "VSUMN",
-    "VSUMD",
-)
-RAW_FEATURES = (
-    *KBAR,
-    *PRICE,
-    *(f"{name}{window}" for name in ROLLING for window in WINDOWS),
-)
-FEATURES = tuple(f"f_alpha158_{name}" for name in RAW_FEATURES)
-LABELS = ("label_return",)
-CSZ_LABELS = ("label_return_csz",)
-RANK_LABELS = ("label_return_rank",)
-VALID_LABELS = ("label_valid",)
-LABEL_OUTPUTS = ("label_return", "label_valid")
-EPSILON = 1e-12
-HISTORY_DAYS = max(WINDOWS)
 ST_LIMIT_CHANGE_DATE = "20260706"
 MARKET_STATE_COLUMNS = (
     "name",
@@ -63,7 +16,6 @@ MARKET_STATE_COLUMNS = (
     "is_limit_up",
     "is_limit_down",
     "is_insufficient_history",
-    "is_buyable",
 )
 
 
@@ -333,7 +285,7 @@ def attach_market_flags(
                 "is_limit_down",
                 "is_insufficient_history",
             )
-        ).alias("is_buyable"),
+        ).alias("is_buyable_at_signal"),
     )
 
 
@@ -381,3 +333,55 @@ def join_index_weights(frame: pl.DataFrame, weights: pl.DataFrame, snapshots: pl
             .alias("index_weight_hs300"),
         )
     )
+
+
+def load_reference_data(
+    calendar_path: Path, stocks_path: Path, names_path: Path
+) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+    """Load the authoritative calendar, stock lifecycle, and historical names."""
+    calendar = (
+        pl.read_parquet(
+            calendar_path,
+            columns=("cal_date", "is_open"),
+        )
+        .with_columns(
+            pl.col("cal_date").cast(pl.String),
+            pl.col("is_open").cast(pl.Int8),
+        )
+        .filter(pl.col("is_open") == 1)
+        .select(pl.col("cal_date").alias("trade_date"))
+        .unique()
+        .sort("trade_date")
+    )
+    stocks = (
+        pl.read_parquet(
+            stocks_path,
+            columns=("ts_code", "name", "list_date", "delist_date"),
+        )
+        .with_columns(
+            pl.col("ts_code", "name", "list_date", "delist_date").cast(pl.String),
+        )
+        .with_columns(
+            pl.when(pl.col("delist_date") == "").then(None).otherwise(pl.col("delist_date")).alias("delist_date"),
+        )
+    )
+    names = (
+        pl.read_parquet(
+            names_path,
+            columns=("ts_code", "name", "start_date", "ann_date"),
+        )
+        .with_columns(
+            pl.col("ts_code", "name", "start_date", "ann_date").cast(pl.String),
+        )
+        .with_columns(
+            pl.max_horizontal("start_date", "ann_date").alias("_known_date"),
+        )
+        .sort("ts_code", "_known_date", "start_date")
+        .unique(("ts_code", "_known_date"), keep="last")
+        .sort("ts_code", "_known_date")
+    )
+    if calendar.is_empty() or stocks.is_empty():
+        raise ValueError("trade_cal 或 stock_basic 为空")
+    if stocks.select("ts_code").n_unique() != stocks.height:
+        raise ValueError("stock_basic 包含重复 ts_code")
+    return calendar, stocks, names

@@ -6,7 +6,48 @@ from collections.abc import Callable
 
 import polars as pl
 
-from .etl_pipeline import EPSILON, FEATURES
+WINDOWS = (5, 10, 20, 30, 60)
+KBAR = ("KMID", "KLEN", "KMID2", "KUP", "KUP2", "KLOW", "KLOW2", "KSFT", "KSFT2")
+PRICE = ("OPEN0", "HIGH0", "LOW0", "VWAP0")
+ROLLING = (
+    "ROC",
+    "MA",
+    "STD",
+    "BETA",
+    "RSQR",
+    "RESI",
+    "MAX",
+    "MIN",
+    "QTLU",
+    "QTLD",
+    "RANK",
+    "RSV",
+    "IMAX",
+    "IMIN",
+    "IMXD",
+    "CORR",
+    "CORD",
+    "CNTP",
+    "CNTN",
+    "CNTD",
+    "SUMP",
+    "SUMN",
+    "SUMD",
+    "VMA",
+    "VSTD",
+    "WVMA",
+    "VSUMP",
+    "VSUMN",
+    "VSUMD",
+)
+RAW_FEATURES = (
+    *KBAR,
+    *PRICE,
+    *(f"{name}{window}" for name in ROLLING for window in WINDOWS),
+)
+FEATURES = tuple(f"f_alpha158_{name}" for name in RAW_FEATURES)
+HISTORY_DAYS = max(WINDOWS)
+EPSILON = 1e-12
 
 
 def price_features(frame: pl.DataFrame) -> pl.DataFrame:

@@ -51,7 +51,7 @@ Keep algorithms in Tasks/plugins. Task execution must not depend on App, Plugin 
 
 ## Develop a plugin
 
-Keep research algorithms in plugins. Follow the [development and operations guide](docs/en/dev_guide.md) for Task authoring, [plugin management](docs/en/plugins/management.md) for installation and remote deployment, and [artifact contracts](docs/en/reference/research-artifacts.md) for Studio integration. Research plugins are installed from source in dependency order: `qlib_a158` → `qlib_factor` → `qlib_strategy`.
+Keep research algorithms in plugins. Follow the [development and operations guide](docs/en/dev_guide.md) for Task authoring, [plugin management](docs/en/plugins/management.md) for installation and remote deployment, and [artifact contracts](docs/en/reference/research-artifacts.md) for Studio integration. Install `qlib_a158` from source first; `qlib_factor` and `qlib_strategy` each extend it independently.
 
 Agent-authored changes use the same checks. Improvement claims must retain code/data versions, windows, parameters, costs, Task IDs and `started_at`; follow [experiment design](docs/en/research/experiments.md).
 

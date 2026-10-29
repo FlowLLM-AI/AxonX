@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from .etl_pipeline import LABELS
+LABEL = "label_return"
 
 
 class FactorMetricsCalculator:
@@ -23,44 +23,43 @@ class FactorMetricsCalculator:
         daily_plans: list[pl.LazyFrame] = []
         quantile_plans: list[pl.LazyFrame] = []
         for feature in features:
-            for label in LABELS:
-                valid = (
-                    frame.lazy()
-                    .select(
-                        "trade_date",
-                        pl.col(feature).alias("factor_value"),
-                        pl.col(label).alias("label_value"),
-                    )
-                    .filter(
-                        pl.col("factor_value").is_finite() & pl.col("label_value").is_finite(),
-                    )
+            valid = (
+                frame.lazy()
+                .select(
+                    "trade_date",
+                    pl.col(feature).alias("factor_value"),
+                    pl.col(LABEL).alias("label_value"),
                 )
-                daily = (
-                    valid.group_by("trade_date")
-                    .agg(
-                        pl.len().alias("samples"),
-                        pl.corr("factor_value", "label_value", method="pearson").alias(
-                            "ic",
-                        ),
-                        pl.corr("factor_value", "label_value", method="spearman").alias(
-                            "rank_ic",
-                        ),
-                    )
-                    .filter(pl.col("samples") >= self.minimum_daily_samples)
+                .filter(
+                    pl.col("factor_value").is_finite() & pl.col("label_value").is_finite(),
                 )
-                daily_plans.append(
-                    valid.select(pl.len().alias("valid_samples")).join(
-                        daily.select(
-                            pl.lit(feature).alias("factor"),
-                            pl.lit(label).alias("label"),
-                            pl.len().alias("valid_days"),
-                            *self._summary_expressions("ic", "ic"),
-                            *self._summary_expressions("rank_ic", "rankic"),
-                        ),
-                        how="cross",
+            )
+            daily = (
+                valid.group_by("trade_date")
+                .agg(
+                    pl.len().alias("samples"),
+                    pl.corr("factor_value", "label_value", method="pearson").alias(
+                        "ic",
+                    ),
+                    pl.corr("factor_value", "label_value", method="spearman").alias(
+                        "rank_ic",
                     ),
                 )
-                quantile_plans.append(self._quantile_plan(valid, feature, label))
+                .filter(pl.col("samples") >= self.minimum_daily_samples)
+            )
+            daily_plans.append(
+                valid.select(pl.len().alias("valid_samples")).join(
+                    daily.select(
+                        pl.lit(feature).alias("factor"),
+                        pl.lit(LABEL).alias("label"),
+                        pl.len().alias("valid_days"),
+                        *self._summary_expressions("ic", "ic"),
+                        *self._summary_expressions("rank_ic", "rankic"),
+                    ),
+                    how="cross",
+                ),
+            )
+            quantile_plans.append(self._quantile_plan(valid, feature))
 
         daily_metrics, quantiles = pl.collect_all(
             [
@@ -129,7 +128,6 @@ class FactorMetricsCalculator:
         self,
         valid: pl.LazyFrame,
         feature: str,
-        label: str,
     ) -> pl.LazyFrame:
         daily_size = pl.len().over("trade_date")
         return (
@@ -162,7 +160,7 @@ class FactorMetricsCalculator:
             )
             .with_columns(
                 pl.lit(feature).alias("factor"),
-                pl.lit(label).alias("label"),
+                pl.lit(LABEL).alias("label"),
             )
             .select(
                 "factor",

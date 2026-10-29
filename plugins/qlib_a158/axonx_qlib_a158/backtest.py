@@ -4,9 +4,6 @@ import polars as pl
 
 from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
 from axonx.task.builtins.stock.data import KEYS
-from axonx.task.builtins.stock.models import (
-    StockBacktestInput as Alpha158BacktestInputParams,
-)
 from axonx.task.builtins.stock.models import StockBacktestOutput
 from axonx.task.models.reports import BacktestUniverse
 
@@ -20,8 +17,6 @@ class Alpha158BacktestTask(BaseStockBacktestTask):
     and executed-side fees, and writes daily, period, order, position and trade
     artifacts with explicit missing-market-data evaluation status.
     """
-
-    input_cls = Alpha158BacktestInputParams
 
     def resolve_inputs(self):
         super().resolve_inputs()

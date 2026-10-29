@@ -25,7 +25,7 @@ Stage metadata records `qlib_reference` / `qlib_deviations` to track the referen
 
 ## Training parameters
 
-Training defaults to `parameter_preset=axonx`. `--parameter-preset qlib` switches only hyperparameter defaults; labels, universe, seed, thread count, validation and refitting remain unchanged. Explicit values override the preset.
+Training defaults to `parameter_preset=axonx`. `--parameter-preset qlib` switches only hyperparameter defaults; labels, universe, seed, thread count, validation and refitting remain unchanged. Explicit values override the preset. Numeric training settings must be finite.
 
 | Parameter                       | axonx   | qlib                |
 | ------------------------------- | ------- | ------------------- |
@@ -81,10 +81,10 @@ After upload installation, discard the staged upload using its workspace-relativ
 
 Execution settings resolve in this order: explicit CLI options → service `get_config` → built-in defaults. Use `--workspace-dir /absolute/path` to select the research workspace explicitly. Relative ETL inputs resolve inside that workspace. Local and remote commands must use the same workspace as their upstream Tasks.
 
-The optional application preset contains only `extends: default` and is registered through `axonx.configs`; it inherits the standard service, components and Jobs. Installed `plugin.yaml` files contribute Task registrations independently of YAML. Keep research inputs in `exec` options:
+Use the standard application configuration. Installed `plugin.yaml` files contribute Task registrations; research inputs belong to `exec` options:
 
 ```bash
-axonx app --config qlib_a158 --workspace-dir /tmp/axonx-research
+axonx app --workspace-dir /tmp/axonx-research
 # In another terminal, with historical inputs already prepared there:
 axonx exec --task qlib_a158_research --task-name baseline --workspace-dir /tmp/axonx-research
 axonx status --task-id 'base#qlib_a158_research#baseline' --detail full
@@ -136,7 +136,7 @@ Prediction starts at the training cutoff when omitted. The plugin owns nested re
 | Task                 | Upstream              | Outputs                                                             |
 | -------------------- | --------------------- | ------------------------------------------------------------------- |
 | `qlib_a158_etl`      | Workspace market data | Features, labels, trading status, and statistics                    |
-| `qlib_a158_factor`   | ETL Task ID           | Factor diagnostics and analysis                                     |
+| `qlib_a158_analysis`   | ETL Task ID           | Factor diagnostics and analysis                                     |
 | `qlib_a158_train`    | ETL Task ID           | Model, training protocol, validation curves, and feature importance |
 | `qlib_a158_predict`  | Train + optional ETL  | Full-cross-section predictions and statistics                       |
 | `qlib_a158_backtest` | Predict Task ID       | Daily backtests, period summaries, and holding-related artifacts    |
@@ -147,7 +147,7 @@ Factor analysis branches from ETL and is not a prerequisite for training. Submit
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # After ETL succeeds
-axonx exec --task qlib_a158_factor --upstream-task-ids '["<etl_task_id>"]'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '["<etl_task_id>"]'
 axonx exec --task qlib_a158_train --upstream-task-ids '["<etl_task_id>"]' \
   --train-start 20150101 --train-end 20230101
 
@@ -213,7 +213,7 @@ python -m axonx_qlib_a158.scripts.compare_parameters \
   --workspace-dir /tmp/axonx-research --etl-task '<etl_task_id>' --labels rank csz
 ```
 
-This local Python helper uses `TaskExecutor` directly and does not query service configuration. It writes `summary.csv` and `comparison.json`, including per-stage Task IDs, `started_at` and input revisions. The packaged `scripts/run_pipeline.sh` forwards arguments to `axonx exec --task qlib_a158_research`.
+This local Python helper uses `TaskExecutor` directly and does not query service configuration. It writes `summary.csv` and `comparison.json`, including per-stage Task IDs, `started_at` and input revisions.
 
 ## Experiments
 

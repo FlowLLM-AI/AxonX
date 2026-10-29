@@ -24,7 +24,7 @@ axonx plugin install ./plugins/qlib_a158
 
 For local development use plugin install -e. Remote deployment requires local build, upload, target-side install and cleanup; --target alone does not transfer source. See [Plugin management](../plugins/management.md).
 
-Restart the persistent service after installation or editable source changes to refresh its Task registration snapshot and cached definitions. Query the task catalog with `axonx list_task_defs`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, `qlib_a158_backtest`, and the parent Task `qlib_a158_research`.
+Restart the persistent service after installation or editable source changes to refresh its Task registration snapshot and cached definitions. Query the task catalog with `axonx list_task_defs`. Expect `qlib_a158_etl`, `qlib_a158_analysis`, `qlib_a158_train`, `qlib_a158_predict`, `qlib_a158_backtest`, and the parent Task `qlib_a158_research`.
 
 ## What each research stage produces
 
@@ -32,7 +32,7 @@ Restart the persistent service after installation or editable source changes to 
 | --------------- | ----------------------- | ------------------------------ | ---------------------------------------------- |
 | Download        | `download_tushare_task` | Tushare API                    | Raw partitions in workspace `tushare/`         |
 | ETL             | `qlib_a158_etl`         | Raw partitions and master data | `alpha158.parquet`, statistics CSV             |
-| Factor analysis | `qlib_a158_factor`      | One ETL Task                   | Factor diagnostics and quantile return CSV     |
+| Factor analysis | `qlib_a158_analysis`    | One ETL Task                   | Factor diagnostics and quantile return CSV     |
 | Training        | `qlib_a158_train`       | One ETL Task                   | LightGBM model, importance, validation history |
 | Prediction      | `qlib_a158_predict`     | One Train Task                 | Full cross-sectional prediction Parquet        |
 | Backtest        | `qlib_a158_backtest`    | One Predict Task               | Daily and summary Parquet                      |
@@ -54,7 +54,7 @@ Exec waits for completion, prints business output and returns the Task exit code
 
 ```bash
 # After ETL succeeds, factor analysis can run independently
-axonx exec --task qlib_a158_factor --upstream-task-ids '<ETL Task ID>'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '<ETL Task ID>'
 
 # The training end date is excluded from the training interval
 axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
@@ -94,15 +94,9 @@ The recommended reading order is ETL dates, rows, and feature columns; training 
 
 A completed execution provides parameters and artifacts. Evaluating improvements also requires controls, ablations, screening, and independent confirmation. Plan comparisons with [experiment design and confirmation](experiments.md), then inspect common windows with [strategy comparison](strategy-comparison.md). See [Qlib Factor](../../../plugins/qlib_factor/README.md) for the agent-developed feature case and reproduction guide.
 
-## Using the repository script
+## Running the research Task
 
-[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) delegates directly to the registered `qlib_a158_research` parent Task. Install the plugin and prepare historical data first:
-
-```bash
-bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
-```
-
-The script forwards arguments to synchronous `exec`; it does not install packages or download market data. Configure each stage with nested options:
+Install the plugin and prepare historical data, then configure each stage through nested inputs:
 
 ```bash
 axonx get_task_def --task qlib_a158_research

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_strategy` inherits `qlib_factor` and `qlib_a158` to study portfolio policies using fixed predictions. The shared framework owns quotes, price limits, valuation, cash, side fees, orders, positions and trades.
+`qlib_strategy` extends `qlib_a158` to study portfolio policies using fixed predictions. The shared framework owns quotes, price limits, valuation, cash, side fees, orders, positions and trades.
 
 ## Rank-retention policy
 
@@ -11,7 +11,7 @@
 - Cap fills per side per day at `max(1,floor(N × replacement_fraction))`; initial construction is exempt.
 - Blocked exits retain capital. Unfilled entries are not replaced, and sells precede buys. New positions receive at most 1/N equity; retained holdings are not rebalanced.
 
-Defaults: `minimum_holding_days=10`, `replacement_fraction=0.2`, `rank_buffer=1`. Top5/10/20/30 permit 1/2/4/6 fills per side per day; this is a count cap, not a notional turnover cap. There is no fixed-expiry parameter; `planned_exit_date` is null.
+Defaults: `minimum_holding_days=10`, `replacement_fraction=0.2`, `rank_buffer=1`. Top5/10/20/30 permit 1/2/4/6 fills per side per day; this is a count cap, not a notional turnover cap. `rank_buffer` must be finite. There is no fixed-expiry parameter; `planned_exit_date` is null.
 
 Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.0` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
@@ -21,7 +21,6 @@ Research plugins are not published to PyPI. Clone the repository and install the
 
 ```bash
 axonx plugin install -e plugins/qlib_a158
-axonx plugin install -e plugins/qlib_factor
 axonx plugin install -e plugins/qlib_strategy
 ```
 
@@ -34,11 +33,11 @@ axonx exec --task qlib_strategy_backtest --upstream-task-ids '["<predict_task_id
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-Reuse successful base or factor predictions. Record each Task ID and `started_at` from execution logs or `status --detail full`; continue only after successful execution. Upstream `qlib_strategy_etl`, `qlib_strategy_analysis`, `qlib_strategy_train` and `qlib_strategy_predict` register factor-layer implementations; policy comparisons reuse predictions. Installation modifies the selected interpreter. New CLI processes discover installed plugins; definition Jobs and Studio retain the service startup catalog until restart. Stop on installation or verification failures.
+Reuse successful base or factor predictions. Record each Task ID and `started_at` from execution logs or `status --detail full`; continue only after successful execution. The plugin registers only `qlib_strategy_backtest`; policy comparisons reuse base or factor predictions. Installation modifies the selected interpreter. New CLI processes discover installed plugins; definition Jobs and Studio retain the service startup catalog until restart. Stop on installation or verification failures.
 
 ## Execution and configuration
 
-This layer contributes Task registrations only and has no separate application preset. Use the standard `axonx app` configuration or `--config qlib_factor`. Strategy inputs belong to `qlib_strategy_backtest`; the upstream registrations reuse factor/base implementations. Prediction accepts a Train and an optional compatible ETL to score new data.
+Use the standard `axonx app` configuration. This plugin registers only `qlib_strategy_backtest` and depends on `qlib_a158`; `qlib_factor` is optional. Create predictions with the base or factor training Tasks and `qlib_a158_predict`. Prediction accepts a Train and an optional compatible ETL to score new data.
 
 ## Local validation
 

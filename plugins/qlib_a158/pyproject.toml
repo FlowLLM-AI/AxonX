@@ -55,12 +55,10 @@ Source = "https://github.com/FlowLLM-AI/AxonX"
 [project.entry-points."axonx.plugins"]
 qlib_a158 = "axonx_qlib_a158"
 
-[project.entry-points."axonx.configs"]
-qlib_a158 = "axonx_qlib_a158.config:qlib_a158_demo"
-
 [tool.setuptools.packages.find]
 where = ["."]
+namespaces = false
 include = ["axonx_qlib_a158", "axonx_qlib_a158.*"]
 
 [tool.setuptools.package-data]
-axonx_qlib_a158 = ["plugin.yaml", "config/*.yaml", "scripts/*.sh"]
+axonx_qlib_a158 = ["plugin.yaml"]

@@ -51,7 +51,7 @@ YAML 继承与安装配置见[服务端配置](docs/zh/reference/configuration.m
 
 ## 开发插件
 
-研究算法放在插件中。Task 开发遵循[开发与运行指南](docs/zh/dev_guide.md)，安装和远程部署见[插件管理](docs/zh/plugins/management.md)，Studio 接入见[产物契约](docs/zh/reference/research-artifacts.md)。研究插件从源码按依赖顺序安装：`qlib_a158` → `qlib_factor` → `qlib_strategy`。
+研究算法放在插件中。Task 开发遵循[开发与运行指南](docs/zh/dev_guide.md)，安装和远程部署见[插件管理](docs/zh/plugins/management.md)，Studio 接入见[产物契约](docs/zh/reference/research-artifacts.md)。先从源码安装 `qlib_a158`；`qlib_factor` 和 `qlib_strategy` 分别独立扩展它。
 
 Agent 编写的代码遵循相同检查。改进结论需保留代码/数据版本、窗口、参数、成本、Task ID 和 `started_at`，并遵循[实验设计](docs/zh/research/experiments.md)。
 

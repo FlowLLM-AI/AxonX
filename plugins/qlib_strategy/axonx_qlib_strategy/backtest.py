@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pydantic import Field
 
 from axonx.task.builtins.stock.models import StockBacktestOutput, StockPortfolioInput
-from axonx_qlib_a158.backtest import Alpha158BacktestTask as BaseTask
+from axonx_qlib_a158.backtest import Alpha158BacktestTask
 
 
 @dataclass(frozen=True)
@@ -30,10 +30,12 @@ class StrategyBacktestInput(StockPortfolioInput):
     minimum_holding_days: int = Field(
         default=10, ge=0, description="Elapsed market days before a rank exit is allowed."
     )
-    rank_buffer: float = Field(default=1.0, ge=1, description="Retain eligible holdings through ceil(N * rank_buffer).")
+    rank_buffer: float = Field(
+        default=1.0, ge=1, allow_inf_nan=False, description="Retain eligible holdings through ceil(N * rank_buffer)."
+    )
 
 
-class StrategyBacktestTask(BaseTask):
+class StrategyBacktestTask(Alpha158BacktestTask):
     """Backtest factor predictions with rank retention and bounded daily replacements.
 
     Uses the framework cash, market valuation, order, position and trade artifacts.

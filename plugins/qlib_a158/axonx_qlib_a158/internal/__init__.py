@@ -1,20 +1,18 @@
 """Alpha158 domain calculations and reference definitions.
 
-etl_pipeline: Market-data preparation, calendars, price limits and index weights.
-features: Price/rolling expressions and dataset statistics.
+market: Market-data preparation, calendars, price limits and index weights.
+features: Alpha158 definitions, price/rolling expressions and dataset statistics.
 analysis: Polars-based factor diagnostics.
-modeling: Shared NumPy feature conversion for training and prediction.
-protocol: Plugin-owned feature contracts and semantic fingerprints.
+modeling: Feature contracts, semantic fingerprints and NumPy model inputs.
 reference: Qlib provenance, parameter presets and workflow deviations.
 """
 
-from . import analysis, etl_pipeline, features, modeling, protocol, reference
+from . import analysis, features, market, modeling, reference
 
 __all__ = [
     "analysis",
-    "etl_pipeline",
     "features",
+    "market",
     "modeling",
-    "protocol",
     "reference",
 ]

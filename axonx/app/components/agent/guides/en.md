@@ -278,7 +278,7 @@ Restart returns an accepted `update_id`; use it with `get_update_status --update
 
 ## Run and improve research
 
-The reference chain is ETL → Train → Predict → Backtest. Factor analysis is an independent ETL downstream via `qlib_a158_factor`. Install `qlib_a158` first and prepare sufficient Tushare history. The data token is separate from the AxonX service token; optionally set `AXONX_TUSHARE_BASE_URL` for a compatible data service.
+The reference chain is ETL → Train → Predict → Backtest. Factor analysis is an independent ETL downstream via `qlib_a158_analysis`. Install `qlib_a158` first and prepare sufficient Tushare history. The data token is separate from the AxonX service token; optionally set `AXONX_TUSHARE_BASE_URL` for a compatible data service.
 
 The commands below select one historical example window. Run each separately and check its exit code and full metadata before the next stage; scripts must stop on failure. Existing complete raw history can be reused instead of downloaded:
 

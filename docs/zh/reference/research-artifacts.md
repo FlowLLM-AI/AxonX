@@ -15,7 +15,9 @@ AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。研究协�
 
 训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保存训练摘要和曲线，完整集合与模型路径由模型清单记录。
 
-离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份非空 `model_identity: dict[str, str]`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。Qlib 插件使用 `models_sha256` 和 `features_sha256` 身份项；共享模型允许插件定义字符串键和值。身份不包含日期、路径，也不按日期重复复制。Qlib 特征契约与指纹由插件模块 `axonx_qlib_a158.internal.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.inputs` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份非空 `model_identity: dict[str, str]`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。Qlib 插件使用 `models_sha256` 和 `features_sha256` 身份项；共享模型允许插件定义字符串键和值。身份不包含日期、路径，也不按日期重复复制。Qlib 特征契约与指纹由插件模块 `axonx_qlib_a158.internal.modeling` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.inputs` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+
+Qlib 特征契约使用一份有序的 `feature_columns` 列表，模型清单记录实际选择的子集及顺序。信号资格统一为 `is_buyable_at_signal`，市场执行条件保留 `can_buy` 和 `can_sell`。训练报告通过 `metrics` 发布验证指标，并分别记录裁剪前后及调参/验证样本数。
 
 ## metadata 与产物映射
 

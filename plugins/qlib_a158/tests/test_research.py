@@ -162,40 +162,41 @@ def test_research_owns_dependencies_and_derives_prediction_cutoff():
     assert "input_dir" in Alpha158Task.input_cls.model_json_schema()["properties"]
 
 
-@pytest.mark.parametrize("plugin", ["qlib_factor", "qlib_strategy"])
-def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalog, plugin):
+@pytest.mark.parametrize("backtest_registration", ["qlib_a158_backtest", "qlib_strategy_backtest"])
+def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalog, backtest_registration):
     days = market
     executor = TaskExecutor(resolve_task=catalog.resolve)
 
-    def run(stage, **inputs):
-        registration = f"{plugin}_{stage}"
+    def run(registration, **inputs):
         task = catalog.resolve(registration)(
             {"task_name": "protocol", **inputs}, workspace_path=tmp_path, reg_name=registration
         )
         assert executor.execute(task).state == TaskState.SUCCEEDED
         return task
 
-    etl = run("etl", start_date=days[60], end_date=days[100])
+    etl = run("qlib_factor_etl", start_date=days[60], end_date=days[100])
     assert etl.output["protocol"]["feature_family"] == "qlib_factor"
     train = run(
-        "train",
+        "qlib_factor_train",
         upstream_task_ids=[etl.task_id],
         train_start=days[60],
         train_end=days[85],
-        context_groups="mean,variance",
+        context_groups=["mean", "variance"],
         num_threads=1,
         num_boost_round=8,
         early_stopping_rounds=3,
     )
-    predict = run("predict", upstream_task_ids=[train.task_id, etl.task_id], pred_start=days[85], pred_end=days[95])
+    predict = run(
+        "qlib_a158_predict", upstream_task_ids=[train.task_id, etl.task_id], pred_start=days[85], pred_end=days[95]
+    )
     assert predict.output["protocol"]["market_upstream_task_id"] == etl.task_id
-    backtest = run("backtest", upstream_task_ids=[predict.task_id], top_ns=[5])
+    backtest = run(backtest_registration, upstream_task_ids=[predict.task_id], top_ns=[5])
     assert backtest.output["universes"]["all"]["date_range"]["end"] == days[95]
-    if plugin == "qlib_strategy":
+    if backtest_registration == "qlib_strategy_backtest":
         assert backtest.output["protocol"]["strategy"] == "rank_retention"
 
 
-@pytest.mark.parametrize("registration", ["qlib_a158_train", "qlib_a158_factor"])
+@pytest.mark.parametrize("registration", ["qlib_a158_train", "qlib_a158_analysis"])
 def test_feature_consumers_reject_incomplete_protocol(tmp_path, market, catalog, registration):
     executor = TaskExecutor(resolve_task=catalog.resolve)
     etl = Alpha158Task(

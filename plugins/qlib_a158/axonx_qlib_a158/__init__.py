@@ -6,21 +6,19 @@ train: LightGBM training, label presets and model publication.
 predict: Full-cross-section prediction from published model collections.
 backtest: Stock backtests using the shared portfolio ledger.
 research: Typed composition of the independently observable research stages.
-config: Named application configuration resources, inheriting AxonX defaults.
 internal: Domain calculations, feature preparation and Qlib reference presets.
 scripts: Local research comparison commands, invoked explicitly.
 """
 
-from . import analysis, backtest, config, etl, internal, predict, research, scripts, train
+from . import analysis, backtest, etl, internal, predict, research, scripts, train
 from .analysis import FactorAnalysisInputParams, FactorAnalysisTask
-from .backtest import Alpha158BacktestInputParams, Alpha158BacktestTask
+from .backtest import Alpha158BacktestTask
 from .etl import Alpha158InputParams, Alpha158Task
 from .predict import LgbmPredictInputParams, LgbmPredictTask
 from .research import Alpha158ResearchTask, ResearchInputParams, ResearchOutputParams
 from .train import LgbmTrainInputParams, LgbmTrainTask
 
 __all__ = [
-    "Alpha158BacktestInputParams",
     "Alpha158BacktestTask",
     "Alpha158InputParams",
     "Alpha158ResearchTask",
@@ -35,7 +33,6 @@ __all__ = [
     "ResearchOutputParams",
     "analysis",
     "backtest",
-    "config",
     "etl",
     "internal",
     "predict",

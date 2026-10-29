@@ -1,28 +1,10 @@
-"""Causal context ETL and feature-selecting Alpha158 training Tasks.
+"""Causal context features and Alpha158 research extensions.
 
-etl: Alpha158 ETL extended with causal cross-sectional context features.
-train: Feature selection with the shared Alpha158 model lifecycle.
-config: Named application configuration resources, inheriting AxonX defaults.
-internal: Causal market moments and stock-level momentum/risk calculations.
+features: Ordered groups, market moments and stock momentum/risk calculations.
+tasks: Enhanced ETL and feature-selecting training on the Alpha158 lifecycle.
 """
 
-from axonx_qlib_a158.etl import Alpha158InputParams
-from axonx_qlib_a158.train import MODEL_LABELS, LgbmTrainOutputParams
+from . import features, tasks
+from .tasks import FactorETLTask, FactorTrainInputParams, FactorTrainTask
 
-from . import config, etl, internal, train
-from .etl import Alpha158OutputParams, Alpha158Task
-from .train import LgbmTrainInputParams, LgbmTrainTask
-
-__all__ = [
-    "Alpha158InputParams",
-    "Alpha158OutputParams",
-    "Alpha158Task",
-    "LgbmTrainInputParams",
-    "LgbmTrainOutputParams",
-    "LgbmTrainTask",
-    "MODEL_LABELS",
-    "config",
-    "etl",
-    "internal",
-    "train",
-]
+__all__ = ["FactorETLTask", "FactorTrainInputParams", "FactorTrainTask", "features", "tasks"]

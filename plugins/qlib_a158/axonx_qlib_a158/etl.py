@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Self
 
 import polars as pl
-from pydantic import Field, field_validator
+from pydantic import Field, model_validator
 
 from axonx.task.builtins.stock.data import (
     apply_market_status,
@@ -16,22 +17,27 @@ from axonx.task.builtins.stock.data import (
 from axonx.task.builtins.stock.models import StockETLOutput
 from axonx.task.core.base import TaskStep
 from axonx.task.core.research import BaseETLTask
-from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.base import DateString
 from axonx.task.models.params import BaseETLInputParams
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write
 
-from .internal.etl_pipeline import (
+from .internal.features import (
     FEATURES,
     HISTORY_DAYS,
     KBAR,
-    LABEL_OUTPUTS,
-    MARKET_STATE_COLUMNS,
     PRICE,
     RAW_FEATURES,
     ROLLING,
-    ST_LIMIT_CHANGE_DATE,
     WINDOWS,
+    dataset_statistics,
+    price_features,
+    rolling_features,
+    rolling_inputs,
+)
+from .internal.market import (
+    MARKET_STATE_COLUMNS,
+    ST_LIMIT_CHANGE_DATE,
     align_calendar,
     apply_price_limits,
     assemble_trading_panel,
@@ -42,13 +48,8 @@ from .internal.etl_pipeline import (
     load_index_weights,
     load_market_data,
     load_price_limits,
+    load_reference_data,
     validate_market_data,
-)
-from .internal.features import (
-    dataset_statistics,
-    price_features,
-    rolling_features,
-    rolling_inputs,
 )
 from .internal.reference import DEVIATIONS, QLIB_REFERENCE
 
@@ -68,11 +69,11 @@ class Alpha158InputParams(BaseETLInputParams):
 
     input_dir: Path = Path("tushare")
     market_status_file: Path | None = None
-    start_date: str | None = Field(
+    start_date: DateString | None = Field(
         default="20140101",
         description="First output trading date in YYYYMMDD format; set null for all available dates.",
     )
-    end_date: str | None = Field(
+    end_date: DateString | None = Field(
         default=None,
         description="Last output trading date in YYYYMMDD format; defaults to the latest available date.",
     )
@@ -83,11 +84,11 @@ class Alpha158InputParams(BaseETLInputParams):
         description="Minimum observed price history required for rolling features.",
     )
 
-    @field_validator("start_date", "end_date", mode="before")
-    @classmethod
-    def normalize_date(cls, value: object) -> object:
-        """Normalize YYYYMMDD boundaries, including integer dates from YAML."""
-        return normalize_yyyymmdd(value, optional=True)
+    @model_validator(mode="after")
+    def validate_period(self) -> Self:
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValueError("start_date 不能晚于 end_date")
+        return self
 
 
 class Alpha158Task(BaseETLTask):
@@ -103,10 +104,11 @@ class Alpha158Task(BaseETLTask):
 
     extra_features: tuple[str, ...] = ()
 
-    _price_features = staticmethod(price_features)
-    _rolling_inputs = staticmethod(rolling_inputs)
-    _rolling = staticmethod(rolling_features)
-    _statistics = staticmethod(dataset_statistics)
+    lookback_days = HISTORY_DAYS
+
+    @property
+    def feature_columns(self) -> tuple[str, ...]:
+        return (*FEATURES, *self.extra_features)
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_paths
@@ -140,12 +142,6 @@ class Alpha158Task(BaseETLTask):
             raise FileNotFoundError(
                 f"缺少 Alpha158 主数据: {', '.join(map(str, missing))}",
             )
-        if (
-            self.input_params.start_date
-            and self.input_params.end_date
-            and self.input_params.start_date > self.input_params.end_date
-        ):
-            raise ValueError("start_date 不能晚于 end_date")
         if self.input_params.start_date:
             prior_dates = (
                 pl.read_parquet(static_files["trade_cal"], columns=["cal_date", "is_open"])
@@ -154,7 +150,7 @@ class Alpha158Task(BaseETLTask):
                 .select("cal_date")
                 .unique()
                 .sort("cal_date")
-                .tail(HISTORY_DAYS)
+                .tail(self.lookback_days)
             )
             history_start = prior_dates["cal_date"].min() or self.input_params.start_date
             daily_files = [path for path in daily_files if path.parent.name >= history_start]
@@ -182,7 +178,6 @@ class Alpha158Task(BaseETLTask):
             self.state["daily_files"],
             self.state["factor_files"],
         )
-        self.report_progress(70)
         self.report_progress(80)
         validate_market_data(frame)
         self.state["frame"] = frame
@@ -193,59 +188,12 @@ class Alpha158Task(BaseETLTask):
             f"start_date={frame['trade_date'].min()} end_date={frame['trade_date'].max()}",
         )
 
-    def load_reference_data(self) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
-        """Load the authoritative calendar, stock lifecycle, and historical names."""
-        calendar = (
-            pl.read_parquet(
-                self.state["trade_cal_file"],
-                columns=("cal_date", "is_open"),
-            )
-            .with_columns(
-                pl.col("cal_date").cast(pl.String),
-                pl.col("is_open").cast(pl.Int8),
-            )
-            .filter(pl.col("is_open") == 1)
-            .select(pl.col("cal_date").alias("trade_date"))
-            .unique()
-            .sort("trade_date")
-        )
-        stocks = (
-            pl.read_parquet(
-                self.state["stock_basic_file"],
-                columns=("ts_code", "name", "list_date", "delist_date"),
-            )
-            .with_columns(
-                pl.col("ts_code", "name", "list_date", "delist_date").cast(pl.String),
-            )
-            .with_columns(
-                pl.when(pl.col("delist_date") == "").then(None).otherwise(pl.col("delist_date")).alias("delist_date"),
-            )
-        )
-        names = (
-            pl.read_parquet(
-                self.state["namechange_file"],
-                columns=("ts_code", "name", "start_date", "ann_date"),
-            )
-            .with_columns(
-                pl.col("ts_code", "name", "start_date", "ann_date").cast(pl.String),
-            )
-            .with_columns(
-                pl.max_horizontal("start_date", "ann_date").alias("_known_date"),
-            )
-            .sort("ts_code", "_known_date", "start_date")
-            .unique(("ts_code", "_known_date"), keep="last")
-            .sort("ts_code", "_known_date")
-        )
-        if calendar.is_empty() or stocks.is_empty():
-            raise ValueError("trade_cal 或 stock_basic 为空")
-        if stocks.select("ts_code").n_unique() != stocks.height:
-            raise ValueError("stock_basic 包含重复 ts_code")
-        return calendar, stocks, names
-
     def build_trading_panel(self) -> None:
         """Align every stock to the market calendar and derive adjusted inputs."""
         frame: pl.DataFrame = self.state["frame"]
-        calendar, stocks, names = self.load_reference_data()
+        calendar, stocks, names = load_reference_data(
+            self.state["trade_cal_file"], self.state["stock_basic_file"], self.state["namechange_file"]
+        )
         calendar = align_calendar(frame, calendar)
         bounds, missing_stock_basic = infer_lifecycle_bounds(frame, stocks)
         self.state["missing_stock_basic_symbols"] = missing_stock_basic.height
@@ -298,9 +246,9 @@ class Alpha158Task(BaseETLTask):
 
     def calculate_base_features(self) -> None:
         """Calculate candlestick features and inputs shared by rolling features."""
-        frame = self._price_features(self.state["frame"])
+        frame = price_features(self.state["frame"])
         self.report_progress(65)
-        self.state["frame"] = self._rolling_inputs(frame)
+        self.state["frame"] = rolling_inputs(frame)
         self.report_progress(95)
         self.logger.info(
             f"Base features calculated rows={frame.height} features={len(KBAR) + len(PRICE)}",
@@ -313,7 +261,7 @@ class Alpha158Task(BaseETLTask):
         rolling_frames = []
         for window, percentage in zip(WINDOWS, milestones, strict=True):
             rolling_frames.append(
-                self._rolling(frame.lazy(), window).select(*(f"{name}{window}" for name in ROLLING)).collect(),
+                rolling_features(frame.lazy(), window).select(*(f"{name}{window}" for name in ROLLING)).collect(),
             )
             self.report_progress(percentage)
             self.logger.info(
@@ -369,20 +317,28 @@ class Alpha158Task(BaseETLTask):
                 how="left",
                 validate="1:1",
             )
-            .with_columns((pl.col("is_buyable") & pl.col("can_buy").fill_null(False)).alias("is_buyable"))
+            .with_columns(
+                (pl.col("is_buyable_at_signal") & pl.col("can_buy").fill_null(False)).alias("is_buyable_at_signal")
+            )
         )
         self.state["frame"] = frame.with_columns(
             pl.col("close").alias("signal_price"),
             pl.col("adj_factor").alias("signal_adjustment_factor"),
-            pl.col("is_buyable").alias("is_buyable_at_signal"),
             pl.lit(True).alias("is_model_candidate"),
         )
         self.state["labels"] = fixed_labels(self.state["frame"], market, self.state["calendar"])
 
     def attach_index_weights(self) -> None:
         """Attach the latest available HS300 constituent-weight snapshot."""
-        self.report_progress(10)
-        self.state["frame"] = self._weights(self.state["frame"])
+        frame = self.state["frame"]
+        paths = self.state["weight_files"]
+        if paths:
+            weights, snapshots = load_index_weights(paths)
+            self.logger.info(f"HS300 weight snapshots loaded rows={weights.height} snapshots={snapshots.height}")
+            self.state["frame"] = join_index_weights(frame, weights, snapshots)
+        else:
+            self.logger.warning("No HS300 weight files found; index weights will be null")
+            self.state["frame"] = frame.with_columns(pl.lit(None, dtype=pl.Float64).alias("index_weight_hs300"))
         self.report_progress(95)
         self.logger.info(
             f"HS300 weights attached files={len(self.state['weight_files'])}",
@@ -428,23 +384,14 @@ class Alpha158Task(BaseETLTask):
 
     def calculate_statistics(self) -> None:
         """Calculate data-quality statistics with bounded progress updates."""
-        self.state["statistics"] = self._statistics(
+        self.state["statistics"] = dataset_statistics(
             self.state["output"],
+            columns=self.feature_columns,
             progress=self.report_progress,
         )
         self.logger.info(
             f"Data-quality statistics calculated " f"columns={self.state['statistics'].height}",
         )
-
-    def _weights(self, frame: pl.DataFrame) -> pl.DataFrame:
-        """Attach index snapshots while keeping Task logging at the boundary."""
-        paths = self.state["weight_files"]
-        if not paths:
-            self.logger.warning("No HS300 weight files found; index weights will be null")
-            return frame.with_columns(pl.lit(None, dtype=pl.Float64).alias("index_weight_hs300"))
-        weights, snapshots = load_index_weights(paths)
-        self.logger.info(f"HS300 weight snapshots loaded rows={weights.height} snapshots={snapshots.height}")
-        return join_index_weights(frame, weights, snapshots)
 
     def write_outputs(self) -> None:
         """Write the dataset and statistics files before publishing metadata."""
@@ -469,14 +416,8 @@ class Alpha158Task(BaseETLTask):
         self.report_progress(70)
         atomic_write(statistics_path, statistics.write_csv)
         self.report_progress(90)
-        self.state.update(
-            output_file=str(path),
-            statistics_file=str(statistics_path),
-            rows=output.height,
-            feature_count=len(FEATURES) + len(self.extra_features),
-        )
         self.logger.info(
-            f"Alpha158 outputs written rows={output.height} features={len(FEATURES) + len(self.extra_features)} "
+            f"Alpha158 outputs written rows={output.height} features={len(self.feature_columns)} "
             f"dataset_path={path} dataset_bytes={path.stat().st_size} "
             f"statistics_path={statistics_path} "
             f"statistics_bytes={statistics_path.stat().st_size}",
@@ -495,8 +436,8 @@ class Alpha158Task(BaseETLTask):
             },
             rows=output.height,
             symbols=output["ts_code"].n_unique(),
-            feature_columns=list((*FEATURES, *self.extra_features)),
-            label_columns=list(LABEL_OUTPUTS),
+            feature_columns=list(self.feature_columns),
+            label_columns=["label_return", "label_valid"],
             feature_schema={
                 "title": {
                     "zh": "Alpha158 特征结构",
@@ -519,9 +460,7 @@ class Alpha158Task(BaseETLTask):
             protocol={
                 **stock_protocol(trade_time="1500"),
                 "feature_family": "qlib_a158",
-                "feature_cols": list((*FEATURES, *self.extra_features)),
-                "default_feature_cols": list((*FEATURES, *self.extra_features)),
-                "global_feature_groups": {},
+                "feature_columns": list(self.feature_columns),
                 "feature_rules": {
                     "history_days": HISTORY_DAYS,
                     "min_history_coverage": self.input_params.min_history_coverage,
@@ -532,7 +471,7 @@ class Alpha158Task(BaseETLTask):
                 },
             },
             index_weight_columns=["index_weight_hs300"],
-            market_state_columns=list(MARKET_STATE_COLUMNS),
+            market_state_columns=[*MARKET_STATE_COLUMNS, "is_buyable_at_signal"],
             market_state={
                 "buyable_definition": (
                     "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
@@ -555,10 +494,5 @@ class Alpha158Task(BaseETLTask):
                 },
                 "statistics": statistics_record,
             },
-            feature_count=self.state["feature_count"],
-            **self.additional_output_params(),
+            feature_count=len(self.feature_columns),
         )
-
-    def additional_output_params(self) -> dict:
-        """Publish plugin-specific artifacts alongside the shared stock contract."""
-        return {}

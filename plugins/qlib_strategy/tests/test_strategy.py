@@ -132,3 +132,9 @@ def test_policy_rejects_conflicting_fixed_expiry():
             as_of_date="20230116",
             policy=RankRetentionPolicy(0.2, 3, 1.0),
         )
+
+
+@pytest.mark.parametrize("buffer", [float("inf"), -float("inf"), float("nan")])
+def test_nonfinite_rank_buffer_is_rejected_before_policy_execution(buffer):
+    with pytest.raises(ValueError):
+        StrategyBacktestInput(rank_buffer=buffer)
