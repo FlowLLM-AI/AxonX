@@ -9,6 +9,7 @@ SKILL_METADATA = (
     "description: Use AxonX for quantitative research, research plugin development, task execution and observation, "
     "and inspection of logs, dependencies, and artifacts. "
     "Use when the request involves AxonX Tasks or research workflows.\n"
+    "license: Apache-2.0\n"
     "---\n\n"
 )
 

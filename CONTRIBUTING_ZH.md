@@ -106,3 +106,5 @@ npm --prefix github-pages run build
 配置对应的 Trusted Publisher（`pypi`/`npm` 环境）。已有版本会发布失败，标签不可移动。PyPI 成功而 npm 失败时，在原 workflow 重跑失败 job 以复用产物。主包发布不包含研究插件。
 
 两个 PyPI 发布工作流都使用 Twine 内置的 Trusted Publishing 身份认证，并在生成 Sigstore 签名证明之前检查包元数据。如果签名证明生成失败或超过两分钟，工作流会发出警告，然后不带签名证明继续上传。元数据、身份认证、版本重复和上传错误仍会使发布失败。
+
+[AxonX Skill](skills/axonx/SKILL.md) 随同一仓库和 AxonX 版本标签分发。发布前按上文同步 Agent 指南，并执行 `gh skill publish --dry-run`。复用 AxonX Release；[不带 `--dry-run` 的 `gh skill publish`](https://cli.github.com/manual/gh_skill_publish) 会创建 GitHub Release，`v<version>` 发布会触发 PyPI 工作流。

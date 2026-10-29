@@ -122,7 +122,13 @@ axonx restart_service
 
 Research plugins are installed from source. Install extensions in **Alpha158 → factor → strategy** order. Restart persistent services after code changes; reinstall after dependency or entry-point changes. Wait for the service to be ready before querying definitions.
 
-Provide the checkout, file/command tools and [AxonX Skill](skills/axonx/SKILL.md). Choose an access path:
+Provide the checkout, file/command tools and [AxonX Skill](skills/axonx/SKILL.md). Install the Skill from `main` with GitHub CLI (`--agent claude-code` for Claude Code):
+
+```bash
+gh skill install FlowLLM-AI/AxonX axonx --agent codex --scope user --pin main
+```
+
+Install AxonX and the research plugins as described above, then choose an access path:
 
 - **External Agent:** the host manages model credentials. Use CLI or Streamable HTTP MCP at `http://127.0.0.1:1024/mcp` with `Authorization: Bearer <token>`. See [MCP integration](docs/en/agent/mcp-integration.md).
 - **Built-in Agent:** set the following model environment, restart the service, and open **Studio → Agent**. Configure its `cwd` for the checkout; see [Agent configuration](docs/en/agent/configuration.md).

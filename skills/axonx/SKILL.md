@@ -1,6 +1,7 @@
 ---
 name: axonx
 description: Use AxonX for quantitative research, research plugin development, task execution and observation, and inspection of logs, dependencies, and artifacts. Use when the request involves AxonX Tasks or research workflows.
+license: Apache-2.0
 ---
 
 # AxonX Development and Operations Guide

@@ -106,3 +106,5 @@ AxonX and Studio release independently after version updates and passing CI:
 Configure the corresponding Trusted Publishers (`pypi`/`npm` environments). Releases reject existing versions; keep tags fixed. If npm fails after PyPI succeeds, rerun the failed job in the original workflow to reuse its artifacts. Main-package releases do not publish research plugins.
 
 Both PyPI release workflows use Twine's built-in Trusted Publishing authentication. They check package metadata before attempting to generate Sigstore attestations. If attestation generation fails or exceeds two minutes, the workflow emits a warning and uploads without attestations. Metadata, authentication, duplicate-version and upload errors still fail the release.
+
+The [AxonX Skill](skills/axonx/SKILL.md) ships in the same repository and AxonX release tags. Synchronize the Agent guides as described above and run `gh skill publish --dry-run` before release. Reuse the AxonX Release; [running `gh skill publish` without `--dry-run`](https://cli.github.com/manual/gh_skill_publish) creates a GitHub Release, and a `v<version>` release triggers the PyPI workflow.

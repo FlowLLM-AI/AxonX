@@ -122,7 +122,13 @@ axonx restart_service
 
 研究插件从源码安装，扩展按 **Alpha158 → factor → strategy** 顺序安装。源码变化后重启常驻服务；依赖或入口点变化后重新安装。服务重新就绪后再查询定义。
 
-提供源码、文件/命令工具和 [AxonX Skill](skills/axonx/SKILL.md)，选择接入方式：
+提供源码、文件/命令工具和 [AxonX Skill](skills/axonx/SKILL.md)。通过 GitHub CLI 从 `main` 安装 Skill，Claude Code 将 `--agent` 改为 `claude-code`：
+
+```bash
+gh skill install FlowLLM-AI/AxonX axonx --agent codex --scope user --pin main
+```
+
+按上文安装 AxonX 和研究插件，再选择接入方式：
 
 - **外部 Agent：** 客户端管理模型凭据。使用 CLI，或通过 Streamable HTTP MCP 连接 `http://127.0.0.1:1024/mcp`，携带 `Authorization: Bearer <token>`。见 [MCP 集成](docs/zh/agent/mcp-integration.md)。
 - **内置 Agent：** 配置以下模型环境，重启服务后打开 **Studio → Agent**，将其 `cwd` 指向源码。见 [Agent 配置](docs/zh/agent/configuration.md)。
