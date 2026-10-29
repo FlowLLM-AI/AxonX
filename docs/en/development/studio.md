@@ -47,6 +47,16 @@ Routes use `#<machineId>/<section>/<view>/<resource>`. For example, `#local/task
 
 Distinguish page route state from temporary UI state. Shareable resource selections suit the Hash; expanded panels and loading progress belong in component state. Invalid sections return to the home page.
 
+Navigation and page titles come from `src/locales/{zh,en}.json`; technical identifiers match routes, Tasks, and reports:
+
+| Chinese entry | English entry         | Route section / view    | Data source                                               |
+| ------------- | --------------------- | ----------------------- | --------------------------------------------------------- |
+| 数据处理      | Data processing       | `etl/runs`              | Research artifacts with `task_type: etl`                  |
+| 预测比对      | Prediction comparison | `operations/comparison` | Operation reports with `report_kind: compare_pipeline`    |
+| 策略对比      | Strategy comparison   | `compare/strategies`    | Daily artifacts from two Tasks with `task_type: backtest` |
+
+Data processing also labels Task type filters and dependency graphs. The shared ETL stage in Online prediction is labelled Shared data processing. Prediction comparison navigation and page titles share the `operations.comparison` translation key.
+
 ## Calling the backend
 
 Call Jobs consistently through `axonx.invoke` in `shared/api/client.ts` or an existing feature API wrapper:
@@ -122,6 +132,6 @@ Refresh or use **Reset demo** to recreate initial state. There is no persisted e
 
 ## Application operations pages
 
-`features/operations/pages.ts` defines report groups by reportKinds: online_pipeline/online, compare_pipeline and data_update. These pages read current Task metadata and reports; they do not expose scheduler control/history records. Add a report_kind in the producing Task and implement its typed report/artifact contract. Task lifecycle remains in the shared execution/detail views.
+`features/operations/pages.ts` defines groups by `reportKinds`: Online prediction uses `online_pipeline`/`online`, Prediction comparison uses `compare_pipeline`, and Data updates uses `data_update`. These pages read current Task metadata and reports; they do not expose scheduler control/history records. Add a `report_kind` in the producing Task and implement its typed report/artifact contract. Task lifecycle remains in the shared execution/detail views.
 
 Task execution lives in features/tasks/execution.ts and TaskExecution.tsx. It owns connections independently of page selection, calls cli argv, checks process outcomes, observes metadata and compares started_at. Keep these concerns separate from schema form editing and the selected navigation route.

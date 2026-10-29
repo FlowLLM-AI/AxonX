@@ -5,7 +5,7 @@ description: Read Studio research results from data quality and factor diagnosti
 
 # Interpreting Research Results
 
-Studio organizes successful task results by ETL, factors, training, prediction, and backtesting. Each card corresponds to metadata and file artifacts in the workspace. Charts describe only the data in those artifacts and must be interpreted with the plugin protocol.
+Studio organizes successful task results under Data processing, Factor analysis, Model training, Offline prediction, and Offline backtest. Each card corresponds to metadata and file artifacts in the workspace. Charts describe only the data in those artifacts and must be interpreted with the plugin protocol.
 
 Screenshots show the complete English Studio 0.3.0 interface with Playground's synthetic data. Feature counts, labels, curves, and metrics illustrate the UI, not the Alpha158 baseline or the README three-version comparison. Use each real Task's metadata and plugin version to interpret its results. Algorithm descriptions below refer to the current `qlib_a158` implementation.
 
@@ -15,13 +15,13 @@ Use task pages for execution status, steps, and logs, and research pages for pub
 
 After selecting a result, first check task identity, creation time, source tasks, and artifact directory. Use specific Task IDs to compare experiments; rerunning with a fixed name may have replaced original artifacts. The research list count is not the count of all submitted tasks.
 
-## ETL: assess data reliability first
+## Data processing: assess data reliability first
 
 ![ETL dates, feature columns and labels](../../figures/studio/etl-results.png)
 
 [Full-resolution screenshot](../../figures/studio/etl-results.png)
 
-The result summary presents date range, row count, and feature/label columns together. Check coverage before continuing with downstream analysis.
+The Data processing page shows datasets produced by ETL Tasks. The result summary presents date range, row count, and feature/label columns together. Check coverage before continuing with downstream analysis.
 
 Main checks include date range, row count, feature columns, label columns, stock coverage, and statistics files.
 

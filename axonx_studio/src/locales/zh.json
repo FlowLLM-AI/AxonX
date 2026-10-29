@@ -29,7 +29,7 @@
       "taskDefs": "任务定义",
       "apis": "API接口",
       "workspace": "工作区",
-      "etl": "ETL",
+      "etl": "数据处理",
       "factors": "因子分析",
       "train": "模型训练",
       "predict": "离线预测",
@@ -421,7 +421,7 @@
         "lead": "收益曲线、绩效指标与每日持仓检查"
       },
       "etl": {
-        "title": "ETL 数据集",
+        "title": "数据处理",
         "lead": "查看数据规模、列信息与产物"
       },
       "train": {
@@ -706,7 +706,7 @@
     "kinds": {
       "base": "基础任务",
       "api": "API",
-      "etl": "ETL",
+      "etl": "数据处理",
       "analysis": "因子分析",
       "train": "模型训练",
       "predict": "离线预测",
@@ -1064,7 +1064,7 @@
     "dataResults": "数据结果",
     "noInterfaces": "暂无接口记录",
     "runHistory": "日常运行",
-    "comparison": "比对",
+    "comparison": "预测比对",
     "unavailable": "页面不存在",
     "search": "搜索任务",
     "empty": "没有匹配的条目",
@@ -1093,7 +1093,7 @@
     "coveragePolicy": "100% 覆盖立即提交；信号时间后 {{seconds}} 秒起按 {{threshold}}% 阈值放行，低于阈值继续补采至截止。",
     "data": "运行准备",
     "baseCollection": "基础采集",
-    "sharedEtl": "公共 ETL",
+    "sharedEtl": "公共数据处理",
     "scopeLabel": "数据与信号时间",
     "stageLabel": "处理环节",
     "states": {

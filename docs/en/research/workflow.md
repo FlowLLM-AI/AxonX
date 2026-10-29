@@ -84,11 +84,11 @@ The default training target `label_return_rank` is a cross-sectional rank label.
 
 ## Viewing results in Studio
 
-See [interpreting results](results.md) for complete Studio 0.3.0 screenshots by stage. ETL, factor, training, and prediction views show dates, metrics, and artifacts. Screenshots use Playground's synthetic data to illustrate the UI; they are not results of this page's commands.
+See [interpreting results](results.md) for complete Studio 0.3.0 screenshots by stage. Data processing, Factor analysis, Model training, and Offline prediction views show dates, metrics, and artifacts. Screenshots use Playground's synthetic data to illustrate the UI; they are not results of this page's commands.
 
-Open ETL, factor, training, prediction, and backtest pages in order and select the corresponding tasks. Research lists read `metadata.json` from successful tasks. Use the task page for status and logs of running tasks.
+Open Data processing, Factor analysis, Model training, Offline prediction, and Offline backtest in order and select the corresponding tasks. Research lists read `metadata.json` from successful tasks. Use the task page for status and logs of running tasks.
 
-The recommended reading order is ETL dates, rows, and feature columns; training validation details; prediction coverage; then backtest protocols, costs, and returns. See [strategy comparison](strategy-comparison.md) for comparisons between strategies.
+The recommended reading order is data processing dates, rows, and feature columns; training validation details; prediction coverage; then backtest protocols, costs, and returns. See [strategy comparison](strategy-comparison.md) for comparisons between strategies.
 
 ## From executing a chain to designing an experiment
 

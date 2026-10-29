@@ -12,7 +12,9 @@ Install axonx[studio] or build/install axonx_studio from source, then start `axo
 
 ## Research and development entry points
 
-Current navigation groups are System management, Daily operations, Research, and Development tools. System management contains All tasks, Machine resources, Environment, and Workspace. Development tools contains Task definitions and API interfaces. Research contains Agent, research results, and Strategy comparison; Daily operations groups online, comparison, and data-update reports.
+Current navigation groups are System management, Daily operations, Research, and Development tools. System management contains All tasks, Machine resources, Environment, and Workspace. Development tools contains Task definitions and API interfaces. Research contains Agent, Data processing, Factor analysis, Model training, Offline prediction, Offline backtest, and Strategy comparison. Daily operations contains Online prediction, Prediction comparison, and Data updates.
+
+**Data processing** shows datasets and artifacts produced by ETL Tasks for reuse in factor analysis, training, and prediction. **Prediction comparison** checks online and offline model inputs, prediction scores, and candidate ranks at the same signal time. **Strategy comparison** compares returns, risk, and holdings from two offline backtests.
 
 ## Execute a Task and inspect details
 
@@ -36,7 +38,7 @@ Workspace is under System, with route `#local/workspace/files`. Browse directori
 
 ## View research results
 
-ETL, factor, training, prediction and backtest pages read metadata and published artifacts. Strategy comparison requires compatible dates, protocols and universes. Online/comparison/data operation pages select report_kind-based Task reports. Missing/omitted replica files or incomplete market data need explicit interpretation; Task success alone does not prove complete research evaluation.
+Data processing, Factor analysis, Model training, Offline prediction, and Offline backtest pages read metadata and published artifacts. Strategy comparison requires compatible dates, protocols and universes. Online prediction, Prediction comparison, and Data updates pages select Task reports by `report_kind`. Missing/omitted replica files or incomplete market data need explicit interpretation; Task success alone does not prove complete research evaluation.
 
 Research screenshots use Playground's synthetic Tasks and artifacts in the current interface. They illustrate the controls and fields; their metrics are fictional. See [Research results](../research/results.md) and [Backtests](../research/backtest.md).
 

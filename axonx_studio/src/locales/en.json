@@ -29,7 +29,7 @@
       "taskDefs": "Task definitions",
       "apis": "API interfaces",
       "workspace": "Workspace",
-      "etl": "ETL",
+      "etl": "Data processing",
       "factors": "Factor analysis",
       "train": "Model training",
       "predict": "Offline prediction",
@@ -222,7 +222,7 @@
   "types": {
     "base": "Base",
     "api": "API download",
-    "etl": "ETL",
+    "etl": "Data processing",
     "analysis": "Analysis",
     "train": "Training",
     "predict": "Prediction",
@@ -346,7 +346,7 @@
     "features": {
       "plugin": {
         "title": "Extensible research plugins",
-        "detail": "Extend ETL, factor analysis, training, prediction, and backtesting"
+        "detail": "Extend data processing, factor analysis, training, prediction, and backtesting"
       },
       "job": {
         "title": "Unified tool interfaces",
@@ -421,7 +421,7 @@
         "lead": "Equity curves, performance metrics, and daily holdings"
       },
       "etl": {
-        "title": "ETL datasets",
+        "title": "Data processing",
         "lead": "Inspect dataset size, columns, and artifacts"
       },
       "train": {
@@ -706,7 +706,7 @@
     "kinds": {
       "base": "Base task",
       "api": "API",
-      "etl": "ETL",
+      "etl": "Data processing",
       "analysis": "Factor analysis",
       "train": "Training",
       "predict": "Prediction",
@@ -778,7 +778,7 @@
     "dataCompletion": "Data completion",
     "featureUpdate": "Feature update",
     "offlinePrediction": "Offline prediction",
-    "signalComparison": "Signal comparison",
+    "signalComparison": "Prediction comparison",
     "noStageTask": "No task log is available for this stage",
     "public": "Preparation",
     "scope": "Preparation and models",
@@ -1064,7 +1064,7 @@
     "dataResults": "Data results",
     "noInterfaces": "No interface records",
     "runHistory": "OPERATIONS",
-    "comparison": "Comparison",
+    "comparison": "Prediction comparison",
     "unavailable": "This page does not exist",
     "search": "Search tasks",
     "empty": "No matching entries",
@@ -1093,7 +1093,7 @@
     "coveragePolicy": "Commit immediately at 100% coverage; after {{seconds}} seconds from the signal time, accept {{threshold}}% coverage. Below threshold, retry until the deadline.",
     "data": "Preparation",
     "baseCollection": "Base collection",
-    "sharedEtl": "Shared ETL",
+    "sharedEtl": "Shared data processing",
     "scopeLabel": "Data and signal times",
     "stageLabel": "Processing stages",
     "states": {

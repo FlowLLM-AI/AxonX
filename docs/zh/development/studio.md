@@ -47,6 +47,16 @@ npm run dev
 
 区分页面路由状态与临时 UI 状态。可分享的资源选择适合放在 Hash 中；展开面板、加载进度等留在组件状态。无效 section 会回到首页。
 
+导航和页面标题由 `src/locales/{zh,en}.json` 提供，技术标识用于匹配路由、任务和报告：
+
+| 中文入口 | 英文入口              | 路由 section / view     | 数据来源                                   |
+| -------- | --------------------- | ----------------------- | ------------------------------------------ |
+| 数据处理 | Data processing       | `etl/runs`              | `task_type: etl` 的研究产物                |
+| 预测比对 | Prediction comparison | `operations/comparison` | `report_kind: compare_pipeline` 的运行报告 |
+| 策略对比 | Strategy comparison   | `compare/strategies`    | 两份 `task_type: backtest` 的日度产物      |
+
+数据处理的名称同时用于任务类型筛选和上下游依赖图；在线预测中的公共 ETL 环节显示为「公共数据处理」。预测比对导航和页面标题共用 `operations.comparison` 翻译项。
+
 ## 调用后端
 
 统一通过 `shared/api/client.ts` 的 `axonx.invoke` 或现有 feature API 封装调用 Job：
@@ -122,6 +132,6 @@ npm run build:playground
 
 ## 应用运行页面
 
-`features/operations/pages.ts` 按 reportKinds 定义分组：online_pipeline/online、compare_pipeline、data_update。页面读取当前 Task metadata 和报告，不提供调度控制/历史记录。新增报告应由生产 Task 声明 report_kind，并实现有类型的报告和产物契约；生命周期继续使用共享执行/详情视图。
+`features/operations/pages.ts` 按 `reportKinds` 定义分组：在线预测对应 `online_pipeline`/`online`，预测比对对应 `compare_pipeline`，数据更新对应 `data_update`。页面读取当前 Task metadata 和报告，不提供调度控制/历史记录。新增报告应由生产 Task 声明 `report_kind`，并实现有类型的报告和产物契约；生命周期继续使用共享执行/详情视图。
 
 Task 执行由 features/tasks/execution.ts、TaskExecution.tsx 管理，连接所有权独立于页面选择，调用 cli argv、核验进程结果、观察 metadata 并比较 started_at。应与 Schema 表单编辑和所选导航路由分离。

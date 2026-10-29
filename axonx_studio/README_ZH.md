@@ -22,6 +22,8 @@ axonx app --service.host 127.0.0.1
 
 进入**任务定义 → demo**，填写 `x = 2`、`y = 3` 后运行，在任务详情检查结果和日志。页面切换保留命令连接，刷新或关闭浏览器可能停止执行。独立实验将 Task Name 留空；固定名称重跑会替换已结束记录。
 
+在**研究分析 → 数据处理**查看 ETL 任务生成的数据集，在**日常运行 → 预测比对**核对在线与离线预测，在**研究分析 → 策略对比**比较离线回测结果。
+
 导航和故障处理见 [Studio 使用](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/getting-started/studio.md)，插件/数据见[研究准备](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)，模型凭据和代码工具见 [Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)。普通 Task 不需要模型凭据。
 
 ## 静态托管

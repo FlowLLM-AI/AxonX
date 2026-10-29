@@ -22,6 +22,8 @@ Open <http://127.0.0.1:1024/> and enter the token in **Settings → Local servic
 
 Select **Task definitions → demo**, enter `x = 2`, `y = 3`, and run. Inspect the result and logs in Task details. Navigation preserves the command connection; reloading or closing the browser can stop execution. Leave Task Name empty for independent runs; a fixed-name rerun replaces the finished run.
 
+Open **Research → Data processing** for datasets produced by ETL Tasks, **Daily operations → Prediction comparison** to check online and offline predictions, and **Research → Strategy comparison** to compare offline backtest results.
+
 Follow [Using Studio](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/getting-started/studio.md) for navigation and failures, [research setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md) for plugins/data, and [Agent configuration](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md) for model credentials and code tools. Ordinary Tasks need no model credentials.
 
 ## Static hosting
