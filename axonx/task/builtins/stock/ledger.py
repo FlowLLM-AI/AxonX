@@ -19,7 +19,7 @@ class PortfolioPolicy(Protocol):
 
 
 class PortfolioLedger:
-    """Replay independent portfolios into one collection of execution records."""
+    """Replay portfolios with original position records grouped by current security."""
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class PortfolioLedger:
         self.incomplete = False
         self.n = 0
         self.cash = self.previous_equity = 1.0
-        self.book: dict[str, dict[str, Any]] = {}
+        self.book: dict[str, list[dict[str, Any]]] = {}
 
     def replay(self, n, dates, market_days, signals_by_date, ranks_by_date, signal_dates) -> None:
         """Reset portfolio and event state while retaining records from earlier runs."""
@@ -77,28 +77,36 @@ class PortfolioLedger:
         pending_cash = self.events.pending_cash if self.events is not None else 0.0
         if not math.isfinite(pending_cash) or pending_cash < 0:
             raise ValueError("Invalid pending cash")
+        event_fees = self.events.transaction_cost if self.events is not None else 0.0
+        event_notional = self.events.executed_notional if self.events is not None else 0.0
+        if any(not math.isfinite(value) or value < 0 for value in (event_fees, event_notional)):
+            raise ValueError("Invalid event transaction costs or notional")
 
         limit = self.n if initial else self._replacement_limit()
         sell_fees, sold, delayed_exits = self._sell(date, quotes, ranks, limit, signal_date)
         allocation = self._equity(pending_cash) / self.n
         buy_fees, bought, unfilled = self._buy(date, quotes, signals, limit, allocation)
-        fees = sell_fees + buy_fees
+        fees = sell_fees + buy_fees + event_fees
         equity = self._equity(pending_cash)
         if not math.isfinite(self.cash) or not math.isfinite(equity) or self.cash < -1e-10 or equity <= 0:
             raise ValueError("Invalid portfolio cash or equity")
-        for code, position in self.book.items():
-            due = position["planned_exit_date"]
-            value = position["units"] * position["mark"]
+        delayed_open = 0
+        for code, positions in self.book.items():
+            due = min((p["planned_exit_date"] for p in positions if p["planned_exit_date"] is not None), default=None)
+            value = sum(p["units"] * p["mark"] for p in positions)
+            delayed_open += due is not None and date >= due
             self.positions.append(
                 {
                     "top_n": self.n,
                     "trade_date": date,
                     "ts_code": code,
-                    "entry_date": position["entry_date"],
+                    "entry_date": min(p["entry_date"] for p in positions),
                     "planned_exit_date": due,
                     "market_value": value,
                     "weight": value / equity,
-                    "units": position["units"],
+                    "units": (
+                        sum(p["units"] for p in positions) if all(p["tradable_at"] is None for p in positions) else None
+                    ),
                     "exit_delayed": due is not None and date >= due,
                 }
             )
@@ -110,14 +118,12 @@ class PortfolioLedger:
                 "net_return": equity / self.previous_equity - 1,
                 "gross_return": (equity + fees) / self.previous_equity - 1,
                 "transaction_cost": fees / self.previous_equity,
-                "turnover": (bought + sold) / self.previous_equity,
+                "turnover": (bought + sold + event_notional) / self.previous_equity,
                 "cash": self.cash,
                 "cash_weight": self.cash / equity,
                 "count": len(self.book),
                 "open_positions": len(self.book),
-                "delayed_open_positions": sum(
-                    p["planned_exit_date"] is not None and date >= p["planned_exit_date"] for p in self.book.values()
-                ),
+                "delayed_open_positions": delayed_open,
                 "unsettled_positions": len(self.book),
                 "delayed_exits": delayed_exits,
                 "unfilled_entries": unfilled,
@@ -136,55 +142,65 @@ class PortfolioLedger:
             else list(self.book)
         )
         for code in held:
-            position = self.book[code]
             quote = quotes.get(code)
             status = self._quote_status(quote)
-            if status == "quoted":
-                position["mark"] = quote["price"] * quote["adjustment_factor"]
-                if self.events is not None:
+            remaining, reason, notional = [], "", 0.0
+            for position in self.book[code]:
+                locked = position["tradable_at"] is not None
+                if status == "quoted" and not locked:
+                    position["mark"] = quote["price"] * quote["adjustment_factor"]
                     position["last_factor"] = quote["adjustment_factor"]
-            elif status == "missing_data":
-                self.incomplete = True
-            due = position["planned_exit_date"]
-            eligible = (
-                signal_date
-                and self.policy.should_exit(
-                    rank=ranks.get(code),
-                    age=self.date_indices[date] - self.date_indices[position["entry_date"]],
-                    n=self.n,
+                elif status == "missing_data" and not locked:
+                    self.incomplete = True
+                due = position["planned_exit_date"]
+                eligible = (
+                    signal_date
+                    and self.policy.should_exit(
+                        rank=ranks.get(code),
+                        age=self.date_indices[date] - self.date_indices[position["entry_date"]],
+                        n=self.n,
+                    )
+                    if self.policy is not None
+                    else due is not None and date >= due
                 )
-                if self.policy is not None
-                else due is not None and date >= due
-            )
-            if not eligible or count >= limit:
-                continue
-            if status != "quoted" or not quote["can_sell"]:
-                self._order(date, code, "sell", reason=status if status != "quoted" else "not_sellable")
-                continue
-            notional = position["units"] * position["mark"]
-            fee = notional * self.config.sell_cost_rate
-            self.cash += notional - fee
-            sold += notional
-            fees += fee
-            count += 1
-            delayed += due is not None and date > due
-            self._order(date, code, "sell", notional=notional, fee=fee)
-            self.trades.append(
-                {
-                    "top_n": self.n,
-                    "ts_code": code,
-                    "entry_date": position["entry_date"],
-                    "exit_date": date,
-                    "planned_exit_date": due,
-                    "entry_price": position["entry_price"],
-                    "exit_price": quote["price"],
-                    "principal": position["principal"],
-                    "realized_return": notional / position["principal"] - 1,
-                    "fee": fee + position["entry_fee"],
-                    "exit_delayed": due is not None and date > due,
-                }
-            )
-            del self.book[code]
+                if not eligible or count >= limit:
+                    remaining.append(position)
+                    continue
+                if locked or status != "quoted" or not quote["can_sell"]:
+                    reason = "suspended" if locked else status if status != "quoted" else "not_sellable"
+                    remaining.append(position)
+                    continue
+                value = position["units"] * position["mark"]
+                notional += value
+                delayed += due is not None and date > due
+                self.trades.append(
+                    {
+                        "top_n": self.n,
+                        "ts_code": code,
+                        "entry_date": position["entry_date"],
+                        "exit_date": date,
+                        "planned_exit_date": due,
+                        "entry_price": position["entry_price"],
+                        "exit_price": quote["price"],
+                        "principal": position["principal"],
+                        "realized_return": value / position["principal"] - 1,
+                        "fee": value * self.config.sell_cost_rate + position["entry_fee"],
+                        "exit_delayed": due is not None and date > due,
+                    }
+                )
+            if notional:
+                fee = notional * self.config.sell_cost_rate
+                self.cash += notional - fee
+                sold += notional
+                fees += fee
+                count += 1
+                self._order(date, code, "sell", notional=notional, fee=fee)
+            elif reason:
+                self._order(date, code, "sell", reason=reason)
+            if remaining:
+                self.book[code] = remaining
+            else:
+                del self.book[code]
         return fees, sold, delayed
 
     def _buy(self, date, quotes, signals, limit, allocation) -> tuple[float, float, int]:
@@ -219,21 +235,22 @@ class PortfolioLedger:
             due = self.calendar[index] if index < len(self.calendar) else None
             price = quote["price"] * quote["adjustment_factor"]
             fee = principal * self.config.buy_cost_rate
-            self.book[code] = {
-                "units": principal / price,
-                "mark": price,
-                "principal": principal,
-                "entry_price": quote["price"],
-                "entry_fee": fee,
-                "entry_date": date,
-                "planned_exit_date": due,
-            }
-            if self.events is not None:
-                self.book[code].update(
-                    entry_shares=principal / quote["price"],
-                    entry_factor=quote["adjustment_factor"],
-                    last_factor=quote["adjustment_factor"],
-                )
+            self.book[code] = [
+                {
+                    "units": principal / price,
+                    "mark": price,
+                    "principal": principal,
+                    "entry_price": quote["price"],
+                    "entry_fee": fee,
+                    "entry_date": date,
+                    "planned_exit_date": due,
+                    "security_entry_date": date,
+                    "entry_shares": principal / quote["price"],
+                    "entry_factor": quote["adjustment_factor"],
+                    "last_factor": quote["adjustment_factor"],
+                    "tradable_at": None,
+                }
+            ]
             self.cash -= principal + fee
             fees += fee
             bought += principal
@@ -256,7 +273,11 @@ class PortfolioLedger:
         )
 
     def _equity(self, pending_cash: float) -> float:
-        return self.cash + pending_cash + sum(p["units"] * p["mark"] for p in self.book.values())
+        return (
+            self.cash
+            + pending_cash
+            + sum(p["units"] * p["mark"] for positions in self.book.values() for p in positions)
+        )
 
     def _quote_status(self, quote) -> str:
         status = quote["market_status"] if quote else "missing_data"

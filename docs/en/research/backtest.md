@@ -68,14 +68,16 @@ A blocked exit retains both its position and its capital. Confirmed suspension c
 The same-time quote is an execution proxy. It does not guarantee that a signal computed after a bar or closing auction can fill at that price, nor model queues or partial fills. Inspect the stored execution protocol before interpreting results as a tradable strategy.
 
 ```text
-Equity = cash + marked position value
+Equity = cash + pending event receivables + marked position value
 Daily net return = equity / previous equity - 1
-Daily cost = executed buy and sell costs / previous equity
+Daily cost = (executed buy/sell costs + event costs) / previous equity
 Daily gross return = daily net return + daily cost
-Turnover = executed buy and sell notional / previous equity
+Turnover = (executed buy/sell notional + cash-event notional) / previous equity
 ```
 
 Adjusted-price units preserve value across corporate-action price changes. Marked gains are not booked again on exit. Costs apply to the initial purchase as well as later trades.
+
+Plugins can supply an `events` handler that resets per Top N, processes the book before trading and exposes `pending_cash`, `transaction_cost` and `executed_notional` for each step. Net receivables count toward NAV but cannot fund buys until released. Event costs enter daily cost and gross return; event notional enters turnover. The book maps each security to a list of original position records, preserving individual costs, entry dates and exit dates when conversions combine holdings. A non-null `tradable_at` locks a position until the handler releases it. Adjusted `units` remains null while any converted position awaits its first tradable quote, avoiding sums of physical shares and adjusted units. Position rows aggregate by security; completed trades retain the original position dates and costs. Event terms and audits belong to the plugin.
 
 ## Outputs
 

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="824" viewBox="0 0 1280 824" role="img" aria-labelledby="title desc">
   <title id="title">Stock backtests: targets, actual fills and daily equity</title>
-  <desc id="desc">Scores and signal-time eligibility determine targets without future labels. Independent market/calendar data determines valuation and tradeability; optional labels support diagnostics. The ledger marks existing positions, attempts due sells and funds targets from available cash. Blocked exits retain capital. Published signals, orders, positions, trades, daily and summary artifacts distinguish target intent from actual exposure.</desc>
+  <desc id="desc">Scores and signal-time eligibility determine targets without future labels. Independent market/calendar data determines valuation and tradeability; optional labels support diagnostics. The ledger processes plugin events, marks unlocked positions, attempts due sells and funds targets from available cash. Equity includes net event receivables, which cannot fund buys before settlement. Combined positions retain individual costs and exit dates. Blocked exits retain capital. Published signals, orders, positions, trades, daily and summary artifacts distinguish target intent from actual exposure.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
   <rect x="8" y="8" width="1264" height="808" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
@@ -26,8 +26,8 @@
     <rect x="48" y="394" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="72" y="428" font-size="22" font-weight="700">Mark positions</text>
     <text x="72" y="460" font-size="17">Value existing holdings each day</text>
-    <text x="72" y="486" font-size="17">Equity = cash + marked positions</text>
-    <text x="72" y="512" font-size="17">Retain reliable marks in suspensions.</text>
+    <text x="72" y="486" font-size="17">Equity includes net receivables</text>
+    <text x="72" y="512" font-size="17">Locked positions retain last marks.</text>
     <rect x="456" y="394" width="368" height="146" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="480" y="428" font-size="22" font-weight="700">Attempt due sells</text>
     <text x="480" y="460" font-size="17">Apply sell flags and executed fees</text>

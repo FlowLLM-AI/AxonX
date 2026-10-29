@@ -68,14 +68,16 @@ axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
 同一时点价格是成交代理，不保证在完整 bar 或收盘行情形成后计算出的信号能够按该价格成交，也不模拟排队和部分成交。应先阅读产物中的执行协议，再解释策略可交易性。
 
 ```text
-Equity = cash + marked position value
+Equity = cash + pending event receivables + marked position value
 Daily net return = equity / previous equity - 1
-Daily cost = executed buy and sell costs / previous equity
+Daily cost = (executed buy/sell costs + event costs) / previous equity
 Daily gross return = daily net return + daily cost
-Turnover = executed buy and sell notional / previous equity
+Turnover = (executed buy/sell notional + cash-event notional) / previous equity
 ```
 
 持仓使用复权价格单位处理公司行为引起的价格变化，退出时不重复确认已经体现在估值中的收益。初始买入和后续实际成交均收费。
+
+插件可以提供 `events` 处理器：每个 Top N 重置，在交易前处理持仓，提供当步的 `pending_cash`、`transaction_cost`、`executed_notional`。净应收款计入净值，到释放后才可买入；事件费用计入日度费用和毛收益，事件金额计入换手。账本按证券保存原始持仓记录列表，转换合并时保留每笔成本、买入日期和退出日期；非空 `tradable_at` 表示锁定，由处理器在可交易时解除。换入持仓尚未取得首个可交易报价时，复权 `units` 保留空值，避免将实物股数与复权单位相加。持仓产物按证券汇总，已完成交易保留原始记录的日期和成本。具体条款及审计由插件负责。
 
 ## 输出
 

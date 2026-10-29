@@ -70,7 +70,7 @@ def test_event_receivables_and_books_are_reset_for_every_portfolio():
 
         def __init__(self):
             self.resets = []
-            self.pending_cash = 0.0
+            self.pending_cash = self.transaction_cost = self.executed_notional = 0.0
 
         def reset(self, n):
             self.resets.append(n)
@@ -82,7 +82,7 @@ def test_event_receivables_and_books_are_reset_for_every_portfolio():
         def apply(self, date, slot, book, cash, _quotes):
             assert slot == "1500"
             if date == "20240102":
-                position = book.pop("A")
+                (position,) = book.pop("A")
                 assert position["entry_factor"] == position["last_factor"] == 1
                 self.pending_cash = position["entry_shares"]
             if date == "20240103":
@@ -109,6 +109,49 @@ def test_event_receivables_and_books_are_reset_for_every_portfolio():
         assert daily[f"top{n}_open_positions"].to_list() == [1, 0, 0, 0]
     assert result.frames["trades"].is_empty()
     assert result.frames["trades"].schema["planned_exit_date"] == pl.String
+
+
+def test_event_costs_and_notional_are_counted_once_at_recognition():
+    class Events:
+        successors = set()
+
+        def __init__(self):
+            self.pending_cash = self.transaction_cost = self.executed_notional = 0.0
+
+        def reset(self, _n):
+            self.pending_cash = self.transaction_cost = self.executed_notional = 0.0
+
+        def blocked(self, _code):
+            return False
+
+        def apply(self, date, _slot, book, cash, _quotes):
+            self.transaction_cost = self.executed_notional = 0.0
+            if date == "20240102":
+                book.pop("A")
+                self.pending_cash = 0.99
+                self.transaction_cost = 0.01
+                self.executed_notional = 1.0
+            if date == "20240103":
+                cash += self.pending_cash
+                self.pending_cash = 0.0
+            return cash
+
+    signals, market, calendar = market_inputs()
+    result = run_backtest(
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,), holding_days=10, buy_cost_rate=0, sell_cost_rate=0),
+        as_of_date="20240104",
+        events=Events(),
+    )
+    daily = result.frames["daily"]
+    assert daily["top1_net_value"].to_list() == pytest.approx([1, 0.99, 0.99, 0.99])
+    assert daily["top1_pending_cash"].to_list() == pytest.approx([0, 0.99, 0, 0])
+    assert daily["top1_transaction_cost"].to_list() == pytest.approx([0, 0.01, 0, 0])
+    assert daily["top1_gross_return"].to_list() == pytest.approx([0, 0, 0, 0])
+    assert daily["top1_turnover"].to_list() == pytest.approx([1, 1, 0, 0])
 
 
 def test_backtest_task_publishes_reconciled_ledger_artifacts(tmp_path):
