@@ -100,6 +100,6 @@ Agent 的默认 Job 工具列表为空，可选查询名单保留为注释示例
 4. Studio 转发失败时分别检查本机和目标凭据。
 5. 检查服务是否在更新 token 后重启。
 
-[远程机器](remote-machines.md) · [API 总览](../api/overview.md) · [Agent 配置](../agent/configuration.md) · [HTTP 代理](http-proxy.md)
+[远程机器](deployment.md#远程接入) · [API 总览](../api/overview.md) · [Agent 配置](../agent/configuration.md) · [HTTP 代理](http-proxy.md)
 
 源码：[鉴权与公开筛选](../../../axonx/app/components/service/http/service.py)、[Job 配置](../../../axonx/app/config/models.py)、[CLI token 加载](../../../axonx/cli/main.py)。

@@ -9,7 +9,7 @@ export const stages = [
   {
     id: "question",
     number: "01",
-    page: "agent/research-prompt",
+    page: "agent/overview",
     color: "cyan",
   },
   { id: "development", number: "02", page: "dev_guide", color: "violet" },
@@ -50,16 +50,16 @@ export const paths = [
 ] as const;
 
 export const journeys = [
-  { id: "agent-external", label: "AGENT", page: "agent/external" },
+  { id: "agent-overview", label: "AGENT", page: "agent/overview" },
   {
     id: "research-experiments",
     label: "EXPERIMENT",
     page: "research/experiments",
   },
   {
-    id: "guides-remote-machines",
+    id: "guides-deployment",
     label: "OPERATIONS",
-    page: "guides/remote-machines",
+    page: "guides/deployment",
   },
   { id: "dev_guide", label: "DEVELOP", page: "dev_guide" },
 ] as const;
@@ -102,14 +102,14 @@ export const screens = [
 export const capabilities = [
   { id: "plugins-management", label: "PLUGIN", page: "plugins/management" },
   {
-    id: "concepts-task-lifecycle",
+    id: "concepts-jobs-and-tasks",
     label: "TASK",
-    page: "concepts/task-lifecycle",
+    page: "concepts/jobs-and-tasks",
   },
   {
-    id: "guides-remote-machines",
+    id: "guides-deployment",
     label: "MACHINE",
-    page: "guides/remote-machines",
+    page: "guides/deployment",
   },
   { id: "api-overview", label: "JOB API", page: "api/overview" },
 ] as const;

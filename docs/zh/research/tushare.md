@@ -119,6 +119,6 @@ axonx exec --task download_tushare_task \
 
 ## 相关文档与实现
 
-- [工作区浏览](../guides/workspace-files.md)、[量化研究流程](workflow.md)
+- [工作区浏览](../concepts/workspace.md#浏览目录)、[量化研究流程](workflow.md)
 - [`下载 Task`](../../../axonx/task/builtins/tushare/task.py)
 - [`客户端与重试`](../../../axonx/task/builtins/tushare/client.py)

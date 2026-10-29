@@ -22,7 +22,7 @@
       }
     },
     "journeys": {
-      "agent-external": {
+      "agent-overview": {
         "title": "借助 Agent 改进研究",
         "description": "开发或优化研究插件，执行 Task，检查结果并持续迭代。"
       },
@@ -30,7 +30,7 @@
         "title": "设计可检查的实验",
         "description": "固定控制变量，筛选方案，再做独立确认。"
       },
-      "guides-remote-machines": {
+      "guides-deployment": {
         "title": "管理执行环境",
         "description": "连接远程机器，维护任务、文件和服务。"
       },
@@ -62,11 +62,11 @@
         "title": "研究能力，独立扩展",
         "description": "将算法和任务打包为插件，保留清晰的输入输出契约。"
       },
-      "concepts-task-lifecycle": {
+      "concepts-jobs-and-tasks": {
         "title": "执行与证据，清晰可查",
         "description": "查看当前 Task 的状态、参数与产物，并追踪本次执行的日志。"
       },
-      "guides-remote-machines": {
+      "guides-deployment": {
         "title": "多台机器，统一入口",
         "description": "通过统一接口查看远程任务、机器资源与研究结果。"
       },

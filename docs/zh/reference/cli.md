@@ -88,4 +88,4 @@ Job 成功返回 0，失败返回 1。CLI 输入错误返回 2，其他执行错
 
 ## 服务自更新
 
-按服务配置调用 `update_from_git`、`update_from_pip`、`restart_service`、`get_update_status`。操作要求认证和 Daemon 支持，不接受 `force` 参数。详见[服务自更新](../guides/self-update.md)。
+按服务配置调用 `update_from_git`、`update_from_pip`、`restart_service`、`get_update_status`。操作要求认证和 Daemon 支持，不接受 `force` 参数。详见[服务自更新](../guides/operations.md#服务更新与重启)。

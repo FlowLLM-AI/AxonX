@@ -86,6 +86,6 @@ download_tushare_task 的客户端读取环境变量 `AXONX_TUSHARE_BASE_URL`。
 
 源服务负责固定上游连接，数据 Task 仍负责自己的凭据、参数、重试与 Parquet 写入。详见[Tushare 数据下载](../research/tushare.md)。
 
-[鉴权](authentication.md) · [远程机器](remote-machines.md) · [部署](deployment.md)
+[鉴权](authentication.md) · [远程机器](deployment.md#远程接入) · [部署](deployment.md)
 
 源码：[HTTP proxy](../../../axonx/app/components/proxy/http.py)、[proxy 路由](../../../axonx/app/components/service/http/proxy.py)、[proxy 错误](../../../axonx/app/components/proxy/base.py)。

@@ -2,7 +2,7 @@
 
 检查所选解释器、机器和应用。诊断输出报告凭据是否配置，不返回凭据值。
 
-所有下列 Job 使用 `POST /jobs/NAME` 和 `{"arguments": {...}}` 请求体。流式入口为 `/jobs/NAME/events`，MCP 使用相同 Job 名和业务参数。先调用 `help --job NAME` 获取目标服务实际 Schema。示例中的 Task/会话 ID 必须替换为实际值。
+遵循 [HTTP/MCP 协议](overview.md)，通过 `axonx help --job NAME` 查询 Schema。示例 Task/会话 ID 需替换为实际值。
 
 ## 接口列表
 
@@ -170,6 +170,6 @@
 
 ## 维护结果
 
-更新/重启响应表示接受操作，并返回 update_id。重连后查询 get_update_status，接受不代表完成。服务拥有的手动命令随服务停止，Daemon 定时任务继续。不接受 force 入参。详见[服务自更新](../guides/self-update.md)。
+更新/重启响应表示接受操作，并返回 update_id。重连后查询 get_update_status，接受不代表完成。服务拥有的手动命令随服务停止，Daemon 定时任务继续。不接受 force 入参。详见[服务自更新](../guides/operations.md#服务更新与重启)。
 
 源码：[默认 Job 契约](../../../axonx/app/config/default.yaml) · [Job 协议](overview.md)

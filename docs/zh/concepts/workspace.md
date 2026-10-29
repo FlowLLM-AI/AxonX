@@ -83,16 +83,32 @@ TaskIndex 周期扫描类型目录下的 metadata（默认每 5 秒），为列�
 
 任务列表包含所有有效生命周期记录。Studio 研究页面选择 `state=succeeded` 的记录，metadata 存在不代表实验成功。
 
-## 备份范围
+## 浏览目录
 
-要复现实验，应保留任务目录、原始数据、服务配置、插件版本和模型依赖。Agent 会话、日志和插件源码按实际使用情况单独保留。
+```bash
+axonx list_entries --path ''
+axonx list_task_directories --task-type base
+axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
+```
 
-停止写入后复制整个工作区最容易得到一致文件。普通任务同步复制终态展示快照，也可显式启用父子任务组的实时快照，不能代替原始数据、Agent 会话、日志与软件环境的完整备份。
+路径相对于所选服务工作区。list_entries 按 offset 分页并限制列表大小。list_task_directories 选择类型目录中包含 metadata.json 的目录，不限制生命周期状态。Task ID 包含 #，shell 中应加引号。
 
-固定名称重跑会替换旧目录；删除上游目录会让下游血缘出现 missing 节点，也可能使重跑下游无法读取原始产物。
+## 预览记录与产物
 
-## 相关文档
+使用当前 metadata.output_params.artifacts 的路径，在 Task 目录内解析。preview_file 支持文本、Markdown、JSON/YAML、CSV、JSONL、Parquet，各格式响应字段不同。检查 parse_error、截断、row_count、has_more，不假设所有文件返回相同形态。
 
-[工作区浏览](../guides/workspace-files.md) · [Task 契约](../reference/task-contracts.md) · [研究产物](../reference/research-artifacts.md) · [备份恢复](../guides/operations.md)
+## 格式与大小限制
 
-源码：[工作区布局](../../../axonx/task/storage/workspace.py)、[元数据](../../../axonx/task/storage/workspace.py)、[产物路径](../../../axonx/task/storage/artifacts.py)。
+`max_bytes` 控制文本、Markdown、JSON 和 YAML 预览（最多 32 MiB）；`offset` 和 `limit` 控制行格式分页，每页最多 5000 行。JSONL 有独立的 512 KiB 页预算，不受 `max_bytes` 控制。CLI 默认 20 行/8192 字节。JSONL 保留错误/未完整行的原始 content 和 parse_error，正常行包含 data。有限预览不是完整产物，也不能代替研究质量验收。
+
+## 清理文件和目录
+
+delete_entries 接受 JSON paths 数组。这是通用文件能力，不保护活动 Task 进程。删除当前任务目录前停止写入者，检查源身份，并与执行串行协调。删除也移除 persistent/，不会停止进程或重建下游输出。
+
+## 上传与后续消费
+
+POST /upload 或 HttpClient.copy_file 在 tmp 暂存单文件。StagedFile 包含 path、size、绝对 location。目标机插件安装使用 location，同步和清理使用相对 path。上传不安装文件，插件安装不自动删除暂存文件。应在 finally 清理，详见[上传 API](../api/workspace.md)。
+
+一致性备份见[运维与恢复](../guides/operations.md#备份与恢复)；展示副本会省略数据，不能代替备份。
+
+[Task 契约](../reference/task-contracts.md) · [研究产物](../reference/research-artifacts.md) · [工作区 API](../api/workspace.md)

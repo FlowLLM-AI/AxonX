@@ -6,7 +6,7 @@
 
 | 目标                  | 从这里开始                                                               | 完成结果                                     |
 | --------------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
-| 让 Agent 实现研究目标 | [Skill 与研究 Prompt](../agent/research-prompt.md)                       | 明确假设、基线、控制条件与工具               |
+| 让 Agent 实现研究目标 | [Skill 与研究 Prompt](../agent/overview.md#研究-prompt)                  | 明确假设、基线、控制条件与工具               |
 | 运行 Alpha158 基线    | [Tushare 数据](tushare.md) → [Alpha158 研究流程](workflow.md)            | 成功的 ETL → Train → Predict → Backtest 记录 |
 | 开发或优化插件        | [开发与运行指南](../dev_guide.md) → [插件管理](../plugins/management.md) | 实现、注册、安装并发现 Task                  |
 | 检查执行产物          | [结果解读](results.md) → [回测口径](backtest.md)                         | 检查特征、模型、预测与组合账本               |

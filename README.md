@@ -189,7 +189,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 Replace the example address. `--target` uses `AXONX_TARGET_TOKEN`; default local calls use `AXONX_SERVICE_TOKEN`. Remote paths belong to the target. Deploy local plugins by **build → upload → install `location` → clean `path` → restart/verify**; see [plugin management](docs/en/plugins/management.md).
 
-Studio uses backend-configured `targets`; `AXONX_TARGET` populates the bundled `remote` config and does not select a CLI destination by itself. See [remote machines](docs/en/guides/remote-machines.md). Service restarts stop service-owned manual commands and preserve daemon-owned scheduled Tasks; schedules accept local `axonx exec --task NAME` commands. See [service updates](docs/en/guides/self-update.md).
+Studio uses backend-configured `targets`; `AXONX_TARGET` populates the bundled `remote` config and does not select a CLI destination by itself. See [remote machines](docs/en/guides/deployment.md#remote-connections). Service restarts stop service-owned manual commands and preserve daemon-owned scheduled Tasks; schedules accept local `axonx exec --task NAME` commands. See [service updates](docs/en/guides/operations.md#service-updates-and-restart).
 
 <a id="axonx-documentation"></a>
 
@@ -198,7 +198,7 @@ Studio uses backend-configured `targets`; `AXONX_TARGET` populates the bundled `
 | Goal                    | Guide                                                                                                                                    |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Run research            | [Quickstart](docs/en/getting-started/quickstart.md) · [Research workflow](docs/en/research/workflow.md)                                  |
-| Use an Agent            | [External Agents](docs/en/agent/external.md) · [Built-in Agent](docs/en/agent/configuration.md)                                          |
+| Use an Agent            | [External Agents](docs/en/agent/overview.md) · [Built-in Agent](docs/en/agent/configuration.md)                                          |
 | Develop plugins         | [Development guide](docs/en/dev_guide.md) · [Artifact contracts](docs/en/reference/research-artifacts.md)                                |
 | Evaluate results        | [Experiment design](docs/en/research/experiments.md) · [Strategy comparison](docs/en/research/strategy-comparison.md)                    |
 | Operate or extend AxonX | [CLI](docs/en/reference/cli.md) · [Configuration](docs/en/reference/configuration.md) · [Architecture](docs/en/concepts/architecture.md) |

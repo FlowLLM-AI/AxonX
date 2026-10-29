@@ -86,6 +86,6 @@ The download_tushare_task client reads the environment variable `AXONX_TUSHARE_B
 
 The source service handles the fixed upstream connection; the data Task remains responsible for its own credentials, parameters, retries, and Parquet writes. See [Tushare data download](../research/tushare.md).
 
-[Authentication](authentication.md) · [Remote machines](remote-machines.md) · [Deployment](deployment.md)
+[Authentication](authentication.md) · [Remote machines](deployment.md#remote-connections) · [Deployment](deployment.md)
 
 Source: [HTTP proxy](../../../axonx/app/components/proxy/http.py), [Proxy routes](../../../axonx/app/components/service/http/proxy.py), [Proxy errors](../../../axonx/app/components/proxy/base.py).

@@ -8,9 +8,7 @@ The default deployment is <https://flowllm-ai.github.io/AxonX/>, with `/en/` and
 
 ## Reader journeys
 
-The site has six reader journeys: **Get started, Agent development, Research, Operations, Reference, and Contributing**. A separate Try online button opens Playground. Agent development owns integration, the Skill, and research prompts; Research owns baselines, plugin authoring, evaluation, and cases; Reference owns interfaces, configuration, and extension contracts; Contributing owns the framework and Studio. Each area starts with a goal-based overview and each page has one navigation owner.
-
-[The documentation map](../docs/en/index.md) provides goal-based reading paths. Project and plugin READMEs own overview and algorithm details; guides link to those sources instead of duplicating experiment tables. Each document has one navigation owner and may cross-link to related areas.
+The six navigation areas are **Get started, Agent development, Research, Operations, Reference, and Contributing**; Playground has a separate button. Use the [documentation map](../docs/en/index.md) for reading paths. Each page has one navigation owner; guides link to canonical references, algorithms and case studies.
 
 ## Develop and verify
 
@@ -66,8 +64,6 @@ Generated files, dependencies, lockfiles, and output are excluded from formattin
 
 Theme translations and VitePress interface labels live in `site/theme/locales/en.json` and `zh.json`, with matching keys checked by tests. `i18n.ts` exposes reactive resources and localized links; `language.mjs` owns language selection and route conversion. `home.ts` holds homepage links and image metadata; `lib/readme-home.mjs` renders only the README Latest Updates section into generated homepage data. Follow Studio’s separation of language resources from feature code; Vue/VitePress supplies reactivity without another translation dependency. Keep canonical Markdown and navigation labels in `docs/`.
 
-Site configuration and theme live in `site/`, build modules live in `lib/`, and navigation lives in `docs/.vitepress/navigation.mjs`. Navigation ownership can change independently of source paths. The Alpha158 case is published at `research/alpha158-case`; experiment methods remain at `research/experiments`. Source links use the canonical document routes.
-
 ### Add a page
 
 1. Add matching English and Chinese Markdown paths with a top-level heading.
@@ -75,17 +71,19 @@ Site configuration and theme live in `site/`, build modules live in `lib/`, and 
 3. Link from the relevant goal or guide, and update both document maps when a reading path changes.
 4. Run tests, build, and format checks; preview both languages and affected narrow layouts and themes.
 
-The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, and missing headings before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/qlib-a158`, `plugins/qlib-factor`, and `plugins/qlib-strategy`. `docs/{lang}/index.md` becomes `{lang}/docs`.
+The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, missing headings, and duplicate page titles within a navigation group before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/qlib-a158`, `plugins/qlib-factor`, and `plugins/qlib-strategy`. `docs/{lang}/index.md` becomes `{lang}/docs`.
 
 ### Links and exports
 
-Links resolve from each canonical file. Published sources become site routes; shared images become `public/media/<repository-path>` assets; unpublished repository files link to GitHub. Inline Markdown and HTML links are transformed, while fenced examples remain unchanged. Titles exclude fenced code comments; the logo-led project README receives a generated H1 without source edits. Language selection follows `?lang=en|zh`, then an explicit `/en/` or `/zh/` route, then the shared Studio `language` preference, then the browser language (Chinese or English fallback). The root page renders English before client-side language selection redirects to the localized homepage. Saved preferences never override an explicit language route. Automatic language redirects replace the current history entry; the selection is also applied after in-site navigation and browser back/forward. The top bar toggles English/Chinese and light/dark; language switches preserve the document, query parameters, and anchor, and update an existing `lang` parameter. Language preferences use the shared `language` key. The default theme is light; users select light or dark explicitly.
+Links resolve from canonical files: published Markdown becomes site routes, images become `public/media/<repository-path>`, and other files link to GitHub. Markdown/HTML links are converted outside fenced examples. Titles ignore code comments; the logo-led README receives a generated H1.
+
+Language precedence is `?lang` → explicit `/en/` or `/zh/` → saved Studio `language` → browser language (English fallback). The root initially renders English; automatic redirects replace history entries. Apply this rule after navigation and back/forward. The language toggle preserves the page, query and anchor, and updates an existing `lang` parameter. Theme defaults to light; the appearance toggle selects light/dark.
 
 The source map preserves canonical edit links. Markdown exports use absolute URLs and UTF-8 BOMs. `llms.txt` and `llms-full.txt` follow the same bilingual navigation order as the site. Historical experiment materials not imported into the site remain linked to their repository sources.
 
 ## Deployment
 
-Maintain Agent text in `docs/{en,zh}/dev_guide.md`, then run `python -m scripts.sync_agent_guides` to update package resources and the Skill. After Python model or default Job changes, run `npm --prefix axonx_studio run contracts:generate` in the backend environment; this also refreshes Playground schemas and its displayed version. CI validates these contracts before the static site build. Serving the generated site still requires no Python process.
+Follow the [contribution guide](../CONTRIBUTING.md#update-documentation) to synchronize Agent resources and generated Studio contracts before building.
 
 The [documentation workflow](../.github/workflows/docs.yml) installs dependencies, runs module tests, and builds before uploading `dist/` to GitHub Pages. Pull requests validate without deployment; matching pushes or manual runs on `main` can deploy. Configure GitHub Pages to use GitHub Actions.
 
@@ -139,33 +137,10 @@ The navigation and homepage link to Playground. `npm run build` also builds Stud
 
 ## Content and figure conventions
 
-The English and Chinese documentation use matching file paths and sections. Screenshots and diagrams are shared under `docs/figures/`.
+Keep bilingual prose in matching paths and shared figures in `docs/figures/`, grouped by subject. Document ownership is defined in the [contribution guide](../CONTRIBUTING.md#update-documentation); avoid repeating installation procedures, schemas or experiment tables. A diagram should explain relationships used by the surrounding text. Field references and screenshot-led instructions rarely need another overview.
 
-Root and plugin READMEs are imported at build time; their bilingual sources remain at the repository root and in each plugin directory. Navigation is defined in `docs/.vitepress/navigation.mjs`.
+Maintain the nine shared concept diagrams: product architecture, Agent research loop, service protocol, Task execution, workspace evidence, plugin distribution, Alpha158 workflow, experiment comparison and stock accounting. `benchmark/` owns the two recorded quantitative charts; `studio/` owns screenshots. Keep root README image paths stable. `axonx_studio/public/` owns product branding; `scripts/generate_flowllm_logo.py` produces the organization artwork in `docs/`.
 
-`docs/en/index.md` and `docs/zh/index.md` provide goal-based entry points. Method guides explain experiment design; case studies retain specific settings, metrics, reproduction commands, and Task provenance. The homepage shows questions → Agent development → Harness execution → evidence inspection → comparison and iteration, with Alpha158 as a reference execution example.
+Use SVG for diagrams/charts and PNG for screenshots, sharing assets across languages with translated captions and alt text. Preserve palettes, the hand-drawn font stack (`Comic Sans MS`, `Chalkboard SE`, `Comic Neue`, cursive), SVG `title`/`desc`, rounded frames and dashed cards. Check text bounds, hierarchy and connector placement. Give arrows an explicit meaning; independent alternatives must not appear sequential. Diagrams must match current execution ownership and contracts in [architecture](../docs/en/concepts/architecture.md) and [Task lifecycle](../docs/en/concepts/jobs-and-tasks.md).
 
-The site framework lives in `github-pages/site/`, with shared build modules in `github-pages/lib/` and entry scripts in `github-pages/scripts/`. Keep prose and shared figures in `docs/`, and maintain page ownership in `docs/.vitepress/navigation.mjs`.
-
-Keep assets in `docs/figures/` by the subject they explain. A page should use a diagram that answers its own question; a transport overview cannot substitute for a session, machine, or installation flow.
-
-| Directory          | Responsibility                                                                    |
-| ------------------ | --------------------------------------------------------------------------------- |
-| `getting-started/` | Three-layer product overview: interfaces, services/commands and core capabilities |
-| `concepts/`        | Shared Task lifecycle, execution ownership and workspace evidence                 |
-| `agent/`           | Agent research workflow and independent session/Task identities                   |
-| `research/`        | Research dependencies, portfolio accounting and paired experiment evaluation      |
-| `api/`             | Service access, authentication, Job contracts and transport outcomes              |
-| `plugins/`         | Distribution identities, Task registration and remote wheel deployment            |
-| `benchmark/`       | Historical quantitative results with source settings and metric definitions       |
-| `studio/`          | Actual UI screenshots used as visual evidence                                     |
-
-Maintain nine shared concept diagrams: product architecture, Agent research loop, service protocol, Task execution, workspace evidence, plugin distribution, Alpha158 workflow, experiment comparison, and stock accounting. Embed a diagram only when the surrounding explanation uses those relationships. API field lists, configuration tables, proxy path mappings, and screenshot-led operation guides do not need a repeated overview. Related pages can share a diagram with a caption identifying the relevant part. Brand artwork and the two recorded benchmark charts retain their own data and visual roles.
-
-Use SVG for conceptual diagrams and quantitative charts, and PNG for screenshots. Share diagrams between languages and translate their surrounding explanations and alt text. Keep root README image paths stable. The overview introduces the product; architecture explains implementation; lineage describes recorded references; workflow describes explicit research stages; experiments explains selection and independent confirmation.
-
-Use the shared hand-drawn font stack (`Comic Sans MS`, `Chalkboard SE`, `Comic Neue`, cursive), readable labels, and SVG `title` / `desc` accessibility metadata. Use solid rounded outer frames and dashed cards or guides; retain each diagram's existing palette. Use a clear title/subtitle hierarchy, left-align copy in wide cards, separate footnotes from the diagram, and keep connectors clear of labels. The product overview connects research plugins, CLI Task execution, and shared workspace records through explicit execution and observation paths. Show local CLI execution, service-owned manual commands, and Daemon-owned scheduled commands with their respective process owners; scheduled commands continue across service restarts. Avoid excessive nested badges; short lists can share one card. Arrows must have a defined meaning: execution, data dependency, or reading records. Alternatives and independent configuration sources must not be drawn as sequential stages. Factor analysis branches from ETL. Distinguish command exit status, Task state, and business output. Show target-local data, plugins, and execution processes inside the execution target's boundary. Logs may live in a separate `log_dir`; fixed-name reruns replace current records and retain `persistent/`.
-
-When updating figures, verify SVG rendering and text bounds, matching bilingual references, and the complete site build. Preserve screenshot provenance and benchmark values; conceptual redrawing is not a reason to fabricate UI states or recalculate historical metrics. Label recorded experiment screenshots when current navigation or execution forms may differ. Capture current operation guides from the matching UI, and identify Playground captures as simulated. `axonx_studio/public/` owns current product branding; the root FlowLLM logo files in `docs/` are organization artwork produced by `scripts/generate_flowllm_logo.py`.
-
-Each navigation area opens with a goal-based overview. Update source links when changing routes or anchors. The site imports the logo-led project README with a generated H1, without editing its source.
+Preserve benchmark values and screenshot provenance. Identify historical captures and simulated Playground content; use the current matching UI for operation guides. Verify rendering, bilingual references and the full build whenever figures, routes or anchors change.

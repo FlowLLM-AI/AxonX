@@ -22,7 +22,7 @@ Use your provider's credentials, Claude-compatible URL, and available model name
 
 Run `axonx app`, set the local service token in Studio, and open **Agent**. Restart an existing service after changing `.env`. The default configuration already enables the agent component, so a custom YAML file is optional. The following sections customize tools, guide loading, storage, and SDK options.
 
-External agents use their host's model environment; see [external agents](external.md).
+External agents use their host's model environment; see [external agents](overview.md).
 
 ## Basic configuration
 

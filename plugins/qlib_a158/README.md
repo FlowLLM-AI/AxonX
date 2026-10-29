@@ -217,8 +217,4 @@ This local Python helper uses `TaskExecutor` directly and does not query service
 
 ## Experiments
 
-Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
-
-AxonX owns protocol v1 in `axonx.task.models.artifacts`, with `TaskType` as `task_type` and task-relative artifact records (`path`, `size`, `revision`). Revisions use `size:mtime_ns`; they are file versions, not content checksums. Training publishes `output_params.protocol` and a `models.json` collection. Prediction snapshots model members and pins upstream artifacts through `axonx.task.storage.inputs`. Feature semantics and fingerprints belong to `axonx_qlib_a158.internal.protocol`; training, analysis and prediction validate this contract before consuming data. Prediction publishes `model_identity`, `dates`, `score_columns` and its file revision. Consumers require protocol headers and matching feature semantics.
-
-Backtests publish **all market** (`all`) and **CSI 300** (`hs300`) as independent reports in one Task. Studio provides a universe dropdown, including independent selections in strategy comparison. Positive signal-time `index_weight_hs300` defines CSI 300 membership. The backtest schema uses `default_universe`, `universes` and a shared artifact registry.
+Shared settings, results, reproduction commands and Task provenance are maintained in the [Alpha158 improvement case](../../docs/en/research/alpha158-case.md). Artifact fields and universe reports follow the [shared protocol](../../docs/en/reference/research-artifacts.md).

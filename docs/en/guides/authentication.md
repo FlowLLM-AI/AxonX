@@ -100,6 +100,6 @@ Proxy routes pass upstream request credentials and serve a different purpose fro
 4. For Studio forwarding failures, check local and target credentials separately.
 5. Check whether the service restarted after the token update.
 
-[Remote machines](remote-machines.md) · [API overview](../api/overview.md) · [Agent configuration](../agent/configuration.md) · [HTTP proxy](http-proxy.md)
+[Remote machines](deployment.md#remote-connections) · [API overview](../api/overview.md) · [Agent configuration](../agent/configuration.md) · [HTTP proxy](http-proxy.md)
 
 Source: [Authentication and public filtering](../../../axonx/app/components/service/http/service.py), [Job configuration](../../../axonx/app/config/models.py), [CLI token loading](../../../axonx/cli/main.py).

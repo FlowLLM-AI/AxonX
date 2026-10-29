@@ -22,7 +22,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 运行 `axonx app`，在 Studio 设置本机服务 token，再进入 **Agent**。服务已经运行时，修改 `.env` 后需重启。默认配置已启用 Agent 组件，无需先创建 YAML。后续章节用于调整工具、指南、存储和 SDK 选项。
 
-外部 Agent 由宿主管理模型环境，见[外部 Agent](external.md)。
+外部 Agent 由宿主管理模型环境，见[外部 Agent](overview.md)。
 
 ## 基础配置
 

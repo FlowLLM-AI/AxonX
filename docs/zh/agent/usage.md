@@ -7,7 +7,7 @@ description: 在 Studio 会话中检查研究证据，并按需配置插件开�
 
 AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完成任务排障和研究结果分析。可通过 `job_tools` 开启直接调用的 Job 工具；模型结论仍应以真实工具结果为依据。
 
-本页介绍 Studio 中的内置会话。使用 Codex、Claude Code 等外部宿主时，见[外部 Agent](external.md)；两种路径的前置条件见[接入总览](overview.md)。
+本页介绍 Studio 中的内置会话。Codex、Claude Code 等外部宿主的使用方式及各路径的前置条件见 [Agent 开发](overview.md)。
 
 ## 开始前准备
 
@@ -51,7 +51,7 @@ AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完�
 安装与提交通过可用 CLI 或显式配置的 Job 工具完成，见 [Agent 配置](configuration.md)。
 
 向 Agent 提供研究目标、基线或待优化插件、数据、评估窗口、指标、成本和执行目标。分开完成源码修改、选定服务中的安装与 Task 提交，核对服务 Schema 和上游产物，并等待上游成功后再提交依赖 Task。
-按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [Skill 与研究 Prompt](research-prompt.md)。
+按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [Skill 与研究 Prompt](overview.md#研究-prompt)。
 代码改动与 Task 证据应独立于会话历史保留。
 
 ## 阅读流式消息

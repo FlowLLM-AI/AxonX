@@ -36,14 +36,9 @@ axonx plugin install -e plugins/qlib_a158
 axonx plugin install -e plugins/qlib_factor
 ```
 
-新的 `exec` 进程加载当前 Python 源码；依赖或入口点变化后重新安装，重启常驻服务以刷新 Task 目录、Schema 和已加载依赖。固定版本实验去掉 `-e`。远程部署使用普通安装，在同一目标服务按顺序安装上游插件；先配置 `AXONX_TARGET_TOKEN`，并替换以下示例地址：
+远程安装与服务刷新见[插件管理](../../docs/zh/plugins/management.md)。以下示例需准备插件、数据与 `AXONX_TARGET_TOKEN`，并将 `http://research.example:1024` 替换为实际服务地址。
 
 ```bash
-axonx plugin build ./plugins/qlib_a158 --output /tmp/axonx-wheels
-axonx plugin build ./plugins/qlib_factor --output /tmp/axonx-wheels
-# 将实际 wheel 逐一上传至 POST /upload，再按上方依赖顺序安装。
-axonx plugin install '<qlib_a158 upload.location>' --target http://research.example:1024 --client-timeout 600
-axonx plugin install '<qlib_factor upload.location>' --target http://research.example:1024 --client-timeout 600
 axonx get_task_def --task qlib_factor_train --target http://research.example:1024
 
 axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
@@ -60,11 +55,7 @@ axonx exec --task qlib_factor_backtest --upstream-task-ids '["<predict_task_id>"
 
 从执行日志或 `status --detail full` 保存 Task ID 和 `started_at`；仅在退出码为零且状态为 `succeeded` 后提交下游。`qlib_factor_analysis` 是可选的因子分析分支。安装修改所选解释器；新 CLI 进程发现已安装插件，定义查询和 Studio 则保留服务启动时的目录，直到重启。安装或核验失败时停止并报告。[Qlib Alpha158](../qlib_a158/README_ZH.md)
 
-每次安装后，使用返回的工作区相对 `path` 清理上传暂存文件。远程源码路径属于目标机器。所有层安装完成后重启常驻服务并核验定义；完整流程见[上传、核验与清理](../../docs/zh/plugins/management.md#部署到远程)。
-
 ## 执行与配置
-
-`exec` 在新的本地 CLI 进程中同步执行；`--target` 将命令转发到目标服务的 CLI 子进程，命令返回 Task 退出码。执行配置优先级为 CLI 参数 → 服务 `get_config` → 内置默认值。通过 `--workspace-dir /absolute/path` 为行情和上游 Task 选择一致的工作区。定义和状态 Job 需要运行中的服务。同名重跑替换产物，应同时记录 Task ID 和 `started_at`；展示副本不能作为研究输入。
 
 可通过 `axonx app --config qlib_factor` 启动继承的应用配置；YAML 仅包含 `extends: default`，已安装插件的 `plugin.yaml` 贡献 Task 注册。日期、特征组和模型参数在每次执行时传入。可用注册为 `qlib_factor_etl`、`qlib_factor_analysis`、`qlib_factor_train`、`qlib_factor_predict` 和 `qlib_factor_backtest`。预测可指定一个 Train 和一个可选兼容 ETL，用已有模型预测新数据。
 
@@ -80,8 +71,4 @@ python -m pytest plugins/qlib_factor/tests plugins/qlib_a158/tests tests/unit/te
 
 ## 实验记录
 
-实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/alpha158-case.md)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。
-
-AxonX 在 `axonx.task.models.artifacts` 定义协议 v1，使用 `TaskType` 作为 `task_type`，产物记录包含任务相对 `path`、`size` 和 `revision`。版本使用 `size:mtime_ns`，表示文件版本，不是内容校验和。训练发布 `output_params.protocol` 和 `models.json` 模型集合。预测通过 `axonx.task.storage.inputs` 快照模型成员并固定上游产物。特征语义与指纹属于 `axonx_qlib_a158.internal.protocol`；训练、分析和预测在消费数据前校验该契约。预测发布 `model_identity`、`dates`、`score_columns` 和文件版本。读取端校验协议头与特征语义。
-
-一次回测 Task 同时发布**全市场**（`all`）与**沪深300**（`hs300`）两个独立报告。Studio 通过下拉框切换股池，策略比较两侧可独立选择。信号时点 `index_weight_hs300 > 0` 定义沪深300成分。回测输出使用 `default_universe`、`universes` 和统一产物表。
+共享设定、结果、复现命令和 Task 来源统一维护在 [Alpha158 改进实验](../../docs/zh/research/alpha158-case.md)。产物字段与股票池报告遵循[共享协议](../../docs/zh/reference/research-artifacts.md)。

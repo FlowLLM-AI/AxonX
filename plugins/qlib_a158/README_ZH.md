@@ -222,8 +222,4 @@ python -m axonx_qlib_a158.scripts.compare_parameters \
 
 ## 实验记录
 
-实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/alpha158-case.md)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。
-
-AxonX 在 `axonx.task.models.artifacts` 定义协议 v1，使用 `TaskType` 作为 `task_type`，产物记录包含任务相对 `path`、`size` 和 `revision`。版本使用 `size:mtime_ns`，表示文件版本，不是内容校验和。训练发布 `output_params.protocol` 和 `models.json` 模型集合。预测通过 `axonx.task.storage.inputs` 快照模型成员并固定上游产物。特征语义与指纹属于 `axonx_qlib_a158.internal.protocol`；训练、分析和预测在消费数据前校验该契约。预测发布 `model_identity`、`dates`、`score_columns` 和文件版本。读取端校验协议头与特征语义。
-
-一次回测 Task 同时发布**全市场**（`all`）与**沪深300**（`hs300`）两个独立报告。Studio 通过下拉框切换股池，策略比较两侧可独立选择。信号时点 `index_weight_hs300 > 0` 定义沪深300成分。回测输出使用 `default_universe`、`universes` 和统一产物表。
+共享设定、结果、复现命令和 Task 来源统一维护在 [Alpha158 改进实验](../../docs/zh/research/alpha158-case.md)。产物字段与股票池报告遵循[共享协议](../../docs/zh/reference/research-artifacts.md)。

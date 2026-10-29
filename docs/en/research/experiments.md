@@ -68,7 +68,7 @@ This is experiment analysis; Studio's strategy comparison page does not automati
 
 ## Inspect a concrete case
 
-The [Alpha158 improvement case](alpha158-case.md) records settings, metrics, reproduction commands, and Task provenance for the baseline, risk factors, and rank-retention strategy. Plugin READMEs maintain algorithms; original logs, metadata, and daily artifacts remain in the execution workspace. Start development with [Skill and research prompt](../agent/research-prompt.md).
+The [Alpha158 improvement case](alpha158-case.md) records settings, metrics, reproduction commands, and Task provenance for the baseline, risk factors, and rank-retention strategy. Plugin READMEs maintain algorithms; original logs, metadata, and daily artifacts remain in the execution workspace. Start development with [Skill and research prompt](../agent/overview.md#research-prompt).
 
 ## Report the conclusion
 

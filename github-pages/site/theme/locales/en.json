@@ -22,7 +22,7 @@
       }
     },
     "journeys": {
-      "agent-external": {
+      "agent-overview": {
         "title": "Research with an agent",
         "description": "Develop or improve research plugins, run Tasks, inspect results, and iterate."
       },
@@ -30,7 +30,7 @@
         "title": "Design inspectable experiments",
         "description": "Fix controls, screen candidates, then confirm independently."
       },
-      "guides-remote-machines": {
+      "guides-deployment": {
         "title": "Manage execution environments",
         "description": "Connect remote machines and maintain tasks, files, and services."
       },
@@ -62,11 +62,11 @@
         "title": "Research, independently extensible",
         "description": "Package algorithms and tasks as plugins with explicit input and output contracts."
       },
-      "concepts-task-lifecycle": {
+      "concepts-jobs-and-tasks": {
         "title": "Execution you can inspect",
         "description": "Inspect the current Task's status, parameters, artifacts, and linked logs."
       },
-      "guides-remote-machines": {
+      "guides-deployment": {
         "title": "Multiple machines, one entry point",
         "description": "Access remote tasks, machine resources, and research results through a shared interface."
       },

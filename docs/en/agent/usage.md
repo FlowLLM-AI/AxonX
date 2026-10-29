@@ -7,7 +7,7 @@ description: Use Studio sessions to inspect research evidence and configure plug
 
 AxonX Agent uses the Claude backend and a development guide loaded by default to troubleshoot tasks and analyze research results through CLI operations. Direct Job tools can be enabled with `job_tools`; model conclusions must still be grounded in actual tool results.
 
-This page covers built-in Studio sessions. For external hosts such as Codex or Claude Code, see [external agents](external.md); see the [integration overview](overview.md) for prerequisites of each path.
+This page covers built-in Studio sessions. For external hosts such as Codex or Claude Code and prerequisites of each path, see [Agent development](overview.md).
 
 ## Before you start
 
@@ -51,7 +51,7 @@ The default `cwd` is the service workspace, which does not automatically include
 Use the available CLI or explicitly configured Job tools for installation and submission; see [Agent configuration](configuration.md).
 
 Give the Agent a research objective, baseline or plugin to optimize, data, evaluation windows, metrics, costs, and execution target. Keep source changes, installation in the selected service, and Task submission separate. Verify the service's schemas and upstream artifacts; wait for upstream success before submitting dependent Tasks.
-Follow the [shared development loop](overview.md#the-shared-research-loop); the [Skill and research prompt](research-prompt.md)
+Follow the [shared development loop](overview.md#the-shared-research-loop); the [Skill and research prompt](overview.md#research-prompt)
 provides an exploration prompt. Retain code changes and Task evidence separately from session history.
 
 ## Reading streamed messages

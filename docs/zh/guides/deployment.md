@@ -45,6 +45,34 @@ axonx status --task-id 'base#demo#deployment-check'
 
 health 表示服务就绪；demo 检查实际执行与观察。API 可在未安装 Studio 时运行；安装 Studio 后重启 service，打开 `http://127.0.0.1:1024/`。
 
+## 远程接入
+
+目标需要自己的服务、解释器、插件、数据和工作区。CLI 直连目标；Studio 经后端转发。
+
+### CLI 直连
+
+```bash
+export AXONX_TARGET_TOKEN='replace-with-target-token'
+axonx version --target node-b:1024
+axonx plugin list --target node-b:1024
+axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
+axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:1024
+```
+
+普通 Job 直接调用目标，原生命令通过 cli 转发 argv。Exec 等待完成、传输目标 stdout/stderr 并保留退出码。保留 target、Task ID、started_at 以继续观察。连接取消可能停止所拥有的远程执行，重试前先检查记录。
+
+### Studio 后端转发
+
+在本地服务 targets 列表配置目标地址和 token，Studio 选中机器并发送传输层 target，由后端读取凭据。业务参数不能覆盖路由凭据，各目标状态和 Agent 会话独立。
+
+### 远程文件与插件
+
+原生命令路径均在目标服务工作区解释，包括 plugin install/build/inspect 的源码路径。--target 不上传本地文件。本地构建 wheel、上传 /upload、安装返回的绝对 location、清理相对 path，再重启常驻服务刷新 Task 目录，详见[插件部署](../plugins/management.md)。
+
+### 连通性、资源与停止
+
+list_machines/machine_status/diagnose 提供观察到的资源，不自动调度机器。Kill 使用 metadata 的源 execution_target 和 workspace_dir。展示副本不能控制源进程，machine_id 也不是地址。
+
 ## 从仓库部署
 
 在激活的执行环境中运行 `./scripts/deploy.sh [应用选项]`，例如 `./scripts/deploy.sh --config server.yaml`。脚本切换到仓库根目录，相对配置路径以此为基准。要求 Git、Python 和 Studio 支持的 Node.js/npm。
@@ -82,7 +110,7 @@ TLS 在外部反向代理终止。代理应保留 Authorization、请求体、�
 
 ## 更新与关闭
 
-通过 `axonx restart_service` 重新加载源码、`.env`、Task 定义和 Cron 配置；`update_from_git`、`update_from_pip` 在更新后自动启动新 service。daemon PID 保持不变，service PID 改变。监督器源码或启动 argv 发生变化时，需要停止并重新启动整个 `axonx app`。详见[服务更新与重启](self-update.md)。
+通过 `axonx restart_service` 重新加载源码、`.env`、Task 定义和 Cron 配置；`update_from_git`、`update_from_pip` 在更新后自动启动新 service。daemon PID 保持不变，service PID 改变。监督器源码或启动 argv 发生变化时，需要停止并重新启动整个 `axonx app`。详见[服务更新与重启](operations.md#服务更新与重启)。
 
 前台 daemon 显示本次运行的服务控制台输出，包括启动 Logo，同时保留 `workspace_dir/daemon/<identity>/service.log`。服务重启后继续输出，重新启动 daemon 不回放旧日志。
 

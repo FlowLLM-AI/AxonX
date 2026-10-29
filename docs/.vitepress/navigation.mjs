@@ -20,7 +20,6 @@ export const groups = [
         "Core concepts",
         [
           "concepts/jobs-and-tasks",
-          "concepts/task-lifecycle",
           "concepts/workspace",
           "concepts/task-lineage",
           "concepts/architecture",
@@ -37,12 +36,7 @@ export const groups = [
       [
         "开始开发",
         "Start developing",
-        ["agent/overview", "agent/research-prompt"],
-      ],
-      [
-        "外部 Agent",
-        "External agents",
-        ["agent/external", "agent/mcp-integration"],
+        ["agent/overview", "agent/mcp-integration"],
       ],
       ["内置 Agent", "Built-in agent", ["agent/configuration", "agent/usage"]],
     ],
@@ -88,22 +82,12 @@ export const groups = [
       [
         "日常执行",
         "Daily execution",
-        [
-          "guides/overview",
-          "guides/task-management",
-          "guides/composite-tasks",
-          "guides/workspace-files",
-        ],
+        ["guides/overview", "guides/task-management", "guides/composite-tasks"],
       ],
       [
         "执行环境",
         "Execution environments",
-        [
-          "guides/authentication",
-          "guides/deployment",
-          "guides/remote-machines",
-          "guides/http-proxy",
-        ],
+        ["guides/authentication", "guides/deployment", "guides/http-proxy"],
       ],
       [
         "自动化与维护",
@@ -113,7 +97,6 @@ export const groups = [
           "research/notifications",
           "guides/task-sync",
           "guides/operations",
-          "guides/self-update",
         ],
       ],
     ],
@@ -160,13 +143,12 @@ export const groups = [
   {
     id: "developers",
     labels: ["开发与贡献", "Contributing"],
-    page: "development/overview",
+    page: "development/contributing",
     sections: [
       [
         "框架与 Studio",
         "Framework & Studio",
         [
-          "development/overview",
           "development/contributing",
           "development/framework-extensions",
           "development/studio",

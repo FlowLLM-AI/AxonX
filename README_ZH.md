@@ -189,7 +189,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 替换示例地址。`--target` 使用 `AXONX_TARGET_TOKEN`，默认本机调用使用 `AXONX_SERVICE_TOKEN`。远程路径属于目标机。本地插件部署按 **构建 → 上传 → 安装 `location` → 清理 `path` → 重启/验证** 完成，见[插件管理](docs/zh/plugins/management.md)。
 
-Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` 配置，本身不会选择 CLI 目标。见[远程机器](docs/zh/guides/remote-machines.md)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task；计划接受本地 `axonx exec --task NAME` 命令。见[服务更新](docs/zh/guides/self-update.md)。
+Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` 配置，本身不会选择 CLI 目标。见[远程机器](docs/zh/guides/deployment.md#远程接入)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task；计划接受本地 `axonx exec --task NAME` 命令。见[服务更新](docs/zh/guides/operations.md#服务更新与重启)。
 
 <a id="axonx-文档"></a>
 
@@ -198,7 +198,7 @@ Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` �
 | 目标             | 指南                                                                                                                    |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | 运行研究         | [快速开始](docs/zh/getting-started/quickstart.md) · [研究流程](docs/zh/research/workflow.md)                            |
-| 使用 Agent       | [外部 Agent](docs/zh/agent/external.md) · [内置 Agent](docs/zh/agent/configuration.md)                                  |
+| 使用 Agent       | [外部 Agent](docs/zh/agent/overview.md) · [内置 Agent](docs/zh/agent/configuration.md)                                  |
 | 开发插件         | [开发指南](docs/zh/dev_guide.md) · [产物契约](docs/zh/reference/research-artifacts.md)                                  |
 | 评估结果         | [实验设计](docs/zh/research/experiments.md) · [策略比较](docs/zh/research/strategy-comparison.md)                       |
 | 运行或扩展 AxonX | [CLI](docs/zh/reference/cli.md) · [配置](docs/zh/reference/configuration.md) · [架构](docs/zh/concepts/architecture.md) |

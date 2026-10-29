@@ -73,7 +73,7 @@ function moveTab(event: KeyboardEvent, target: number) {
           <a class="action primary" :href="link('getting-started/quickstart')"
             >{{ t.home.getStarted }} <span>→</span></a
           >
-          <a class="action secondary" :href="link('agent/research-prompt')"
+          <a class="action secondary" :href="link('agent/overview')"
             >{{ t.home.startDeveloping }} <span>↗</span></a
           >
         </div>

@@ -83,16 +83,32 @@ TaskIndex polls metadata under type directories (every 5 seconds by default), ma
 
 Task lists include every valid lifecycle record. Studio research pages select records with `state=succeeded`; the existence of metadata alone does not mean an experiment succeeded.
 
-## Backup Scope
+## Browse directories
 
-To reproduce experiments, retain task directories, raw data, service configuration, plugin versions, and model dependencies. Preserve Agent sessions, logs, and plugin source separately according to actual usage.
+```bash
+axonx list_entries --path ''
+axonx list_task_directories --task-type base
+axonx preview_file --path 'base/base#demo#check/metadata.json' --max-bytes 8192
+```
 
-Copying the entire workspace after stopping writes is the easiest way to obtain consistent files. Ordinary Task synchronization copies terminal display snapshots, with optional live parent/child groups and cannot replace a complete backup of raw data, Agent sessions, logs, and the software environment.
+Paths are relative to the selected service workspace. list_entries uses offset pagination and bounded listings. list_task_directories selects type directories containing metadata.json, regardless of current lifecycle state. The Task ID includes # and should be shell-quoted.
 
-Rerunning a fixed name replaces the old directory. Deleting upstream directories creates missing nodes in downstream lineage and may prevent downstream reruns from reading original artifacts.
+## Preview records and artifacts
 
-## Related Documentation
+Use paths from current metadata.output_params.artifacts and resolve them inside the Task directory. Preview text, Markdown, JSON/YAML, CSV, JSONL and Parquet through preview_file. Structured previews and row pages have format-specific fields; inspect parse errors, truncation, row_count and has_more rather than assuming every file returns the same shape.
 
-[Workspace Browsing](../guides/workspace-files.md) · [Task Contracts](../reference/task-contracts.md) · [Research Artifacts](../reference/research-artifacts.md) · [Backup and Recovery](../guides/operations.md)
+## Formats and limits
 
-Source: [Workspace layout](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py), [Artifact paths](../../../axonx/task/storage/artifacts.py).
+`max_bytes` controls text, Markdown, JSON and YAML previews (up to 32 MiB); `offset` and `limit` page row formats, with at most 5000 rows. JSONL has its own 512 KiB page budget; `max_bytes` does not change it. CLI defaults are 20 rows/8192 bytes. JSONL retains malformed/incomplete lines with raw content and parse_error; valid rows include parsed data. A bounded preview is not a full artifact or a research-quality acceptance check.
+
+## Clean up files and directories
+
+Use delete_entries with a JSON paths array. This general file capability has no active-Task process protection. Stop writers, check source identity and serialize against execution before deleting current Task directories. Deletion removes persistent/ too; it does not terminate a process or rebuild downstream outputs.
+
+## Upload and subsequent consumption
+
+POST /upload or HttpClient.copy_file stages one file under tmp. StagedFile contains path, size and absolute location. Install a target-side plugin using location; sync and cleanup use relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
+
+See [operations and recovery](../guides/operations.md#backup-and-recovery) for consistent backups; display replicas omit data and cannot replace them.
+
+[Task contracts](../reference/task-contracts.md) · [Research artifacts](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)

@@ -6,7 +6,7 @@ Implement quantitative logic in plugins, execute Tasks and retain evidence, then
 
 | Goal                                 | Start here                                                                                          | Outcome                                                         |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Have an Agent implement an objective | [Skill and research prompt](../agent/research-prompt.md)                                            | Define hypotheses, baseline, controls, and tools                |
+| Have an Agent implement an objective | [Skill and research prompt](../agent/overview.md#research-prompt)                                   | Define hypotheses, baseline, controls, and tools                |
 | Run the Alpha158 baseline            | [Tushare data](tushare.md) → [Alpha158 workflow](workflow.md)                                       | Successful ETL → Train → Predict → Backtest records             |
 | Develop or improve a plugin          | [Development and operations guide](../dev_guide.md) → [Plugin management](../plugins/management.md) | Implement, register, install, and discover Tasks                |
 | Inspect execution artifacts          | [Reading results](results.md) → [Backtest methodology](backtest.md)                                 | Inspect features, models, predictions, and the portfolio ledger |

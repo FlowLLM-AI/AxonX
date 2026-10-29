@@ -46,4 +46,4 @@ class DemoChainTask(BaseTask):
 
 独立实验使用不同父/子实例，固定名称流水线由调用方协调。启动或显式 kill 修正确认已退出的本机记录，查询保持只读。
 
-[Task 契约](../reference/task-contracts.md) · [生命周期](../concepts/task-lifecycle.md)
+[Task 契约](../reference/task-contracts.md) · [生命周期](../concepts/jobs-and-tasks.md)

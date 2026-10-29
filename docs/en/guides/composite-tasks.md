@@ -46,4 +46,4 @@ The parent metadata.children contains call snapshots including construction fail
 
 Use different parent/child instances for independent experiments and coordinate fixed-name pipelines yourself. Startup/explicit kill reconcile confirmed dead local records; queries remain read-only.
 
-[Task contracts](../reference/task-contracts.md) · [Lifecycle](../concepts/task-lifecycle.md)
+[Task contracts](../reference/task-contracts.md) · [Lifecycle](../concepts/jobs-and-tasks.md)

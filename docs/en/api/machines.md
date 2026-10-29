@@ -2,7 +2,7 @@
 
 Inspect the selected interpreter, machine and application. Diagnostic output reports credential presence rather than credential values.
 
-All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
+Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help --job NAME`. Replace example Task/session IDs with actual values.
 
 ## Endpoint list
 
@@ -170,6 +170,6 @@ Read an update record and log tail; omit update_id for the latest update.
 
 ## Maintenance results
 
-Update/restart responses report acceptance and an update_id. Query get_update_status after reconnection; successful acceptance is not completion. Manual service-owned commands stop with the service, daemon-owned scheduled Tasks continue. No force input is accepted. See [Self-update](../guides/self-update.md).
+Update/restart responses report acceptance and an update_id. Query get_update_status after reconnection; successful acceptance is not completion. Manual service-owned commands stop with the service, daemon-owned scheduled Tasks continue. No force input is accepted. See [Self-update](../guides/operations.md#service-updates-and-restart).
 
 Source: [Default Job contracts](../../../axonx/app/config/default.yaml) · [Job protocol](overview.md)

@@ -119,6 +119,6 @@ Raw data lives outside task directories, so result display synchronization does 
 
 ## Related documentation and implementation
 
-- [Workspace browsing](../guides/workspace-files.md), [Quantitative research workflow](workflow.md)
+- [Workspace browsing](../concepts/workspace.md#browse-directories), [Quantitative research workflow](workflow.md)
 - [Download Task](../../../axonx/task/builtins/tushare/task.py)
 - [Client and retries](../../../axonx/task/builtins/tushare/client.py)

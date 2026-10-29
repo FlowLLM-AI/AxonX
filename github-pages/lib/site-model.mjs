@@ -55,6 +55,7 @@ export async function contentCatalog(root) {
   );
   const sources = {};
   for (const lang of languages) {
+    const titles = new Set();
     const suffix = lang === "zh" ? "_ZH" : "";
     const available = new Map(
       files[0].map((file) => [
@@ -77,10 +78,14 @@ export async function contentCatalog(root) {
     for (const route of owners.keys()) {
       const original = available.get(route);
       const content = await readFile(path.join(root, original), "utf8");
+      const title = importedTitles[route]?.[lang] || documentTitle(content);
+      assert(title, `Missing document heading: ${original}`);
+      const key = `${owners.get(route)}:${title.trim().toLowerCase()}`;
       assert(
-        documentTitle(content) || importedTitles[route]?.[lang],
-        `Missing document heading: ${original}`,
+        !titles.has(key),
+        `Duplicate navigation title (${lang}): ${title}`,
       );
+      titles.add(key);
       sources[`${lang}/${route}.md`] = original;
     }
   }

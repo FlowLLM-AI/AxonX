@@ -68,7 +68,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 ## 阅读具体案例
 
-[Alpha158 改进实验](alpha158-case.md)集中记录基线、风险因子和排名保留策略的设定、指标、复现命令与 Task 来源。算法由插件 README 维护；原始日志、metadata 和日级产物留在执行工作区。开发入口见 [Skill 与研究 Prompt](../agent/research-prompt.md)。
+[Alpha158 改进实验](alpha158-case.md)集中记录基线、风险因子和排名保留策略的设定、指标、复现命令与 Task 来源。算法由插件 README 维护；原始日志、metadata 和日级产物留在执行工作区。开发入口见 [Skill 与研究 Prompt](../agent/overview.md#研究-prompt)。
 
 ## 报告结论
 

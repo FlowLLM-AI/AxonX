@@ -61,7 +61,7 @@ const definitions = await axonx.invoke(
 
 The request body is `{ arguments, target }`, and the outer response is JobResponse. The client handles HTTP errors and `success: false` centrally; business pages receive the unwrapped `answer`. Return types should reflect the actual backend protocol. Do not hide protocol differences with forced type assertions.
 
-Machine selection must carry through lists, details, execution, and file previews. Same-origin `/jobs` requests include the service token from browser settings; the backend resolves remote target addresses and credentials. See the [machine guide](../guides/remote-machines.md).
+Machine selection must carry through lists, details, execution, and file previews. Same-origin `/jobs` requests include the service token from browser settings; the backend resolves remote target addresses and credentials. See the [machine guide](../guides/deployment.md#remote-connections).
 
 ## Forms and real-time state
 

@@ -88,4 +88,4 @@ Successful Jobs return 0, failed Jobs 1. Input errors return 2, other CLI failur
 
 ## Service self-update
 
-Use `update_from_git`, `update_from_pip`, `restart_service` and `get_update_status` as configured. They require a daemon-backed service and authentication. They take no `force` argument. See [Self-update](../guides/self-update.md).
+Use `update_from_git`, `update_from_pip`, `restart_service` and `get_update_status` as configured. They require a daemon-backed service and authentication. They take no `force` argument. See [Self-update](../guides/operations.md#service-updates-and-restart).

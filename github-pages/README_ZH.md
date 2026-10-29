@@ -8,9 +8,7 @@
 
 ## 阅读路径
 
-站点按阅读路径分为六个导航区：**开始使用、Agent 开发、量化研究、运行与部署、参考手册、开发与贡献**。在线体验作为独立按钮提供 Playground。Agent 开发负责接入、Skill 和研究 Prompt；量化研究负责基线、插件开发、评估与案例；参考手册统一接口、配置和扩展契约；开发与贡献负责框架及 Studio。各区以总览连接具体目标，每页只有一个导航归属。
-
-[文档导航](../docs/zh/index.md)按目标提供阅读路径。项目与插件 README 维护概览与算法细节，指南链接到这些来源，避免重复维护实验数据表。每篇文档只有一个导航归属，可以跨区链接。
+六个导航区为**开始使用、Agent 开发、量化研究、运行与部署、参考手册、开发与贡献**，Playground 使用独立按钮。阅读路径见[文档导航](../docs/zh/index.md)。每页只有一个导航归属，指南通过链接引用规范参考、算法和研究案例。
 
 ## 开发与验证
 
@@ -75,7 +73,7 @@ npm run preview
 3. 从相关目标或指南链接到新页面；阅读路径变化时更新两份文档导航。
 4. 运行测试、构建与格式检查，预览双语及受影响的窄屏、主题。
 
-内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文与缺失标题。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/qlib-a158`、`plugins/qlib-factor` 和 `plugins/qlib-strategy`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
+内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文、缺失标题和同导航区的页面标题重复。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/qlib-a158`、`plugins/qlib-factor` 和 `plugins/qlib-strategy`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
 
 ### 链接与导出
 
@@ -139,33 +137,10 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 
 ## 内容与图示维护约定
 
-中英文文档按相同文件路径和章节组织，截图与示意图共用 `docs/figures/` 中的资源。
+双语正文使用相同路径，共享图示放在 `docs/figures/` 并按主题分组。文档归属见[贡献指南](../CONTRIBUTING_ZH.md#更新文档)，避免复制安装步骤、Schema 或实验表格。图示应解释正文实际使用的关系；字段参考和以截图为主的操作指南通常不需要重复总览图。
 
-根目录与插件 README 在构建时导入，双语正文仍在仓库根目录与各插件目录维护。导航由 `docs/.vitepress/navigation.mjs` 定义。
+维护九张共享概念图：产品架构、Agent 研究循环、服务协议、Task 执行、工作区证据、插件分发、Alpha158 流程、实验比较、股票账本。`benchmark/` 保存两张历史定量图，`studio/` 保存截图。根 README 图片路径保持稳定；`axonx_studio/public/` 维护产品品牌，`scripts/generate_flowllm_logo.py` 生成 `docs/` 中的组织图案。
 
-`docs/en/index.md` 与 `docs/zh/index.md` 维护按目标选路的文档入口。方法页解释通用实验设计，研究案例保留具体设定、指标、复现命令与 Task 来源。首页展示问题 → Agent 开发 → Harness 执行 → 证据检查 → 比较与迭代，Alpha158 作为执行阶段的参考实例。
+概念图/图表用 SVG，截图用 PNG；中英文共享资源，翻译图注与替代文本。保留原有配色、手绘字体栈（`Comic Sans MS`、`Chalkboard SE`、`Comic Neue`、cursive）、SVG `title`/`desc`、圆角外框和虚线卡片。检查文字边界、层次及连线位置。箭头含义必须明确，独立选项不能画成顺序步骤。执行归属与契约遵循当前[架构](../docs/zh/concepts/architecture.md)和 [Task 生命周期](../docs/zh/concepts/jobs-and-tasks.md)。
 
-站点框架位于 `github-pages/site/`，构建模块位于 `github-pages/lib/`，入口脚本位于 `github-pages/scripts/`。`docs/` 维护正文与共用图片，`docs/.vitepress/navigation.mjs` 维护页面归属。
-
-图片按解释的主题存放在 `docs/figures/` 中。每页使用直接回答本页问题的图示；协议总览不能代替会话、机器路由或安装流程。
-
-| 目录               | 职责                                        |
-| ------------------ | ------------------------------------------- |
-| `getting-started/` | 三层产品总览：使用入口、服务/命令、核心能力 |
-| `concepts/`        | 共享的 Task 生命周期、执行归属与工作区证据  |
-| `agent/`           | Agent 研究流程及独立的会话/Task 身份        |
-| `research/`        | 研究依赖、组合记账和配对实验评价            |
-| `api/`             | 服务接入、认证、Job 契约和传输结果          |
-| `plugins/`         | 发行包身份、Task 注册与远程 wheel 部署      |
-| `benchmark/`       | 保留来源设置和指标定义的历史量化结果        |
-| `studio/`          | 作为界面证据的真实截图                      |
-
-维护九张共享概念图：产品架构、Agent 研究流程、服务协议、Task 执行、工作区证据、插件发行、Alpha158 流程、实验比较和股票记账。正文需要解释这些关系时才嵌入图片。接口字段列表、配置表、代理路径映射和以截图讲解操作的页面不重复放总览图。相关页面可以共用图片，并用图下注明本页关注的部分。品牌素材和两张历史基准图保留各自的数据与展示用途。
-
-概念图与指标图使用 SVG，截图使用 PNG。双语页面共用图示，周边说明与替代文本分别翻译。保持根目录 README 的图片路径稳定。总览介绍产品，架构解释实现，血缘描述已记录的引用，工作流描述显式研究阶段，实验图解释筛选与独立确认。
-
-使用统一手写字体栈（`Comic Sans MS`、`Chalkboard SE`、`Comic Neue`、cursive）、清晰标签以及 SVG `title` / `desc` 无障碍元数据。外框使用实线圆角，卡片或辅助线使用虚线，保留各图原有配色。标题与副标题建立明确层级，宽卡片正文左对齐，脚注与主图分开，连线避开标签。产品总览通过明确的执行与观察路径连接研究插件、CLI Task 执行和共享工作区记录。分别标明本地 CLI 执行、服务拥有的手动命令与 Daemon 拥有的定时命令的进程归属；定时命令在服务重启期间继续运行。减少嵌套标签框，简短列表在同一卡片内排版。箭头必须明确表达执行、数据依赖或记录查询。备选接入方式和独立配置来源不能画成串行阶段。因子分析从 ETL 分支。分别表达命令退出状态、Task 状态和业务输出。数据、插件与执行进程属于各自的执行目标环境。日志可位于独立 `log_dir`；同名重跑替换当前记录并保留 `persistent/`。
-
-更新图示时检查 SVG 渲染与文字边界、双语引用和完整站点构建。保留截图来源与基准数值；重画概念图不应虚构界面状态或重算历史指标。当前导航或执行表单可能变化时，标注已记录实验的截图；当前操作指南从对应界面重新采集，Playground 截图注明模拟来源。当前产品品牌资源由 `axonx_studio/public/` 维护；`docs/` 根层的 FlowLLM 标志是 `scripts/generate_flowllm_logo.py` 生成的历史组织素材。
-
-每个导航区以按目标组织的总览为入口，修改路由或锚点时同步更新源码链接。站点为以标志开头的项目 README 补充生成的一级标题，不修改原文。
+保留基准数值和截图来源，标明历史截图及模拟 Playground 内容；操作指南从匹配的当前 UI 取图。图示、路由或锚点变化后检查渲染、双语引用和完整构建。

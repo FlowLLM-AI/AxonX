@@ -32,22 +32,7 @@ axonx app --service.host 127.0.0.1
 
 默认端口为 `1024`，运行数据位于 `.axonx/`，服务/CLI 日志位于 `logs/`。可选凭据与内置配置变量见 [example.env](example.env)。CLI 启动时从当前目录或最多五级父目录加载最近的 `.env`，保留已有环境变量。代理与构建设置见 [Studio 开发](docs/zh/development/studio.md)。
 
-## 配置 0.3.0 应用
-
-`axonx app --config NAME_OR_PATH` 接受 YAML/YML/JSON 文件、内置 `default`/`remote` 名称及已安装的 `axonx.configs` 入口。自定义文件必须显式继承默认配置，例如将以下内容保存为 `axonx.local.yaml`：
-
-```yaml
-extends: default
-workspace_dir: .axonx
-service:
-  host: 127.0.0.1
-```
-
-```bash
-axonx app --config ./axonx.local.yaml
-```
-
-字典递归合并，列表和标量替换继承值。相对工作区/日志路径按进程工作目录解析。`exec`/`kill` 设置依次使用显式 CLI 参数、服务 `get_config` 和内置默认值；Task 参数遵循各自的输入 Schema。`get_config` 可能包含凭据，不应公开其输出。详见[配置参考](docs/zh/reference/configuration.md)。
+YAML 继承与安装配置见[服务端配置](docs/zh/reference/configuration.md)，执行选项见 [CLI 参考](docs/zh/reference/cli.md)。自定义配置只有显式声明 `extends: default` 才继承默认值。凭据和运行产物不得提交。
 
 ## 选择修改位置
 
@@ -66,21 +51,9 @@ axonx app --config ./axonx.local.yaml
 
 ## 开发插件
 
-仅安装本次所需层及其上游依赖，顺序如下：
+研究算法放在插件中。Task 开发遵循[开发与运行指南](docs/zh/dev_guide.md)，安装和远程部署见[插件管理](docs/zh/plugins/management.md)，Studio 接入见[产物契约](docs/zh/reference/research-artifacts.md)。研究插件从源码按依赖顺序安装：`qlib_a158` → `qlib_factor` → `qlib_strategy`。
 
-```bash
-axonx plugin install -e ./plugins/qlib_a158
-axonx plugin install -e ./plugins/qlib_factor
-axonx plugin install -e ./plugins/qlib_strategy
-```
-
-研究插件尚未发布到 PyPI。源码变化后重启常驻服务，依赖或入口点变化后重新安装。远程部署需要构建、上传、目标机安装、暂存清理和重启，见[插件管理](docs/zh/plugins/management.md)。
-
-插件包含包元数据、`axonx.plugins` 入口、`plugin.yaml`、类型化 Task、测试和中英文 README。运行时资源加入 `tool.setuptools.package-data`，打包 CI 会比较 wheel/sdist 与源码内容。实现遵循 [Task 开发](docs/zh/dev_guide.md)与[产物契约](docs/zh/reference/research-artifacts.md)。
-
-可选命名应用配置使用指向包与文件 stem 的 `axonx.configs` 入口，例如 `qlib_a158 = "axonx_qlib_a158.config:qlib_a158_demo"`。分发包需包含 `config/__init__.py` 和 YAML 资源。入口名称必须唯一，应用配置不负责注册 Task。
-
-Agent 编写的代码遵循相同检查。主张改进时保留源码/插件版本、数据快照、窗口、参数、成本、Task ID 和 `started_at`，提供脱敏复现依据，并遵循[实验设计](docs/zh/research/experiments.md)。
+Agent 编写的代码遵循相同检查。改进结论需保留代码/数据版本、窗口、参数、成本、Task ID 和 `started_at`，并遵循[实验设计](docs/zh/research/experiments.md)。
 
 ## 验证改动
 
@@ -104,22 +77,20 @@ Agent 编写的代码遵循相同检查。主张改进时保留源码/插件版�
 
 ## 更新文档
 
-修改 `docs/en/`、`docs/zh/` 中的规范文档，或被站点引用的根目录/插件 README 与贡献指南。保持双语对应，共享素材位于 `docs/figures/`，导航位于 `docs/.vitepress/navigation.mjs`，生成站点文件由构建重建。
+修改 `docs/{en,zh}/` 的中英文规范来源，或由站点导入的根目录/插件 README。操作步骤放在指南，字段放在参考，算法放在插件 README，实验证据放在案例；通过链接引用归属文档，避免复制正文。导航位于 `docs/.vitepress/navigation.mjs`，共享图示位于 `docs/figures/`。
 
-Agent 指南的规范来源是 `docs/{en,zh}/dev_guide.md`。修改后运行 `python -m scripts.sync_agent_guides`，重新生成包内指南资源和 [AxonX Skill](skills/axonx/SKILL.md)；使用 `--check` 验证一致性。核验命令，API 变化时同步更新契约示例。Studio 的 `contracts:generate` 还会导出 Playground 使用的默认 Job schema 和 AxonX 版本，两个生成文件需一起更新。
+Job 入参以 `axonx/app/config/default.yaml` 为准，CLI 语法属于 `axonx/cli/parser.py`，执行属于 `commands.py`/`remote.py`，Task 契约属于 `axonx/task`。同步更新受影响示例和图示，保留历史研究结果及来源。
 
-从仓库根目录准备两组前端依赖并验证站点：
+修改 `docs/{en,zh}/dev_guide.md` 后运行 `python -m scripts.sync_agent_guides` 和 `python -m scripts.sync_agent_guides --check`，生成包内指南与 `skills/axonx/SKILL.md`。这些独立资源有意保留完整指南。
+
+在 `axonx_studio/` 和 `github-pages/` 安装依赖后运行：
 
 ```bash
-npm --prefix axonx_studio ci
-npm --prefix github-pages ci
 npm --prefix github-pages test
 npm --prefix github-pages run build
 ```
 
-构建检查双语页面、链接、资源、锚点和 Markdown 导出，详见[站点开发](github-pages/README_ZH.md)。
-
-Vercel 使用根目录 `vercel.json`，以 `DOCS_BASE=/` 和无扩展名 URL 构建静态文档与 Playground。安装两组前端依赖后发布 `github-pages/dist`，Python 服务单独运行。根路径部署可用 `DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages run build` 验证。
+构建验证双语导航、链接、锚点、资源和 Markdown 导出。生成、图示、部署和 Vercel 设置见[站点维护](github-pages/README_ZH.md)。
 
 ## 提交 Pull Request
 

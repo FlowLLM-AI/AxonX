@@ -38,7 +38,7 @@ test("catalog follows navigation order and preserves canonical imported sources"
     ),
   );
   assert.equal(catalog["zh/getting-started/overview.md"], "README_ZH.md");
-  assert.equal(catalog["en/agent/external.md"], "docs/en/agent/external.md");
+  assert.equal(catalog["en/agent/overview.md"], "docs/en/agent/overview.md");
 });
 
 test("catalog rejects missing translations and unowned bilingual pages", async (t) => {
@@ -51,8 +51,17 @@ test("catalog rejects missing translations and unowned bilingual pages", async (
 
 test("catalog rejects missing headings before generation", async (t) => {
   const root = await fixture(t);
-  await writeFile(path.join(root, "docs/en/agent/external.md"), "No heading\n");
+  await writeFile(path.join(root, "docs/en/agent/overview.md"), "No heading\n");
   await assert.rejects(contentCatalog(root), /Missing document heading/);
+});
+
+test("catalog rejects duplicate page titles within a navigation group", async (t) => {
+  const root = await fixture(t);
+  await writeFile(
+    path.join(root, "docs/en/agent/mcp-integration.md"),
+    "# Agent/Overview\n",
+  );
+  await assert.rejects(contentCatalog(root), /Duplicate navigation title/);
 });
 
 test("deployment settings accept root and nested mounts and reject ambiguous origins", () => {
@@ -105,7 +114,7 @@ test("document titles exclude fenced shell comments and nested Markdown examples
 test("catalog rejects a code comment masquerading as a document heading", async (t) => {
   const root = await fixture(t);
   await writeFile(
-    path.join(root, "docs/en/agent/external.md"),
+    path.join(root, "docs/en/agent/overview.md"),
     "```sh\n# A comment\n```\n",
   );
   await assert.rejects(contentCatalog(root), /Missing document heading/);

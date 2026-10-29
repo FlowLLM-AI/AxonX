@@ -2,99 +2,39 @@
 
 English · [简体中文](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx_studio/README_ZH.md)
 
-AxonX Studio is the browser workspace for [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README.md). Use an Agent to develop research plugins, submit Tasks to a selected service, and inspect logs, artifacts, and charts. The backend runs Tasks; plugins provide the algorithms.
+AxonX Studio is the browser workspace for [AxonX](https://github.com/FlowLLM-AI/AxonX). Run Tasks, develop with an Agent, and inspect logs, dependencies, workspace files and research charts. It supports English/Chinese, light/dark themes, and backend-configured remote machines.
 
-![AxonX Studio home](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
+![Studio home in the simulated Playground](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
-The home screenshot uses the English interface in the static Playground. Its data and execution are simulated.
-
-## Features
-
-| Area                     | Capabilities                                                                                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Task definitions         | Configure installed Tasks, run them through the CLI Job, and inspect output fields and live logs.                                                                        |
-| Task management          | Filter records, inspect configuration, follow progress and logs, and view dependencies and parent/child calls. Research indexes support deleting selected results.       |
-| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                                   |
-| Workspace                | Browse the workspace from System management, preview paginated Parquet data, and switch Markdown between rendered preview and original source with frontmatter metadata. |
-| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                                       |
-| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                              |
-| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                                       |
-| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                                      |
-
-The interface supports English and Simplified Chinese, light/dark themes, and saved browser preferences. Hash routes preserve the selected machine and resource, for example `#local/task-defs/catalog/demo`.
+The screenshot uses the static Playground with simulated data and execution.
 
 ## Install and start
 
-Use an activated Python environment with **Python 3.12+**. Local Task execution is supported on macOS and Linux. Prebuilt Studio packages require no Node.js or frontend build.
+Use Python 3.12+ on macOS or Linux. Prebuilt Studio packages require no Node.js.
 
 ```bash
 pip install "axonx[studio]"
-export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
+export AXONX_SERVICE_TOKEN='replace-with-your-service-token'
 axonx app --service.host 127.0.0.1
 ```
 
-Open <http://127.0.0.1:1024/>. In **Settings → Local service token**, enter the same token and apply it. Studio saves the token in browser local storage and sends it as a Bearer token on API requests. Use the same settings form to replace or clear it.
+Open <http://127.0.0.1:1024/> and enter the token in **Settings → Local service token**. Studio stores it in browser local storage. If AxonX is already installed, `pip install axonx-studio` and restart the service; `service.web_enabled` must be enabled.
 
-You can also place `AXONX_SERVICE_TOKEN` in a `.env` file in the directory where you start AxonX. The CLI loads this file automatically; existing environment variables take precedence. See [example.env](https://github.com/FlowLLM-AI/AxonX/blob/main/example.env) for optional provider settings.
+Select **Task definitions → demo**, enter `x = 2`, `y = 3`, and run. Inspect the result and logs in Task details. Navigation preserves the command connection; reloading or closing the browser can stop execution. Leave Task Name empty for independent runs; a fixed-name rerun replaces the finished run.
 
-If AxonX is already installed, add Studio separately:
+Follow [Using Studio](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/getting-started/studio.md) for navigation and failures, [research setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md) for plugins/data, and [Agent configuration](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md) for model credentials and code tools. Ordinary Tasks need no model credentials.
 
-```bash
-pip install axonx-studio
-```
-
-Restart the service after installation. AxonX loads `dist/` through the package's `static_dir()` function and serves the UI at `/` when `service.web_enabled` is enabled.
-
-### Run your first task
-
-1. Open **Task definitions**, select `demo`, enter `x = 2` and `y = 3`, and click **Run task**.
-2. Studio opens the Task once its record appears. Inspect its configuration, steps, logs, and relationships.
-3. The execution monitor stays available across page and machine changes. Use it to return to the original execution.
-
-Studio streams the existing `cli` Job until execution finishes. Navigation within Studio preserves the connection; reloading, closing the page, or losing the connection may stop the command. String arrays use add/remove controls, while objects and complex arrays use JSON fields. CLI execution (`axonx exec --task demo --x 2 --y 3`) and Agent execution remain available.
-
-Leave **Task Name** empty to generate a name for each experiment. Reusing a fixed name replaces the directory of a finished run. Upstream relationships record lineage; the graph does not automatically execute dependent Tasks.
-
-Input dependencies use `upstream_task_ids`, an array of direct upstream Task IDs. The dependency graph shows upstream/downstream links. Task details show both execution steps and parent/child invocations from `children`; those calls do not create dependency edges automatically.
-
-### Optional research and Agent setup
-
-- **Research plugins:** install `axonx-qlib-a158`, `axonx-qlib-factor`, or `axonx-qlib-strategy` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.
-- **Tushare downloads:** configure `AXONX_TUSHARE_TOKEN` on the backend. Override `AXONX_TUSHARE_BASE_URL` only when using a compatible custom endpoint.
-- **Agent:** configure the backend's `CLAUDE_CODE_API_KEY`, `CLAUDE_CODE_BASE_URL`, and `CLAUDE_CODE_MODEL_NAME` as needed for your provider. Ordinary Tasks can run without model credentials. Stopping an Agent turn does not cancel a Task it submitted.
-- **Remote machines:** configure backend service `targets`, then select the target in Studio. The browser authenticates to the local service; the backend resolves remote addresses and credentials and forwards requests using `target`.
-
-See [research setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md), [Agent configuration](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md), and [remote machines](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/guides/remote-machines.md).
-
-### Research with an Agent
-
-Give an external or built-in Agent your research question and the [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md). For built-in development, configure source access and file/command tools; see [Agent setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md). Develop the plugin, install it in the selected service, then submit Tasks and wait for upstream success.
-
-The Qlib Alpha158 reference workflow is **ETL → Train → Predict → Backtest**, with factor analysis branching from ETL. `qlib_a158`, `qlib_factor`, and `qlib_strategy` provide the baseline, optional factors, and portfolio policies. When comparing runs, retain code, data, windows, parameters, costs, and Task IDs and start times. See [research workflow](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md).
-
-## npm distribution and static hosting
-
-The npm package distributes the built frontend assets:
+## Static hosting
 
 ```bash
 npm install @flowllm-ai/axonx-studio
 ```
 
-Serve `node_modules/@flowllm-ai/axonx-studio/dist/` with your static server. An AxonX backend is still required. The frontend uses origin-relative API URLs, so configure the same origin to proxy `/health`, `/jobs`, `/upload`, `/mcp`, and `/proxy` to that backend. Preserve Authorization headers and SSE streaming for live logs and Agent responses. Hash routing does not require server routes for individual Studio pages.
-
-For AxonX's built-in hosting, install the Python package instead.
+Serve `node_modules/@flowllm-ai/axonx-studio/dist/`. Proxy `/health`, `/jobs`, `/upload`, `/mcp` and `/proxy` on the same origin to an AxonX backend, preserving Authorization and SSE streaming. Hash routes need no server-side page routes. Python hosting uses the packaged `dist/` through `static_dir()`.
 
 ## Develop from source
 
-The frontend toolchain requires **Node.js 22.x ≥ 22.13.0, 24.x, or 26+**, as declared in `package.json`. Run the following from the repository root to install the backend and development dependencies:
-
-```bash
-pip install -e '.[dev]'
-export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx app --service.host 127.0.0.1
-```
-
-In another terminal:
+Use Node.js 22.13+ (22.x), 24.x or 26+. Start the backend using the [contribution guide](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING.md), then run:
 
 ```bash
 cd axonx_studio
@@ -102,69 +42,16 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:4173/> and configure the service token for this browser origin. Vite provides hot updates and proxies API requests to `http://127.0.0.1:1024` by default.
-
-To use a different backend:
+Open <http://localhost:4173/>. The development proxy defaults to `http://127.0.0.1:1024`; set `AXONX_DEV_SERVER` and restart Vite to change it. Vite also reads the repository-root `.env`. This variable configures only the development proxy.
 
 ```bash
-AXONX_DEV_SERVER=http://127.0.0.1:2048 npm run dev
-```
-
-Vite also reads `.env` files from the repository root. Restart Vite after changing `AXONX_DEV_SERVER`. This setting controls the development proxy; it does not configure the backend URL in a production build.
-
-### Build and install local assets
-
-```bash
-# From axonx_studio/
-npm run build
-cd ..
+# From the repository root:
+npm --prefix axonx_studio run build
 pip install ./axonx_studio
 ```
 
-`build` runs TypeScript checks and writes the static site to `dist/`. Restart AxonX to serve the installed package. After frontend changes, rebuild and reinstall to update the packaged assets.
+Restart AxonX after installation. Python distributions include existing `dist/`; `npm pack`/`npm publish` run the build through `prepack`. `npm run preview` previews static assets without the development API proxy.
 
-| Command (in `axonx_studio/`) | Purpose                                                                                             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| `npm run dev`                | Start the Vite development server on port 4173 with API proxies.                                    |
-| `npm run build`              | Type-check and produce `dist/`.                                                                     |
-| `npm run preview`            | Preview a production build locally; backend proxying is only configured for the development server. |
-| `npm run test`               | Run the Vitest suite.                                                                               |
-| `npm run lint`               | Run ESLint.                                                                                         |
-| `npm run format:check`       | Check formatting with Prettier.                                                                     |
-| `npm run format`             | Apply Prettier formatting.                                                                          |
-
-`npm pack` and `npm publish` run the `prepack` build automatically. Python packaging includes existing `dist/` assets; build them before creating a Python distribution.
-
-## Code organization
-
-`app/` coordinates routing and the shell. `features/` contains seven business domains: Tasks (including definitions and graph), runtime (including machines and maintenance), Agent, workspace, research, operations, and the API catalog. Research separates selection, result presentation and calculations. Operations owns online and comparison reports. `shared/api/` owns transport, generated wire types, file decoding and artifact access; `shared/hooks/` owns cancellable resources, refresh scheduling and chart lifecycle.
-
-Use function components for React UI, pure functions for transformations, and classes where state has an explicit owner: `AxonXClient`, `ArtifactTableCache`, `SignalHistoryStore`, and the refresh scheduler. Old module paths and forwarding wrappers are removed. Import wire types directly from `shared/api/contracts.ts`; this generated file remains tied to the backend contract.
-
-All requests use separate business arguments and `{ target, signal }` options. Task identity includes its start time; input dependencies and parent/child invocation remain separate. A failed refresh preserves previously loaded data only within the same resource identity. Shared UI components and their consumers use the current interfaces directly.
-
-See the [complete file-by-file capability map](README_ZH.md#文件职责), including every source, test, stylesheet, configuration file and source asset.
-
-## Troubleshooting
-
-| Symptom                                          | Check                                                                                                                                                    |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend runs but Studio is unavailable           | Install `axonx-studio`, verify `dist/index.html` exists for source builds, enable `service.web_enabled`, and restart the service.                        |
-| Page loads but APIs return 401                   | Match the browser's service token to `AXONX_SERVICE_TOKEN`; separate browser origins have separate saved tokens.                                         |
-| Task or API catalog is empty                     | Configure the backend service token, verify the selected machine, and install its plugins. Auth-required Jobs are omitted when the service has no token. |
-| Development API requests fail                    | Check that the backend is running and `AXONX_DEV_SERVER` is correct; restart Vite after changes.                                                         |
-| Research results or curves are missing           | Inspect task status/logs and `metadata.json`; check `output_params.artifacts`, `training_curve`, and backtest `daily`/`summary` files as applicable.     |
-| Remote requests fail                             | Check backend `targets`, remote service credentials, and connectivity from the local backend.                                                            |
-| Static deployment loads but APIs or streams fail | Check same-origin API proxy paths, Authorization forwarding, and SSE buffering.                                                                          |
-
-Workspace preview uses paths relative to the execution workspace. The `/upload` API handles staged uploads and cleanup; retrieve complete artifacts from the execution machine's workspace. Deleting runs or workspace entries removes their data and does not rebuild downstream results.
-
-## Documentation and license
-
-- [Studio getting started](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/getting-started/studio.md)
-- [Task management](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/guides/task-management.md)
-- [Research artifact contract](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/reference/research-artifacts.md)
-- [SSE event protocol](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/api/events.md)
-- [Contributing](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING.md)
+[Extending Studio](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/development/studio.md) owns the directory map, routing, API/forms, generated contracts, Playground and checks. [Artifact contracts](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/reference/research-artifacts.md) define research views; [deployment](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/guides/deployment.md) covers remote targets and hosting.
 
 Released under the [Apache License 2.0](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx_studio/LICENSE).

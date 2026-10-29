@@ -2,7 +2,7 @@
 
 Execution goes through the native CLI or the service-owned `cli` command Job; observation reads persisted Task records.
 
-All Jobs below use `POST /jobs/NAME` with `{"arguments": {...}}`. Streams use `/jobs/NAME/events`; MCP uses the same Job name and business arguments. Discover the target schema with `help --job NAME`. Replace example Task/session IDs with actual values.
+Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help --job NAME`. Replace example Task/session IDs with actual values.
 
 ## Endpoint list
 
