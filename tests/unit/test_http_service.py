@@ -258,3 +258,55 @@ def test_studio_serves_relative_roots_and_handles_removed_assets(tmp_path, monke
         (root / "index.html").unlink()
         assert client.get("/nested/page").status_code == 503
         assert client.get("/health").json() == {"running": True}
+
+
+@pytest.mark.parametrize(
+    "path,expected_status",
+    [
+        ("/%2e%2e/private.txt", 200),
+        ("/nested/%2e%2e/%2e%2e/private.txt", 200),
+        ("/%2e%2e/studio-other/private.txt", 200),
+        ("/%2e%2e%2fprivate.txt", 200),
+        ("/%2f{private_path}", 200),
+        ("/outside.txt", 200),
+        ("/outside-dir/private.txt", 200),
+        ("/assets/%2e%2e/%2e%2e/private.txt", 404),
+        ("/assets/%2e%2e%2f%2e%2e%2fprivate.txt", 404),
+        ("/assets/outside.txt", 404),
+        ("/assets/outside-dir/private.txt", 404),
+        ("/%252e%252e/private.txt", 200),
+    ],
+)
+def test_studio_does_not_serve_files_outside_static_root(tmp_path, path, expected_status):
+    """Encoded traversal and symlinks must not expose files outside the Studio build."""
+    root = tmp_path / "studio"
+    assets = root / "assets"
+    assets.mkdir(parents=True)
+    index_content = "<html>Studio</html>"
+    (root / "index.html").write_text(index_content)
+    (root / "robots.txt").write_text("robots")
+    (assets / "app.js").write_text("app")
+    private_content = "PRIVATE_STUDIO_BOUNDARY_SENTINEL"
+    outside = tmp_path / "private.txt"
+    outside.write_text(private_content)
+    sibling = tmp_path / "studio-other"
+    sibling.mkdir()
+    (sibling / "private.txt").write_text(private_content)
+    for directory in (root, assets):
+        (directory / "outside.txt").symlink_to(outside)
+        (directory / "outside-dir").symlink_to(tmp_path, target_is_directory=True)
+
+    server = FastAPI()
+    mount_studio(server, root)
+    with TestClient(server) as client:
+        for public_path, content in (("/robots.txt", "robots"), ("/assets/app.js", "app")):
+            public_response = client.get(public_path)
+            assert public_response.status_code == 200
+            assert public_response.text == content
+        response = client.get(path.format(private_path=outside.as_posix().lstrip("/")))
+
+    assert response.status_code == expected_status
+    assert private_content not in response.text
+    if expected_status == 200:
+        assert response.text == index_content
+        assert "no-store" in response.headers["cache-control"]
