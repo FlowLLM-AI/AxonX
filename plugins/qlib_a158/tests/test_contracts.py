@@ -74,7 +74,7 @@ def test_named_plugin_configuration_loads_through_declared_entry_point(monkeypat
 def test_documented_plugin_commands_match_current_contracts(name, readme):
     catalog = task_catalog()
     jobs = ConfigLoader().load("default")["jobs"]
-    commands = 0
+    documented_tasks = set()
     for body in FENCES.findall((PLUGINS / name / readme).read_text()):
         for line in body.replace("\\\n", " ").splitlines():
             if not line.strip().startswith("axonx "):
@@ -82,12 +82,13 @@ def test_documented_plugin_commands_match_current_contracts(name, readme):
             for stage, task_type in [("etl", "etl"), ("train", "train"), ("predict", "predict")]:
                 line = line.replace(f"<{stage}_task_id>", f"{task_type}#qlib_a158_{stage}#example")
             command, _ = parse_command(shlex.split(line, comments=True)[1:])
-            commands += 1
             if command.action == "plugin":
                 parse_plugin_arguments(command.raw_arguments)
             elif command.action == "exec":
                 inputs = dict(command.arguments)
-                task = catalog.resolve(inputs.pop("task"))
+                registration = inputs.pop("task")
+                documented_tasks.add(registration)
+                task = catalog.resolve(registration)
                 for key in ExecutionSettings.model_fields:
                     inputs.pop(key, None)
                 task.input_cls.model_validate(inputs)
@@ -98,4 +99,7 @@ def test_documented_plugin_commands_match_current_contracts(name, readme):
             else:
                 assert command.action in jobs
                 jsonschema.validate(command.arguments, jobs[command.action].get("parameters", {}))
-    assert commands >= 10
+    package = "axonx_" + name
+    manifest = PluginManifest.parse((PLUGINS / name / package / "plugin.yaml").read_text(), name)
+    expected = {key for key, target in manifest.tasks.items() if target.startswith(package + ".")}
+    assert expected <= documented_tasks
