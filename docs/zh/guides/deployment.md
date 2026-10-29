@@ -114,6 +114,8 @@ TLS 在外部反向代理终止。代理应保留 Authorization、请求体、�
 
 前台 daemon 显示本次运行的服务控制台输出，包括启动 Logo，同时保留 `workspace_dir/daemon/<identity>/service.log`。服务重启后继续输出，重新启动 daemon 不回放旧日志。
 
+启动 Logo 在日志转发后保留启动终端的颜色能力。`NO_COLOR` 禁用其配色；重定向输出默认使用纯文本，也可通过 `FORCE_COLOR=1` 等方式显式启用颜色。
+
 在启动终端按 Ctrl+C，或向 daemon 发送 SIGTERM，会停止 daemon 并请求 service 关闭。这会停止 Cron 接受新触发，清理组件并终止 service 创建的手动 CLI 子进程。daemon 已启动的定时命令继续独立运行。daemon 从第一次 Ctrl+C 或 SIGTERM 起限制整体退出时间为 5 秒，包含服务清理、更新进程退出和控制台日志收尾。到期强制结束剩余服务及更新进程组，并立即退出；重复信号不会延长期限。即使 `cleanup_timeout` 更长，此上限仍然有效；该配置仍用于仅重启服务时的服务清理期限。强制终止可能留下 running metadata，观察查询不改写记录；后续执行前的身份检查或显式 kill 负责确认退出后的收尾。定时 Task 不因 service 重启而重跑，也不补跑停机期间的时刻。
 
 迁移前协调所有写入进程，再复制工作区、配置和必要日志并恢复相同插件环境。

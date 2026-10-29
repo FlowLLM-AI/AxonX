@@ -15,12 +15,78 @@ import httpx
 import psutil
 import pytest
 import yaml
+from rich.color import ColorType
+from rich.text import Text
 
 from axonx.app.config.loader import ConfigLoader
 from axonx.daemon import client as daemon
 from axonx.daemon.client import DaemonClient
 from axonx.daemon.launcher import runtime_directory
 from axonx.task.storage.workspace import task_path
+
+
+@pytest.mark.parametrize(
+    ("terminal", "environment", "expected_color"),
+    [
+        (True, {}, ColorType.EIGHT_BIT),
+        (True, {"COLORTERM": "truecolor"}, ColorType.TRUECOLOR),
+        (True, {"TERM": "xterm"}, ColorType.STANDARD),
+        (False, {}, None),
+        (True, {"NO_COLOR": "1"}, None),
+        (True, {"FORCE_COLOR": ""}, None),
+        (True, {"TTY_COMPATIBLE": "0"}, None),
+        (True, {"TERM": "dumb"}, None),
+        (False, {"FORCE_COLOR": "1", "COLORTERM": "truecolor"}, ColorType.TRUECOLOR),
+    ],
+)
+def test_cli_banner_preserves_launch_terminal_colors(
+    tmp_path, monkeypatch, capsys, terminal, environment, expected_color
+):
+    from axonx.app.components.service.http.service import HttpService
+    from axonx.cli.main import main
+    from axonx.daemon import launcher
+
+    for name in ("TERM", "COLORTERM", "FORCE_COLOR", "NO_COLOR", "TTY_COMPATIBLE", daemon.SOCKET):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(launcher, "load_env", lambda: {})
+    plans = []
+    monkeypatch.setattr(launcher, "_launch", lambda plan, _directory: plans.append(plan))
+    monkeypatch.setattr(HttpService, "run_app", lambda *_: None)
+    configuration = tmp_path / "app.yaml"
+    configuration.write_text(
+        yaml.safe_dump(
+            {
+                "workspace_dir": str(tmp_path / "workspace"),
+                "log_to_console": False,
+                "log_to_file": False,
+                "enable_logo": True,
+                "service": {"backend": "http", "web_enabled": False},
+            }
+        )
+    )
+    argv = ["app", "--config", str(configuration)]
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: terminal)
+    assert main(argv) == 0
+    capsys.readouterr()
+    assert len(plans) == 1
+
+    # Start the worker with the daemon's environment, but a redirected stdout.
+    for name, value in plans[0]["environment"].items():
+        if name.startswith("AXONX_DAEMON_"):
+            monkeypatch.setenv(name, value)
+    monkeypatch.setenv(daemon.SOCKET, str(tmp_path / "daemon.sock"))
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+    assert main(argv) == 0
+    rendered = Text.from_ansi(capsys.readouterr().out)
+    assert "http://127.0.0.1:1024" in rendered.plain
+    colors = {span.style.color.type for span in rendered.spans if span.style.color is not None}
+    if expected_color is None:
+        assert not colors
+    else:
+        assert expected_color in colors
 
 
 @pytest.mark.parametrize(

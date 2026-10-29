@@ -114,6 +114,8 @@ Terminate TLS at an external reverse proxy. Preserve Authorization, bodies, dupl
 
 The foreground daemon displays new service console output, including the startup logo, while retaining it in `workspace_dir/daemon/<identity>/service.log`. Output continues across service restarts; launching a new daemon does not replay old logs.
 
+The startup logo preserves the launch terminal's color support through log forwarding. `NO_COLOR` disables its colors; redirected output remains plain unless color is explicitly enabled, such as with `FORCE_COLOR=1`.
+
 Ctrl+C in the startup terminal, or SIGTERM sent to the daemon, stops the daemon and requests service shutdown. This stops Cron admission, closes components and terminates service-owned manual CLI children. Already launched daemon-owned scheduled commands continue independently. The daemon enforces a total 5-second shutdown limit from the first Ctrl+C or SIGTERM, including service cleanup, updater shutdown and console draining. At the deadline it kills remaining service/updater process groups and exits immediately. Repeated signals do not extend this deadline. This limit applies even if `cleanup_timeout` is longer; that setting still bounds service cleanup during service-only restarts. Forced termination may leave running metadata: observation does not rewrite it; subsequent execution identity checks or explicit kill settle confirmed exited processes. Service restarts do not rerun existing scheduled Tasks or replay missed slots.
 
 Coordinate all writers before migration, then copy the workspace, configuration and required logs and restore the plugin environment.
