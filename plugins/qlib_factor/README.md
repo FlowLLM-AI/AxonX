@@ -25,6 +25,8 @@ Global moments are available after T close and shared by every stock that day; m
 
 Beta uses the preceding 60 market dates through T−1, with at least 30 paired stock/market returns. Stock daily returns use contemporaneous 2%/98% winsorization; the market return is their equal-weight mean. Beta is covariance divided by market variance, clipped to [−3,3]; variance ≤1e−12 leaves it undefined. Neutral momentum subtracts prior beta times compounded market returns from the stock's 5/10/20-day return. Residual volatility is the 20-day sample standard deviation of stock return minus prior beta × market return; downside risk is sqrt(mean(min(stock return,0)²)). Both risk windows require 16 valid observations out of 20. All stock features remain null when the current quote is invalid.
 
+ETL reads 80 market dates before the requested output start so each residual in the 20-day risk window has its preceding 60-day beta history. The signal-eligibility history requirement remains 60 dates. With sufficient source history, overlapping features are independent of the requested output start.
+
 Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.0` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
 ## Install and run

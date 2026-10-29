@@ -9,6 +9,7 @@ from pathlib import Path
 
 import polars as pl
 import pytest
+from polars.testing import assert_frame_equal
 
 from axonx.plugin.manifest import PluginManifest
 from axonx.task.core.base import ChildTaskError
@@ -21,6 +22,8 @@ from axonx_qlib_a158.etl import Alpha158Task
 from axonx_qlib_a158.predict import LgbmPredictTask
 from axonx_qlib_a158.research import Alpha158ResearchTask, ResearchInputParams
 from axonx_qlib_a158.scripts.compare_parameters import run_comparison
+from axonx_qlib_factor.features import CONTEXT_FEATURES
+from axonx_qlib_factor.tasks import FactorETLTask
 
 
 @pytest.fixture
@@ -246,3 +249,23 @@ def test_parameter_comparison_records_current_execution_provenance(tmp_path, mar
     summary = pl.read_csv(output / "summary.csv")
     assert set(summary["universe"]) == {"all", "hs300"}
     assert set(summary["label"]) == {"rank", "csz"}
+
+
+def test_factor_features_are_independent_of_output_start_with_sufficient_history(tmp_path, market):
+    """The residual window must include fully warmed historical beta estimates."""
+    frames = []
+    for name, start in (("long", 60), ("short", 90)):
+        task = FactorETLTask(
+            {"task_name": name, "start_date": market[start], "end_date": market[100]},
+            workspace_path=tmp_path,
+            reg_name="qlib_factor_etl",
+        )
+        TaskExecutor().execute(task)
+        assert task.output["protocol"]["feature_rules"]["lookback_days"] == 80
+        assert task.output["market_state"]["minimum_history_days"] == 60
+        frames.append(
+            pl.read_parquet(task.artifact_path("dataset"))
+            .filter(pl.col("trade_date") >= market[90])
+            .select("trade_date", "ts_code", *CONTEXT_FEATURES)
+        )
+    assert_frame_equal(frames[0], frames[1], rel_tol=1e-9, abs_tol=1e-12)

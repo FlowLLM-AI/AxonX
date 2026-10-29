@@ -12,9 +12,11 @@ from axonx_qlib_a158.etl import Alpha158OutputParams, Alpha158Task
 from axonx_qlib_a158.train import LgbmTrainInputParams, LgbmTrainTask
 
 from .features import (
+    BETA_WINDOW,
     CONTEXT_FEATURES,
     FEATURE_GROUPS,
     PREFIX,
+    RISK_WINDOW,
     WINDOWS,
     ContextGroup,
     ContextWindow,
@@ -28,6 +30,8 @@ class FactorETLTask(Alpha158Task):
     """Publish Alpha158 plus causal context features and daily market diagnostics."""
 
     extra_features = CONTEXT_FEATURES
+    # The oldest residual in the risk window needs its own prior beta history.
+    lookback_days = BETA_WINDOW + RISK_WINDOW
 
     def additional_feature_steps(self) -> Iterable[TaskStep]:
         yield self.calculate_cross_section_context

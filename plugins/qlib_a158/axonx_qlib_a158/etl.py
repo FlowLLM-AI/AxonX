@@ -463,6 +463,7 @@ class Alpha158Task(BaseETLTask):
                 "feature_columns": list(self.feature_columns),
                 "feature_rules": {
                     "history_days": HISTORY_DAYS,
+                    "lookback_days": self.lookback_days,
                     "min_history_coverage": self.input_params.min_history_coverage,
                 },
                 "qlib_reference": QLIB_REFERENCE,

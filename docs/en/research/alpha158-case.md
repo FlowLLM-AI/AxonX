@@ -85,6 +85,8 @@ These results compare AxonX plugin configurations, not the original Qlib benchma
 
 ## Reproduce
 
+These figures and Task IDs describe the recorded run. Current commands below use the current interfaces; factor ETL reads 80 prior market dates for the beta/residual chain. Re-running them creates a new experiment whose results must be recorded separately.
+
 Fix one data snapshot; retain Task IDs and metadata `started_at` and wait for success before downstream submission. Use the same `--target` for remote commands. Run fixed-holding backtests once for base and once for factor predictions; use `qlib_a158_backtest` for the base model.
 
 ```bash
