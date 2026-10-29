@@ -104,3 +104,5 @@ AxonX and Studio release independently after version updates and passing CI:
 - **Studio:** synchronize `axonx_studio/pyproject.toml`, `package.json` and `package-lock.json`, then run [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml) on `main`. `both` publishes PyPI then npm; `pypi`/`npm` select one. npm uses `latest` for stable versions and `next` for prereleases.
 
 Configure the corresponding Trusted Publishers (`pypi`/`npm` environments). Releases reject existing versions; keep tags fixed. If npm fails after PyPI succeeds, rerun the failed job in the original workflow to reuse its artifacts. Main-package releases do not publish research plugins.
+
+Both PyPI release workflows use Twine's built-in Trusted Publishing authentication. They check package metadata before attempting to generate Sigstore attestations. If attestation generation fails or exceeds two minutes, the workflow emits a warning and uploads without attestations. Metadata, authentication, duplicate-version and upload errors still fail the release.
