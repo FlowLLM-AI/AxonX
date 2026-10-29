@@ -11,10 +11,10 @@
   <a href="https://github.com/FlowLLM-AI/AxonX/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/FlowLLM-AI/AxonX?label=commits%2Fmonth&amp;style=flat-square&amp;logo=github&amp;logoColor=white" alt="GitHub 每月提交活动" /></a>
   <a href="https://github.com/FlowLLM-AI/AxonX/graphs/traffic"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflowllm-ai.github.io%2FAxonX%2Fbadges%2Fclones.json&amp;style=flat-square&amp;logo=github&amp;logoColor=white" alt="GitHub 最近 14 天 Clone 次数" /></a>
   <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Apache License 2.0" /></a>
-  <a href="#agent-接入与开发指南"><img src="https://img.shields.io/badge/Agent_Skill-Install-6366f1?style=flat-square&amp;logo=github&amp;logoColor=white" alt="安装 AxonX Skill" /></a>
+  <a href="https://flowllm-ai.github.io/AxonX/zh/dev_guide"><img src="https://img.shields.io/badge/Agent_Skill-Read-6366f1?style=flat-square&amp;logo=github&amp;logoColor=white" alt="阅读 AxonX Skill" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/zh/docs"><img src="https://img.shields.io/badge/docs-AxonX-blue?style=flat-square&amp;logo=readthedocs&amp;logoColor=white" alt="AxonX 中文文档" /></a>
-  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README.md"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
-  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH.md"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
+  <a href="https://flowllm-ai.github.io/AxonX/en/getting-started/overview"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
+  <a href="https://flowllm-ai.github.io/AxonX/zh/getting-started/overview"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="通过 DeepWiki 了解 AxonX" /></a>
 </p>
 
@@ -34,7 +34,7 @@
 
 ## ✨ 为什么使用 AxonX？
 
-- **使用 Agent 开发：** 结合 [AxonX Skill](skills/axonx/SKILL.md)、源码工具和实时 Task Schema。
+- **使用 Agent 开发：** 结合 [AxonX Skill](https://flowllm-ai.github.io/AxonX/zh/dev_guide)、源码工具和实时 Task Schema。
 - **保留实验依据：** 类型化输入输出、进程身份、日志和带修订的产物引用。
 - **通过 Studio 检查：** 任务控制、工作区预览、研究图表与策略比较。
 
@@ -90,7 +90,7 @@ service:
   host: 127.0.0.1
 ```
 
-通过 `axonx app --config ./axonx.local.yaml` 启动。自定义配置仅在声明 `extends: default` 时继承内置服务、组件和 Job；字典合并，列表和标量替换。已安装插件也可提供命名配置，详见[配置参考](docs/zh/reference/configuration.md)。
+通过 `axonx app --config ./axonx.local.yaml` 启动。自定义配置仅在声明 `extends: default` 时继承内置服务、组件和 Job；字典合并，列表和标量替换。已安装插件也可提供命名配置，详见[配置参考](https://flowllm-ai.github.io/AxonX/zh/reference/configuration)。
 
 <a id="快速演示"></a>
 
@@ -106,7 +106,7 @@ axonx status --task-id 'base#demo#quickstart' --detail full
 
 `axonx --help` 显示离线用法，`axonx help` 查询运行中服务的 Job。执行设置按 **显式 CLI 参数 → 服务 `get_config` → 内置默认值** 生效。仅在服务连接不可用时回退；认证或服务错误直接报告。Task 专用参数通过 `get_task_def` 查询。
 
-记录 Task ID 和 metadata `started_at`。实验使用不同实例名：同名重跑替换当前记录与输出，保留 `persistent/`。详见[任务管理](docs/zh/guides/task-management.md)。
+记录 Task ID 和 metadata `started_at`。实验使用不同实例名：同名重跑替换当前记录与输出，保留 `persistent/`。详见[任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)。
 
 <a id="agent-接入与开发指南"></a>
 
@@ -121,7 +121,7 @@ axonx restart_service
 
 研究插件从源码安装，先安装 **Alpha158**，再按需安装 **factor** 或 **strategy**，两个扩展彼此不依赖。源码变化后重启常驻服务；依赖或入口点变化后重新安装。服务重新就绪后再查询定义。
 
-提供源码、文件/命令工具和 [AxonX Skill](skills/axonx/SKILL.md)。通过 GitHub CLI 从 `main` 安装 Skill，Claude Code 将 `--agent` 改为 `claude-code`：
+提供源码、文件/命令工具和 [AxonX Skill](https://flowllm-ai.github.io/AxonX/zh/dev_guide)。通过 GitHub CLI 从 `main` 安装 Skill，Claude Code 将 `--agent` 改为 `claude-code`：
 
 ```bash
 gh skill install FlowLLM-AI/AxonX axonx --agent codex --scope user --pin main
@@ -129,8 +129,8 @@ gh skill install FlowLLM-AI/AxonX axonx --agent codex --scope user --pin main
 
 按上文安装 AxonX 和研究插件，再选择接入方式：
 
-- **外部 Agent：** 客户端管理模型凭据。使用 CLI，或通过 Streamable HTTP MCP 连接 `http://127.0.0.1:1024/mcp`，携带 `Authorization: Bearer <token>`。见 [MCP 集成](docs/zh/agent/mcp-integration.md)。
-- **内置 Agent：** 配置以下模型环境，重启服务后打开 **Studio → Agent**，将其 `cwd` 指向源码。见 [Agent 配置](docs/zh/agent/configuration.md)。
+- **外部 Agent：** 客户端管理模型凭据。使用 CLI，或通过 Streamable HTTP MCP 连接 `http://127.0.0.1:1024/mcp`，携带 `Authorization: Bearer <token>`。见 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
+- **内置 Agent：** 配置以下模型环境，重启服务后打开 **Studio → Agent**，将其 `cwd` 指向源码。见 [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)。
 
 ```dotenv
 CLAUDE_CODE_API_KEY=your-model-api-key
@@ -142,7 +142,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 > 阅读 AxonX Skill 和 Alpha158 实现，开发独立插件测试残差波动与下行风险。固定数据、训练设置、成本和评估窗口，仅使用信号时点可得信息。测试代码并执行实验，报告 Task ID、RankIC、净收益、回撤与限制，预留独立确认窗口。
 
-开始前准备历史数据与 `AXONX_TUSHARE_TOKEN`，再按[研究流程](docs/zh/research/workflow.md)执行。
+开始前准备历史数据与 `AXONX_TUSHARE_TOKEN`，再按[研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)执行。
 
 <a id="alpha158-与插件系统"></a>
 
@@ -150,13 +150,13 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 主链为 **ETL → Train → Predict → Backtest**，因子分析可从 ETL 分支。`qlib_a158_research` 组合各阶段，叶子 Task 可复用兼容的上游产物。
 
-| 插件                                                | 能力                                           |
-| --------------------------------------------------- | ---------------------------------------------- |
-| [qlib_a158](plugins/qlib_a158/README_ZH.md)         | 158 个价量特征、LightGBM、因子分析与 TopN 回测 |
-| [qlib_factor](plugins/qlib_factor/README_ZH.md)     | 13 个可选特征，训练默认使用 158 个基线特征     |
-| [qlib_strategy](plugins/qlib_strategy/README_ZH.md) | 最短持有期、排名保留与换仓限制，复用预测       |
+| 插件                                                                         | 能力                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------------- |
+| [qlib_a158](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-a158)         | 158 个价量特征、LightGBM、因子分析与 TopN 回测 |
+| [qlib_factor](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-factor)     | 13 个可选特征，训练默认使用 158 个基线特征     |
+| [qlib_strategy](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-strategy) | 最短持有期、排名保留与换仓限制，复用预测       |
 
-其他研究方法通过同一套 [Task 与插件契约](docs/zh/dev_guide.md)接入。基线调整了 Qlib 的数据、标签、训练与交易假设，详见[与原始 Qlib 的差异](plugins/qlib_a158/README_ZH.md#与原始-qlib-的差异)。
+其他研究方法通过同一套 [Task 与插件契约](https://flowllm-ai.github.io/AxonX/zh/dev_guide)接入。基线调整了 Qlib 的数据、标签、训练与交易假设，详见[与原始 Qlib 的差异](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-a158#与原始-qlib-的差异)。
 
 <a id="benchmark-agent-开发市场横截面增强特征"></a>
 
@@ -178,7 +178,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 **证据边界：** 尚无独立确认窗口；基础/因子模型的 `feature_fraction` 不同（0.9/1.0），无法单独归因于新增因子。所有回测均报告 `incomplete_market_data`，使用同收盘成交代理，且 2026 年不完整。不能据此认定优于原始 Qlib。
 
-[完整设定、复现命令与历史任务来源](docs/zh/research/alpha158-case.md)。
+[完整设定、复现命令与历史任务来源](https://flowllm-ai.github.io/AxonX/zh/research/alpha158-case)。
 
 <a id="axonx-cli-命令与远程执行"></a>
 
@@ -192,21 +192,21 @@ axonx exec --task demo --task-name remote-check --x 2 --y 3 --target node-b:1024
 axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:1024
 ```
 
-替换示例地址。`--target` 使用 `AXONX_TARGET_TOKEN`，默认本机调用使用 `AXONX_SERVICE_TOKEN`。远程路径属于目标机。本地插件部署按 **构建 → 上传 → 安装 `location` → 清理 `path` → 重启/验证** 完成，见[插件管理](docs/zh/plugins/management.md)。
+替换示例地址。`--target` 使用 `AXONX_TARGET_TOKEN`，默认本机调用使用 `AXONX_SERVICE_TOKEN`。远程路径属于目标机。本地插件部署按 **构建 → 上传 → 安装 `location` → 清理 `path` → 重启/验证** 完成，见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
-Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` 配置，本身不会选择 CLI 目标。见[远程机器](docs/zh/guides/deployment.md#远程接入)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task；计划接受本地 `axonx exec --task NAME` 命令。见[服务更新](docs/zh/guides/operations.md#服务更新与重启)。
+Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` 配置，本身不会选择 CLI 目标。见[远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/deployment#远程接入)。服务重启会停止服务拥有的手动命令，保留 Daemon 拥有的定时 Task；计划接受本地 `axonx exec --task NAME` 命令。见[服务更新](https://flowllm-ai.github.io/AxonX/zh/guides/operations#服务更新与重启)。
 
 <a id="axonx-文档"></a>
 
 ## 📚 文档入口
 
-| 目标             | 指南                                                                                                                    |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 运行研究         | [快速开始](docs/zh/getting-started/quickstart.md) · [研究流程](docs/zh/research/workflow.md)                            |
-| 使用 Agent       | [外部 Agent](docs/zh/agent/overview.md) · [内置 Agent](docs/zh/agent/configuration.md)                                  |
-| 开发插件         | [开发指南](docs/zh/dev_guide.md) · [产物契约](docs/zh/reference/research-artifacts.md)                                  |
-| 评估结果         | [实验设计](docs/zh/research/experiments.md) · [策略比较](docs/zh/research/strategy-comparison.md)                       |
-| 运行或扩展 AxonX | [CLI](docs/zh/reference/cli.md) · [配置](docs/zh/reference/configuration.md) · [架构](docs/zh/concepts/architecture.md) |
+| 目标             | 指南                                                                                                                                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 运行研究         | [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart) · [研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)                                                       |
+| 使用 Agent       | [外部 Agent](https://flowllm-ai.github.io/AxonX/zh/agent/overview) · [内置 Agent](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)                                                             |
+| 开发插件         | [开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide) · [产物契约](https://flowllm-ai.github.io/AxonX/zh/reference/research-artifacts)                                                             |
+| 评估结果         | [实验设计](https://flowllm-ai.github.io/AxonX/zh/research/experiments) · [策略比较](https://flowllm-ai.github.io/AxonX/zh/research/strategy-comparison)                                                  |
+| 运行或扩展 AxonX | [CLI](https://flowllm-ai.github.io/AxonX/zh/reference/cli) · [配置](https://flowllm-ai.github.io/AxonX/zh/reference/configuration) · [架构](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture) |
 
 [中文文档](https://flowllm-ai.github.io/AxonX/zh/docs) · [English documentation](https://flowllm-ai.github.io/AxonX/en/docs)
 
@@ -214,7 +214,7 @@ Studio 使用后端配置的 `targets`；`AXONX_TARGET` 填充内置 `remote` �
 
 ## 💬 参与贡献
 
-欢迎贡献框架、插件、实验与文档。环境与检查要求见[贡献指南](CONTRIBUTING_ZH.md)，问题和提案见 [GitHub Issues](https://github.com/FlowLLM-AI/AxonX/issues)。
+欢迎贡献框架、插件、实验与文档。环境与检查要求见[贡献指南](https://flowllm-ai.github.io/AxonX/zh/development/contributing)，问题和提案见 [GitHub Issues](https://github.com/FlowLLM-AI/AxonX/issues)。
 
 <a id="许可证"></a>
 
