@@ -31,7 +31,7 @@ Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.0` and upstream researc
 
 ## Install and run
 
-Research plugins are not published to PyPI. Clone the repository and install the AxonX 0.3.0 core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
+Research plugins are not published to PyPI. Clone the repository and install the AxonX 0.3.1 core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
 
 ```bash
 axonx plugin install -e plugins/qlib_a158

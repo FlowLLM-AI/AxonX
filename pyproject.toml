@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx"
 dynamic = ["version"]
-description = "Agent-driven quantitative research with typed Tasks, research plugins, and traceable experiments via CLI, HTTP, MCP, and Studio."
+description = "Agent-native harness for quantitative research: develop plugins, run traceable experiments, and inspect results via CLI, HTTP, MCP, and Studio."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

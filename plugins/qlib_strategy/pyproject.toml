@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx-qlib-strategy"
 version = "0.3.0"
-description = "AxonX research plugin reusing Alpha158 factor predictions to evaluate portfolio policies with minimum holding periods, rank retention, and bounded daily replacements."
+description = "AxonX research plugin evaluating portfolio policies with fixed predictions, minimum holding periods, rank retention, and daily replacement limits."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

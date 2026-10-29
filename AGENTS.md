@@ -1,6 +1,6 @@
 # AGENTS.md
 
-AxonX 0.3.0 is a Python framework for agent-driven quantitative research, with a React/TypeScript Studio.
+AxonX 0.3.1 is a Python framework for agent-driven quantitative research, with a React/TypeScript Studio.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflows and [module-dependencies.md](module-dependencies.md) for architecture.
 
 ## Repository map

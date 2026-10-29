@@ -100,7 +100,7 @@ npm --prefix github-pages run build
 
 主包与 Studio 独立发布，发布前更新版本并通过 CI：
 
-- **AxonX：** 更新 `axonx/_version.py`（当前为 `0.3.0`），重新生成 Studio 契约，推送 `v<version>` 并发布对应 GitHub Release；也可手动运行 [Release / AxonX Python package](.github/workflows/release-python.yml)，输入不带 `v` 的版本号，从该标签构建。
+- **AxonX：** 更新 `axonx/_version.py`（当前为 `0.3.1`），重新生成 Studio 契约，推送 `v<version>` 并发布对应 GitHub Release；也可手动运行 [Release / AxonX Python package](.github/workflows/release-python.yml)，输入不带 `v` 的版本号，从该标签构建。
 - **Studio：** 同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json`，在 `main` 运行 [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml)。`both` 先发 PyPI 再发 npm，`pypi`/`npm` 可单独选择；稳定版 npm 标签为 `latest`，预发布版为 `next`。
 
 配置对应的 Trusted Publisher（`pypi`/`npm` 环境）。已有版本会发布失败，标签不可移动。PyPI 成功而 npm 失败时，在原 workflow 重跑失败 job 以复用产物。主包发布不包含研究插件。

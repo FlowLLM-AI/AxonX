@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axonx-studio"
-version = "0.3.0"
-description = "Browser workspace for AxonX: built-in Agent sessions, Task control, and quantitative research result analysis."
+version = "0.3.1"
+description = "Browser workspace for AxonX with Agent sessions, Task control, logs, dependencies, workspace previews, and research charts."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

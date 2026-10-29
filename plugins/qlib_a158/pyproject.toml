@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx-qlib-a158"
 version = "0.3.0"
-description = "AxonX research plugin implementing a Qlib Alpha158 baseline: feature extraction, factor analysis, LightGBM training, prediction, and TopN backtesting."
+description = "AxonX research plugin adapting Qlib Alpha158 for feature extraction, factor analysis, LightGBM training, prediction, and TopN backtesting."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

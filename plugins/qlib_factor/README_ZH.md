@@ -31,7 +31,7 @@ ETL 在输出起点之前预读 80 个市场日，使 20 日风险窗口中的�
 
 ## 安装与执行
 
-研究插件尚未发布到 PyPI。先克隆仓库并从根目录安装 AxonX 0.3.0 主包（`pip install -e .`），以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
+研究插件尚未发布到 PyPI。先克隆仓库并从根目录安装 AxonX 0.3.1 主包（`pip install -e .`），以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
 
 ```bash
 axonx plugin install -e plugins/qlib_a158

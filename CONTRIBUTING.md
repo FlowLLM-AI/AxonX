@@ -100,7 +100,7 @@ Explain the problem, resulting behavior, affected contracts and validation. Incl
 
 AxonX and Studio release independently after version updates and passing CI:
 
-- **AxonX:** update `axonx/_version.py` (currently `0.3.0`), regenerate Studio contracts, push `v<version>`, then publish its GitHub Release. Alternatively, run [Release / AxonX Python package](.github/workflows/release-python.yml) with the version without `v`; it builds that tag.
+- **AxonX:** update `axonx/_version.py` (currently `0.3.1`), regenerate Studio contracts, push `v<version>`, then publish its GitHub Release. Alternatively, run [Release / AxonX Python package](.github/workflows/release-python.yml) with the version without `v`; it builds that tag.
 - **Studio:** synchronize `axonx_studio/pyproject.toml`, `package.json` and `package-lock.json`, then run [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml) on `main`. `both` publishes PyPI then npm; `pypi`/`npm` select one. npm uses `latest` for stable versions and `next` for prereleases.
 
 Configure the corresponding Trusted Publishers (`pypi`/`npm` environments). Releases reject existing versions; keep tags fixed. If npm fails after PyPI succeeds, rerun the failed job in the original workflow to reuse its artifacts. Main-package releases do not publish research plugins.
