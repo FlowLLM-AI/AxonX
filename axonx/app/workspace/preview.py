@@ -33,6 +33,7 @@ TEXT_PREVIEW_BYTES = 512 * 1024
 MAX_STRUCTURED_BYTES = 32 * 1024 * 1024
 PREVIEW_KINDS = {
     ".txt": "text",
+    ".log": "text",
     ".md": "markdown",
     ".markdown": "markdown",
     ".json": "json",

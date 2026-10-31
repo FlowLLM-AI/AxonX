@@ -130,9 +130,13 @@ export function FilePreview({
         {!preview.rows.length && (
           <p className="muted">{t("workspacePreview.emptyJsonl")}</p>
         )}
-        {preview.rows.map((row) => (
-          <section className="workspace-jsonl-record" key={row.line}>
-            <header>{t("workspacePreview.line", { line: row.line })}</header>
+        {preview.rows.map((row, index) => (
+          <details
+            className="workspace-jsonl-record"
+            key={row.line}
+            open={index === 0}
+          >
+            <summary>{t("workspacePreview.line", { line: row.line })}</summary>
             {row.truncated ? (
               <pre className="workspace-code">{row.content}</pre>
             ) : row.parse_error ? (
@@ -147,7 +151,7 @@ export function FilePreview({
             ) : (
               <StructuredTree value={row.data} />
             )}
-          </section>
+          </details>
         ))}
         <footer className="workspace-jsonl-pagination">
           <button

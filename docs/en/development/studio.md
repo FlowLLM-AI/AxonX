@@ -89,6 +89,8 @@ Research pages read task artifacts. New calculations should follow explicit defi
 
 Keep file previews workspace-relative. `/upload` provides temporary uploads and cleanup, not general downloads; obtain complete artifacts from the execution machine's workspace. Do not concatenate server absolute paths into public UI. On pages with multiple charts, handle container resize and release resources on component unmount.
 
+`.log` and `.txt` files use the same plain-text preview. JSONL records are individually collapsible; only the first record on each page is expanded initially.
+
 ## Verification and submission
 
 ```bash

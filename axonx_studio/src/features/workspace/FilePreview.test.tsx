@@ -57,6 +57,11 @@ describe("JSONL file preview", () => {
       expect(container.textContent).toContain("50");
       expect(container.textContent).toContain("{broken");
       expect(container.textContent).toContain("Expected property name");
+      expect(
+        [...container.querySelectorAll<HTMLDetailsElement>("details")].map(
+          (record) => record.open,
+        ),
+      ).toEqual([true, false]);
       const buttons = Array.from(container.querySelectorAll("footer button"));
       await act(async () => (buttons[0] as HTMLButtonElement).click());
       expect(onPage).toHaveBeenLastCalledWith(1);
@@ -84,6 +89,7 @@ describe("JSONL file preview", () => {
         ),
       );
       expect(container.textContent).toContain("workspacePreview.truncated");
+      expect(container.querySelector("details")?.open).toBe(true);
       expect(container.textContent).not.toContain(
         "workspacePreview.invalidJson",
       );

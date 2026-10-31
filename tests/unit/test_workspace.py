@@ -51,6 +51,8 @@ def test_listing_filters_typed_entries_before_pagination(tmp_path):
     "filename,content,model",
     [
         ("text.txt", "hello", TextPreview),
+        ("task.log", "INFO 开始执行\nERROR failed\n", TextPreview),
+        ("task.LOG", "INFO uppercase extension\n", TextPreview),
         ("readme.md", "---\ntitle: Example\n---\nhello", MarkdownPreview),
         ("data.json", '{"value": 1}', StructuredPreview),
         ("data.yaml", "value: 1\n", StructuredPreview),
@@ -65,7 +67,12 @@ def test_preview_returns_models_with_transport_ready_fields(tmp_path, filename, 
     payload = json.loads(JobResponse(answer=preview).model_dump_json())["answer"]
     assert payload == preview.model_dump(mode="json")
     assert payload["size"] == len(content.encode())
-    if isinstance(preview, StructuredPreview):
+    if isinstance(preview, TextPreview):
+        assert preview.content == content
+        assert not preview.truncated
+        entry = Workspace(tmp_path).list_entries().entries[0]
+        assert entry.supported and entry.preview_kind == "text"
+    elif isinstance(preview, StructuredPreview):
         assert preview.data == {"value": 1}
         assert preview.parse_error is None
     elif isinstance(preview, MarkdownPreview):
