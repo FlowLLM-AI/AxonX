@@ -74,7 +74,6 @@ components:
       # job_tools:
       #   - list_entries
       #   - preview_file
-      #   - list_task_ids
       #   - list_task_statuses
       #   - status
       #   - read_task_log
@@ -91,17 +90,6 @@ components:
   #     backend: http
   #     upstream_base_url: ${AXONX_TUSHARE_BASE_URL}
   #     timeout: ${AXONX_TUSHARE_PROXY_TIMEOUT:-600}
-
-  # Sync requires a configured target service.
-  # sync:
-  #   default:
-  #     backend: local
-  #     target: ${AXONX_SYNC_TARGET}
-  #     model_names: []
-  #     rules:
-  #       demo: terminal
-  #     max_archives_per_flush: 4
-  #     timeout_seconds: 300
 
 # =========== HTTP service ===========
 service:
@@ -261,11 +249,6 @@ jobs:
     steps:
       - backend: wait_task
 
-  list_task_ids:
-    description: List Task IDs with a status file.
-    steps:
-      - backend: list_ids
-
   list_task_statuses:
     description: List Task status snapshots or lightweight summaries.
     parameters:
@@ -395,20 +378,6 @@ jobs:
     steps:
       - backend: workspace_list
 
-  list_task_directories:
-    description: List Task directories containing metadata.json.
-    parameters:
-      type: object
-      properties:
-        path:
-          type: string
-          minLength: 1
-          description: Workspace-relative Task type directory, such as tasks/train or tmp/tasks/train.
-      required: [path]
-      additionalProperties: false
-    steps:
-      - backend: task_directories
-
   preview_file:
     description: Preview one supported file inside the configured workspace.
     parameters:
@@ -461,42 +430,6 @@ jobs:
       additionalProperties: false
     steps:
       - backend: workspace_delete
-
-  # =========== Sync jobs ===========
-  # Enable with the sync component and invoke "axonx sync_flush" explicitly.
-  # Application Cron accepts only local "axonx exec --task NAME" commands.
-  # sync_flush:
-  #   description: Flush task changes queued for workspace replication.
-  #   steps:
-  #     - backend: sync_flush_step
-  #       sync: default
-
-  sync_index:
-    description: Read committed file inventories for one synchronization source.
-    parameters:
-      type: object
-      properties:
-        source:
-          type: string
-          pattern: "^[A-Za-z0-9_-]{1,128}$"
-      required: [source]
-      additionalProperties: false
-    steps:
-      - backend: sync_index_step
-
-  sync_files:
-    description: Commit a staged file batch without interpreting its contents.
-    parameters:
-      type: object
-      properties:
-        path:
-          type: string
-          minLength: 1
-          description: Workspace-relative path of the staged file-sync archive.
-      required: [path]
-      additionalProperties: false
-    steps:
-      - backend: sync_files_step
 
   # =========== Agent jobs ===========
   agent_chat:

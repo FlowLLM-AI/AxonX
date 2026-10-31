@@ -39,7 +39,6 @@ Agents use CLI or configured Job tools to inspect the same evidence. The built-i
 - `upstream_task_ids` declares input dependencies; `parent_task_id`/`children` records invocations. Neither launches a whole DAG automatically.
 - Task queries are observations. Runtime startup/termination reconciles confirmed dead local processes.
 - Caller coordination protects same-name writes; atomic metadata replacement is not a lock.
-- Display synchronization copies bounded evidence, not active processes, environments or an entire workspace.
 - Each target has its own interpreter, files and service configuration. Explicit CLI targets connect directly; Studio can use configured backend forwarding.
 
 [Jobs and Tasks](jobs-and-tasks.md) · [Task contracts](../reference/task-contracts.md) · [Framework extensions](../development/framework-extensions.md)

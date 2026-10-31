@@ -120,7 +120,6 @@ export const groups = [
           "api/events",
           "api/workspace",
           "api/machines",
-          "api/plugins-sync",
           "api/agent",
         ],
       ],

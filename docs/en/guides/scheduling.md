@@ -43,3 +43,22 @@ Check daemon/service logs and `logs/cron/entry-N.log`, then the Task metadata an
 `Application(cron=..., launch_scheduled=callback)` requires a host-provided launcher. The callback receives the entry index and `CronConfig`; the host owns process lifetime. CLI startup injects the daemon launcher. See [Framework extensions](../development/framework-extensions.md).
 
 Sources: [CronConfig](../../../axonx/app/config/models.py), [trigger loop](../../../axonx/app/components/cron/scheduler.py), [daemon launcher](../../../axonx/daemon/launcher.py).
+
+## Scheduled Jobs
+
+Use `backend: scheduled` for a pipeline that runs inside the service at calendar times:
+
+```yaml
+jobs:
+  hourly_diagnostics:
+    backend: scheduled
+    expression: "0 * * * *"
+    arguments: {}
+    enable_serve: false
+    steps:
+      - backend: diagnose_step
+```
+
+`expression` uses the same five numeric fields and App timezone as Cron. Optional `arguments` supplies the scheduled invocation's public inputs and must satisfy `parameters`; `defaults` continues to supply pipeline context defaults. Steps and the ordinary Job lifecycle are reused. Setting `enable_serve: false` keeps the Job out of HTTP/MCP catalogs without disabling its schedule.
+
+Scheduled calls start only after the whole application has started. An invocation finishes before its next time is calculated, so missed occurrences are coalesced and scheduled calls do not overlap. Failures are logged and later scheduled calls continue. Maintenance skips new calls; stopping the service cancels the scheduled invocation and its owned work. There is no startup replay. If the Job is also served, manual calls follow ordinary pipeline concurrency behavior.

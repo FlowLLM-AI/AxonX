@@ -97,6 +97,6 @@ Studio 读取选中 `portfolios[index]` 的报告，通过根级产物表解析 
 
 Studio 根据 `dimensions.top_ns` 生成收益和 NDCG 曲线，将行情不完整的评价标为暂定结果，并展示全部组合产物。预测统计只描述信号时分数和选股资格；预测输出包含分数和信号时资格，不包含未来收益或有效收益覆盖率。统计为空或标签缺失时显示不可用。
 
-Studio 比较页保留任务元数据中的 `signals_format`，并读取展示副本中实际可用的产物。股票回测声明 `signals_format: stock-signals-v3`，通过产物引用注册日频和汇总表。基准信息比率表头使用 `dimensions.benchmarks` 声明的名称。
+Studio 比较页保留任务元数据中的 `signals_format`，并读取已发布的产物。股票回测声明 `signals_format: stock-signals-v3`，通过产物引用注册日频和汇总表。基准信息比率表头使用 `dimensions.benchmarks` 声明的名称。
 
 `net_relative_max_drawdown_<基准>` 与净 IR 共用每日超额收益（策略净收益减去同日基准收益），先按 `∏(1 + 超额收益)` 复合为净值，再计算相对历史峰值的最大回撤。初始净值 1 参与峰值计算，回撤以非正小数表示；总体、年、季、月分别重置。仅使用双方均有限的日期，无有效观察值时为空。Studio 按报告声明的平均与指数基准展示；不可用的数值显示 `—`。

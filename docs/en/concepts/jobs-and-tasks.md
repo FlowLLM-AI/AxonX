@@ -41,12 +41,12 @@ The executor runs synchronous callables from `build_task_steps()`, records their
 
 ## Rerunning a fixed name
 
-The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer. After each Task finishes, the runtime appends one complete terminal metadata JSON object to `persistent/history.jsonl`, including inputs, outputs, child calls and artifact revisions. Failed executions and reconciled dead processes also append one terminal record. Running updates remain in `metadata.json`. Appends are locked, flushed and recover an incomplete trailing line. The history retains metadata rather than old payloads.
+The runtime verifies that an existing execution is stopped, rejects unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer. After each Task finishes, the runtime appends one complete terminal metadata JSON object to `persistent/history.jsonl`, including inputs, outputs, child calls and artifact revisions. Failed executions and reconciled dead processes also append one terminal record. Running updates remain in `metadata.json`. Appends are locked, flushed and recover an incomplete trailing line. The history retains metadata rather than old payloads.
 
 ## Waiting and termination
 
 `wait_task` captures the current `started_at` internally and fails if it changes. Queries do not reconcile stale running states. Startup checks and explicit `kill` can settle confirmed dead local records. Permission errors and foreign processes remain unverified.
 
-`axonx kill --task-id ID --timeout 5 --force false` verifies identity, stops descendants and the root execution, and rereads records. Children share the root's process. Remote kill uses the source machine and workspace, not a replica observer's mount path. No observation or deletion should be treated as process termination.
+`axonx kill --task-id ID --timeout 5 --force false` verifies identity, stops descendants and the root execution, and rereads records. Children share the root's process. Remote kill uses the execution machine and workspace. No observation or deletion should be treated as process termination.
 
 [Task contracts](../reference/task-contracts.md) · [Task management](../guides/task-management.md)

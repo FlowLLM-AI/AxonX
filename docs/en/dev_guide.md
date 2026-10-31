@@ -210,8 +210,6 @@ The distribution name `axonx-example` is used for package management, entry-poin
 - Declare data dependencies with `upstream_task_ids`; this does not execute upstream Tasks. Call child Tasks synchronously with `self.run_task(...)` and check `success`, `child_task_id` and typed `output_params`. Parent/child calls and input dependencies are separate relationships.
 - Children share the process and workspace and inherit the parent instance name by default. The same registration and instance name reuse one directory; use distinct `task_name` values for repeated calls or pin artifacts before reuse.
 
-For model-specific synchronization, reuse model `task_name`, logical child `node_name` and progress `name`/`group`. Child nodes begin with the model name and a hyphen; calls with hashed Task directory names supply the logical name explicitly. Shared calls retain their default registration node name. Sync `rules` maps workflow registrations to `live` or `terminal`, while `model_names` selects model names with shell-style patterns. Both modes publish the same exact Task tree; terminal rules wait for its completion.
-
 Research bases are in `axonx.task.core.research`, inputs/outputs in `axonx.task.models.params`, and protocols in `axonx.task.models.artifacts`. Main required fields for standard research outputs:
 
 | Stage          | Fields                                      |
@@ -397,9 +395,8 @@ axonx preview_file --path 'tasks/base/base#demo#check/metadata.json' --max-bytes
 To find an instance name or existing experiments, list the records:
 
 ```bash
-axonx list_task_ids
 axonx list_task_statuses --task-type backtest --state succeeded
-axonx list_task_directories --path tasks/backtest
+axonx list_entries --path tasks/backtest
 ```
 
 ## 5. Compare results and iterate
@@ -489,16 +486,18 @@ axonx app --config scheduled.yaml
 
 Schedules accept five-field expressions and local `axonx exec --task NAME` commands. Shell pipes, redirection and remote options are unsupported, and missed slots are not replayed. Restart after configuration changes. Started scheduled executions can survive service restarts; manual executions stop with the service. Inspect Task status and `logs/cron/entry-N.log`, and prevent overlapping schedules with fixed instance names.
 
-### Synchronize results for display
+Use `backend: scheduled` for service-owned periodic Jobs; `expression` uses the App timezone, and `arguments` supplies the scheduled public inputs. Scheduled calls run sequentially and stop with the service.
 
-To inspect research across machines, query the target's committed file inventories. For an existing valid display archive, upload it as above and apply it using the returned relative path:
-
-```bash
-axonx sync_index --source SOURCE_ID --target node-b:1024
-axonx sync_files --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+```yaml
+jobs:
+  hourly_diagnostics:
+    backend: scheduled
+    expression: "0 * * * *"
+    arguments: {}
+    enable_serve: false
+    steps:
+      - backend: diagnose_step
 ```
-
-The receiver commits files without parsing Task metadata; the existing task_index scanner then discovers supported metadata. Applying the archive removes its staged copy. With a configured sync component and command, `axonx sync_flush` can initiate synchronization from the source; it is disabled by default. Display replicas may omit or sample files and cannot execute or serve as research inputs. Complete backups require the workspace, external logs, configuration, source and dependency versions.
 
 ### Use the built-in Agent
 

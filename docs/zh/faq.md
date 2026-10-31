@@ -32,8 +32,8 @@ Agent 轮次与独立 Task 所有权不同。cancel_agent_turn 中断模型会�
 
 观察只读。启动或显式 kill 可修正确认已退出的本机进程；异机或无法访问的进程保持未验证。使用源服务、execution_target 和工作区。
 
-## 预览或副本不完整怎么办？
+## 预览不完整怎么办？
 
-检查响应截断、采样和省略文件信息。展示副本是观察证据，不是可执行备份。行情缺失可能让回测保持临时结果，即使 Task 执行成功。
+检查响应截断及完整源文件。行情缺失可能让回测保持临时结果，即使 Task 执行成功。
 
 [快速开始](getting-started/quickstart.md) · [运维](guides/operations.md) · [Task 契约](reference/task-contracts.md)

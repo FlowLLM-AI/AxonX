@@ -21,6 +21,7 @@ from axonx.client.config import (
     normalize_target,
 )
 from axonx.client.events import ResultEvent
+from axonx.client.files import build_file_archive
 from axonx.client.http import HttpClient, run_remote_job, stream_remote_job
 from axonx.client.mcp import McpClient
 from axonx.client.models import JobResponse
@@ -52,6 +53,15 @@ async def test_http_client_round_trip_with_the_application(tmp_path):
             assert source.read_bytes() == (app.workspace.root / copied.path).read_bytes()
             assert await remote.discard_file(copied.path) == copied.path
             assert not (app.workspace.root / copied.path).exists()
+            directory = tmp_path / "reports"
+            directory.mkdir()
+            (directory / "result.txt").write_text("complete directory")
+            archive = tmp_path / "reports.tar.gz"
+            build_file_archive({"reports/daily": directory}, archive)
+            report = await remote.copy_files(archive)
+            assert report == ["reports/daily"]
+            assert (app.workspace.root / "reports/daily/result.txt").read_text() == "complete directory"
+            assert not list(app.workspace.uploads.root.rglob("*.tar.gz"))
         async with HttpClient(target="service:1024", token="wrong", transport=transport) as remote:
             assert not await remote.health()
             with pytest.raises(RemoteServiceError) as error:

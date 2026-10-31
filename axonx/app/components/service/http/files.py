@@ -1,7 +1,8 @@
-"""Stage raw binary or multipart file uploads through the same HTTP endpoint."""
+"""Receive staged files or complete directory archives through one upload endpoint."""
 
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from contextlib import suppress
+from typing import TYPE_CHECKING, Literal
 
 from anyio import CancelScope
 from fastapi import APIRouter, HTTPException
@@ -16,6 +17,7 @@ from .....client.config import (
     PROTOCOL_ROUTE_UPLOAD,
 )
 from .....client.models import JobResponse, StagedFile
+from .....utils.async_work import run_blocking
 from .....utils.logging import format_log_arguments
 from ....workspace.uploads import UploadStore
 
@@ -28,7 +30,7 @@ UPLOAD_CHUNK_BYTES = 64 * 1024
 
 
 class FileRoutes(APIRouter):
-    """Stage and discard uploads with one request budget and storage backend."""
+    """Stage files, replace directories and discard uploads within one request budget."""
 
     def __init__(self, service: "HttpService", uploads: UploadStore) -> None:
         super().__init__()
@@ -64,12 +66,13 @@ class FileRoutes(APIRouter):
         )
         self.add_api_route(PROTOCOL_ROUTE_UPLOAD, self.discard_file, methods=["DELETE"])
 
-    async def copy_file(self, request: Request) -> JobResponse:
+    async def copy_file(self, request: Request, mode: Literal["stage", "replace"] = "stage") -> JobResponse:
         """Upload one file; headers override multipart filename and directory."""
         filename = request.headers.get(PROTOCOL_FILE_NAME_HEADER, "")
         directory = request.headers.get(PROTOCOL_FILE_DIRECTORY_HEADER, "").strip() or None
         arguments = format_log_arguments(
             {
+                "mode": mode,
                 "filename": filename,
                 "directory": directory or "",
                 "content_length": request.headers.get("content-length", ""),
@@ -89,7 +92,16 @@ class FileRoutes(APIRouter):
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
-        return JobResponse(answer=copied)
+        if mode == "stage":
+            return JobResponse(answer=copied)
+        try:
+            report = await run_blocking(self.uploads.replace, self.uploads.file(copied.path), self.limit)
+            return JobResponse(answer=report)
+        except (OSError, TypeError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+        finally:
+            with suppress(OSError, TypeError, ValueError):
+                await run_blocking(self.uploads.discard, copied.path)
 
     async def discard_file(self, path: str) -> JobResponse:
         """Discard one staged upload; repeated cleanup is intentionally harmless."""

@@ -32,8 +32,8 @@ Stop writers, verify state/process ownership, then delete its workspace-relative
 
 Observation is read-only. Startup or explicit kill can reconcile confirmed dead local processes; foreign or inaccessible processes remain unverified. Use the source service, execution_target and workspace.
 
-## What if a preview or replica is incomplete?
+## What if a preview is incomplete?
 
-Inspect response truncation, sampling and omitted-file metadata. A display replica is observation evidence, not an executable backup. Missing market data can make a backtest provisional even when Task execution succeeded.
+Inspect response truncation and the complete source artifact. Missing market data can make a backtest provisional even when Task execution succeeded.
 
 [Quickstart](getting-started/quickstart.md) · [Operations](guides/operations.md) · [Task contracts](reference/task-contracts.md)

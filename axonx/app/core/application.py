@@ -45,8 +45,11 @@ class Application:
         )
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()
-        self.is_started = False
         self._log_cleanup_task: asyncio.Task[None] | None = None
+
+    @property
+    def is_started(self) -> bool:
+        return self.context.metadata.get("started", False)
 
     @property
     def app_config(self) -> ApplicationConfig:
@@ -80,7 +83,7 @@ class Application:
                         [start_error, *cleanup_errors],
                     ) from None
                 raise
-            self.is_started = True
+            self.context.metadata["started"] = True
             if self.app_config.log_to_file:
                 self._log_cleanup_task = asyncio.create_task(self._maintain_logs(), name="axonx-log-cleanup")
 
@@ -96,7 +99,7 @@ class Application:
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""
         async with self._lifecycle_lock:
-            self.is_started = False
+            self.context.metadata.pop("started", None)
             errors: list[BaseException] = []
             try:
                 self.request_shutdown()

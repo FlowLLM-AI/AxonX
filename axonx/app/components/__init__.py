@@ -8,7 +8,7 @@ machine: Managed machine observation, diagnostics and Python execution.
 proxy: Proxy contracts and built-in forwarding implementations.
 registry: Explicit provider declarations and application-local provider lookup.
 service: Remotely callable service contracts and implementations.
-sync: Task display-replica planning, transfer and application.
+sync: Source-owned display planning and one-way task transfer.
 task_index: Task observation: indexing, lineage, summaries and event streams.
 updater: Application update admission and status.
 """

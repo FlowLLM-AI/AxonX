@@ -9,11 +9,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from axonx.app.components.sync.applier import FileSyncStore
-from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.components.task_index.stream import TaskEventStream
 from axonx.app.steps.task import WaitTaskStep
+from axonx.app.workspace.core import Workspace
+from axonx.client.files import build_file_archive
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask
 from axonx.task.models.identity import TaskState, is_generated_task_name
@@ -315,12 +315,12 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     assert child.started_at == second.started_at
     events = (task_path(workspace, child.task_id) / "events.jsonl").read_text().splitlines()
     assert any(json.loads(event)["state"] == "running" for event in events)
-    plans = prepare_group(workspace, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path), {})
+    _, plans = prepare_group(workspace, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path))
     archive = tmp_path / "tasks.tar.gz"
-    build_archive({parent.task_id: plans}, archive, source="source")
+    build_file_archive({name: plan.directory for name, plan in plans.items()}, archive)
     target = tmp_path / "target"
     target.mkdir()
-    FileSyncStore(target, 1_000_000).apply(archive)
+    Workspace(target).uploads.replace(archive, 1_000_000)
     replica = read_entry(target, parent.task_id)
     assert replica.replica.snapshot.root_started_at == parent.started_at
     assert read_entry(target, child.task_id).started_at == second.started_at

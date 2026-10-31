@@ -49,7 +49,7 @@ Task 输入通过 `input_sources` 保存生产执行与产物修订。显式外�
 
 `BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和文件版本。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
 
-`task.artifact_path(name)` 解析输出路径。`upstream_artifact()` 和 `upstream_artifacts()` 校验成功、非展示副本的上游，并直接读取其发布文件。Task metadata 通过 `input_sources` 记录来源执行与文件修订；执行结束前再次核验，来源被替换或文件变化则失败。revision 使用大小与纳秒修改时间，并非内容哈希；业务兼容性仍由插件检查。
+`task.artifact_path(name)` 解析输出路径。`upstream_artifact()` 和 `upstream_artifacts()` 校验成功的上游，并直接读取其发布文件。Task metadata 通过 `input_sources` 记录来源执行与文件修订；执行结束前再次核验，来源被替换或文件变化则失败。revision 使用大小与纳秒修改时间，并非内容哈希；业务兼容性仍由插件检查。
 
 ## 研究阶段输出
 

@@ -19,7 +19,6 @@ from axonx.app.components.machine.models import (
     MachineDiagnostics,
     MachineInfo,
 )
-from axonx.app.components.sync.models import FileManifest, SyncFilesReport
 from axonx.app.config.models import JobConfig
 from axonx.app.workspace.models import (
     CsvPreview,
@@ -75,8 +74,6 @@ from axonx.task.models.reports import (
 )
 
 MODELS = [
-    FileManifest,
-    SyncFilesReport,
     TaskContextSnapshot,
     MachineDiagnostics,
     TaskSummary,

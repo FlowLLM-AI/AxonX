@@ -38,7 +38,7 @@ Workspace is under System, with route `#local/workspace/files`. Browse directori
 
 ## View research results
 
-Data processing, Factor analysis, Model training, Offline prediction, and Offline backtest pages read metadata and published artifacts. Strategy comparison requires compatible dates, protocols and universes. Online prediction, Prediction comparison, and Data updates pages select Task reports by `report_kind`. Missing/omitted replica files or incomplete market data need explicit interpretation; Task success alone does not prove complete research evaluation.
+Data processing, Factor analysis, Model training, Offline prediction, and Offline backtest pages read metadata and published artifacts. Strategy comparison requires compatible dates, protocols and universes. Online prediction, Prediction comparison, and Data updates pages select Task reports by `report_kind`. Missing artifacts or incomplete market data need explicit interpretation; Task success alone does not prove complete research evaluation.
 
 Research screenshots use Playground's synthetic Tasks and artifacts in the current interface. They illustrate the controls and fields; their metrics are fictional. See [Research results](../research/results.md) and [Backtests](../research/backtest.md).
 

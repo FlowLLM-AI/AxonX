@@ -71,7 +71,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 ### 连通性、资源与停止
 
-list_machines/machine_status/diagnose 提供观察到的资源，不自动调度机器。Kill 使用 metadata 的源 execution_target 和 workspace_dir。展示副本不能控制源进程，machine_id 也不是地址。
+list_machines/machine_status/diagnose 提供观察到的资源，不自动调度机器。Kill 使用 metadata 的源 execution_target 和 workspace_dir。machine_id 不是地址。
 
 ## 从仓库部署
 

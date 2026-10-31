@@ -27,7 +27,7 @@ Observations do not rewrite running records. Runtime startup and explicit kill c
 
 Back up Task directories and persistent/ together with source/plugin versions, configuration, credentials, separate logs and Agent state when needed. Pause writers before copying related files. Restoring records does not restore processes. Reinstall the matching plugins, restore configuration/environment, start the intended service and verify data/model revisions before new execution.
 
-Display synchronization is bounded evidence replication, not a full backup; omitted/sampled files and environments need separate preservation. Indexes can be rebuilt from valid metadata. Do not delete live directories to repair execution.
+Indexes can be rebuilt from valid metadata. Do not delete live directories to repair execution.
 
 ## Service updates and restart
 

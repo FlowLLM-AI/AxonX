@@ -367,7 +367,7 @@ def test_cli_does_not_implement_resident_components_or_steps():
         ("axonx.task.storage.online", ("axonx.task.core", "axonx.task.runtime", "axonx.app")),
         ("axonx.app.components.task_index", ("axonx.task.core", "axonx.task.runtime", "axonx.plugin")),
         (
-            "axonx.app.components.sync.applier",
+            "axonx.app.workspace.uploads",
             (
                 "axonx.task.core",
                 "axonx.task.runtime",
@@ -399,7 +399,7 @@ def test_importing_one_capability_does_not_load_other_runtimes(module, forbidden
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("module", ["applier", "archive", "artifacts"])
+@pytest.mark.parametrize("module", ["artifacts"])
 def test_sync_archive_helpers_do_not_depend_on_transfer_components(module):
     # The package exposes all namespaces; implementation dependencies stay separate.
     forbidden = ("axonx.app.components.sync.local", "axonx.client")

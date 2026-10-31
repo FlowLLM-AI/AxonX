@@ -12,7 +12,6 @@
 | `list_task_defs`     | 列出本服务 Python 环境中注册的 Task，可省略 Schema 以减少响应体积。                         |
 | `get_task_def`       | 查询本服务中某个注册 Task 的说明及输入输出 Schema。                                         |
 | `wait_task`          | 等待当前 Task 执行结束；等待期间发现重跑则报错。                                            |
-| `list_task_ids`      | 列出索引中具有有效 metadata.json 的 Task ID。                                               |
 | `list_task_statuses` | 按类型和状态筛选 Task，返回轻量摘要或完整元数据快照。                                       |
 | `status`             | 读取一个 Task 的当前状态。                                                                  |
 | `read_task_log`      | 按字节范围读取一个 Task 的日志。                                                            |
@@ -106,18 +105,6 @@
 
 捕获当前 started_at，等待期间若重跑则拒绝继续。返回摘要或完整 metadata，只有 succeeded 时 success 为 true。没有业务超时入参，应设置足够的客户端超时。
 
-## list_task_ids
-
-列出索引中具有有效 metadata.json 的 Task ID。
-
-无业务参数。
-
-```json
-{
-  "arguments": {}
-}
-```
-
 ## list_task_statuses
 
 按类型和状态筛选 Task，返回轻量摘要或完整元数据快照。
@@ -136,7 +123,7 @@
 }
 ```
 
-两种 detail 都返回按创建时间倒序、以 Task ID 作为次排序键的列表，完整记录在筛选后才复制。`summary` 包含 TaskStatus 字段，以及 `display_name`、`is_replica` 和可选 `step_progress`（`current`、`total`、`name`、`percentage`），省略输入、输出、步骤和子调用数组。摘要错误最多 1000 字符，显示名称和步骤名最多 256 字符。列表使用周期刷新的索引（默认 5 秒）；`status` 和 `wait_task` 直接读取所选 metadata。
+两种 detail 都返回按创建时间倒序、以 Task ID 作为次排序键的列表，完整记录在筛选后才复制。`summary` 包含 TaskStatus 字段，以及 `display_name` 和可选 `step_progress`（`current`、`total`、`name`、`percentage`），省略输入、输出、步骤和子调用数组。摘要错误最多 1000 字符，显示名称和步骤名最多 256 字符。列表使用周期刷新的索引（默认 5 秒）；`status` 和 `wait_task` 直接读取所选 metadata。
 
 ## status
 
@@ -238,7 +225,7 @@
 
 ## 结果与生命周期
 
-TaskMetadata 包含 task_id、task_type、reg_name、parent_task_id、report_kind、state、进程身份、started_at、输入输出、步骤、子任务及可选展示副本信息。实际 Task 状态为 running/succeeded/failed；状态筛选 Schema 还声明了当前 Task 模型不产生的取消状态值。摘要省略较大的业务输入输出。
+TaskMetadata 包含 task_id、task_type、reg_name、parent_task_id、report_kind、state、进程身份、started_at、输入输出、步骤、子任务。实际 Task 状态为 running/succeeded/failed；状态筛选 Schema 还声明了当前 Task 模型不产生的取消状态值。摘要省略较大的业务输入输出。
 
 停止使用 `cli` 的 `["kill", "--task-id", "ID"]`。执行停止后通过通用 `delete_entries` 清理目录，没有专门的 Task 删除 Job。详见 [Task 契约](../reference/task-contracts.md)。
 

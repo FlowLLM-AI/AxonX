@@ -40,7 +40,7 @@ Confirm their common window first, then explain why net returns and summary tabl
 Do not treat top30_holdings as the actual position ledger.
 ```
 
-The development guide covers CLI commands including `list_entries`, `preview_file`, `list_task_ids`, `list_task_statuses`, `status`, `read_task_log`, `get_task_graph`, and `get_task_context`. The Agent obtains actual information before composing its response.
+The development guide covers CLI commands including `list_entries`, `preview_file`, `list_task_statuses`, `status`, `read_task_log`, `get_task_graph`, and `get_task_context`. The Agent obtains actual information before composing its response.
 
 Avoid asking only to “analyze the latest strategy” without a machine or task scope. If multiple results exist, the model may select a different experiment; ask it to list candidate tasks for your confirmation first.
 
@@ -71,7 +71,7 @@ The backend generates a UUID for a new session, and subsequent messages use the 
 
 Forking creates a new session identity to explore different questions from existing context. It does not copy research Task directories or rerun the research chain. Running sessions cannot be deleted.
 
-Sessions are saved in the current service's configured directory. Switching machines switches the environment containing queries and sessions. Result display synchronization does not automatically migrate Agent history.
+Sessions are saved in the current service's configured directory. Switching machines switches the environment containing queries and sessions.
 
 Switching conversations or machines aborts the previous browser stream. Studio skips history reconciliation for that obsolete stream so its errors cannot appear in the newly selected conversation. With `session_store_flush: batched`, a new session is available in the AxonX store only after the SDK flushes its transcript; the session-start event alone does not mean history has been persisted.
 

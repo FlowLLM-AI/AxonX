@@ -43,3 +43,22 @@ cron:
 `Application(cron=..., launch_scheduled=callback)` 要求宿主提供启动器。回调接收条目索引和 `CronConfig`，进程生命周期归宿主管理。CLI 启动注入 Daemon 启动器，详见[框架扩展](../development/framework-extensions.md)。
 
 源码：[CronConfig](../../../axonx/app/config/models.py)、[触发循环](../../../axonx/app/components/cron/scheduler.py)、[Daemon 启动器](../../../axonx/daemon/launcher.py)。
+
+## 定时 Job
+
+使用 `backend: scheduled` 在服务内按日历时刻运行 pipeline：
+
+```yaml
+jobs:
+  hourly_diagnostics:
+    backend: scheduled
+    expression: "0 * * * *"
+    arguments: {}
+    enable_serve: false
+    steps:
+      - backend: diagnose_step
+```
+
+`expression` 与 Cron 共用五字段数字表达式和 App 时区。可选 `arguments` 提供定时调用的公共入参，必须满足 `parameters`；`defaults` 继续提供 pipeline 上下文默认值。Steps 和普通 Job 生命周期直接复用。`enable_serve: false` 只隐藏 HTTP/MCP 入口，不停用调度。
+
+整个应用启动完成后才接受定时调用，调用结束后再计算下一次触发时刻，不补跑错过的时刻，定时调用之间不会重叠。失败会记日志，之后仍继续调度；维护期间跳过新调用，服务停止时取消当前调用及其自有工作。启动时不重放历史触发。如果同时开放服务入口，手动调用仍遵循普通 pipeline 并发行为。

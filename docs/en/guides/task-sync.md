@@ -1,18 +1,6 @@
-# Result Display Synchronization
+# One-way task display synchronization
 
-Synchronization creates bounded display replicas. Each rule selects a registered workflow and a publication time: `terminal` waits for the parent and its selected descendants to succeed or fail; `live` captures their current state on each flush. `model_names` selects model branches with shell-style patterns; an empty list includes every model. An empty `rules` mapping selects no workflows.
-
-![Source evidence and read-only display replicas in separate workspaces](../../figures/concepts/workspace.svg)
-
-Follow the dashed copy path to the display workspace. Research consumers continue to read verified source artifacts; the replica path is for inspection.
-
-## Content and semantics
-
-Replicas include metadata, progress evidence and referenced published artifacts. They exclude environments, raw workspaces and unreferenced files. Missing files are recorded in replica.omitted; source declarations and metrics remain unchanged. Replicas cannot execute or be reused as mutable research inputs, and are not forwarded as synchronization sources.
-
-## One budget
-
-transfer_budget_bytes (default 512 MiB) bounds upload/archive size including tar overhead. Sender and receiver use the smaller budget. Large date-keyed Parquet outputs may be sampled to a shared suffix of complete trade dates; record sizes, revisions, source rows and coverage distinguish replicas from complete source artifacts. Other files can be omitted rather than silently truncated.
+The source pushes new or changed selected task groups into a dedicated remote display workspace. It does not compare remote state, pull changes, propagate source deletions or remove directories dropped by a selection rule. Matching destination directories are replaced completely; unlisted remote directories remain untouched.
 
 ## Configuration
 
@@ -26,7 +14,6 @@ components:
     default:
       backend: local
       target: http://display:1024
-      task_index: default
       model_names: ["experiment-*"]
       rules:
         research: terminal
@@ -35,33 +22,29 @@ components:
       max_archives_per_flush: 4
       timeout_seconds: 300
 jobs:
-  sync_flush:
-    parameters: { type: object, properties: {}, additionalProperties: false }
+  publish_display:
+    backend: scheduled
+    expression: "* * * * *"
+    enable_serve: false
     steps:
       - backend: sync_flush_step
         sync: default
 ```
 
-Invoke `axonx sync_flush` explicitly after configuring this optional Job. The default leaves it disabled. Cron supports local Task exec commands, so do not copy a Job schedule block into cron. A host workflow can invoke flush periodically. The sync component depends on task_index.
+The internal Job runs once per minute in the App timezone. It reuses the pipeline Steps, argument validation and cancellation lifecycle. Scheduled invocations are sequential and missed times are not replayed. Set `enable_serve: true` to also allow manual HTTP/MCP invocation. Stopping the service cancels its scheduled Jobs; research Task processes retain their existing daemon ownership.
 
-## Reconciliation, retries and cleanup
+## Source selection and change detection
 
-Index events queue eligible source records. The sender selects and validates workflow snapshots, projects metadata, captures logs and samples artifacts locally. It queries `sync_index` for its source's file receipts, uploads changed files with a complete inventory, and commits the batch through `sync_files`. Unchanged source publications are skipped. Temporary failures remain eligible for later flushes; unsafe or oversized evidence reports errors/omissions.
+`rules` maps workflow registrations to `terminal` or `live`. Terminal publication waits for the parent and selected descendants to finish; live publication captures current evidence. `model_names` uses shell-style patterns, with an empty list including all models. Empty rules select nothing.
 
-The receiver only validates file paths, inventories, sizes, ownership and revision ordering. It reconstructs unchanged files from matching receipts and replaces directories and receipts together with rollback on failure. It does not parse `TaskMetadata`, `DisplayReplica`, model names or parent/child relations. The existing `task_index` component discovers published metadata on its next scan (default interval: five seconds); supported metadata is required for display, independently of successful file transfer.
+Each invocation scans source metadata. Version detection uses execution identity, file inventory, sizes, nanosecond mtimes and publication policy without reading payloads for content hashing. Successful versions are retained in sender memory. Unchanged groups are skipped, failures are retried on the next invocation, and source service restart republishes selected groups once. Remote deletion or modification does not trigger retransmission. Changing file contents while preserving size and mtime is not detected.
 
-Transport receipts in `sync/receipts/` support delta transfer, retry and owned-directory cleanup. They are not a second Task index. Each directory is checked once per query. Groups sharing a directory use its latest committed file inventory; a missing or size-mismatched file makes affected groups eligible for retransmission. Existing directories without ownership receipts are never adopted or overwritten. Receipts also record local directory identities, so a directory recreated locally cannot be overwritten using an old receipt. Inspect the returned synchronization report; uploaded archives are cleaned after application.
+Model selection reuses model `task_name`, logical child `node_name` and progress `name`/`group`. Selected views retain available matching child executions and shared descendants. Parent parameters, results and progress are projected to the selected models; mixed parent logs and aggregate artifacts are omitted. Replaced child executions are excluded rather than associated with old parent calls. Sources remain unchanged.
 
-## Selected workflow snapshots
+## Transfer and display
 
-`TaskSnapshot` records `source_id`, `root_task_id`, `root_started_at`, `captured_at`, ordered `revision`, `when` and `model_names`. Both publication modes use the same sender-side task-tree selection and budget, followed by file delta transfer and batch replacement. Child membership follows recorded Task IDs and start times. When a fixed-name child has a newer execution, its old invocation remains in source metadata and execution history, while display snapshots omit that replaced branch. New child payloads are never attached to old invocation records. Missing children and changes during capture remain errors. Excluded branches are not read, so their replacement cannot block another model's snapshot.
+The sender creates complete bounded display directories and submits them through `POST /upload?mode=replace`. Each archive contains one workflow group and its selected descendants; `max_archives_per_flush` bounds each invocation, with subsequent invocations continuing through other roots. The receiver only validates and replaces files. Its existing `task_index` discovers supported metadata at the next scan, every five seconds by default. No receiver-side synchronization component, receipt, dedicated Job or task metadata parser is required for file transfer.
 
-Selection reuses input `models`, each model's `task_name` and existing child `node_name`. Model lists use `MODEL-REGISTRATION` nodes; signal-time mappings use `MODEL-SLOT-REGISTRATION`. Normal `run_task(task_name=...)` calls derive this name automatically. Calls with hashed Task directory names supply the explicit logical `node_name`. Shared calls keep the default node name equal to their registration. Selected branches retain all exact descendant Runs. Parent progress matches the model node (`MODEL` or `MODEL-SLOT`) in step `group` or colon-separated `name` parts. A partially selected parent with an unrecognized child node is rejected.
+`transfer_budget_bytes` defaults to 512 MiB and bounds both upload bytes and expanded archive size. Configure the source budget no larger than the receiver's. Oversized date-keyed Parquet artifacts can be sampled to a shared suffix of complete trading days; other files can be omitted explicitly. Failures and omissions are reported. Display metadata retains source identity, source/policy revisions, file coverage and the selected workflow snapshot. Display replicas cannot execute, become research inputs or be forwarded as source tasks.
 
-For a partial view, the sender projects named model entries in parent inputs/results, keeps selected and shared children/steps, and omits aggregated parent artifacts and mixed parent logs. Selected child publications and bounded logs remain available. The source metadata is unchanged. Selecting no models removes a previously published view. Task trees link children by Task ID and execution start time; shared children can come from a newer display publication without invalidating another parent's view. Replacing a view removes obsolete display replicas owned by that same source/root group; unrelated Tasks are retained.
-
-## Verification
-
-Check source/target, Task start identity, available artifact coverage and target read-only labels. Synchronization does not resume processes, install plugins, transfer credentials or replace backup.
-
-Sources: [sync component](../../../axonx/app/components/sync/local.py), [replica builder](../../../axonx/app/components/sync/replica.py).
+Source staging under `tmp/sync/` is removed after each group. Receiver staging under `tmp/files/` is removed after success or a completed rollback; failed rollbacks retain original directories for recovery. The operation is file replacement, not a backup or process/environment migration. Use separate display workspaces because supplied paths overwrite matching directories.

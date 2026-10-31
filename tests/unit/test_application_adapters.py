@@ -10,14 +10,13 @@ from time import monotonic, sleep
 import pytest
 from fastapi.testclient import TestClient
 
-from axonx.app.components.sync.archive import build_archive
-from axonx.app.components.sync.models import FileGroup
 from axonx.app.components.sync.replica import ReplicaBuilder
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.config.models import CronConfig
 from axonx.app.core.application import Application
 from axonx.app.workspace.core import Workspace
 from axonx.client.config import PROTOCOL_FILE_NAME_HEADER
+from axonx.client.files import build_file_archive
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.models.identity import TaskState
 from axonx.task.runtime.catalog import TaskCatalog
@@ -330,31 +329,22 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     plan = ReplicaBuilder(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(source)).prepare()
     archive = tmp_path / "replica.tar.gz"
     relative = str(task_path(app.workspace.root, status.task_id).relative_to(app.workspace.root))
-    plans = {relative: plan}
-    build_archive({"group": (FileGroup.capture(plans, "first", 1), plans)}, archive, source="source")
-    response = client.post("/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name})
+    build_file_archive({relative: plan.directory}, archive)
+    response = client.post(
+        "/upload?mode=replace", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name}
+    )
     assert response.status_code == 200, response.text
-    staged = response.json()["answer"]
-    applied = invoke(client, "sync_files", {"path": staged["path"]})
-    assert applied["applied"] == [str(task_path(app.workspace.root, status.task_id).relative_to(app.workspace.root))]
-    assert not Path(staged["location"]).exists()
+    assert response.json()["answer"] == [relative]
+    assert not list(app.workspace.uploads.root.rglob("*.tar.gz"))
     deadline = monotonic() + 2
-    while status.task_id not in invoke(client, "list_task_ids", {}) and monotonic() < deadline:
+    while monotonic() < deadline:
+        if status.task_id in {item["task_id"] for item in invoke(client, "list_task_statuses", {})}:
+            break
         sleep(0.01)
-    assert status.task_id in invoke(client, "list_task_ids", {})
+    assert status.task_id in {item["task_id"] for item in invoke(client, "list_task_statuses", {})}
     replica = invoke(client, "status", {"task_id": status.task_id})
     assert replica["replica"]["purpose"] == "display"
     assert replica["output_params"]["result"] == 7
-    index = invoke(client, "sync_index", {"source": "source"})
-    assert "group" in index["groups"]
-    tombstone = FileGroup(version="deleted", revision=2, directories={})
-    build_archive({"group": (tombstone, {})}, archive, source="source")
-    staged = client.post(
-        "/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name}
-    ).json()["answer"]
-    deletion = invoke(client, "sync_files", {"path": staged["path"]})
-    assert deletion["deleted"] == applied["applied"]
-    assert read_entry(app.workspace.root, status.task_id) is None
 
 
 def test_explicit_execution_location_is_recorded_by_remote_cli(application):

@@ -1,10 +1,15 @@
-"""Workspace-owned upload staging, atomic publication and opportunistic cleanup."""
+"""Single-file staging and complete-directory uploads with bounded replacement and cleanup."""
 
 from __future__ import annotations
 
+import gzip
+import json
 import os
+import shutil
 import stat
+import tarfile
 import tempfile
+import zlib
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from pathlib import Path
@@ -12,7 +17,9 @@ from time import time
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from ...client.files import MANIFEST_NAME, validate_relative_path
 from ...client.models import StagedFile
+from ...task.storage.files import file_lock
 from ...utils.async_work import run_blocking
 
 if TYPE_CHECKING:
@@ -20,6 +27,7 @@ if TYPE_CHECKING:
 
 MAX_FILENAME_LENGTH = 200
 DEFAULT_UPLOAD_RETENTION_DAYS = 7
+MAX_ARCHIVE_MEMBERS = 100_000
 
 
 class UploadStore:
@@ -198,3 +206,106 @@ class UploadStore:
 
     def _report(self, target: Path, size: int) -> StagedFile:
         return StagedFile(path=self.workspace.relative(target), location=str(target), size=size)
+
+    def replace(self, archive: Path, budget: int) -> list[str]:
+        """Replace complete directories; preserve backups if rollback itself fails."""
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ValueError("transfer_budget_bytes must be a positive integer")
+        if archive.stat().st_size > budget:
+            raise ValueError(f"File archive exceeds {budget} bytes")
+        temporary = self.workspace.resolve("tmp/files")
+        with file_lock(temporary / "publication.lock"):
+            staging = Path(tempfile.mkdtemp(prefix="receive-", dir=temporary))
+            committed = False
+            try:
+                directories = self._extract(archive, staging / "incoming", budget)
+                self._commit(staging, directories)
+                committed = True
+                return directories
+            finally:
+                backup = staging / "backup"
+                if committed or not backup.exists() or not any(backup.iterdir()):
+                    shutil.rmtree(staging)
+
+    def _destinations(self, values: object) -> list[str]:
+        if not isinstance(values, list) or not values or any(not isinstance(value, str) for value in values):
+            raise ValueError("File archive requires a nonempty directory list")
+        paths = []
+        protected = (self.workspace.resolve("tmp/files"), self.root)
+        for value in values:
+            validate_relative_path(value)
+            target = self.workspace.resolve(value)
+            if any(target.is_relative_to(path) or path.is_relative_to(target) for path in protected):
+                raise ValueError(f"Cannot replace file-transfer staging: {value}")
+            if target.exists() and not target.is_dir():
+                raise ValueError(f"Destination is not a directory: {value}")
+            paths.append(target)
+        roots = set(paths)
+        if len(roots) != len(paths) or any(parent in roots for path in roots for parent in path.parents):
+            raise ValueError("Overlapping archive directories")
+        return values
+
+    def _extract(self, source: Path, incoming: Path, budget: int) -> list[str]:
+        try:
+            # Bound the entire tar stream, including PAX headers and padding, before parsing it.
+            expanded = incoming.parent / "archive.tar"
+            with gzip.open(source, "rb") as stream, expanded.open("wb") as output:
+                remaining = budget
+                while chunk := stream.read(min(1024 * 1024, remaining + 1)):
+                    remaining -= len(chunk)
+                    if remaining < 0:
+                        raise ValueError("Expanded file archive exceeds the transfer budget")
+                    output.write(chunk)
+            with tarfile.open(expanded, "r:") as archive:
+                first = archive.next()
+                if first is None or first.name != MANIFEST_NAME or not first.isfile() or first.size > budget:
+                    raise ValueError("File archive must start with its directory list")
+                with archive.extractfile(first) as stream:
+                    directories = self._destinations(json.load(stream))
+                for directory in directories:
+                    (incoming / directory).mkdir(parents=True)
+                names = set()
+                while (member := archive.next()) is not None:
+                    name = validate_relative_path(member.name)
+                    if (
+                        not member.isfile()
+                        or member.issparse()
+                        or member.name in names
+                        or len(names) >= MAX_ARCHIVE_MEMBERS
+                    ):
+                        raise ValueError(f"Invalid archive member: {member.name}")
+                    if not any(name.is_relative_to(directory) and str(name) != directory for directory in directories):
+                        raise ValueError(f"File is outside its declared directories: {member.name}")
+                    names.add(member.name)
+                    target = incoming / member.name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with archive.extractfile(member) as stream, target.open("xb") as output:
+                        shutil.copyfileobj(stream, output)
+                return directories
+        except (tarfile.TarError, EOFError, zlib.error) as exc:
+            raise ValueError(f"Invalid file archive: {exc}") from exc
+
+    def _commit(self, staging: Path, directories: list[str]) -> None:
+        backups, installed = [], []
+        try:
+            for index, relative in enumerate(directories):
+                target = self.workspace.resolve(relative)
+                if target.exists():
+                    backup = staging / "backup" / str(index)
+                    backup.parent.mkdir(parents=True, exist_ok=True)
+                    os.replace(target, backup)
+                    backups.append((target, backup))
+            for relative in directories:
+                target = self.workspace.resolve(relative)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(staging / "incoming" / relative, target)
+                installed.append(target)
+        except BaseException:
+            try:
+                for target in reversed(installed):
+                    shutil.rmtree(target)
+                for target, backup in reversed(backups):
+                    os.replace(backup, target)
+            except OSError as exc:
+                raise OSError(f"Upload rollback failed; backups retained at {staging / 'backup'}") from exc
+            raise

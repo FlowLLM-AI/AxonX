@@ -71,7 +71,7 @@ All native command paths are interpreted at the target service workspace, includ
 
 ### Connectivity, resources and termination
 
-Use list_machines/machine_status/diagnose for observed resources; there is no automatic machine scheduling. For kill use the source execution_target and workspace_dir from metadata. A display replica cannot control the source process, and machine_id is not an address.
+Use list_machines/machine_status/diagnose for observed resources; there is no automatic machine scheduling. For kill use the source execution_target and workspace_dir from metadata. machine_id is not an address.
 
 ## Deploying from a checkout
 

@@ -14,7 +14,7 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 - Complete the [quickstart](../getting-started/quickstart.md), with a working service token and connection.
 - Install the qlib_a158 plugin in the service environment executing tasks. Installing it in the local CLI environment does not automatically change a remote machine's environment.
 - Have Tushare history covering the training and prediction periods, plus necessary master data, in the workspace.
-- Keep complete upstream research artifacts in the source workspace. Display synchronization can sample or omit files and is not suitable for execution inputs.
+- Keep complete upstream research artifacts in the source workspace.
 
 Run from the AxonX source checkout root (plugins are not published to PyPI):
 

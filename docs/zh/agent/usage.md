@@ -39,7 +39,7 @@ AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完�
 不要把 top30_holdings 当作实际持仓账本。
 ```
 
-开发指南涵盖的 CLI 命令包括 `list_entries`、`preview_file`、`list_task_ids`、`list_task_statuses`、`status`、`read_task_log`、`get_task_graph` 和 `get_task_context`。Agent 先取得实际信息，再形成答复。
+开发指南涵盖的 CLI 命令包括 `list_entries`、`preview_file`、`list_task_statuses`、`status`、`read_task_log`、`get_task_graph` 和 `get_task_context`。Agent 先取得实际信息，再形成答复。
 
 不要只给“分析最新策略”而不给机器或任务范围。多个结果存在时，模型可能选到不同实验；要求它先列出候选任务供你确认。
 
@@ -71,7 +71,7 @@ Studio 显示文本、思考和工具块，并根据增量事件更新。工具�
 
 分叉创建新的会话身份，用于从既有上下文探索不同问题，不会复制研究 Task 目录，也不会重跑研究链。当前运行中的会话不能删除。
 
-会话保存在当前服务的配置目录中，切换机器会切换查询与会话所在环境。结果展示同步不自动迁移 Agent 历史。
+会话保存在当前服务的配置目录中，切换机器会切换查询与会话所在环境。
 
 切换会话或机器会中断之前的浏览器流。Studio 跳过这条过期流的历史回读，避免旧错误出现在新选中的会话中。使用 `session_store_flush: batched` 时，新会话需等 SDK 刷写记录后才会出现在 AxonX 存储中；收到会话开始事件不代表历史已经持久化。
 

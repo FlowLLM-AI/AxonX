@@ -51,7 +51,7 @@ flowchart TD
 
 - [utils.async_work](axonx/utils/async_work.py)（`utils`）：`complete_on_cancel` 和 `run_blocking`；自有异步清理和线程工作完成后再传播取消，由 App、Client 和 Daemon 共用。
 
-  调用方：[app.components.agent.claude.backend](axonx/app/components/agent/claude/backend.py)、[app.components.agent.session_store](axonx/app/components/agent/session_store.py)、[app.components.job.command](axonx/app/components/job/command.py)、[app.components.job.pipeline](axonx/app/components/job/pipeline.py)、[app.components.machine.local](axonx/app/components/machine/local.py)、[app.components.machine.python](axonx/app/components/machine/python.py)、[app.components.proxy.base](axonx/app/components/proxy/base.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.updater.local](axonx/app/components/updater/local.py)、[app.core.application](axonx/app/core/application.py)、[app.steps.sync](axonx/app/steps/sync.py)、[app.steps.task](axonx/app/steps/task.py)、[app.workspace.uploads](axonx/app/workspace/uploads.py)、[client.base](axonx/client/base.py)、[client.http](axonx/client/http.py)、[daemon.launcher](axonx/daemon/launcher.py)。
+  调用方：[app.components.agent.claude.backend](axonx/app/components/agent/claude/backend.py)、[app.components.agent.session_store](axonx/app/components/agent/session_store.py)、[app.components.job.command](axonx/app/components/job/command.py)、[app.components.job.pipeline](axonx/app/components/job/pipeline.py)、[app.components.machine.local](axonx/app/components/machine/local.py)、[app.components.machine.python](axonx/app/components/machine/python.py)、[app.components.proxy.base](axonx/app/components/proxy/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.updater.local](axonx/app/components/updater/local.py)、[app.core.application](axonx/app/core/application.py)、[app.steps.task](axonx/app/steps/task.py)、[app.workspace.uploads](axonx/app/workspace/uploads.py)、[client.base](axonx/client/base.py)、[client.http](axonx/client/http.py)、[daemon.launcher](axonx/daemon/launcher.py)。
 
 - [app.core.application](axonx/app/core/application.py)（`app`）：延迟导入 `Application`，直接创建应用并注入更新后端。Workspace 提供通用文件操作，TaskIndex 只读观察记录。
 
@@ -59,7 +59,7 @@ flowchart TD
 
 - [client.base](axonx/client/base.py)（`client`）：客户端生命周期和远程错误分类；App 与 CLI 直接引用错误类型。
 
-  调用方：[app.components.service.http.service](axonx/app/components/service/http/service.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[cli.commands](axonx/cli/commands.py)。
+  调用方：[app.components.service.http.service](axonx/app/components/service/http/service.py)、[cli.commands](axonx/cli/commands.py)。
 
 - [client.config](axonx/client/config.py)（`client`）：`ConnectionOptions`、地址规范化、连接默认值、环境变量、路由、鉴权头和 SSE 约定；由 Client、CLI 与服务端配置共用。
 
@@ -69,7 +69,7 @@ flowchart TD
 
   调用方：[app.components.agent.base](axonx/app/components/agent/base.py)、[app.components.agent.claude.backend](axonx/app/components/agent/claude/backend.py)、[app.components.agent.claude.projector](axonx/app/components/agent/claude/projector.py)、[app.components.agent.models](axonx/app/components/agent/models.py)、[app.components.job.base](axonx/app/components/job/base.py)、[app.components.job.command](axonx/app/components/job/command.py)、[app.components.job.pipeline](axonx/app/components/job/pipeline.py)、[app.components.service.http.jobs](axonx/app/components/service/http/jobs.py)、[app.core.application](axonx/app/core/application.py)、[app.core.dispatch](axonx/app/core/dispatch.py)、[app.steps.agent](axonx/app/steps/agent.py)、[app.steps.base](axonx/app/steps/base.py)、[cli.remote](axonx/cli/remote.py)、[cli.rendering](axonx/cli/rendering.py)。
 
-- [client.http](axonx/client/http.py)（`client`）：`HttpClient`、`run_remote_job`、`stream_remote_job`；远程转发、同步、健康检查和 CLI 调用。
+- [client.http](axonx/client/http.py)（`client`）：`HttpClient`、`run_remote_job`、`stream_remote_job`；远程转发、健康检查和 CLI 调用。
 
   调用方：[app.components.machine.local](axonx/app/components/machine/local.py)、[app.components.service.http.jobs](axonx/app/components/service/http/jobs.py)、[app.core.dispatch](axonx/app/core/dispatch.py)、[cli.commands](axonx/cli/commands.py)、[cli.remote](axonx/cli/remote.py)。
 
@@ -97,9 +97,9 @@ flowchart TD
 
   调用方：[app.config.loader](axonx/app/config/loader.py)、[cli.commands](axonx/cli/commands.py)、[cli.remote](axonx/cli/remote.py)、[daemon.launcher](axonx/daemon/launcher.py)。
 
-- [utils.logging](axonx/utils/logging.py)（`utils`）：`get_logger`、日志配置和格式化；同步索引记录无效副本，App、CLI 和 Task 复用共享日志能力。
+- [utils.logging](axonx/utils/logging.py)（`utils`）：`get_logger`、日志配置和格式化；App、CLI 和 Task 复用共享日志能力。
 
-  调用方：[app.components.base](axonx/app/components/base.py)、[app.components.service.http.files](axonx/app/components/service/http/files.py)、[app.components.service.http.shutdown](axonx/app/components/service/http/shutdown.py)、[app.components.sync.applier](axonx/app/components/sync/applier.py)、[app.config.loader](axonx/app/config/loader.py)、[app.core.application](axonx/app/core/application.py)、[app.core.composition](axonx/app/core/composition.py)、[app.core.dispatch](axonx/app/core/dispatch.py)、[cli.commands](axonx/cli/commands.py)、[task.core.base](axonx/task/core/base.py)、[task.runtime.executor](axonx/task/runtime/executor.py)、[task.runtime.lifecycle](axonx/task/runtime/lifecycle.py)。
+  调用方：[app.components.base](axonx/app/components/base.py)、[app.components.service.http.files](axonx/app/components/service/http/files.py)、[app.components.service.http.shutdown](axonx/app/components/service/http/shutdown.py)、[app.config.loader](axonx/app/config/loader.py)、[app.core.application](axonx/app/core/application.py)、[app.core.composition](axonx/app/core/composition.py)、[app.core.dispatch](axonx/app/core/dispatch.py)、[cli.commands](axonx/cli/commands.py)、[task.core.base](axonx/task/core/base.py)、[task.runtime.executor](axonx/task/runtime/executor.py)、[task.runtime.lifecycle](axonx/task/runtime/lifecycle.py)。
 
 - [utils.values](axonx/utils/values.py)（`utils`）：`convert_value` 统一 CLI 参数与环境插值的标量转换；`utils.env` 在包内复用同一实现。
 
@@ -129,17 +129,9 @@ flowchart TD
 
   调用方：[app.components.task_index.base](axonx/app/components/task_index/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)、[app.steps.task](axonx/app/steps/task.py)、[cli.remote](axonx/cli/remote.py)、[client.events](axonx/client/events.py)。
 
-- [task.storage.files](axonx/task/storage/files.py)（`task`）：`copy_file`；准备展示副本和补齐增量时复用原子输出复制。
+- [task.models.lifecycle](axonx/task/models/lifecycle.py)（`task`）：TaskIndex 使用 `TaskMetadata` 表达运行元数据。
 
-  调用方：[app.components.sync.applier](axonx/app/components/sync/applier.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)。
-
-- [task.models.artifacts](axonx/task/models/artifacts.py)（`task`）：`fingerprint`；同步组件根据 Task 和文件元数据计算源版本与快照来源标识。
-
-  调用方：[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)。
-
-- [task.models.lifecycle](axonx/task/models/lifecycle.py)（`task`）：同步组件使用 `DisplayReplica`、`TaskSnapshot`、`ReplicaFile`、`ReplicaLog` 和 `TaskMetadata` 描述副本；TaskIndex 使用 `TaskMetadata` 表达运行元数据。
-
-  调用方：[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)、[app.components.task_index.base](axonx/app/components/task_index/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
+  调用方：[app.components.task_index.base](axonx/app/components/task_index/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
 
 - [task.models.query](axonx/task/models/query.py)（`task`）：TaskIndex 使用 `TaskSummary`、`TaskGraph`、`TaskContextSnapshot`；Task 目录在包内复用 `TaskDefinition`、`TaskInfo`。
 
@@ -153,21 +145,25 @@ flowchart TD
 
   调用方：[cli.commands](axonx/cli/commands.py)、[daemon.launcher](axonx/daemon/launcher.py)。
 
-- [task.storage.logs](axonx/task/storage/logs.py)（`task`）：`TaskLogReader`；为副本准备日志，App 本地索引也直接使用同一日志读取能力。
+- [task.storage.files](axonx/task/storage/files.py)（`task`）：`file_lock`；串行提交完整目录上传批次。
 
-  调用方：[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
+  调用方：[app.workspace.uploads](axonx/app/workspace/uploads.py)。
+
+- [task.storage.logs](axonx/task/storage/logs.py)（`task`）：`TaskLogReader`；App 本地索引直接使用日志读取能力。
+
+  调用方：[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
 
 - [task.runtime.lifecycle](axonx/task/runtime/lifecycle.py)（`task`）：延迟导入 `kill_task`，显式终止本机 Task 并收尾已退出的执行记录。
 
   调用方：[cli.commands](axonx/cli/commands.py)。
 
-- [task.storage.workspace](axonx/task/storage/workspace.py)（`task`）：同步组件复用元数据读取与写入、Task 目录定位、扫描和路径校验；TaskIndex 直接使用 `FileVersion`、`read_entry`、`scan_metadata` 观察任务。
+- [task.storage.workspace](axonx/task/storage/workspace.py)（`task`）：TaskIndex 直接使用 `FileVersion`、`read_entry`、`scan_metadata` 观察任务。
 
-  调用方：[app.components.sync.applier](axonx/app/components/sync/applier.py)、[app.components.sync.archive](axonx/app/components/sync/archive.py)、[app.components.sync.artifacts](axonx/app/components/sync/artifacts.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
+  调用方：[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)。
 
-- [task.models.identity](axonx/task/models/identity.py)（`task`）：App 查询使用 Task 枚举；同步组件和索引 Step 复用任务名称和 ID 校验、名称匹配；Task 目录在包内复用 Task 类型。
+- [task.models.identity](axonx/task/models/identity.py)（`task`）：App 查询使用 Task 枚举；索引 Step 复用任务名称和 ID 校验、名称匹配；Task 目录在包内复用 Task 类型。
 
-  调用方：[app.components.sync.applier](axonx/app/components/sync/applier.py)、[app.components.sync.local](axonx/app/components/sync/local.py)、[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.steps.sync](axonx/app/steps/sync.py)、[app.steps.task](axonx/app/steps/task.py)。
+  调用方：[app.components.task_index.query](axonx/app/components/task_index/query.py)、[app.steps.task](axonx/app/steps/task.py)。
 
 `utils` 不依赖另外六个包；`task` 的跨包直接依赖只有 `utils.logging`。`plugin` 不依赖 Task 或 App。`app` 的定义查询使用注入的 Task 目录，仅在类型检查时导入目录类型；不直接导入 `plugin`、`cli` 或 `daemon`，通过命令子进程和注入后端与它们交互。`daemon` 对 App、Task 和 Plugin 发现的导入集中在启动装配层，独立监督进程 `daemon.supervisor` 只导入标准库。Client 只依赖 Task 事件数据契约和共享工具，不依赖 App；App 直接使用 Client 的公开连接与通信模型。取消安全工具归 `utils.async_work`。App 能力包入口显式导入并导出直接子模块；具体实现从所属模块显式导入。边界测试在全新解释器中检查实际 HTTP/MCP 客户端不会加载任何 App 模块，Task 模型和 App 配置模型的导入也不会触发客户端传输实现。
 
@@ -175,7 +171,7 @@ flowchart TD
 
 `task/core` 按编写职责保留五个文件：`base.py` 管理 `BaseTask`、`ChildTaskError`、子任务调用接口、步骤契约与统一的有类型输出发布；调用身份与子任务结果归 `models.lifecycle`；`research.py` 集中标准研究基类和预测对比；`windows.py` 集中通用窗口、实时采集和固定模型推理；`clock.py` 提供真实业务时钟与截止预算；`__init__.py` 逐项说明全部直接子模块，显式导入并通过 `__all__` 导出。窗口资源通过执行器调用的 `BaseTask.close()` 统一清理。
 
-共享调用身份、子任务结果与持久化状态统一归 `models.lifecycle`；输入参数、窗口输入和输出结构归 `models.params`；训练曲线、预测对比、窗口结果、回测报告及历史节点格式归 `models.reports`。股票报告与信号格式规则归 `builtins.stock`；通用 models 不依赖股票业务。BaseTask 的来源任务和输入路径检查委托 `storage.inputs`。任务身份集合校验统一归 models。副本准备、采样、归档、传输、索引和应用统一归 `app/components/sync`，内部计划和两种同步结果归该目录的 `models.py`。Task 保留副本数据契约与只读约束；接收和索引入口无需配置发送组件或目标。
+共享调用身份、子任务结果与持久化状态统一归 `models.lifecycle`；输入参数、窗口输入和输出结构归 `models.params`；训练曲线、预测对比、窗口结果、回测报告及历史节点格式归 `models.reports`。股票报告与信号格式规则归 `builtins.stock`；通用 models 不依赖股票业务。BaseTask 的来源任务和输入路径检查委托 `storage.inputs`。任务身份集合校验统一归 models。
 
 任务摘要、排序、血缘图、查询上下文和进度与日志跟踪统一归 `app/components/task_index`，由该组件直接使用 Task 模型与存储接口。
 
@@ -201,15 +197,14 @@ flowchart TD
 | machine    | BaseMachineComponent | LocalMachineComponent |
 | proxy      | BaseProxyComponent   | HttpProxyComponent    |
 | service    | BaseService          | HttpService           |
-| sync       | BaseSyncComponent    | LocalSyncComponent    |
 | task_index | BaseTaskIndex        | LocalTaskIndex        |
 | updater    | BaseUpdaterComponent | LocalUpdaterComponent |
 
-HTTP 应用由 `HttpService` 装配；同步规划和归档由 `sync/archive.py` 实现，同步错误由 `sync/models.py` 定义。副本准备、采样、接收和对账保持各自职责。
+HTTP 应用由 `HttpService` 装配；通用文件接收与目录替换由 `workspace/uploads.py` 负责。
 
 ## App 文件职责
 
-以下清单覆盖当前 `axonx/app` 的全部源码和随包资源。`app/__init__.py` 只作职责说明；五个能力包及其子包说明、显式导入并通过 `__all__` 导出全部直接子模块与子包。
+以下清单列出应用组合、运行与查询的源码和随包资源。`app/__init__.py` 只作职责说明；五个能力包及其子包说明、显式导入并通过 `__all__` 导出全部直接子模块与子包。
 
 ### app
 
@@ -274,6 +269,7 @@ HTTP 应用由 `HttpService` 装配；同步规划和归档由 `sync/archive.py`
 | [components/job/base.py](axonx/app/components/job/base.py)                                     | BaseJob：统一输入与系统参数 Schema 校验、公开策略和目录信息；将事件流收集为终态响应，并提供调用级响应完成回调。                                               |
 | [components/job/command.py](axonx/app/components/job/command.py)                               | 执行服务拥有的 CLI 子进程，持续消费输出并有界保留响应内容，传递调用身份，在执行取消或结束时回收进程组。                                                       |
 | [components/job/pipeline.py](axonx/app/components/job/pipeline.py)                             | PipelineJob：预先解析 Step 实现和配置，每次调用新建上下文和 Step；控制事件背压，按断连策略取消执行或仅结束观察，并在关闭时统一取消、等待清理。                |
+| [components/job/scheduled.py](axonx/app/components/job/scheduled.py)                           | ScheduledJob：复用 pipeline，按 App 时区与 expression 串行触发，校验 arguments，关闭时取消。                                                                  |
 | [components/machine/**init**.py](axonx/app/components/machine/__init__.py)                     | 说明本包职责，显式导入并通过 `__all__` 导出全部直接子模块与子包。                                                                                             |
 | [components/machine/base.py](axonx/app/components/machine/base.py)                             | BaseMachineComponent：定义状态采集、诊断、目标健康检查及 Python 执行的异步组件契约。                                                                          |
 | [components/machine/build_info.py](axonx/app/components/machine/build_info.py)                 | 读取并缓存当前进程的安装版本、环境变量和 Git 构建身份。                                                                                                       |
@@ -295,14 +291,6 @@ HTTP 应用由 `HttpService` 装配；同步规划和归档由 `sync/archive.py`
 | [components/service/http/service.py](axonx/app/components/service/http/service.py)             | HttpService：配置监听地址，装配 FastAPI/MCP、lifespan、路由、中间件和 Studio，运行 Uvicorn 并管理关闭。                                                       |
 | [components/service/http/shutdown.py](axonx/app/components/service/http/shutdown.py)           | ShutdownServer 与 ShutdownDeadline：在服务器收到退出信号时通知应用，以独立线程约束清理期限。                                                                  |
 | [components/service/http/studio.py](axonx/app/components/service/http/studio.py)               | 发现并挂载 Studio 静态资源，提供 SPA 回退，并在资源运行中丢失时返回明确响应。                                                                                 |
-| [components/sync/**init**.py](axonx/app/components/sync/__init__.py)                           | 说明本包职责，显式导入并通过 `__all__` 导出全部直接子模块与子包。                                                                                             |
-| [components/sync/applier.py](axonx/app/components/sync/applier.py)                             | FileSyncStore：只按文件清单核对回执、复用增量文件、校验目录归属与修订，批次提交目录及回执并在失败时回滚；不解析任务元数据。                                   |
-| [components/sync/archive.py](axonx/app/components/sync/archive.py)                             | 核算完整清单和重建预算，隔离重叠目录组，生成包含文件清单及变化文件的确定性压缩归档。                                                                          |
-| [components/sync/artifacts.py](axonx/app/components/sync/artifacts.py)                         | 统一产物路径校验、已发布产物及清单依赖遍历、源与策略版本，以及按完整交易日进行的有界 Parquet 采样。                                                           |
-| [components/sync/base.py](axonx/app/components/sync/base.py)                                   | BaseSyncComponent：定义向配置目标刷新展示副本的异步 flush 契约。                                                                                              |
-| [components/sync/local.py](axonx/app/components/sync/local.py)                                 | LocalSyncComponent：订阅任务变化、协调远端预算与索引，轮转准备和传输副本，管理延后、拒绝及重试队列。                                                          |
-| [components/sync/models.py](axonx/app/components/sync/models.py)                               | FileRecord、FileGroup、FileManifest 定义文件传输协议；TaskFile、TaskPlan 捕获源文件版本；FileGroup 统一核算完整文件清单预算，定义传输结果和错误。             |
-| [components/sync/replica.py](axonx/app/components/sync/replica.py)                             | ReplicaBuilder：分阶段捕获日志、按完整交易日控制预算、生成展示文件并验证源；在发送端构建身份一致的任务组和文件发布版本。                                      |
 | [components/task_index/**init**.py](axonx/app/components/task_index/__init__.py)               | 说明本包职责，显式导入并通过 `__all__` 导出全部直接子模块与子包。                                                                                             |
 | [components/task_index/base.py](axonx/app/components/task_index/base.py)                       | BaseTaskIndex：定义只读状态、筛选、摘要、血缘图、日志、订阅和事件跟踪契约。                                                                                   |
 | [components/task_index/local.py](axonx/app/components/task_index/local.py)                     | LocalTaskIndex：增量轮询并发布查询快照、隔离订阅者错误、读取实时状态和日志，并管理观察任务的启停。                                                            |
@@ -321,8 +309,7 @@ HTTP 应用由 `HttpService` 装配；同步规划和归档由 `sync/archive.py`
 | [steps/base.py](axonx/app/steps/base.py)           | 单次调用状态、类型化具名组件解析和事件发送的 Step 基类。                                                     |
 | [steps/common.py](axonx/app/steps/common.py)       | CLI 执行、运行配置、Job 帮助和版本查询的调用适配。                                                           |
 | [steps/machine.py](axonx/app/steps/machine.py)     | 通过 BaseMachineComponent 解析具名机器组件，适配状态、诊断、健康列表和 Python 执行。                         |
-| [steps/sync.py](axonx/app/steps/sync.py)           | 副本接收、暂存清理、发送 flush 和对账索引的调用适配。                                                        |
-| [steps/task.py](axonx/app/steps/task.py)           | Task 定义与参数 Schema，以及状态、目录、日志、等待、事件流、血缘和上下文查询。                               |
+| [steps/task.py](axonx/app/steps/task.py)           | Task 定义与参数 Schema，以及状态、日志、等待、事件流、血缘和上下文查询。                                     |
 | [steps/update.py](axonx/app/steps/update.py)       | Git/Pip 更新、服务重启及更新状态查询的调用适配。                                                             |
 | [steps/workspace.py](axonx/app/steps/workspace.py) | 工作区列表、预览和删除的调用适配。                                                                           |
 

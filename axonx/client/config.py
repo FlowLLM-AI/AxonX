@@ -32,6 +32,15 @@ PROTOCOL_SSE_EVENT_PREFIX = "event: "
 PROTOCOL_SSE_DATA_PREFIX = "data: "
 
 
+TAR_BLOCK_BYTES = 512
+TAR_PADDING_BYTES = 10_240
+
+
+def archived_bytes(size: int) -> int:
+    """Reserve a tar header and the padded payload for file transport."""
+    return TAR_BLOCK_BYTES * (1 + (size + TAR_BLOCK_BYTES - 1) // TAR_BLOCK_BYTES)
+
+
 def normalize_target(value: str) -> str:
     """Accept host:port or an HTTP(S) URL and return a canonical service URL."""
     if not isinstance(value, str) or not value.strip():

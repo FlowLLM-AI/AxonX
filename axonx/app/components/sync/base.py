@@ -13,4 +13,4 @@ class BaseSyncComponent(BaseComponent, ABC):
 
     @abstractmethod
     async def flush(self) -> SyncReport:
-        """Replicate locally observed changes after initial target reconciliation."""
+        """Push newly selected or changed local task directories."""

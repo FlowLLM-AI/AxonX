@@ -590,3 +590,130 @@ async def test_cancellation_during_spawn_still_reaps_the_created_process(tmp_pat
             release.set()
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.fixture
+def fast_schedule(monkeypatch):
+    from datetime import timedelta
+
+    from axonx.app.components.job import scheduled
+
+    class Soon:
+        def __init__(self, _expression, now):
+            self.now = now
+
+        def get_next(self, _kind):
+            return self.now + timedelta(milliseconds=1)
+
+    monkeypatch.setattr(scheduled, "croniter", Soon)
+
+
+def test_scheduled_job_validates_expression_and_invocation_arguments(make_app):
+    with pytest.raises(ValueError, match="five numeric cron fields"):
+        make_app(backend="scheduled", expression="@daily")
+    with pytest.raises(ValueError, match="Invalid arguments"):
+        make_app(backend="scheduled", expression="* * * * *", parameters={"required": ["value"]})
+    job = make_app(
+        backend="scheduled",
+        expression="* * * * *",
+        arguments={"value": 3},
+        parameters={"properties": {"value": {"type": "integer"}}, "required": ["value"]},
+    ).context.jobs["work"]
+    assert job.arguments == {"value": 3}
+
+
+async def test_scheduled_job_retries_serially_and_cancels_owned_execution(make_app, fast_schedule):
+    entered, cancelled = asyncio.Event(), asyncio.Event()
+    calls = []
+
+    async def execute(step):
+        calls.append(step.context["value"])
+        if len(calls) == 1:
+            raise OSError("temporary failure")
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    app = make_app(
+        execute,
+        backend="scheduled",
+        expression="* * * * *",
+        arguments={"value": 7},
+        enable_serve=False,
+    )
+    async with app:
+        await asyncio.wait_for(entered.wait(), 1)
+        await asyncio.sleep(0.01)
+        assert calls == [7, 7]
+        job = app.context.jobs["work"]
+        assert not job.is_public(authenticated=True)
+    assert cancelled.is_set()
+    assert job._runner is None and not job._active_runs
+
+
+async def test_scheduled_job_skips_maintenance_and_resumes(make_app, fast_schedule):
+    entered = asyncio.Event()
+
+    async def execute(_step):
+        entered.set()
+
+    app = make_app(execute, backend="scheduled", expression="* * * * *")
+    app.context.metadata["maintenance"] = True
+    async with app:
+        await asyncio.sleep(0.01)
+        assert not entered.is_set()
+        app.context.metadata.pop("maintenance")
+        await asyncio.wait_for(entered.wait(), 1)
+
+
+async def test_scheduled_job_waits_for_the_complete_application_startup(tmp_path, monkeypatch, fast_schedule):
+    entered, release, invoked = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    @provider("slow_start")
+    class SlowJob(PipelineJob):
+        async def _start(self):
+            await super()._start()
+            entered.set()
+            await release.wait()
+
+    app = Application(
+        providers=(SlowJob,),
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        jobs={
+            "periodic": {"backend": "scheduled", "expression": "* * * * *"},
+            "last": {"backend": "slow_start"},
+        },
+    )
+    dispatch = app.context.dispatcher.run
+
+    async def run(*args, **kwargs):
+        assert app.is_started
+        invoked.set()
+        return await dispatch(*args, **kwargs)
+
+    monkeypatch.setattr(app.context.dispatcher, "run", run)
+    startup = asyncio.create_task(app.start())
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        await asyncio.sleep(0.01)
+        assert not invoked.is_set()
+        release.set()
+        await startup
+        await asyncio.wait_for(invoked.wait(), 1)
+    finally:
+        release.set()
+        await startup
+        await app.close()
+
+
+async def test_scheduled_job_rejects_a_calendar_with_no_future_occurrences(make_app):
+    app = make_app(backend="scheduled", expression="0 0 31 2 *")
+    with pytest.raises(ValueError):
+        await app.start()
+    job = app.context.jobs["work"]
+    assert not app.is_started and not job.is_started
+    assert job._runner is None and not job._accepting

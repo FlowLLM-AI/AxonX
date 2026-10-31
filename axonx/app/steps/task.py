@@ -1,9 +1,8 @@
-"""Job adapters for Task definitions, status, logs, streams, directories and context."""
+"""Job adapters for Task definitions, status, logs, streams and context."""
 
 import asyncio
 from abc import ABC
 from datetime import datetime
-from pathlib import Path
 
 from ...task.models.events import LogEvent
 from ...task.models.identity import TaskState
@@ -11,7 +10,6 @@ from ...utils.async_work import run_blocking
 from ..components.registry import provider
 from ..components.task_index.base import BaseTaskIndex
 from ..components.task_index.query import summarize_status, task_sort_key
-from ..workspace.models import WorkspaceEntry
 from .base import BaseStep
 
 
@@ -21,12 +19,6 @@ class TaskIndexStep(BaseStep, ABC):
     @property
     def index(self) -> BaseTaskIndex:
         return self.component(BaseTaskIndex)
-
-
-@provider("list_ids")
-class ListTaskIdsStep(TaskIndexStep):
-    async def execute(self):
-        self.response.answer = [item.task_id for item in await self.index.summaries()]
 
 
 @provider("list_statuses")
@@ -113,22 +105,6 @@ class StreamTaskStep(TaskIndexStep):
         status = await self.index.entry(task_id)
         self.response.answer = status
         self.response.success = status.exit_code == 0
-
-
-def _is_task_directory(path: Path, entry: WorkspaceEntry) -> bool:
-    return entry.kind == "directory" and (path / "metadata.json").is_file()
-
-
-@provider("task_directories")
-class ListTaskDirectoriesStep(BaseStep):
-    """List task directories that contain a metadata document."""
-
-    async def execute(self):
-        self.response.answer = await asyncio.to_thread(
-            self.workspace.list_entries,
-            self.context["path"],
-            include=_is_task_directory,
-        )
 
 
 @provider("get_task_context_step")

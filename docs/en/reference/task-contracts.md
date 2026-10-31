@@ -37,7 +37,6 @@ The complete document combines protocol version/task type with current identity,
 | created_at, finished_at, log_path   | Timing and log location                         |
 | input_params, output_params         | Validated business data                         |
 | steps                               | Step snapshots                                  |
-| replica                             | Optional display-replica metadata               |
 
 Same-name execution overwrites the current record and outputs, retaining persistent/. Callers coordinate writes. Observations do not settle stale records. `wait_task` captures started_at and refuses a replacement during the wait.
 
@@ -68,10 +67,6 @@ File records contain relative path, size and revision; paths must remain inside 
 ## Workspace reads and events
 
 `task_index` provides observations. ProgressEvent extends step status, LogEvent extends bounded byte-log chunks; Job events additionally include artifact, agent_message and result. See [Events](../api/events.md).
-
-## Display replicas
-
-Replica metadata identifies source/policy revisions, sampled or omitted files and optional selected workflow snapshots. TaskSnapshot uses source_id, root_task_id, root_started_at, captured_at, ordered revision, when and model_names. Replicas cannot execute or serve as mutable research sources.
 
 ## Business clocks and deadlines
 

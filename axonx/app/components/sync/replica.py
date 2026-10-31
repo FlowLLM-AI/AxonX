@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import socket
 import time
 from collections.abc import Sequence
@@ -12,6 +13,8 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
+from ....client.config import archived_bytes
+from ....client.files import archive_budget
 from ....task.models.artifacts import fingerprint
 from ....task.models.lifecycle import (
     DisplayReplica,
@@ -30,9 +33,8 @@ from ....task.storage.workspace import (
     task_path,
     write_task_metadata,
 )
-from .archive import archive_budget
 from .artifacts import plan_task, policy_revision, source_revision, trade_day, write_sample
-from .models import FileGroup, ReplicaBudgetError, SnapshotChangedError, TaskFile, TaskPlan
+from .models import ReplicaBudgetError, SnapshotChangedError, TaskFile, TaskPlan
 
 # Full reports, transaction ledgers and reference calendars remain source-complete.
 COMPLETE_FILES = {
@@ -368,11 +370,11 @@ def prepare_group(
     staging: Path,
     budget: int,
     logs: TaskLogReader,
-    remote: dict,
+    sent_version: str | None = None,
     *,
     model_names: tuple[str, ...] = (),
     when: str = "live",
-) -> tuple[FileGroup, dict[str, TaskPlan]] | None:
+) -> tuple[str, dict[str, TaskPlan]] | None:
     group = task_group(root, task_id, model_names)
     if when == "terminal" and any(not status.state.is_terminal for status in group.values()):
         raise SnapshotChangedError(f"Task group has not completed: {task_id}")
@@ -393,14 +395,10 @@ def prepare_group(
             },
         ]
     )
-    if remote.get("version") == version:
+    if sent_version == version:
         return None
     if not group:
-        return (
-            (FileGroup(version=version, revision=time.time_ns(), directories={}), {})
-            if remote.get("directories")
-            else None
-        )
+        return None
     snapshot = TaskSnapshot(
         source_id=source_id(root),
         root_task_id=task_id,
@@ -422,16 +420,16 @@ def prepare_group(
             metadata=status,
             logs=logs,
         ).prepare()
-    manifest = FileGroup.capture(plans, version, snapshot.revision)
-    if manifest.size > archive_budget(budget):
+    size = archived_bytes(len(json.dumps(list(plans)).encode())) + sum(plan.size for plan in plans.values())
+    if size > archive_budget(budget):
         raise ReplicaBudgetError(f"Task group exceeds the transfer budget: {task_id}")
     for identity, status in group.items():
         current = read_entry(root, identity)
         if current is None or current.started_at != status.started_at:
             raise SnapshotChangedError(f"Task restarted during capture: {identity}")
-    return manifest, plans
+    return version, plans
 
 
 def source_id(root: Path) -> str:
-    """Keep transport ownership stable across component and service restarts."""
+    """Identify the source workspace in display metadata."""
     return fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())})

@@ -210,8 +210,6 @@ example_plugin = ["plugin.yaml"]
 - 用 `upstream_task_ids` 声明数据依赖，它不会自动执行上游。用 `self.run_task(...)` 同步调用子任务，并检查返回的 `success`、`child_task_id` 和类型化 `output_params`。父子调用与输入依赖是两种关系。
 - 子任务共享进程与工作区，默认继承父实例名；同一注册名和实例名会复用同一目录，多次调用需使用不同 `task_name` 或先固定产物。
 
-按模型同步时复用模型 `task_name`、子调用逻辑 `node_name` 和进度 `name`/`group`。模型子节点以模型名和连字符开头，哈希 Task 目录显式提供逻辑节点名；共享调用保留默认注册节点名。同步 `rules` 将工作流注册名映射到 `live` 或 `terminal`，`model_names` 使用通配模式筛选模型。两种模式发布同一套精确任务树，terminal 规则等待任务树结束。
-
 研究基类在 `axonx.task.core.research`，输入/输出在 `axonx.task.models.params`，协议在 `axonx.task.models.artifacts`。标准研究输出的主要必填字段：
 
 | 阶段           | 字段                                        |
@@ -222,7 +220,7 @@ example_plugin = ["plugin.yaml"]
 | Portfolio      | `portfolios`、`protocol`                    |
 | Backtest       | 非空 `portfolios`、`protocol`               |
 
-先写文件，再用 `axonx.task.storage.artifacts.artifact_record(path, task_dir)` 注册到输出 `artifacts`；记录包含 Task 相对路径、大小和 revision。原子写入与输出复制复用 `axonx.task.storage.files`。`verify_artifact()` 核验文件，revision 是大小/修改时间标识，并非内容哈希。`axonx.task.storage.inputs` 的 `upstream_artifacts()` 直接读取成功、非副本上游的产物，metadata 的 `input_sources` 记录来源执行和文件修订，执行成功前再次校验；业务兼容性仍由插件检查。
+先写文件，再用 `axonx.task.storage.artifacts.artifact_record(path, task_dir)` 注册到输出 `artifacts`；记录包含 Task 相对路径、大小和 revision。原子写入与输出复制复用 `axonx.task.storage.files`。`verify_artifact()` 核验文件，revision 是大小/修改时间标识，并非内容哈希。`axonx.task.storage.inputs` 的 `upstream_artifacts()` 直接读取成功上游的产物，metadata 的 `input_sources` 记录来源执行和文件修订，执行成功前再次校验；业务兼容性仍由插件检查。
 
 复用协议时使用 `version=1` 和正确的 `task_type`。训练在一个 Task metadata 中用有序 `model_groups` 索引模型，每组持有训练和使用区间以及组内 `models` 成员映射。预测发布模型身份、日期、评分列与输入修订；股票 ETL 分离数据、标签、行情和日历，预测不能含未来标签。股票组合 Task 继承 `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask`，实现信号时点的 `build_universes()` 与 `select_universe()`。回测继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，消费冻结的 Portfolio 产物，沿用成交和估值协议。
 
@@ -397,9 +395,8 @@ axonx preview_file --path 'tasks/base/base#demo#check/metadata.json' --max-bytes
 忘记实例名或查找已有实验时，先列出记录：
 
 ```bash
-axonx list_task_ids
 axonx list_task_statuses --task-type backtest --state succeeded
-axonx list_task_directories --path tasks/backtest
+axonx list_entries --path tasks/backtest
 ```
 
 ## 5. 比较结果与迭代
@@ -489,16 +486,18 @@ axonx app --config scheduled.yaml
 
 计划接受五字段表达式和本地 `axonx exec --task NAME`，不支持 shell 管道、重定向或远程选项，不补跑错过时点。配置修改后重启；已启动的定时执行可跨服务重启继续，手动执行随服务停止。检查 Task 状态与 `logs/cron/entry-N.log`，避免固定实例名的计划重叠。
 
-### 展示同步
+服务内的定时 Job 使用 `backend: scheduled`；`expression` 复用 App 时区，`arguments` 提供定时公共入参。定时调用串行执行，随服务停止。
 
-需要跨机器查看研究结果时，查询目标已提交的文件清单；已有合法展示归档时，按前面的上传方法上传，再用返回的相对路径应用：
-
-```bash
-axonx sync_index --source SOURCE_ID --target node-b:1024
-axonx sync_files --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+```yaml
+jobs:
+  hourly_diagnostics:
+    backend: scheduled
+    expression: "0 * * * *"
+    arguments: {}
+    enable_serve: false
+    steps:
+      - backend: diagnose_step
 ```
-
-接收端提交文件，不解析任务元数据；已有 task_index 扫描器随后发现支持的元数据。应用后会清理暂存归档。已配置同步组件及对应命令时，也可用 `axonx sync_flush` 从源端发起同步，默认未启用。展示副本可能省略或采样文件，不能执行或作为研究输入；完整备份须保留工作区、外部日志、配置、源码和依赖版本。
 
 ### 使用内置 Agent
 

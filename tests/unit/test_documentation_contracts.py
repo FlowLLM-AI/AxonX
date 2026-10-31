@@ -10,7 +10,6 @@ import jsonschema
 import pytest
 import yaml
 
-from axonx.app.components.sync.models import FileManifest
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.core.application import Application
 from axonx.cli.parser import parse_command, parse_plugin_arguments
@@ -85,16 +84,6 @@ def test_api_examples_cover_and_validate_configured_jobs(language):
                     jsonschema.validate(payload["arguments"], jobs[name].get("parameters", {}))
                     documented.add(name)
     assert documented == jobs.keys()
-
-
-@pytest.mark.parametrize("language,heading", [("en", "File manifest"), ("zh", "文件清单")])
-def test_documented_file_manifest_matches_the_transport_contract(language, heading):
-    page = (DOCS / language / "api/plugins-sync.md").read_text()
-    section = page.split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0]
-    examples = [body for kind, body in FENCES.findall(section) if kind == "json"]
-    assert examples
-    for body in examples:
-        FileManifest.model_validate_json(body)
 
 
 def test_documented_cli_commands_use_current_grammar_and_job_schemas():

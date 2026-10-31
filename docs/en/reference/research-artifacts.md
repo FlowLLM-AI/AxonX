@@ -49,7 +49,7 @@ The example size and revision only illustrate fields; calculate actual values fr
 
 `BaseOutputParams.artifacts` is `dict[str, ArtifactRecord]`. Every output validates each relative path, nonnegative byte size and file revision. `task.artifact_path(name)` resolves a published output without a separate absolute-path field.
 
-`task.artifact_path(name)` resolves an output path. `upstream_artifact()` and `upstream_artifacts()` require successful non-replica producers and read their published files directly. Task metadata records the producing execution and file revisions in `input_sources`; execution rejects replaced sources or changed files before reporting success. Revisions use size and nanosecond mtime, not content hashes. Business compatibility remains the plugin's responsibility.
+`task.artifact_path(name)` resolves an output path. `upstream_artifact()` and `upstream_artifacts()` require successful producers and read their published files directly. Task metadata records the producing execution and file revisions in `input_sources`; execution rejects replaced sources or changed files before reporting success. Revisions use size and nanosecond mtime, not content hashes. Business compatibility remains the plugin's responsibility.
 
 ## Research stage outputs
 

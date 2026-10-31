@@ -119,7 +119,7 @@ def source_revision(
     plan = plan if plan is not None else plan_task(root, task_id, snapshot=snapshot)
     metadata = snapshot or read_entry(root, task_id)
     if metadata is None:
-        raise SnapshotChangedError(f"Task disappeared during reconciliation: {task_id}")
+        raise SnapshotChangedError(f"Task disappeared during capture: {task_id}")
     files = [(item.relative, item.size, item.modified_ns) for item in plan.files]
     log = logs.path(metadata) if logs is not None else None
     if log is not None and logs.is_task_log(log) and log.is_file():

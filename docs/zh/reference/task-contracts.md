@@ -37,7 +37,6 @@ Task 状态和 `exit_code` 描述程序执行情况。已完成的比对结论�
 | created_at、finished_at、log_path   | 时间和日志位置                  |
 | input_params、output_params         | 校验后的业务数据                |
 | steps                               | 步骤快照                        |
-| replica                             | 可选展示副本信息                |
 
 同名执行覆盖当前记录和输出，保留 persistent/，写入由调用方协调。观察不修复失效记录。`wait_task` 捕获 started_at，等待期间遇到替换会拒绝继续。
 
@@ -68,10 +67,6 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 ## 工作区读取与事件
 
 `task_index` 提供观察。ProgressEvent 扩展步骤状态，LogEvent 扩展有界字节日志块；Job 事件还包括 artifact、agent_message、result，详见[事件](../api/events.md)。
-
-## 展示副本
-
-副本记录源/策略修订、采样或省略文件和可选工作流分支快照。TaskSnapshot 包含 source_id、root_task_id、root_started_at、captured_at、有序 revision、when 和 model_names。副本不能执行，也不应作为可修改的研究源。
 
 ## 业务时钟与截止预算
 

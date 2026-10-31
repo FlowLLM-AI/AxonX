@@ -42,7 +42,6 @@ components:
       job_tools:
         - list_entries
         - preview_file
-        - list_task_ids
         - list_task_statuses
         - status
         - read_task_log

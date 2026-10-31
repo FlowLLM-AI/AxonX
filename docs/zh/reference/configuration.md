@@ -47,13 +47,15 @@ components:
       backend: local
 ```
 
-类别选择能力域，`default` 是实例名，`backend` 选择 provider。当前域包括 agent、task_index、machine、proxy、sync、updater。依赖通过有类型的基类和实例名声明。Job、service、step 使用各自字段，Cron 使用顶层 `cron`。
+类别选择能力域，`default` 是实例名，`backend` 选择 provider。当前域包括 agent、task_index、machine、proxy、updater。依赖通过有类型的基类和实例名声明。Job、service、step 使用各自字段，Cron 使用顶层 `cron`。
 
 ## JobConfig
 
 Job 支持 `backend`（默认 `pipeline`）、`description`、JSON 对象 `parameters`、`enable_serve`、`enable_stream`、`requires_auth`、`steps`、`defaults`。Step provider 选项与公共入参独立；系统注入字段单独校验，调用方不能传入。ComponentConfig 保留后端额外选项。公开能力由服务开关和认证配置共同决定。
 
 pipeline 后端支持 `event_buffer_size`（正整数，默认 64）和 `cancel_on_disconnect`（布尔值，默认 true）。设置 `cancel_on_disconnect: false` 后，调用方断连时执行继续由服务管理。后台持续消费输出并丢弃无人订阅的事件，直到调用结束或 Job/应用关闭才释放管理。内置 `cli` Job 将该选项设为 false，其他 Job 默认在断连时取消。显式停止远程研究执行使用 Task `kill`。
+
+`scheduled` 后端在 pipeline 上增加必填 `expression`（五字段数字 Cron）和可选 `arguments`（定时公共入参，默认 `{}`），复用 App 时区，拥有调用直到结束或服务关闭。详见[调度](../guides/scheduling.md#定时-job)。
 
 ## CronConfig
 

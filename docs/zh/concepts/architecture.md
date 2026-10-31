@@ -39,7 +39,6 @@ Agent 通过 CLI 或已配置的 Job 工具检查相同证据。内置 Claude �
 - `upstream_task_ids` 声明输入依赖，`parent_task_id`/`children` 记录调用，都不自动执行整个 DAG。
 - Task 查询属于观察，运行时启动和停止负责修正确认已退出的本机进程。
 - 同名写入由调用方协调，metadata 原子替换不是锁。
-- 展示同步复制有大小限制的证据，不迁移活动进程、环境或整个工作区。
 - 每个目标有独立解释器、文件和配置。显式 CLI target 直接连接，Studio 可通过已配置的后端转发。
 
 [Job 与 Task](jobs-and-tasks.md) · [Task 契约](../reference/task-contracts.md) · [框架扩展](../development/framework-extensions.md)

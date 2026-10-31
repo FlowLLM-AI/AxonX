@@ -2,7 +2,7 @@
 
 The workspace stores task status, successful results, and research artifacts, providing the shared data source for Studio and task queries. Its default root is `.axonx` under the startup directory. The built-in default configuration accepts `AXONX_WORKSPACE_DIR` from the shell or `.env`; an explicit `workspace_dir` configuration or `--workspace-dir` CLI option can also select the root. The log directory is configured separately and defaults to `logs`.
 
-![Task records, artifact readers and bounded display replicas](../../figures/concepts/workspace.svg)
+![Task records and artifact readers](../../figures/concepts/workspace.svg)
 
 ## Directory Layout
 
@@ -20,9 +20,6 @@ The following shows runtime data under the default configuration. Directories ar
 ├── tmp/
 │   ├── tasks/<task_type>/<task_id>/      # Generated names; same Task contents
 │   ├── uploads/<upload_id>/<file>        # Upload staging
-│   ├── sync/
-│   │   ├── send-<operation_id>/          # Outgoing sync staging
-│   │   └── receive-<operation_id>/       # Incoming validation and replacement staging
 │   └── plugins/<source_fingerprint>/
 │       ├── <plugin>.whl                 # Rebuildable wheel cache
 │       └── .build.lock                  # Concurrent build lock
@@ -65,7 +62,7 @@ Fixed names use `tasks/<task_type>/<task_id>/`. The reserved generated format is
 
 For example, a fixed-name training Task uses `tasks/train/train#qlib_a158_train#baseline/`, while a generated one uses `tmp/tasks/train/train#qlib_a158_train#2026102912aB3d/`. Classification depends only on the final name, without an additional storage-category field. Parameter comparisons are ordinary analysis Tasks, with `summary_stats.csv` and `comparison.json` inside their Task directory.
 
-The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and display synchronization replaces the target directory with selected published outputs. The framework owns `persistent/task.lock` and `persistent/history.jsonl`; `TaskJournal` appends one complete terminal metadata JSON object after each execution finishes. Plugins own other business files and must not overwrite this history. It must be a regular directory, not a symbolic link.
+The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it. The framework owns `persistent/task.lock` and `persistent/history.jsonl`; `TaskJournal` appends one complete terminal metadata JSON object after each execution finishes. Plugins own other business files and must not overwrite this history. It must be a regular directory, not a symbolic link.
 
 ## Runtime Records
 
@@ -77,7 +74,7 @@ The reserved `persistent/` directory holds Task-owned cumulative business data. 
 
 One atomic metadata snapshot is the authoritative Task record. `TaskExecutor` updates it in the synchronous execution process, including child invocations, cleanup and final output. Runtime preparation and explicit `kill` can reconcile confirmed dead local processes; queries only observe files. Each rerun replaces `metadata.json` and `events.jsonl`; neither file is an archive of previous executions.
 
-Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Workflow synchronization selects available matching child executions; deleting a parent does not automatically delete children.
+Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Deleting a parent does not automatically delete children.
 
 Readers treat malformed, unsafe, or identity-mismatched records as missing. They never read FIFOs or follow symbolic links. Transient I/O errors can be retried by lifecycle operations.
 
@@ -121,11 +118,11 @@ Task lists include every valid lifecycle record. Studio research pages select re
 
 ```bash
 axonx list_entries --path ''
-axonx list_task_directories --path tasks/base
+axonx list_entries --path tasks/base
 axonx preview_file --path 'tasks/base/base#demo#check/metadata.json' --max-bytes 8192
 ```
 
-Paths are relative to the selected service workspace. `tmp/uploads/` expiry only visits uploads, never temporary Tasks, sync files or plugin wheels. Sync staging is removed at the end of its operation; temporary Tasks and caches have no automatic expiry. list_entries uses offset pagination and bounded listings. list_task_directories selects type directories containing metadata.json, regardless of current lifecycle state. The Task ID includes # and should be shell-quoted.
+Paths are relative to the selected service workspace. `tmp/uploads/` expiry only visits uploads, never temporary Tasks or plugin wheels; temporary Tasks and caches have no automatic expiry. list_entries uses offset pagination and bounded listings.json, regardless of current lifecycle state. The Task ID includes # and should be shell-quoted.
 
 ## Preview records and artifacts
 
@@ -143,7 +140,6 @@ Use paths from current metadata.output_params.artifacts and resolve them inside 
 | `tasks/`       | Review names before deletion and check downstream dependencies. Deleting a parent does not cascade to children.                                                |
 | `tmp/tasks/`   | Temporary Tasks collected in one location; remove completed Tasks once no longer needed by consumers. No automatic expiry.                                     |
 | `tmp/uploads/` | Upload staging; subsequent uploads clean files older than the default 7 days. Callers can also delete them explicitly.                                         |
-| `tmp/sync/`    | Removed when an operation ends. Confirm synchronization has stopped before deleting leftovers from an abnormal exit.                                           |
 | `tmp/plugins/` | Rebuildable cache; remove when no build or installation is using it. This does not uninstall plugins from the Python environment.                              |
 | `daemon/`      | Service state and update records; running services still need these files. Review directories of retired services before removal.                              |
 | `agent/`       | Agent configuration, state and session history; retain according to session recovery needs.                                                                    |
@@ -153,8 +149,8 @@ Use delete_entries with a JSON paths array. This general file capability has no 
 
 ## Upload and subsequent consumption
 
-POST /upload or HttpClient.copy_file stages one file under `tmp/uploads/`. StagedFile contains path, size and absolute location. Install a target-side plugin using location; sync and cleanup use relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
+POST /upload or HttpClient.copy_file stages one file under `tmp/uploads/`. StagedFile contains path, size and absolute location. Install a target-side plugin using location; cleanup uses relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
 
-See [operations and recovery](../guides/operations.md#backup-and-recovery) for consistent backups; display replicas omit data and cannot replace them.
+See [operations and recovery](../guides/operations.md#backup-and-recovery) for consistent backups.
 
 [Task contracts](../reference/task-contracts.md) · [Research artifacts](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)

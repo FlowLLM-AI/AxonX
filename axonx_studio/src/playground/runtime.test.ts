@@ -105,9 +105,8 @@ describe("static Playground", () => {
       "machine_status",
     );
     expect(machine.axonx.version).toBe(import.meta.env.VITE_AXONX_VERSION);
-    const ids = await api.invoke<string[]>("list_task_ids");
     const summaries = await api.invoke<TaskMetadata[]>("list_task_statuses");
-    expect(ids).toEqual(summaries.map((task) => task.task_id));
+    expect(summaries.length).toBeGreaterThan(0);
   });
 
   it.each(["success", "failure"])(
@@ -222,12 +221,9 @@ describe("static Playground", () => {
         "predict",
         "backtest",
       ]) {
-        const runs = await api.invoke<WorkspaceListing>(
-          "list_task_directories",
-          {
-            path: `tasks/${task_type}`,
-          },
-        );
+        const runs = await api.invoke<WorkspaceListing>("list_entries", {
+          path: `tasks/${task_type}`,
+        });
         expect(runs.entries.length).toBeGreaterThan(0);
         for (const run of runs.entries) {
           const preview = await api.invoke<WorkspacePreview>("preview_file", {

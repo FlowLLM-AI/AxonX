@@ -12,7 +12,6 @@ Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help -
 | `list_task_defs`     | List registered Tasks in this service's Python environment; schemas can be omitted for lightweight discovery.                                            |
 | `get_task_def`       | Get one registered Task's description and input/output schemas from this service's Python environment.                                                   |
 | `wait_task`          | Wait for the current Task to finish; refuse a restart while waiting.                                                                                     |
-| `list_task_ids`      | List Task IDs with valid metadata.json records in the index.                                                                                             |
 | `list_task_statuses` | List Task status snapshots or lightweight summaries.                                                                                                     |
 | `status`             | Get one task status.                                                                                                                                     |
 | `read_task_log`      | Read a bounded byte range from one Task log.                                                                                                             |
@@ -106,18 +105,6 @@ Wait for the current Task to finish; refuse a restart while waiting.
 
 Captures the current started_at and rejects replacement while waiting. Returns a summary or complete metadata; success is true only for succeeded. There is no business timeout input; allow a sufficient client timeout.
 
-## list_task_ids
-
-List Task IDs with valid metadata.json records in the index.
-
-No business arguments.
-
-```json
-{
-  "arguments": {}
-}
-```
-
 ## list_task_statuses
 
 List Task status snapshots or lightweight summaries.
@@ -136,7 +123,7 @@ List Task status snapshots or lightweight summaries.
 }
 ```
 
-Both detail modes return a list sorted by creation time, newest first, with Task ID as the tie-breaker. Filters apply before full records are copied. `summary` contains TaskStatus fields plus `display_name`, `is_replica` and optional `step_progress` (`current`, `total`, `name`, `percentage`), omitting inputs, outputs, steps and child arrays. Summary errors are limited to 1000 characters; display and step names to 256. Lists use the periodically refreshed index (default 5 seconds); `status` and `wait_task` read the selected metadata directly.
+Both detail modes return a list sorted by creation time, newest first, with Task ID as the tie-breaker. Filters apply before full records are copied. `summary` contains TaskStatus fields plus `display_name` and optional `step_progress` (`current`, `total`, `name`, `percentage`), omitting inputs, outputs, steps and child arrays. Summary errors are limited to 1000 characters; display and step names to 256. Lists use the periodically refreshed index (default 5 seconds); `status` and `wait_task` read the selected metadata directly.
 
 ## status
 
@@ -238,7 +225,7 @@ Returns `task_id`, full `status` (TaskMetadata), workspace-relative `metadata_pa
 
 ## Results and lifecycle
 
-TaskMetadata has task_id, task_type, reg_name, parent_task_id, report_kind, state, process identity, started_at, input/output parameters, input_sources (producer executions and consumed file revisions), steps, children and optional display replica metadata. Produced Task states are running/succeeded/failed. The state filter schema also advertises a cancellation value that the current Task model does not produce. Summaries omit large business inputs/outputs.
+TaskMetadata has task_id, task_type, reg_name, parent_task_id, report_kind, state, process identity, started_at, input/output parameters, input_sources (producer executions and consumed file revisions), steps, children. Produced Task states are running/succeeded/failed. The state filter schema also advertises a cancellation value that the current Task model does not produce. Summaries omit large business inputs/outputs.
 
 For termination call `cli` with `["kill", "--task-id", "ID"]`. General directory cleanup uses `delete_entries` after execution stops; there is no dedicated Task deletion Job. See [Task contracts](../reference/task-contracts.md).
 

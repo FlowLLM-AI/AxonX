@@ -10,7 +10,7 @@
 | GET    | /jobs             | JobResponse with catalog items/total |
 | POST   | /jobs/NAME        | One JobResponse                      |
 | POST   | /jobs/NAME/events | SSE through terminal result          |
-| POST   | /upload           | Stage one file; answer is StagedFile |
+| POST   | /upload           | Stage a file or replace directories  |
 | DELETE | /upload?path=...  | Discard a staged relative path       |
 | —      | /mcp              | Stateless Streamable HTTP MCP        |
 

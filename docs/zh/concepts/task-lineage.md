@@ -51,6 +51,6 @@ train_dir = self.upstream_task_dir(train_id)
 
 ## 命名与删除
 
-可复现实验使用独立实例并保留输入/模型修订。删除不级联，下游可能显示上游缺失。展示副本支持观察，不能作为可执行研究输入。
+可复现实验使用独立实例并保留输入/模型修订。删除不级联，下游可能显示上游缺失。
 
 源码：[身份规则](../../../axonx/task/models/identity.py)、[输入模型](../../../axonx/task/models/params.py)、[关系图](../../../axonx/app/components/task_index/query.py)。

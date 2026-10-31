@@ -414,17 +414,6 @@ export function createPlayground(): Transport {
           if (!definition) throw new Error(`Unknown Task: ${args.task}`);
           return response(definition);
         }
-        case "list_task_ids":
-          return response(
-            [...tasks.values()]
-              .sort(
-                (a, b) =>
-                  Date.parse(b.created_at || "") -
-                    Date.parse(a.created_at || "") ||
-                  b.task_id.localeCompare(a.task_id),
-              )
-              .map((task) => task.task_id),
-          );
         case "list_task_statuses":
           return response(
             [...tasks.values()]
@@ -456,13 +445,6 @@ export function createPlayground(): Transport {
           return response(
             directory(String(args.path || ""), Number(args.offset || 0)),
           );
-        case "list_task_directories": {
-          const dir = directory(String(args.path));
-          dir.entries = dir.entries.filter((entry) =>
-            files.has(`${entry.path}/metadata.json`),
-          );
-          return response(dir);
-        }
         case "preview_file": {
           const file = files.get(String(args.path));
           if (!file && args.allow_missing === true) return response(null);

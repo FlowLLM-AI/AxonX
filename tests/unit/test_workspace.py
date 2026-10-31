@@ -171,7 +171,7 @@ async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path)
     }
 
 
-def test_upload_retention_cannot_remove_tasks_sync_files_or_plugin_caches(tmp_path):
+def test_upload_retention_cannot_remove_other_workspace_files(tmp_path):
     expired = time() - 8 * 24 * 60 * 60
     paths = [tmp_path / "tmp" / name / "keep.bin" for name in ("tasks", "sync", "plugins")]
     for path in paths:

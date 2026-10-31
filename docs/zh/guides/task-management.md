@@ -22,7 +22,7 @@ CLI status/wait 默认摘要，完整详情包含输入输出、步骤和子任�
 
 ## 停止与重跑
 
-使用 `axonx kill --task-id ID --timeout 5 --force false`。force=true 选择强制信号，不是调度或服务更新选项。发送信号前检查进程身份。子任务解析到根进程所有者，随整次执行停止。展示副本不能本地执行或停止源进程。
+使用 `axonx kill --task-id ID --timeout 5 --force false`。force=true 选择强制信号，不是调度或服务更新选项。发送信号前检查进程身份。子任务解析到根进程所有者，随整次执行停止。
 
 只能修正确认已退出的本机进程，异机或无法访问的进程会阻止替换。使用源 execution_target/工作区，不把 machine_id 当作地址。停止后先核对结果再重跑。
 
@@ -38,6 +38,6 @@ CLI status/wait 默认摘要，完整详情包含输入输出、步骤和子任�
 
 完整截图展示 Playground 合成 Task 的分组与状态。
 
-任务定义使用当前输入 Schema 构造表单，执行通过服务拥有的 CLI 命令并展示实时输出，metadata 独立观察。区分命令连接失败与 Task 失败，重跑比较 started_at，并确认所选机器。任务分组反映工作区记录，包括副本和其他进程结果。
+任务定义使用当前输入 Schema 构造表单，执行通过服务拥有的 CLI 命令并展示实时输出，metadata 独立观察。区分命令连接失败与 Task 失败，重跑比较 started_at，并确认所选机器。任务分组反映工作区记录，包括其他进程结果。
 
 源码：[CLI](../../../axonx/cli/commands.py)、[观察 Step](../../../axonx/app/steps/task.py)、[停止执行](../../../axonx/task/runtime/lifecycle.py)。

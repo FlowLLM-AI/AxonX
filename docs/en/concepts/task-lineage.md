@@ -51,6 +51,6 @@ The helper requires exactly one matching upstream type. Locating a directory nei
 
 ## Naming and deletion
 
-Use distinct instances for reproducible experiments and retain input/model revisions. Deletion does not cascade; downstream records may show missing upstreams. Display replicas can support inspection but cannot supply executable research inputs.
+Use distinct instances for reproducible experiments and retain input/model revisions. Deletion does not cascade; downstream records may show missing upstreams.
 
 Sources: [identity rules](../../../axonx/task/models/identity.py), [input models](../../../axonx/task/models/params.py), [graph](../../../axonx/app/components/task_index/query.py).

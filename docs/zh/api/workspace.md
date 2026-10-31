@@ -6,12 +6,11 @@
 
 ## 接口列表
 
-| Job                     | 用途                                              |
-| ----------------------- | ------------------------------------------------- |
-| `list_entries`          | 列出工作区内一个目录的条目。                      |
-| `list_task_directories` | 列出指定类型目录下含 metadata.json 的 Task 目录。 |
-| `preview_file`          | 预览工作区内一个受支持格式的文件。                |
-| `delete_entries`        | 删除工作区内多个文件或目录。                      |
+| Job              | 用途                               |
+| ---------------- | ---------------------------------- |
+| `list_entries`   | 列出工作区内一个目录的条目。       |
+| `preview_file`   | 预览工作区内一个受支持格式的文件。 |
+| `delete_entries` | 删除工作区内多个文件或目录。       |
 
 ## list_entries
 
@@ -31,24 +30,6 @@
 ```
 
 `answer` 包含 `path`、绝对 `workspace_root`、`entries` 和 `truncated`。目录优先，其后按忽略大小写的名称及原始名称排序；从 `offset` 起最多返回 5000 项。截断时以 `offset + entries.length` 继续。条目包含 name、相对 path、kind、preview_kind、supported、size、modified_at；可列出符号链接，但不能沿其访问。
-
-## list_task_directories
-
-列出指定类型目录下含 metadata.json 的 Task 目录。
-
-| 参数   | 类型     | 必填 | 默认/约束         |
-| ------ | -------- | ---- | ----------------- |
-| `path` | `string` | 是   | `{"minLength":1}` |
-
-```json
-{
-  "arguments": {
-    "path": "tasks/base"
-  }
-}
-```
-
-列出指定 task_type 下含 metadata.json 的目录，这是文件发现，不是不可变执行历史。
 
 ## preview_file
 
@@ -102,7 +83,17 @@ curl --fail-with-body 'http://HOST:1024/upload' \
   -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_files` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
+JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
+
+## 完整目录替换
+
+`POST /upload?mode=replace` 通过相同的二进制或 multipart 上传格式接收 gzip tar 归档。默认 `mode=stage` 保留普通文件暂存行为。
+
+归档以 `directories.json` 开始，内容为不重叠的工作区相对目标目录 JSON 数组，随后包含这些路径下的全部普通文件。例如 `["reports/daily"]` 表示完整替换 `reports/daily/`，允许声明空目录。符号链接、路径越界、重复成员、重叠根目录，以及覆盖上传或文件接收暂存区的目标均被拒绝。
+
+请求大小和包含扩展头、填充在内的完整展开 tar 流都必须满足 `transfer_budget_bytes`。接收端先暂存解包，再替换指定目录；安装失败时回滚。被替换目录中未再提供的旧文件会移除，清单外目录保留。文件按原始字节接收，不执行、不解释。并发读取可能遇到目录替换过程，多目录批次不提供读取事务。
+
+返回已替换的目录列表，例如 `["reports/daily"]`。完成或回滚成功后清理上传归档和操作暂存；回滚本身失败时，原始目录保留在报错指出的暂存备份路径中，供恢复使用。Python 调用方可用 `axonx.client.files.build_file_archive` 构建归档，通过 `HttpClient.copy_files` 发送。
 
 ## 预览响应类型
 
@@ -118,6 +109,6 @@ JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "l
 | Parquet        | `columns`、`column_schema`、行数组、`row_count`、`row_group_count`、`offset`、`limit`、`has_more`                                                  |
 | 不支持的格式   | `kind="unsupported"`、`size`，不预览内容                                                                                                           |
 
-行格式默认每页 200 行，最多 5000 行。`max_bytes` 仅作用于文本、Markdown、JSON 和 YAML，上限为 32 MiB。截断的 JSON/YAML 返回带标记的原文前缀和解析错误，不返回解析对象。CLI 额外设置默认 20 行和 8192 字节；普通 HTTP/MCP Job 使用上述服务端默认值。行分页依据 `has_more`，将预览作为完整证据前还需检查展示副本的采样与遗漏。
+行格式默认每页 200 行，最多 5000 行。`max_bytes` 仅作用于文本、Markdown、JSON 和 YAML，上限为 32 MiB。截断的 JSON/YAML 返回带标记的原文前缀和解析错误，不返回解析对象。CLI 额外设置默认 20 行和 8192 字节；普通 HTTP/MCP Job 使用上述服务端默认值。行分页依据 `has_more`，将预览作为完整证据前还需检查完整源文件。
 
 源码：[默认 Job 契约](../../../axonx/app/config/default.yaml) · [Job 协议](overview.md)

@@ -22,7 +22,7 @@ CLI status/wait default to summaries. Full detail includes inputs, outputs, step
 
 ## Termination and reruns
 
-Use `axonx kill --task-id ID --timeout 5 --force false`; force=true selects forced signaling, not a scheduler or service update option. Process identity is checked before signaling. Child Tasks resolve to the root process owner and stop with that execution. Display replicas cannot execute or be killed locally.
+Use `axonx kill --task-id ID --timeout 5 --force false`; force=true selects forced signaling, not a scheduler or service update option. Process identity is checked before signaling. Child Tasks resolve to the root process owner and stop with that execution.
 
 Only confirmed dead local processes can be reconciled. A foreign or inaccessible process blocks replacement. Use the source execution_target/workspace; do not turn machine_id into an address. After stopping, inspect the outcome before rerunning.
 
@@ -38,6 +38,6 @@ The current file API is `delete_entries --paths '["tasks/base/base#demo#add-01"]
 
 The complete screenshot shows Playground's synthetic Task groups and states.
 
-Task definitions provide forms for current input schemas. Execute starts a service-owned CLI command and shows live output; task metadata is observed separately. Distinguish command connection failure from Task failure, compare started_at on reruns and inspect the selected machine. Grouped Task lists reflect records in that workspace, including replicas and other processes.
+Task definitions provide forms for current input schemas. Execute starts a service-owned CLI command and shows live output; task metadata is observed separately. Distinguish command connection failure from Task failure, compare started_at on reruns and inspect the selected machine. Grouped Task lists reflect records in that workspace, including other processes.
 
 Sources: [CLI](../../../axonx/cli/commands.py), [observation Steps](../../../axonx/app/steps/task.py), [termination](../../../axonx/task/runtime/lifecycle.py).

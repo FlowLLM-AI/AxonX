@@ -187,6 +187,26 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         response = await self._response("POST", PROTOCOL_ROUTE_UPLOAD, content=_file_chunks(path), headers=headers)
         return self._parse_payload(response.answer, StagedFile)
 
+    async def copy_files(self, archive: Path) -> list[str]:
+        """Replace complete remote directories through the upload endpoint."""
+        response = await self._response(
+            "POST",
+            PROTOCOL_ROUTE_UPLOAD,
+            params={"mode": "replace"},
+            content=_file_chunks(archive),
+            headers={
+                "content-type": "application/gzip",
+                "content-length": str(archive.stat().st_size),
+                PROTOCOL_FILE_NAME_HEADER: archive.name,
+            },
+        )
+        if not response.success:
+            raise RemoteServiceError(f"Remote file transfer failed: {response.answer}")
+        directories = response.answer
+        if not isinstance(directories, list) or any(not isinstance(path, str) for path in directories):
+            raise RemoteServiceError("Remote file transfer returned an invalid directory list")
+        return directories
+
     async def discard_file(self, path: str) -> str:
         """Discard one staged remote file, including an already-consumed one."""
         response = await self._response("DELETE", PROTOCOL_ROUTE_UPLOAD, params={"path": path})

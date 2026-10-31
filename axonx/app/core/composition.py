@@ -14,6 +14,7 @@ from ..components.cron.base import ScheduledLaunch
 from ..components.cron.scheduler import CronComponent
 from ..components.job.base import BaseJob
 from ..components.job.pipeline import PipelineJob
+from ..components.job.scheduled import ScheduledJob
 from ..components.machine.local import LocalMachineComponent
 from ..components.proxy.http import HttpProxyComponent
 from ..components.registry import ProviderRegistry
@@ -41,15 +42,13 @@ from ..steps.machine import (
     MachineStatusStep,
     PythonStep,
 )
-from ..steps.sync import SyncFilesStep, SyncFlushStep, SyncIndexStep
+from ..steps.sync import SyncFlushStep
 from ..steps.task import (
     GetTaskContextStep,
     GetTaskDefStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
     ListTaskDefsStep,
-    ListTaskDirectoriesStep,
-    ListTaskIdsStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
     StreamTaskStep,
@@ -72,6 +71,7 @@ APP_PROVIDERS = (
     ClaudeAgentComponent,
     LocalMachineComponent,
     PipelineJob,
+    ScheduledJob,
     HttpProxyComponent,
     HttpService,
     LocalSyncComponent,
@@ -81,8 +81,6 @@ APP_PROVIDERS = (
     GetConfigStep,
     GetTaskDefStep,
     ListTaskDefsStep,
-    SyncFilesStep,
-    SyncIndexStep,
     AgentStreamStep,
     CancelAgentTurnStep,
     DeleteAgentSessionStep,
@@ -101,8 +99,6 @@ APP_PROVIDERS = (
     SyncFlushStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListTaskIdsStep,
-    ListTaskDirectoriesStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
     StreamTaskStep,

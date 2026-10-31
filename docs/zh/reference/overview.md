@@ -4,19 +4,18 @@
 
 ## 选择接口
 
-| 接口或设置                      | 参考                                     |
-| ------------------------------- | ---------------------------------------- |
-| 命令行与当前进程执行            | [CLI](cli.md)                            |
-| 程序化服务调用                  | [Python](python.md)                      |
-| 客户端地址、令牌与超时          | [客户端配置](client-configuration.md)    |
-| 应用、Component 与 Job 装配     | [服务端配置](configuration.md)           |
-| HTTP 发现与 JobResponse         | [API 总览](../api/overview.md)           |
-| Task 执行、状态、上下文与关系图 | [Task API](../api/tasks.md)              |
-| 实时进度与日志事件              | [SSE 事件](../api/events.md)             |
-| 工作区列表与预览                | [工作区 API](../api/workspace.md)        |
-| 机器与资源读数                  | [机器 API](../api/machines.md)           |
-| 插件管理与展示同步              | [插件与同步 API](../api/plugins-sync.md) |
-| 内置 Agent 会话                 | [Agent API](../api/agent.md)             |
+| 接口或设置                      | 参考                                  |
+| ------------------------------- | ------------------------------------- |
+| 命令行与当前进程执行            | [CLI](cli.md)                         |
+| 程序化服务调用                  | [Python](python.md)                   |
+| 客户端地址、令牌与超时          | [客户端配置](client-configuration.md) |
+| 应用、Component 与 Job 装配     | [服务端配置](configuration.md)        |
+| HTTP 发现与 JobResponse         | [API 总览](../api/overview.md)        |
+| Task 执行、状态、上下文与关系图 | [Task API](../api/tasks.md)           |
+| 实时进度与日志事件              | [SSE 事件](../api/events.md)          |
+| 工作区列表与预览                | [工作区 API](../api/workspace.md)     |
+| 机器与资源读数                  | [机器 API](../api/machines.md)        |
+| 内置 Agent 会话                 | [Agent API](../api/agent.md)          |
 
 外部 Agent 的服务工具发现见 [MCP 接入](../agent/mcp-integration.md)。MCP 暴露公共 Job；实时 SSE 使用 HTTP 事件端点。
 

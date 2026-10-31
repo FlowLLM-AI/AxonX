@@ -2,7 +2,8 @@
 
 base: Transport-independent lifecycle, Job interface and remote errors.
 config: Validated connection options, canonical addresses and wire conventions.
-models: Public Job responses, catalogs and staged-file results.
+models: Public Job responses, catalogs and file-transfer results.
+files: Complete directory archive construction and path validation.
 events: Public Job streams, Agent messages and shared Task event types.
 http: HTTP Jobs, event streams, uploads and short-lived invocation helpers.
 mcp: MCP access to the ordinary Job response surface.
