@@ -265,7 +265,7 @@ editable 要求执行机已有源码目录，不能与 `--output` 同用。依�
 
 ### 远程部署
 
-`--target` 在目标机执行命令，不上传本地文件。目标机已有源码/wheel 时可直接安装；从开发机部署则先构建和上传：
+远程 `plugin` 命令通过服务的通用 `cli` Job 执行，安装操作作用于目标 Python 环境。`--target` 不上传本地文件。目标机已有源码/wheel 时可直接安装；已有 AxonX Git 源码仓库时也可采用第 7 节的更新流程。从开发机传输插件则先构建和上传：
 
 ```bash
 axonx plugin build ./example --output ./dist/plugins
@@ -441,19 +441,31 @@ axonx plugin uninstall axonx-example
 
 ### 服务更新
 
-修改配置或插件后使用前面的 `restart_service`。需要更新 AxonX 框架时，根据安装来源选择一种方式：
+修改配置或安装插件后，使用第 3 节的 `restart_service` 流程刷新服务。更新 AxonX 框架时，根据安装来源选择 Git 或包索引。
+
+远程服务从 AxonX 源码仓库启动时，可通过 Git 拉取已推送到目标仓库当前分支上游的提交。目标机需配置该上游的访问权限并具备 git/npm，运行中的 AxonX 源码须属于启动仓库。触发更新后，保存返回的 `update_id`，等待服务恢复，再查询该操作至 `succeeded` 或 `failed`：
 
 ```bash
-axonx update_from_git
+axonx update_from_git --target node-b:1024
+axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
-或更新包索引中的发布版本：
+远端依次停止服务、执行 `git pull --ff-only`、构建 Studio、以 editable 方式重新安装 AxonX 和 Studio、校验依赖及导入，再启动服务。它更新当前分支的上游，不切换分支；成功时自动重启，无需再调用 `restart_service`。请求成功只代表接受操作，须查询更新状态确认完成。
+
+Git 更新不会重新安装研究插件，按插件的实际安装方式处理：
+
+- editable 插件指向本次更新的源码目录时，普通 Python 代码修改会在服务重启后加载；依赖或入口点变化仍需按第 3 节重新 `plugin install -e`，再重启并验证。
+- wheel 安装的插件不会随仓库拉取而更新，需按第 3 节安装新 wheel，再重启并验证。
+- 插件源码在独立 Git 仓库时，需单独更新该仓库；`update_from_git` 只更新运行 AxonX 的启动仓库。
+
+包索引安装的服务可更新已发布的 AxonX 和 Studio，完成后同样自动重启：
 
 ```bash
-axonx update_from_pip
+axonx update_from_pip --target node-b:1024
+axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
-这些操作需要认证和 Daemon 支持；保存返回的 `update_id`，用 `axonx get_update_status --update-id ACTUAL_UPDATE_ID` 查询至完成。失败可能留下部分源码/依赖变更。插件实验使用 `plugin install`，无需每次更新框架。
+本地服务使用相同命令并省略 `--target`。这些操作需要认证和由 `axonx app` 启动的 Daemon。更新会停止服务拥有的手动 CLI 执行，Daemon 拥有的定时 Task 继续运行；修改源码和依赖前须协调活动研究。失败可能留下部分源码/依赖变更，不会自动回滚。插件实验使用 `plugin install`，无需每次更新框架。
 
 ### 定时运行
 

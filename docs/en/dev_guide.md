@@ -265,7 +265,7 @@ Editable installation requires a source directory on the execution machine and c
 
 ### Remote deployment
 
-`--target` executes commands on the target machine; it does not upload local files. Source/wheels already on the target can be installed directly. To deploy from the development machine, build and upload first:
+Remote `plugin` commands run through the service's generic `cli` Job; installation operates on the target Python environment. `--target` does not upload local files. Source/wheels already on the target can be installed directly; an existing AxonX Git checkout can also use the update procedure in section 7. To transfer a plugin from the development machine, build and upload first:
 
 ```bash
 axonx plugin build ./example --output ./dist/plugins
@@ -441,19 +441,31 @@ Directory deletion removes `persistent/` and does not protect active Tasks. Plug
 
 ### Update the service
 
-Use the earlier `restart_service` procedure after configuration or plugin changes. To update the AxonX framework, choose one method based on its installation source:
+After configuration changes or plugin installation, refresh the service with the `restart_service` procedure in section 3. To update the AxonX framework, choose Git or the package index based on its installation source.
+
+A remote service started from an AxonX source checkout can use Git to pull commits already pushed to the upstream of the target checkout's current branch. The target needs access to that upstream and git/npm, and the running AxonX source must belong to its startup repository. Request the update, save the returned `update_id`, wait for reconnection, then query that operation until `succeeded` or `failed`:
 
 ```bash
-axonx update_from_git
+axonx update_from_git --target node-b:1024
+axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
-Or update the published packages from the package index:
+The target stops the service, runs `git pull --ff-only`, builds Studio, reinstalls AxonX and Studio as editable packages, verifies dependencies and imports, then starts the service. It pulls the current branch's upstream without switching branches. A successful update restarts automatically; no additional `restart_service` call is needed. Request success means acceptance; query update status to confirm completion.
+
+Git updates do not reinstall research plugins. Handle each plugin according to its actual installation:
+
+- When an editable plugin points to source in the updated checkout, ordinary Python code changes load after the service restarts. Dependency or entry-point changes still require `plugin install -e`, followed by restart and verification as in section 3.
+- A wheel-installed plugin does not update when the checkout is pulled. Install the new wheel, then restart and verify as in section 3.
+- Plugin source in a separate Git repository needs its own update; `update_from_git` only updates the startup repository containing the running AxonX source.
+
+A service installed from the package index can update the published AxonX and Studio packages, also restarting automatically on completion:
 
 ```bash
-axonx update_from_pip
+axonx update_from_pip --target node-b:1024
+axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
-These operations require authentication and daemon support. Save the returned `update_id` and poll `axonx get_update_status --update-id ACTUAL_UPDATE_ID` until completion. Failures may leave partial source/dependency changes. Plugin experiments use `plugin install`; they do not require updating the framework each time.
+For a local service, use the same commands without `--target`. These operations require authentication and a daemon started with `axonx app`. Updates stop service-owned manual CLI executions while daemon-owned scheduled Tasks continue; coordinate active research before changing source or dependencies. Failures may leave partial source/dependency changes and do not roll back automatically. Plugin experiments use `plugin install`; they do not require updating the framework each time.
 
 ### Schedule execution
 
