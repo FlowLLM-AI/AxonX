@@ -8,6 +8,7 @@ Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help -
 
 | Job                 | Purpose                                                                                                                                                    |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell`             | Run Bash commands and uploaded scripts; continue after client disconnection.                                                                               |
 | `help`              | List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters. |
 | `diagnose`          | Inspect this service's build, Python, workspace disk, resources and resource usage. Credential values are never returned.                                  |
 | `version`           | Return the installed AxonX version.                                                                                                                        |
@@ -19,6 +20,21 @@ Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help -
 | `update_from_pip`   | Stop the service, upgrade axonx and axonx-studio from the package index, then restart. Running scheduled Tasks continue.                                   |
 | `restart_service`   | Restart the application and reload its configuration and schedules; stop manual commands and preserve scheduled Tasks.                                     |
 | `get_update_status` | Read an update record and log tail; omit update_id for the latest update.                                                                                  |
+
+## shell
+
+Run Bash source or an uploaded script with the service environment. Optional `cwd` selects an existing remote directory; relative paths resolve from the workspace. The ordinary pipeline Job sets `cancel_on_disconnect: false`, so a disconnected client leaves execution running. Service shutdown terminates the process group.
+
+```json
+{
+  "arguments": {
+    "command": "printf 'hello\\n'",
+    "cwd": "."
+  }
+}
+```
+
+Return `stdout`, `stderr`, `exit_code`, `stdout_truncated` and `stderr_truncated` after completion. SSE forwards stdout/stderr continuously. No separate execution record is created; use Task records or explicitly redirected shell logs for later inspection. Upload with `/upload` first and use the returned `answer.location` to execute a script.
 
 ## help
 

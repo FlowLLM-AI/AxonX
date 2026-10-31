@@ -1049,6 +1049,51 @@
         "type": "object"
       }
     },
+    "shell": {
+      "name": "shell",
+      "description": "Run a Bash command or uploaded script in this service's environment. Wait for completion and return stdout, stderr and exit_code. Continue after client disconnection; stop with the service.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Bash source evaluated on this machine with the service environment."
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Existing remote directory; relative paths resolve from the workspace."
+          }
+        },
+        "required": ["command"],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "description": "Canonical result of a Job invocation across every transport.",
+        "properties": {
+          "answer": {
+            "default": "",
+            "description": "response content",
+            "title": "Answer"
+          },
+          "success": {
+            "default": true,
+            "description": "whether succeeded",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "metadata",
+            "title": "Metadata",
+            "type": "object"
+          }
+        },
+        "title": "JobResponse",
+        "type": "object"
+      }
+    },
     "status": {
       "name": "status",
       "description": "Get one task status.",

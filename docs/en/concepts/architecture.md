@@ -24,6 +24,8 @@ Local CLI `exec` discovers Task registrations and resolves execution settings, t
 
 Remote native commands go through the target's `cli` Job, which launches the configured AxonX command in a new process at the service workspace, streams stdout/stderr and cleans up its process group. Scheduled `exec` commands are launched through the daemon and survive replacement of the application service. These are distinct process owners.
 
+The `shell` Job uses the same pipeline and process execution as `cli`, with a `ShellStep` selecting Bash and an optional working directory. Both Jobs disable cancellation on client disconnection; service shutdown terminates their process groups. Ordinary pipeline Jobs default to cancellation on disconnection.
+
 ## Application assembly
 
 `Application` composes configured providers in a local registry, injects typed dependencies and starts managed components in topological order; it closes them in reverse order. Framework extensions use `providers=...`. Startup supplies the TaskCatalog, update backend and scheduled-command launcher explicitly. Embedded applications can omit product adapters; Cron requires a host launcher.

@@ -18,6 +18,22 @@ class CommandStep(BaseStep):
         )
 
 
+@provider("shell_step")
+class ShellStep(BaseStep):
+    """Run Bash source in the service environment using shared process ownership."""
+
+    async def execute(self):
+        source = self.context["command"]
+        if not source.strip():
+            raise ValueError("Shell command must not be blank")
+        cwd = self.workspace.locate(self.context.get("cwd", "."), external=True)
+        if not cwd.is_dir():
+            raise ValueError(f"Shell cwd is not a directory: {cwd}")
+        self.response.success, self.response.answer = await run_command(
+            self.app_context, ("-c", source), self.emit, command_prefix=("/bin/bash",), cwd=cwd
+        )
+
+
 @provider("get_config_step")
 class GetConfigStep(BaseStep):
     """Return the running configuration with execution paths resolved here."""

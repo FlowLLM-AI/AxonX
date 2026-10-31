@@ -467,14 +467,14 @@ async def test_cancelling_a_command_reaps_its_process_and_clears_service_ownersh
         task = asyncio.create_task(run_command(app.context, (), emit))
         try:
             await asyncio.wait_for(started.wait(), 5)
-            assert process_ids[0] in app.context.service.cli_processes
+            assert process_ids[0] in app.context.service.command_processes
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(task, 5)
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
-        assert not app.context.service.cli_processes
+        assert not app.context.service.command_processes
         assert not app.context.service.cli_callbacks
         with pytest.raises(ProcessLookupError):
             os.kill(process_ids[0], 0)

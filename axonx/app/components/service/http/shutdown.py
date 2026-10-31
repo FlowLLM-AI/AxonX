@@ -46,9 +46,9 @@ class ShutdownDeadline:
     def force_exit(self):
         # Do not await locks, logging handlers or filesystem writes here: they
         # may be the reason graceful shutdown cannot finish. Only service-owned
-        # CLI process groups are signalled; daemon-owned scheduled Tasks continue.
+        # command process groups are signalled; daemon-owned scheduled Tasks continue.
         try:
-            self.app.context.service.stop_cli_processes(force=True)
+            self.app.context.service.stop_command_processes(force=True)
             self.app.request_shutdown()
         finally:
             try:

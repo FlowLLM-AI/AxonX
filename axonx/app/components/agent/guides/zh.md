@@ -336,6 +336,20 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 本地执行设置优先级为 CLI 显式字段 > 服务 `get_config` > 默认值；只有服务连接失败可回退，认证或配置错误会失败。`--workspace-dir`、`--log-dir`、`--timezone`、`--environment.KEY` 等覆盖只影响该命令；服务查询仍观察服务配置的工作区。无服务时直接检查本地 metadata、日志和产物。
 
+### 执行上传的 Shell 脚本
+
+`upload` 在 CLI 所在机器读取文件，将字节流发送到所选服务的 `POST /upload`，再将返回的绝对路径 `answer.location` 用于 `shell` 命令：
+
+```bash
+axonx upload --path queue.sh --target node-b:1024
+axonx shell --command 'bash /ABSOLUTE/LOCATION_FROM_UPLOAD' \
+  --target node-b:1024 --stream true
+```
+
+`shell` 与 `cli` 一样，是设置了 `cancel_on_disconnect: false` 的普通 pipeline Job；普通 pipeline Job 的该选项默认为 `true`。Shell 源码通过 `/bin/bash -c` 在服务环境中执行，可选 `cwd` 指定远程已存在的工作目录，相对路径基于工作区解析。响应等待命令结束，返回 `stdout`、`stderr`、`exit_code` 和截断标志；stdout/stderr 事件流不受响应捕获大小的限制。
+
+脚本在执行机器前台运行。客户端断开只结束观察，远程脚本及其中串行调用的 Task 继续执行；服务停止或重启会终止其进程组。此 Job 不创建单独的执行 ID，研究仍通过现有 Task 状态与日志观察。需要在断开后保留 Shell 输出时，将其重定向到远程文件。上传文件属于会过期清理的暂存文件，需要长期保留时另存到暂存区外。
+
 ### 参考研究链
 
 `qlib_a158` 主链为 ETL → Train → Predict → Portfolio → Backtest，Analysis 从 ETL 独立分支。安装插件并在执行机配置数据凭据后，按顺序运行；每一步确认成功再启动下游，脚本须遇错停止。已有完整原始历史时跳过下载：

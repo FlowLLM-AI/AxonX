@@ -68,6 +68,17 @@ axonx discard_file --path tmp/uploads/UUID/queue.sh --target node-b:1024
 
 `health` 返回 `answer.running`，健康时退出码为 0，无法确认服务就绪时返回 `success=false` 和退出码 1。`list_jobs` 返回含完整输入/输出 Schema 的 `answer.items` 和 `answer.total`；`help` 提供简短命令列表。
 
+## Shell 命令与上传脚本
+
+```bash
+axonx upload --path ./queue.sh --target node-b:1024
+axonx shell --command 'bash /ABSOLUTE/LOCATION_FROM_UPLOAD' --target node-b:1024 --stream true
+```
+
+将返回的 `answer.location` 用于 `shell`，上传与执行分别调用。`shell` 接受 `command` 和可选 `cwd`，在服务环境中执行，完成后返回 stdout、stderr、退出码和截断标志。相对 `cwd` 基于服务工作区解析。
+
+内置 `shell`、`cli` Job 配置为 `cancel_on_disconnect: false`，普通 pipeline Job 默认为 `true`。客户端断开后远程继续执行，服务关闭时终止其进程组。脚本由 Job 在远程前台执行，研究通过 Task 状态与日志观察；需要事后检查 Shell 输出时，重定向到远程文件。
+
 ## 轻量查询默认值
 
 CLI 的 `status`、`wait_task` 默认请求 `detail=summary`；文件预览默认 20 行、8192 字节；Agent 列表和历史默认 20 项。显式参数优先。Job 自身默认值可能不同，使用 `help --job NAME` 查询。

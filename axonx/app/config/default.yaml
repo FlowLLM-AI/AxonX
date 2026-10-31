@@ -102,6 +102,25 @@ service:
   token: ${AXONX_SERVICE_TOKEN:-null}
 
 jobs:
+  shell:
+    description: Run a Bash command or uploaded script in this service's environment. Wait for completion and return stdout, stderr and exit_code. Continue after client disconnection; stop with the service.
+    cancel_on_disconnect: false
+    parameters:
+      type: object
+      properties:
+        command:
+          type: string
+          minLength: 1
+          description: Bash source evaluated on this machine with the service environment.
+        cwd:
+          type: string
+          minLength: 1
+          description: Existing remote directory; relative paths resolve from the workspace.
+      required: [command]
+      additionalProperties: false
+    steps:
+      - backend: shell_step
+
   cli:
     description: Run a service-owned AxonX CLI command that continues after client disconnection. Paths belong to this machine; start and nested remote forwarding are not supported.
     cancel_on_disconnect: false

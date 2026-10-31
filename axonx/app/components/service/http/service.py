@@ -64,7 +64,7 @@ class HttpService(BaseService):
         self.token = token
         self.server = None
         self.on_ready: Callable[[], Awaitable[None]] | None = None
-        self.cli_processes: set[int] = set()
+        self.command_processes: set[int] = set()
         self.cli_callbacks: dict[str, list[Callable[[], None]] | None] = {}
 
     @property
@@ -181,13 +181,13 @@ class HttpService(BaseService):
         """Stop accepting requests after the update response has been delivered."""
         if self.server is not None:
             self.server.should_exit = True
-        self.stop_cli_processes(force=force)
+        self.stop_command_processes(force=force)
         if self._shutdown_deadline is not None:
             self._shutdown_deadline.request(force=force)
 
-    def stop_cli_processes(self, *, force: bool = False) -> None:
-        """Signal only process groups created by this service's CLI Job."""
-        for pid in tuple(self.cli_processes):
+    def stop_command_processes(self, *, force: bool = False) -> None:
+        """Signal process groups created by this service's CLI and shell Jobs."""
+        for pid in tuple(self.command_processes):
             try:
                 os.killpg(pid, signal.SIGKILL if force else signal.SIGTERM)
             except ProcessLookupError:

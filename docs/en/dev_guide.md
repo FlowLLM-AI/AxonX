@@ -336,6 +336,20 @@ Arguments use `--field value` pairs. Hyphens become underscores, dots create nes
 
 Local execution settings resolve as explicit CLI fields > service `get_config` > defaults. Only connection failures permit fallback; authentication or configuration errors fail. Overrides such as `--workspace-dir`, `--log-dir`, `--timezone` and `--environment.KEY` affect that command only. Service queries still observe the service's configured workspace. Without a service, inspect local metadata, logs and artifacts directly.
 
+### Execute an uploaded shell script
+
+`upload` reads the file on the CLI machine and streams it to `POST /upload` on the selected service. Then use the returned absolute `answer.location` in a `shell` command:
+
+```bash
+axonx upload --path queue.sh --target node-b:1024
+axonx shell --command 'bash /ABSOLUTE/LOCATION_FROM_UPLOAD' \
+  --target node-b:1024 --stream true
+```
+
+`shell` is an ordinary pipeline Job with `cancel_on_disconnect: false`, like `cli`. Ordinary pipeline Jobs default to `true`. Shell source runs through `/bin/bash -c` with the service environment, and optional `cwd` selects an existing remote directory; relative paths resolve from the workspace. The response waits for the command and returns `stdout`, `stderr`, `exit_code` and truncation flags. Streamed stdout/stderr continue beyond the bounded response capture.
+
+Run the script in the foreground on the execution machine. Disconnecting the client ends observation while the remote script and its serial Task calls continue; stopping or restarting the service terminates its process group. This Job does not create a separate execution ID. Observe research with existing Task status and logs. Redirect shell output to a remote file when it must remain available after disconnection. Uploads are temporary staging files with expiry cleanup; retain a copy outside staging when needed.
+
 ### Reference research pipeline
 
 The `qlib_a158` pipeline is ETL → Train → Predict → Portfolio → Backtest, with Analysis branching independently from ETL. Install the plugin and configure data credentials on the execution machine, then run stages in order. Verify success before starting each downstream stage; scripts must stop on failure. Skip downloading when complete raw history is already available:

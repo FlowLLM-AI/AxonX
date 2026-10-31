@@ -8,6 +8,7 @@
 
 | Job                 | 用途                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `shell`             | 运行 Bash 命令和上传脚本；客户端断开后继续执行。                                                           |
 | `help`              | 列出本服务公开的 Job，或查询某个 Job 的输入输出 Schema；CLI 连接选项不属于业务参数。                       |
 | `diagnose`          | 检查本服务的构建、Python 环境、工作区磁盘和资源使用情况；不返回凭据值。                                    |
 | `version`           | 返回当前安装的 AxonX 版本。                                                                                |
@@ -19,6 +20,21 @@
 | `update_from_pip`   | 停止服务，从包索引升级 axonx 与 axonx-studio，再重启服务；正在执行的定时 Task 继续运行。                   |
 | `restart_service`   | 重启应用并重新加载配置和调度；停止服务拥有的手动命令，保留定时 Task。                                      |
 | `get_update_status` | 读取更新记录与日志尾部；省略 update_id 时读取最近一次更新。                                                |
+
+## shell
+
+在服务环境中运行 Bash 源码或上传的脚本。可选 `cwd` 指定远程已存在的工作目录，相对路径基于工作区解析。该普通 pipeline Job 设置 `cancel_on_disconnect: false`，客户端断开后继续执行，服务关闭时终止进程组。
+
+```json
+{
+  "arguments": {
+    "command": "printf 'hello\\n'",
+    "cwd": "."
+  }
+}
+```
+
+完成后返回 `stdout`、`stderr`、`exit_code`、`stdout_truncated` 和 `stderr_truncated`；SSE 持续传输 stdout/stderr。不创建单独的执行记录，事后通过 Task 记录或显式重定向的 Shell 日志观察。执行脚本前先通过 `/upload` 上传，使用返回的 `answer.location`。
 
 ## help
 

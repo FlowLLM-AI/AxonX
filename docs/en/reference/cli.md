@@ -68,6 +68,17 @@ These commands use the selected service's HTTP endpoints directly and return one
 
 `health` returns `answer.running` and exits with 0 when healthy, or `success=false` and exit code 1 when readiness cannot be confirmed. `list_jobs` returns `answer.items` with full input/output schemas and `answer.total`; `help` provides a shorter command list.
 
+## Shell commands and uploaded scripts
+
+```bash
+axonx upload --path ./queue.sh --target node-b:1024
+axonx shell --command 'bash /ABSOLUTE/LOCATION_FROM_UPLOAD' --target node-b:1024 --stream true
+```
+
+Use the returned `answer.location` for `shell`; uploading and execution are separate commands. `shell` accepts `command` and optional `cwd`, uses the service environment, and returns stdout, stderr, exit code and truncation flags after completion. Relative `cwd` paths resolve from the service workspace.
+
+The bundled `shell` and `cli` Jobs set `cancel_on_disconnect: false`; ordinary pipeline Jobs default to `true`. Client disconnection leaves remote execution running, while service shutdown stops its process group. Shell scripts run in the foreground under the Job. Use Task status/logs for research, or redirect shell output to a remote file for later inspection.
+
 ## Lightweight query defaults
 
 CLI `status` and `wait_task` request `detail=summary`; file previews default to 20 rows / 8192 bytes; Agent lists and history default to 20 items. Explicit options override these defaults. Job defaults may differ; inspect `help --job NAME`.

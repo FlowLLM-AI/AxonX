@@ -35,6 +35,8 @@ flowchart TD
     local[本机 axonx exec] --> executor[TaskExecutor]
     remote[远端 exec / kill / plugin] --> job[服务 cli Job]
     job --> manual[服务拥有的 CLI 子进程]
+    shell[服务 shell Job] --> bash[服务拥有的 Bash 子进程]
+    bash --> manual
     manual --> executor
     supervisor[Daemon 监督进程] --> service[应用服务进程]
     service --> cron[App Cron 组件]
@@ -45,7 +47,7 @@ flowchart TD
     records --> index[App TaskIndex 只读查询]
 ```
 
-服务重启会停止其拥有的手动 CLI 子进程，Daemon 拥有的定时进程继续运行。TaskIndex 读取记录，不接管执行器。具体边界由 `tests/unit/test_module_boundaries.py` 验证。
+服务重启会停止其拥有的手动 CLI 和 Shell 子进程，Daemon 拥有的定时进程继续运行。TaskIndex 读取记录，不接管执行器。具体边界由 `tests/unit/test_module_boundaries.py` 验证。
 
 ## 跨包依赖明细
 
@@ -183,7 +185,7 @@ flowchart TD
 
 `app/` 一级只有 `__init__.py` 与 `components`、`config`、`core`、`steps`、`workspace`。五个能力包及其子包逐项说明、显式导入并通过 `__all__` 导出全部直接子模块与子包；`app/` 根包入口只包含职责说明。运行时依赖为 `core → components/config/steps/workspace`、`steps → components/config/workspace`、`components → config/workspace`；Pipeline 仅依赖 `steps.base` 接口，具体 Step 由组合根选择。组件对 Application 类型的引用只在类型检查时导入。配置和 Workspace 不反向依赖应用装配或组件实现。领域模型源码只包含数据、纯校验和纯计算，不直接导入执行实现；实现领域包入口会加载其导出的子模块。配置包保持独立，导入配置模型不会加载应用装配、组件或传输实现。 `steps/` 按能力使用单文件模块。
 
-机器指标、GPU 探测、远程健康检查、环境诊断、构建身份读取和 Python 执行归 `components/machine`，对应 Step 只适配调用。`BuildInfo`、机器信息和采集结果归该领域的 `models.py`。服务拥有的 CLI 子进程执行与取消清理归 `components/job/command.py`，响应完成回调与终态响应收集归 `components/job/base.py`。共享上下文、依赖声明和受管生命周期归 `components/base.py`；组件基类直接声明字符串类型，依赖和 Step 从基类取得该类型。Provider 声明、查找和冻结归 `components/registry.py`。Cron 配置模型归 `config/models.py`，统一使用配置加载链；调度循环归 `components/cron`，启动回调单独注入运行时。更新组件基类与宿主后端接口归 `components/updater/base.py`，Agent 本地存储归 `session_store.py`，展示模型与持久化记录统一归 `models.py`，HTTP 请求信封与路由统一归 `components/service/http/jobs.py`。
+机器指标、GPU 探测、远程健康检查、环境诊断、构建身份读取和 Python 执行归 `components/machine`，对应 Step 只适配调用。`BuildInfo`、机器信息和采集结果归该领域的 `models.py`。服务拥有的 CLI 与 Shell 子进程执行和取消清理归 `components/job/command.py`，响应完成回调与终态响应收集归 `components/job/base.py`。共享上下文、依赖声明和受管生命周期归 `components/base.py`；组件基类直接声明字符串类型，依赖和 Step 从基类取得该类型。Provider 声明、查找和冻结归 `components/registry.py`。Cron 配置模型归 `config/models.py`，统一使用配置加载链；调度循环归 `components/cron`，启动回调单独注入运行时。更新组件基类与宿主后端接口归 `components/updater/base.py`，Agent 本地存储归 `session_store.py`，展示模型与持久化记录统一归 `models.py`，HTTP 请求信封与路由统一归 `components/service/http/jobs.py`。
 
 ## 组件基类与实现
 
@@ -267,7 +269,7 @@ HTTP 应用由 `HttpService` 装配；通用文件接收与目录替换由 `work
 | [components/cron/scheduler.py](axonx/app/components/cron/scheduler.py)                         | CronComponent：快照配置、计算下一次触发、合并错过的时隙、隔离启动错误并管理调度循环。                                                                         |
 | [components/job/**init**.py](axonx/app/components/job/__init__.py)                             | 说明本包职责，显式导入并通过 `__all__` 导出全部直接子模块与子包。                                                                                             |
 | [components/job/base.py](axonx/app/components/job/base.py)                                     | BaseJob：统一输入与系统参数 Schema 校验、公开策略和目录信息；将事件流收集为终态响应，并提供调用级响应完成回调。                                               |
-| [components/job/command.py](axonx/app/components/job/command.py)                               | 执行服务拥有的 CLI 子进程，持续消费输出并有界保留响应内容，传递调用身份，在执行取消或结束时回收进程组。                                                       |
+| [components/job/command.py](axonx/app/components/job/command.py)                               | 执行服务拥有的 CLI 与 Shell 子进程，持续消费输出并有界保留响应内容，传递调用身份，在执行取消或结束时回收进程组。                                              |
 | [components/job/pipeline.py](axonx/app/components/job/pipeline.py)                             | PipelineJob：预先解析 Step 实现和配置，每次调用新建上下文和 Step；控制事件背压，按断连策略取消执行或仅结束观察，并在关闭时统一取消、等待清理。                |
 | [components/job/scheduled.py](axonx/app/components/job/scheduled.py)                           | ScheduledJob：复用 pipeline，按 App 时区与 expression 串行触发，校验 arguments，关闭时取消。                                                                  |
 | [components/machine/**init**.py](axonx/app/components/machine/__init__.py)                     | 说明本包职责，显式导入并通过 `__all__` 导出全部直接子模块与子包。                                                                                             |

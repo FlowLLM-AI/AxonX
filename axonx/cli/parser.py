@@ -42,6 +42,7 @@ CLI_USAGE = f"""Usage:
   axonx discard_file --path REMOTE_PATH [--target HOST:PORT]
   axonx health [--target HOST:PORT]
   axonx list_jobs [--target HOST:PORT]
+  axonx shell --command COMMAND [--cwd PATH] [--stream true] [--target HOST:PORT]
   axonx exec [--task TASK] [--workspace-dir PATH] [--field value ...] [--target HOST:PORT]
   axonx kill --task-id ID [--workspace-dir PATH] [--timeout SECONDS] [--force true] [--target HOST:PORT]
   axonx app [--config NAME_OR_PATH]

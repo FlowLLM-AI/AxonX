@@ -1,4 +1,4 @@
-"""Execute a service-owned CLI command with output draining and process cleanup."""
+"""Execute service-owned processes with output draining and process cleanup."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import os
 import signal
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -53,10 +54,13 @@ async def run_command(
     app_context: ApplicationContext,
     argv: Sequence[str],
     emit: Callable[[JobEvent], Awaitable[None]],
+    *,
+    command_prefix: Sequence[str] | None = None,
+    cwd: Path | None = None,
 ) -> tuple[bool, dict[str, Any]]:
-    """Run one CLI invocation, forwarding logs and reaping every owned process."""
+    """Run a CLI or explicit executable, forwarding logs and reaping its process group."""
 
-    command = app_context.app_config.command
+    command = app_context.app_config.command if command_prefix is None else command_prefix
     if not command:
         raise RuntimeError("No application command is configured")
     if app_context.metadata.get("stopping"):
@@ -82,7 +86,7 @@ async def run_command(
         asyncio.create_subprocess_exec(
             *command,
             *argv,
-            cwd=workspace,
+            cwd=cwd or workspace,
             env=environment,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
@@ -91,24 +95,30 @@ async def run_command(
         )
     )
     process = None
+    reaped = False
     try:
         process = await complete_on_cancel(spawn)
         if service is not None:
-            service.cli_processes.add(process.pid)
+            service.command_processes.add(process.pid)
         async with asyncio.TaskGroup() as group:
             stdout = group.create_task(_read_output(process.stdout, "stdout", emit))
             stderr = group.create_task(_read_output(process.stderr, "stderr", emit))
-            await process.wait()
+            # Process.wait() can wait for pipe EOF even after the leader exits.
+            # Reap remaining children before draining inherited output pipes.
+            while process.returncode is None:
+                await asyncio.sleep(0.05)
+            await complete_on_cancel(_reap_process(process))
+            reaped = True
     finally:
         try:
-            if not spawn.cancelled() and spawn.exception() is None:
+            if not reaped and not spawn.cancelled() and spawn.exception() is None:
                 process = spawn.result()
                 await complete_on_cancel(_reap_process(process))
         finally:
             if service is not None:
                 service.cli_callbacks.pop(request_id, None)
                 if process is not None:
-                    service.cli_processes.discard(process.pid)
+                    service.command_processes.discard(process.pid)
     stdout_text, stdout_truncated = stdout.result()
     stderr_text, stderr_truncated = stderr.result()
     return process.returncode == 0, {

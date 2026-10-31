@@ -1,7 +1,7 @@
 """Job contracts, invocation execution and response completion.
 
 base: Shared Job contract, argument validation and invocation response handling.
-command: Execute a service-owned CLI command with streaming output and cancellation cleanup.
+command: Execute service-owned processes with streaming output and cancellation cleanup.
 scheduled: Calendar-triggered pipeline Jobs.
 pipeline: Ordered Steps with one task and bounded event queue per invocation.
 """

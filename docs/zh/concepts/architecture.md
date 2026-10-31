@@ -24,6 +24,8 @@ AxonX 分离应用能力、同步研究执行和文件证据。
 
 远程原生命令通过目标的 `cli` Job，在服务工作区启动配置的 AxonX 命令新进程，传输 stdout/stderr 并清理其进程组。定时 `exec` 由 Daemon 启动，在应用服务替换后继续执行。两者的进程所有者不同。
 
+`shell` Job 与 `cli` 复用相同的 pipeline 和进程执行逻辑，`ShellStep` 选择 Bash 与可选工作目录。两种 Job 都关闭客户端断开时的取消行为，服务关闭时终止其进程组；普通 pipeline Job 默认在客户端断开时取消执行。
+
 ## 应用装配
 
 `Application` 在局部 registry 中装配 provider，注入有类型的依赖，按拓扑顺序启动受管理组件并逆序关闭。框架扩展通过 `providers=...` 提供。启动层显式注入 TaskCatalog、更新后端和定时命令启动器。嵌入式应用可省略产品适配器，Cron 需要宿主启动器。

@@ -35,7 +35,7 @@ from ..steps.agent import (
     RenameAgentSessionStep,
     TagAgentSessionStep,
 )
-from ..steps.common import CommandStep, GetConfigStep, HelpStep, VersionStep
+from ..steps.common import CommandStep, GetConfigStep, HelpStep, ShellStep, VersionStep
 from ..steps.machine import (
     DiagnoseStep,
     ListMachinesStep,
@@ -78,6 +78,7 @@ APP_PROVIDERS = (
     LocalTaskIndex,
     LocalUpdaterComponent,
     CommandStep,
+    ShellStep,
     GetConfigStep,
     GetTaskDefStep,
     ListTaskDefsStep,

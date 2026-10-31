@@ -456,20 +456,20 @@ async def test_cli_http_disconnect_keeps_process_owned_and_drains_both_output_pi
             await asyncio.wait_for(started.wait(), 5)
             disconnected.set()
             await asyncio.wait_for(request, 5)
-            assert process_ids[0] in app.context.service.cli_processes
+            assert process_ids[0] in app.context.service.command_processes
             os.kill(process_ids[0], 0)
             job = app.context.jobs["cli"]
             if stop == "application":
                 await asyncio.wait_for(app.close(), 5)
             else:
                 if stop == "kill":
-                    app.context.service.stop_cli_processes(force=True)
+                    app.context.service.stop_command_processes(force=True)
                 else:
                     gate.touch()
                 await asyncio.wait_for(asyncio.gather(*job._active_runs), 5)
             assert completed.exists() is (stop == "complete")
             assert not job._active_runs
-            assert not app.context.service.cli_processes
+            assert not app.context.service.command_processes
             assert not app.context.service.cli_callbacks
             with pytest.raises(ProcessLookupError):
                 os.kill(process_ids[0], 0)
@@ -525,7 +525,7 @@ async def test_command_uses_service_environment_and_inherits_response_callbacks(
             assert result["environment"]["JOB_TEST_VALUE"] == "configured"
             assert result["environment"][AXONX_SERVICE_TARGET] == app.context.service.local_target
             assert result["environment"]["AXONX_SERVICE_TOKEN"] == "test"
-            assert not app.context.service.cli_processes
+            assert not app.context.service.command_processes
             assert not app.context.service.cli_callbacks
     finally:
         RESPONSE_CALLBACKS.reset(token)
@@ -537,7 +537,7 @@ async def test_failed_command_spawn_releases_response_callbacks(tmp_path):
     async with app:
         with pytest.raises(FileNotFoundError):
             await command.run_command(app.context, (), AsyncMock())
-        assert not app.context.service.cli_processes
+        assert not app.context.service.command_processes
         assert not app.context.service.cli_callbacks
 
 
@@ -553,7 +553,7 @@ async def test_log_consumer_failure_reaps_the_command_and_releases_ownership(tmp
         with pytest.raises(ExceptionGroup) as failure:
             await asyncio.wait_for(command.run_command(app.context, (), emit), 5)
         assert str(failure.value.exceptions[0]) == "consumer failed"
-        assert not app.context.service.cli_processes
+        assert not app.context.service.command_processes
         assert not app.context.service.cli_callbacks
         with pytest.raises(ProcessLookupError):
             os.kill(process_ids[0], 0)
@@ -581,7 +581,7 @@ async def test_cancellation_during_spawn_still_reaps_the_created_process(tmp_pat
             release.set()
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(task, 5)
-            assert not app.context.service.cli_processes
+            assert not app.context.service.command_processes
             assert not app.context.service.cli_callbacks
             assert processes[0].returncode is not None
             with pytest.raises(ProcessLookupError):

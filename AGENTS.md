@@ -20,6 +20,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflows and [module-depend
 - `axonx app --config NAME_OR_PATH` loads YAML/YML/JSON, bundled names, or installed `axonx.configs` entries. Custom files inherit defaults only with `extends: default`; mappings merge recursively, lists/scalars replace.
 - CLI startup loads the nearest `.env` without overwriting existing environment values. `example.env` documents the variables consumed by bundled configs and built-ins; execution settings use CLI options > service `get_config` > `ExecutionSettings` defaults.
 - `axonx exec` runs Tasks synchronously; remote exec/kill/plugin operations use the service's `cli` Job. `help` queries a service; `--help` is offline. Task definitions reflect the selected execution environment.
+- The bundled `cli` and `shell` Jobs use ordinary pipelines with `cancel_on_disconnect: false`; ordinary pipelines default to `true`. ShellStep and CommandStep share process execution; service shutdown terminates their process groups.
 - Cron is an App component configured through the top-level `cron` list. It launches daemon-owned local `axonx exec --task NAME` processes, which survive service restarts; service-owned manual CLI commands stop with the service.
 
 ## Development and checks
