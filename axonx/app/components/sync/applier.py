@@ -1,4 +1,4 @@
-"""Validate and atomically apply display-replica archives."""
+"""Receive bounded file batches without interpreting Task or artifact metadata."""
 
 from __future__ import annotations
 
@@ -6,35 +6,45 @@ import os
 import shutil
 import tarfile
 import tempfile
-from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ....task.storage.files import copy_file
-from ....task.storage.workspace import (
-    parse_task_directory,
-    read_entry,
-    read_task_metadata,
-    resolve_relative_path,
-    scan_entries,
-    task_directory,
-    task_id_from_path,
-)
-from ....utils.logging import get_logger
-from .artifacts import artifact_path, verify_replica
-from .models import TAR_PADDING_BYTES, SyncTasksReport, archived_bytes
+from ....task.storage.files import copy_file, file_lock
+from ....task.storage.workspace import resolve_relative_path
+from .models import MANIFEST_NAME, TAR_PADDING_BYTES, FileGroup, FileManifest, SyncFilesReport, archived_bytes
 
-MAX_SYNC_DELETIONS = 200
 MAX_ARCHIVE_MEMBERS = 100_000
 
 
-class TaskArchiveApplier:
-    """Apply verified display replicas with rollback on commit failure."""
+def _relative(name: str) -> PurePosixPath:
+    path = PurePosixPath(name)
+    if not path.parts or path.is_absolute() or ".." in path.parts or path.as_posix() != name or "\\" in name:
+        raise ValueError(f"Invalid sync path: {name}")
+    return path
 
-    def __init__(
-        self,
-        workspace_path: Path,
-        transfer_budget_bytes: int,
-    ) -> None:
+
+def _directories(groups: dict[str, FileGroup]) -> dict[str, FileGroup]:
+    """The newest publication owns the current bytes of shared directories."""
+    result = {}
+    for group in sorted(groups.values(), key=lambda item: item.revision):
+        result.update({path: group for path in group.directories})
+    return result
+
+
+class _Receipt(FileManifest):
+    """Local directory identities keep an old receipt from adopting a replacement."""
+
+    installed: dict[str, str]
+
+
+def _directory_identity(path: Path) -> str:
+    stat = path.stat()
+    return f"{stat.st_dev}:{stat.st_ino}"
+
+
+class FileSyncStore:
+    """Own file receipts, delta reconstruction and rollback under one publication lease."""
+
+    def __init__(self, workspace_path: Path, transfer_budget_bytes: int) -> None:
         if (
             isinstance(transfer_budget_bytes, bool)
             or not isinstance(transfer_budget_bytes, int)
@@ -42,262 +52,235 @@ class TaskArchiveApplier:
         ):
             raise ValueError("transfer_budget_bytes must be a positive integer")
         self.root = Path(workspace_path).expanduser().resolve()
-        self.transfer_budget_bytes = transfer_budget_bytes
+        self.budget = transfer_budget_bytes
+        self.state = resolve_relative_path(self.root, "sync/receipts")
 
-    def apply(
-        self,
-        archive_path: Path | None,
-        deletions: Sequence[str],
-        archive_name: str | None = None,
-    ) -> SyncTasksReport:
-        removed = self._deletions(deletions)
-        if archive_path is not None and archive_path.stat().st_size > self.transfer_budget_bytes:
-            raise ValueError(f"Sync archive exceeds {self.transfer_budget_bytes} bytes")
-        temporary_root = resolve_relative_path(self.root, "tmp/sync")
-        temporary_root.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="receive-", dir=temporary_root) as temporary:
-            staging = Path(temporary)
-            extracted = staging / "incoming"
-            replacements, files = self._extract(archive_path, extracted)
-            overlap = replacements & set(removed)
-            if overlap:
-                raise ValueError(f"Tasks cannot be replaced and deleted together: {', '.join(sorted(overlap))}")
-            snapshots = {
-                (status.replica.snapshot.source_id, status.replica.snapshot.root_task_id)
-                for relative in replacements
-                if (status := read_task_metadata(extracted / relative, relative.rsplit("/", 1)[1])) is not None
-                and status.replica is not None
-                and status.replica.snapshot is not None
-            }
-            obsolete = {
-                task_directory(identity)
-                for identity, status in scan_entries(self.root).items()
-                if status.replica is not None
-                and status.replica.snapshot is not None
-                and (status.replica.snapshot.source_id, status.replica.snapshot.root_task_id) in snapshots
-                and task_directory(identity) not in replacements
-            }
-            deleted = self._commit(extracted, replacements, sorted(set(removed) | obsolete), staging / "backup")
-        return SyncTasksReport(archive_name, sorted(replacements), deleted, files)
+    def _receipts(self) -> dict[str, _Receipt]:
+        result = {}
+        for path in self.state.glob("*.json"):
+            manifest = _Receipt.model_validate_json(path.read_bytes())
+            if path.stem != manifest.source:
+                raise ValueError("Sync receipt source differs from its filename")
+            result[manifest.source] = manifest
+        return result
 
-    def _extract(self, archive_path: Path | None, target: Path) -> tuple[set[str], int]:
-        if archive_path is None:
-            return set(), 0
+    def _path(self, relative: str) -> Path:
+        _relative(relative)
+        return resolve_relative_path(self.root, relative)
+
+    def index(self, source: str) -> dict[str, dict]:
+        """Return complete receipts whose installed file inventories still match."""
+        FileManifest(source=source, groups={})
+        with file_lock(self.state / "publication.lock"):
+            receipt = self._receipts().get(source)
+            if receipt is None:
+                return {}
+            current = _directories(receipt.groups)
+            valid = set()
+            for relative, group in current.items():
+                try:
+                    directory = self._path(relative)
+                    if _directory_identity(directory) != receipt.installed.get(relative):
+                        continue
+                    self._verify(directory, group.directories[relative])
+                except (OSError, ValueError):
+                    continue
+                valid.add(relative)
+            return {
+                name: group.model_copy(
+                    update={
+                        "directories": {
+                            relative: current[relative].directories[relative] for relative in group.directories
+                        }
+                    }
+                ).model_dump(mode="json")
+                for name, group in receipt.groups.items()
+                if group.directories.keys() <= valid
+            }
+
+    @staticmethod
+    def _verify(directory: Path, files: dict) -> None:
+        if directory.is_symlink() or not directory.is_dir():
+            raise ValueError(f"Missing sync directory: {directory}")
+        actual = set()
+        for path in directory.rglob("*"):
+            if path.is_symlink():
+                raise ValueError(f"Sync files cannot be symlinks: {path}")
+            if path.is_file():
+                actual.add(path.relative_to(directory).as_posix())
+        if actual != set(files):
+            raise ValueError(f"Sync file inventory differs: {directory}")
+        for name, record in files.items():
+            if (directory / name).stat().st_size != record.size:
+                raise ValueError(f"Sync file size differs: {directory}/{name}")
+
+    def apply(self, archive_path: Path, archive_name: str | None = None) -> SyncFilesReport:
+        if archive_path.stat().st_size > self.budget:
+            raise ValueError(f"Sync archive exceeds {self.budget} bytes")
+        with file_lock(self.state / "publication.lock"):
+            receipts = self._receipts()
+            temporary_root = resolve_relative_path(self.root, "tmp/sync")
+            temporary_root.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix="receive-", dir=temporary_root) as temporary:
+                staging = Path(temporary)
+                manifest, count = self._extract(archive_path, staging / "incoming")
+                previous = receipts.get(manifest.source, _Receipt(source=manifest.source, groups={}, installed={}))
+                for name, group in manifest.groups.items():
+                    old = previous.groups.get(name)
+                    if old is not None and (
+                        group.revision < old.revision or (group.revision == old.revision and group != old)
+                    ):
+                        raise ValueError(f"Stale or conflicting file batch: {name}")
+                incoming = _directories(manifest.groups)
+                current = _directories(previous.groups)
+                for relative, group in incoming.items():
+                    old = current.get(relative)
+                    if old is not None and (
+                        group.revision < old.revision
+                        or (group.revision == old.revision and group.directories[relative] != old.directories[relative])
+                    ):
+                        raise ValueError(f"Stale or conflicting shared directory: {relative}")
+                merged = _Receipt(
+                    source=manifest.source,
+                    groups={**previous.groups, **manifest.groups},
+                    installed={},
+                )
+                retained = _directories(merged.groups)
+                others = {
+                    path
+                    for source, receipt in receipts.items()
+                    if source != manifest.source
+                    for group in receipt.groups.values()
+                    for path in group.directories
+                }
+                obsolete = set(current) - set(retained)
+                # A receipt owns the installed directory, not a later local replacement at the same path.
+                for relative in set(incoming) | obsolete:
+                    target = self._path(relative)
+                    if relative in others or (
+                        target.exists() and _directory_identity(target) != previous.installed.get(relative)
+                    ):
+                        raise ValueError(f"Cannot overwrite an unowned sync directory: {relative}")
+                self._hydrate(staging / "incoming", incoming, current)
+                merged.installed = {
+                    relative: (
+                        _directory_identity(staging / "incoming" / relative)
+                        if relative in incoming
+                        else previous.installed[relative]
+                    )
+                    for relative in retained
+                }
+                receipt_path = staging / "receipt.json"
+                receipt_path.write_text(merged.model_dump_json(), encoding="utf-8")
+                self._commit(staging, set(incoming), obsolete, manifest.source, receipt_path)
+        return SyncFilesReport(archive_name, sorted(incoming), sorted(obsolete), count)
+
+    def _extract(self, archive_path: Path, target: Path) -> tuple[FileManifest, int]:
         try:
             with tarfile.open(archive_path, "r:gz") as archive:
-                members = archive.getmembers()
-                self._check_bounds(members)
-                tasks: set[str] = set()
-                names: set[str] = set()
+                members, names, expanded = [], set(), TAR_PADDING_BYTES
+                for member in archive:
+                    if len(members) >= MAX_ARCHIVE_MEMBERS:
+                        raise ValueError(f"Sync archive exceeds {MAX_ARCHIVE_MEMBERS} members")
+                    expanded += archived_bytes(member.size)
+                    if member.size < 0 or expanded > self.budget:
+                        raise ValueError("Sync archive expands beyond the configured limit")
+                    members.append(member)
+                    _relative(member.name)
+                    if member.name in names or not member.isfile():
+                        raise ValueError(f"Duplicate or nonregular sync member: {member.name}")
+                    names.add(member.name)
+                if MANIFEST_NAME not in names:
+                    raise ValueError("Sync archive is missing its file manifest")
+                with archive.extractfile(MANIFEST_NAME) as stream:
+                    manifest = FileManifest.model_validate_json(stream.read())
+                expected = self._manifest_files(manifest)
                 for member in members:
-                    validated = self._member(member, str(target))
-                    canonical = PurePosixPath(validated.name).as_posix()
-                    if validated.name != canonical:
-                        raise ValueError(f"Sync archive member is not canonical: {validated.name}")
-                    if canonical in names:
-                        raise ValueError(f"Sync archive contains a duplicate member: {canonical}")
-                    names.add(canonical)
-                    tasks.add(self._task_of(canonical))
+                    if member.name != MANIFEST_NAME and (
+                        member.name not in expected or member.size != expected[member.name].size
+                    ):
+                        raise ValueError(f"Unexpected sync payload: {member.name}")
                 target.mkdir()
-                archive.extractall(target, members=members, filter=self._member)
-                self._hydrate(target, tasks)
-                _validate_snapshots(target, tasks)
-                return tasks, len(members)
+                archive.extractall(
+                    target, members=[item for item in members if item.name != MANIFEST_NAME], filter="data"
+                )
+                return manifest, len(members) - 1
         except tarfile.TarError as exc:
             raise ValueError(f"Invalid sync archive: {exc}") from exc
 
-    def _check_bounds(self, members: Sequence[tarfile.TarInfo]) -> None:
-        if len(members) > MAX_ARCHIVE_MEMBERS:
-            raise ValueError(f"Sync archive exceeds {MAX_ARCHIVE_MEMBERS} members")
-        if TAR_PADDING_BYTES + sum(archived_bytes(member.size) for member in members) > self.transfer_budget_bytes:
-            raise ValueError("Sync archive expands beyond the configured limit")
+    def _manifest_files(self, manifest: FileManifest) -> dict:
+        directories = set()
+        expected = {}
+        for group in manifest.groups.values():
+            for relative, files in group.directories.items():
+                path = _relative(relative)
+                if (
+                    not (
+                        (path.parts[:1] == ("tasks",) and len(path.parts) == 3)
+                        or (path.parts[:2] == ("tmp", "tasks") and len(path.parts) == 4)
+                    )
+                    or not files
+                ):
+                    raise ValueError(
+                        f"Sync destination must be a nonempty directory under tasks/ or tmp/tasks/: {relative}"
+                    )
+                if relative in directories:
+                    raise ValueError(f"Overlapping sync groups in one batch: {relative}")
+                self._path(relative)
+                directories.add(relative)
+                for name, record in files.items():
+                    _relative(name)
+                    expected[f"{relative}/{name}"] = record
+        if (
+            TAR_PADDING_BYTES
+            + archived_bytes(len(manifest.model_dump_json().encode()))
+            + sum(archived_bytes(record.size) for record in expected.values())
+            > self.budget
+        ):
+            raise ValueError("Reconstructed sync batch exceeds the transfer budget")
+        return expected
 
-    def _member(self, member: tarfile.TarInfo, destination: str) -> tarfile.TarInfo:
-        if not member.isfile() or member.issym() or member.islnk():
-            raise ValueError(f"Sync archives may contain only regular files: {member.name}")
-        self._task_of(member.name)
-        validated = tarfile.data_filter(member, destination)
-        if validated is None:
-            raise ValueError(f"Sync archive member was rejected: {member.name}")
-        return validated
-
-    @staticmethod
-    def _task_of(name: str) -> str:
-        identity = task_id_from_path(Path(), name)
-        if identity is None or ".." in PurePosixPath(name).parts or name == task_directory(identity):
-            raise ValueError(f"Sync archive member is not inside a task directory: {name}")
-        return task_directory(identity)
-
-    def _deletions(self, deletions: Sequence[str]) -> list[str]:
-        if isinstance(deletions, (str, bytes)):
-            raise TypeError("Sync deletions must be a sequence of task directories")
-        unique = list(dict.fromkeys(deletions))
-        if len(unique) > MAX_SYNC_DELETIONS:
-            raise ValueError(f"At most {MAX_SYNC_DELETIONS} task deletions are allowed")
-        for relative_path in unique:
-            parse_task_directory(relative_path)
-            resolve_relative_path(self.root, relative_path)
-        return unique
-
-    def _hydrate(self, root: Path, tasks: set[str]) -> None:
-        """Reuse only explicitly versioned files from the same current Task."""
-        expanded = TAR_PADDING_BYTES + sum(archived_bytes(p.stat().st_size) for p in root.rglob("*") if p.is_file())
-        for relative_path in tasks:
-            directory = root / relative_path
-            task_id = relative_path.rsplit("/", 1)[1]
-            status = read_task_metadata(directory, task_id)
-            if status is None or status.replica is None or status.replica.snapshot is None:
-                continue
-            previous = read_task_metadata(self.root / relative_path, task_id)
-            for name, record in status.replica.files.items():
-                target = artifact_path(directory, name)
+    def _hydrate(self, extracted: Path, incoming: dict, current: dict) -> None:
+        for relative, group in incoming.items():
+            files = group.directories[relative]
+            old_files = current[relative].directories[relative] if relative in current else {}
+            directory = extracted / relative
+            directory.mkdir(parents=True, exist_ok=True)
+            for name, record in files.items():
+                target = directory / name
                 if target.is_file():
                     continue
-                expanded += archived_bytes(record.size)
-                if expanded > self.transfer_budget_bytes:
-                    raise ValueError("Hydrated replica exceeds the transfer budget")
-                old = previous.replica if previous is not None and previous.started_at == status.started_at else None
-                if old is None:
-                    raise ValueError(f"Missing replica delta base: {task_id}/{name}")
-                source = artifact_path(self.root / relative_path, name)
-                if old.files.get(name) != record:
-                    raise ValueError(f"Replica delta base differs: {task_id}/{name}")
-                if source.stat().st_size != record.size:
-                    raise ValueError(f"Replica delta base is corrupt: {task_id}/{name}")
+                source = self._path(f"{relative}/{name}")
+                if old_files.get(name) != record or source.stat().st_size != record.size:
+                    raise ValueError(f"Missing or changed sync delta base: {relative}/{name}")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 copy_file(source, target)
+            self._verify(directory, files)
 
-    def _commit(
-        self,
-        extracted: Path,
-        replacements: set[str],
-        deletions: Sequence[str],
-        backup_root: Path,
-    ) -> list[str]:
-        targets = sorted(replacements | set(deletions))
-        backups: list[tuple[Path, Path]] = []
-        installed: list[Path] = []
-        deleted: list[str] = []
+    def _commit(self, staging: Path, incoming: set[str], obsolete: set[str], source: str, receipt: Path) -> None:
+        replacements = [(staging / "incoming" / name, self._path(name)) for name in sorted(incoming)]
+        replacements.append((receipt, self.state / f"{source}.json"))
+        targets = [target for _, target in replacements] + [self._path(name) for name in sorted(obsolete)]
+        backups, installed = [], []
         try:
-            for relative_path in targets:
-                target = resolve_relative_path(self.root, relative_path)
-                if not target.exists():
-                    continue
-                if target.is_symlink() or not target.is_dir():
-                    raise ValueError(f"Task target is not a directory: {relative_path}")
-                status = read_task_metadata(target, relative_path.rsplit("/", 1)[1], strict_io=True)
-                incoming = (
-                    read_task_metadata(extracted / relative_path, relative_path.rsplit("/", 1)[1])
-                    if relative_path in replacements
-                    else None
-                )
-                old = status.replica.snapshot if status is not None and status.replica is not None else None
-                new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
-                if old is not None and incoming is not None:
-                    # Completed shared children can later sync independently.
-                    # A new live parent may also reference the same child execution.
-                    if new is None:
-                        conflict = not (
-                            status.started_at == incoming.started_at
-                            and status.state.is_terminal
-                            and incoming.state.is_terminal
-                        )
-                    else:
-                        conflict = new.source_id != old.source_id or new.revision <= old.revision
-                    if conflict:
-                        raise ValueError(f"Stale or conflicting Task snapshot: {relative_path}")
-                if status is not None and status.replica is not None and incoming is not None:
-                    if (
-                        status.started_at == incoming.started_at
-                        and status.state.is_terminal
-                        and not incoming.state.is_terminal
-                    ):
-                        raise ValueError(f"Cannot regress a terminal Task: {relative_path}")
-                if (
-                    status is not None
-                    and not status.state.is_terminal
-                    and (old is None or new is None)
-                    and not (relative_path in deletions and status.replica is not None)
-                ):
-                    raise ValueError(f"Cannot overwrite active Task: {relative_path}")
-                backup = backup_root / relative_path
-                backup.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(target, backup)
-                backups.append((target, backup))
-                if relative_path in deletions:
-                    deleted.append(relative_path)
-            for relative_path in sorted(replacements):
-                incoming = extracted / relative_path
-                if not incoming.is_dir():
-                    raise ValueError(f"Sync archive has no files for task: {relative_path}")
-                target = resolve_relative_path(self.root, relative_path)
+            for index, target in enumerate(targets):
+                if target.is_symlink():
+                    raise ValueError(f"Sync destination cannot be a symlink: {target}")
+                if target.exists():
+                    backup = staging / "backup" / str(index)
+                    backup.parent.mkdir(parents=True, exist_ok=True)
+                    os.replace(target, backup)
+                    backups.append((target, backup))
+            for incoming_path, target in replacements:
                 target.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(incoming, target)
+                os.replace(incoming_path, target)
                 installed.append(target)
         except BaseException:
             for target in reversed(installed):
-                shutil.rmtree(target, ignore_errors=True)
+                if target.is_dir():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
             for target, backup in reversed(backups):
-                target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(backup, target)
             raise
-        return deleted
-
-
-def _validate_snapshots(root: Path, tasks: set[str]) -> None:
-    for relative_path in tasks:
-        task_id = relative_path.rsplit("/", 1)[1]
-        status = read_task_metadata(root / relative_path, task_id)
-        if status is None or status.replica is None:
-            raise ValueError(f"Sync archive Task is missing a display replica status: {relative_path}")
-        snapshot = status.replica.snapshot
-        if snapshot is not None:
-            if task_directory(snapshot.root_task_id) not in tasks:
-                raise ValueError("Task snapshot must include its parent Task")
-            parent = read_entry(root, snapshot.root_task_id)
-            if (
-                parent is None
-                or parent.replica is None
-                or parent.started_at != snapshot.root_started_at
-                or parent.replica.snapshot != snapshot
-            ):
-                raise ValueError("Task snapshot parent identity differs")
-            for child in status.current_children():
-                if child.child_task_id is None or child.started_at is None:
-                    continue
-                linked = read_entry(root, child.child_task_id)
-                if (
-                    linked is None
-                    or linked.started_at != child.started_at
-                    or linked.replica is None
-                    or linked.replica.snapshot != snapshot
-                ):
-                    raise ValueError("Task snapshot child identity differs")
-        verify_replica(root, task_id, metadata=status)
-
-
-def snapshot_index(root: Path, root_task_ids: frozenset[str] = frozenset()) -> dict:
-    """Index complete, verified groups so a missing member triggers reconciliation."""
-    groups = {}
-    for identity, metadata in scan_entries(root).items():
-        replica = metadata.replica
-        if replica is None:
-            continue
-        owner = replica.snapshot.root_task_id if replica.snapshot else identity
-        if root_task_ids and owner not in root_task_ids:
-            continue
-        groups.setdefault(owner, {})[identity] = metadata
-    result = {}
-    for owner, group in groups.items():
-        try:
-            _validate_snapshots(root, {task_directory(identity) for identity in group})
-        except (OSError, ValueError) as exc:
-            get_logger("task-sync-index").warning(f"Skipping invalid display group {owner}: {exc}")
-            continue
-        result.update(
-            {
-                identity: {"started_at": metadata.started_at.isoformat(), **metadata.replica.model_dump(mode="json")}
-                for identity, metadata in group.items()
-            }
-        )
-    return result

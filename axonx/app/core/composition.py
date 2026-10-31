@@ -41,7 +41,7 @@ from ..steps.machine import (
     MachineStatusStep,
     PythonStep,
 )
-from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
+from ..steps.sync import SyncFilesStep, SyncFlushStep, SyncIndexStep
 from ..steps.task import (
     GetTaskContextStep,
     GetTaskDefStep,
@@ -81,8 +81,8 @@ APP_PROVIDERS = (
     GetConfigStep,
     GetTaskDefStep,
     ListTaskDefsStep,
-    SyncTasksStep,
-    TaskSyncIndexStep,
+    SyncFilesStep,
+    SyncIndexStep,
     AgentStreamStep,
     CancelAgentTurnStep,
     DeleteAgentSessionStep,

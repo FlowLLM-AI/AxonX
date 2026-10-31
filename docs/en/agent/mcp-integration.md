@@ -73,7 +73,7 @@ Parquet previews return limited paginated data, which may not represent the enti
 
 ## File uploads
 
-File bytes are transferred through HTTP `POST /upload`, separately from MCP tool calls. Use a binary or multipart upload, or `HttpClient.copy_file`, against the same service as the MCP connection. For plugin installation, call `cli` with `["plugin", "install", uploaded.location]`; for `sync_tasks`, pass `uploaded.path`. Compare the install result's `sha256` with the local wheel hash when verifying transport, then clean up the staged relative path. No expected-hash argument is accepted by `cli` or `plugin install`. Uploading does not invoke that tool. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+File bytes are transferred through HTTP `POST /upload`, separately from MCP tool calls. Use a binary or multipart upload, or `HttpClient.copy_file`, against the same service as the MCP connection. For plugin installation, call `cli` with `["plugin", "install", uploaded.location]`; for `sync_files`, pass `uploaded.path`. Compare the install result's `sha256` with the local wheel hash when verifying transport, then clean up the staged relative path. No expected-hash argument is accepted by `cli` or `plugin install`. Uploading does not invoke that tool. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
 
 ## MCP and real-time events
 

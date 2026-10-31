@@ -491,14 +491,14 @@ axonx app --config scheduled.yaml
 
 ### 展示同步
 
-需要跨机器查看研究结果时，查询目标展示快照；已有合法展示归档时，按前面的上传方法上传，再用返回的相对路径应用：
+需要跨机器查看研究结果时，查询目标已提交的文件清单；已有合法展示归档时，按前面的上传方法上传，再用返回的相对路径应用：
 
 ```bash
-axonx task_sync_index --target node-b:1024
-axonx sync_tasks --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+axonx sync_index --source SOURCE_ID --target node-b:1024
+axonx sync_files --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
 ```
 
-应用后会清理暂存归档。已配置同步组件及对应命令时，也可用 `axonx sync_flush` 从源端发起同步，默认未启用。展示副本可能省略或采样文件，不能执行或作为研究输入；完整备份须保留工作区、外部日志、配置、源码和依赖版本。
+接收端提交文件，不解析任务元数据；已有 task_index 扫描器随后发现支持的元数据。应用后会清理暂存归档。已配置同步组件及对应命令时，也可用 `axonx sync_flush` 从源端发起同步，默认未启用。展示副本可能省略或采样文件，不能执行或作为研究输入；完整备份须保留工作区、外部日志、配置、源码和依赖版本。
 
 ### 使用内置 Agent
 

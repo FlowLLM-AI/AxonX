@@ -1,4 +1,4 @@
-"""Discover published artifacts, identify sources, validate replicas and sample complete days."""
+"""Discover published artifacts, identify sources and sample complete days."""
 
 from __future__ import annotations
 
@@ -127,31 +127,6 @@ def source_revision(
         files.append(("display/log.log", stat.st_size, stat.st_mtime_ns))
     children = [child.model_dump(mode="json") for child in metadata.current_children()]
     return fingerprint([metadata.started_at.isoformat(), files, children])
-
-
-def verify_replica(root: Path, task_id: str, *, metadata: TaskMetadata | None = None) -> None:
-    metadata = metadata or read_entry(root, task_id)
-    if (
-        metadata is None
-        or metadata.replica is None
-        or (not metadata.state.is_terminal and metadata.replica.snapshot is None)
-    ):
-        raise ValueError(f"Task is not a display replica: {task_id}")
-    directory = task_path(root, task_id)
-    actual = {p.relative_to(directory).as_posix() for p in directory.rglob("*") if p.is_file()}
-    if actual != {"metadata.json", *metadata.replica.files}:
-        raise ValueError(f"Replica file manifest differs from its directory: {task_id}")
-    log = metadata.replica.log
-    if log is not None:
-        record = metadata.replica.files.get(log.path)
-        if record is None or log.end - log.start != record.size:
-            raise ValueError(f"Invalid replica log range: {task_id}")
-    for name, record in metadata.replica.files.items():
-        path = artifact_path(directory, name)
-        if name == METADATA_FILE:
-            raise ValueError(f"Invalid replica path: {name}")
-        if path.stat().st_size != record.size:
-            raise ValueError(f"Replica artifact size mismatch: {task_id}/{name}")
 
 
 def trade_day():

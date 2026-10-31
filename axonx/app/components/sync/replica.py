@@ -26,12 +26,13 @@ from ....task.storage.workspace import (
     EVENTS_FILE,
     METADATA_FILE,
     read_entry,
+    task_directory,
     task_path,
     write_task_metadata,
 )
 from .archive import archive_budget
 from .artifacts import plan_task, policy_revision, source_revision, trade_day, write_sample
-from .models import ReplicaBudgetError, SnapshotChangedError, TaskFile, TaskPlan, archived_bytes
+from .models import FileGroup, ReplicaBudgetError, SnapshotChangedError, TaskFile, TaskPlan
 
 # Full reports, transaction ledgers and reference calendars remain source-complete.
 COMPLETE_FILES = {
@@ -57,7 +58,6 @@ class ReplicaBuilder:
         *,
         snapshot: TaskSnapshot | None = None,
         metadata: TaskMetadata | None = None,
-        remote: dict | None = None,
     ) -> None:
         self.root = root
         self.task_id = task_id
@@ -67,8 +67,6 @@ class ReplicaBuilder:
         self.snapshot = snapshot
         self.policy = policy_revision(budget, (snapshot.when, snapshot.model_names) if snapshot else None)
         self.metadata = metadata.model_copy(deep=True) if metadata is not None else None
-        self.remote = remote
-        self.source = task_path(root, task_id)
         self.before: TaskPlan | None = None
         self.source_log_path = ""
         self.log_path: Path | None = None
@@ -100,18 +98,6 @@ class ReplicaBuilder:
             plan=self.before,
         )
         self.destination.mkdir(parents=True, exist_ok=True)
-        if (
-            self.snapshot
-            and self.remote
-            and (self.remote.get("started_at") == self.metadata.started_at.isoformat())
-            and (self.remote.get("source_revision") == self.identity)
-            and (self.remote.get("policy_revision") == self.policy)
-        ):
-            prepared = self._refresh_snapshot()
-            self._check_source()
-            if prepared.size > archive_budget(self.budget):
-                raise ReplicaBudgetError(f"Replica manifest exceeds the transfer budget: {self.task_id}")
-            return prepared
         self.originals = {
             item.relative: item
             for item in self.before.files
@@ -127,31 +113,7 @@ class ReplicaBuilder:
         limit = archive_budget(self.budget)
         prepared = self._fit_budget(limit)
         self._check_source()
-        if self.snapshot and self.remote and (self.remote.get("started_at") == self.metadata.started_at.isoformat()):
-            unchanged = {
-                name
-                for name, record in self.metadata.replica.files.items()
-                if self.remote.get("files", {}).get(name) == record.model_dump(mode="json")
-            }
-            for name in unchanged:
-                (self.destination / name).unlink()
-            # Delta archives reserve their hydrated size during batch packing.
-            prepared = TaskPlan(tuple(item for item in prepared.files if item.relative not in unchanged), prepared.size)
         return prepared
-
-    def _refresh_snapshot(self) -> TaskPlan:
-        """Refresh metadata while reserving the remote publication's hydrated size."""
-        self.metadata.log_path = ""
-        self.metadata.replica = DisplayReplica.model_validate(
-            {key: value for key, value in self.remote.items() if key != "started_at"}
-        )
-        self.metadata.replica.snapshot = self.snapshot
-        write_task_metadata(self.destination, self.metadata)
-        item = TaskFile.capture(self.destination / METADATA_FILE, METADATA_FILE)
-        return TaskPlan(
-            (item,),
-            item.archived_bytes + sum(archived_bytes(record.size) for record in self.metadata.replica.files.values()),
-        )
 
     def _capture_log(self) -> None:
         """Capture one bounded tail and retain its exact byte range."""
@@ -284,7 +246,11 @@ class ReplicaBuilder:
             log=self.log,
         )
         write_task_metadata(self.destination, self.metadata)
-        return TaskPlan.capture(self.destination, {METADATA_FILE, *files})
+        return TaskPlan.capture(
+            self.destination,
+            {METADATA_FILE, *files},
+            revisions={name: record.revision for name, record in files.items()},
+        )
 
     def _check_source(self) -> None:
         """Reject replaced executions or artifacts changed during capture."""
@@ -406,30 +372,37 @@ def prepare_group(
     *,
     model_names: tuple[str, ...] = (),
     when: str = "live",
-) -> dict[str, TaskPlan]:
+) -> tuple[FileGroup, dict[str, TaskPlan]] | None:
     group = task_group(root, task_id, model_names)
-    if not group:
-        return {}
     if when == "terminal" and any(not status.state.is_terminal for status in group.values()):
         raise SnapshotChangedError(f"Task group has not completed: {task_id}")
-    member_budget = archive_budget(budget) // len(group)
+    member_budget = archive_budget(budget) // max(1, len(group))
     policy = policy_revision(member_budget, (when, list(model_names)))
-    if all(
-        status.state.is_terminal
-        and remote.get(identity, {}).get("source_revision")
-        == source_revision(
-            root,
-            identity,
-            snapshot=status,
-            logs=logs,
-            plan=plan_task(root, identity, snapshot=status, live=when == "live"),
+    version = fingerprint(
+        [
+            policy,
+            {
+                identity: source_revision(
+                    root,
+                    identity,
+                    snapshot=status,
+                    logs=logs,
+                    plan=plan_task(root, identity, snapshot=status, live=when == "live"),
+                )
+                for identity, status in sorted(group.items())
+            },
+        ]
+    )
+    if remote.get("version") == version:
+        return None
+    if not group:
+        return (
+            (FileGroup(version=version, revision=time.time_ns(), directories={}), {})
+            if remote.get("directories")
+            else None
         )
-        and remote.get(identity, {}).get("policy_revision") == policy
-        for identity, status in group.items()
-    ):
-        return {}
     snapshot = TaskSnapshot(
-        source_id=fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())}),
+        source_id=source_id(root),
         root_task_id=task_id,
         root_started_at=group[task_id].started_at,
         captured_at=datetime.now(UTC),
@@ -440,7 +413,7 @@ def prepare_group(
     plans = {}
     for identity, status in group.items():
         destination = task_path(staging, identity)
-        plans[identity] = ReplicaBuilder(
+        plans[task_directory(identity)] = ReplicaBuilder(
             root,
             identity,
             destination,
@@ -448,12 +421,17 @@ def prepare_group(
             snapshot=snapshot,
             metadata=status,
             logs=logs,
-            remote=remote.get(identity),
         ).prepare()
-    if sum(plan.size for plan in plans.values()) > archive_budget(budget):
+    manifest = FileGroup.capture(plans, version, snapshot.revision)
+    if manifest.size > archive_budget(budget):
         raise ReplicaBudgetError(f"Task group exceeds the transfer budget: {task_id}")
     for identity, status in group.items():
         current = read_entry(root, identity)
         if current is None or current.started_at != status.started_at:
             raise SnapshotChangedError(f"Task restarted during capture: {identity}")
-    return plans
+    return manifest, plans
+
+
+def source_id(root: Path) -> str:
+    """Keep transport ownership stable across component and service restarts."""
+    return fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())})

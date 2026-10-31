@@ -497,14 +497,14 @@ Schedules accept five-field expressions and local `axonx exec --task NAME` comma
 
 ### Synchronize results for display
 
-To inspect research across machines, query the target's display snapshots. For an existing valid display archive, upload it as above and apply it using the returned relative path:
+To inspect research across machines, query the target's committed file inventories. For an existing valid display archive, upload it as above and apply it using the returned relative path:
 
 ```bash
-axonx task_sync_index --target node-b:1024
-axonx sync_tasks --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
+axonx sync_index --source SOURCE_ID --target node-b:1024
+axonx sync_files --path 'tmp/uploads/ACTUAL_SYNC_ARCHIVE.tar.gz' --target node-b:1024
 ```
 
-Applying the archive removes its staged copy. With a configured sync component and command, `axonx sync_flush` can initiate synchronization from the source; it is disabled by default. Display replicas may omit or sample files and cannot execute or serve as research inputs. Complete backups require the workspace, external logs, configuration, source and dependency versions.
+The receiver commits files without parsing Task metadata; the existing task_index scanner then discovers supported metadata. Applying the archive removes its staged copy. With a configured sync component and command, `axonx sync_flush` can initiate synchronization from the source; it is disabled by default. Display replicas may omit or sample files and cannot execute or serve as research inputs. Complete backups require the workspace, external logs, configuration, source and dependency versions.
 
 ### Use the built-in Agent
 

@@ -102,7 +102,7 @@ curl --fail-with-body 'http://HOST:1024/upload' \
   -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-The JobResponse answer is `StagedFile`: `{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `sync_tasks` or `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
+The JobResponse answer is `StagedFile`: `{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `sync_files` or `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
 
 ## Preview response types
 

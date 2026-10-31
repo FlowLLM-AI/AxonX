@@ -198,7 +198,6 @@
     },
     "remaining": "{{seconds}} seconds until deadline",
     "refreshHint": "Refreshes every 60s",
-    "changedSnapshot": "Synchronization changed the snapshot. Refreshing shortly.",
     "nightly": "Nightly comparison"
   },
   "offline": "Offline",

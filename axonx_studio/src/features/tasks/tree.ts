@@ -5,7 +5,7 @@ export interface TaskNode {
   record: ChildTaskRecord;
   status: TaskMetadata | null;
   error: string;
-  issue?: "replaced" | "snapshot";
+  issue?: "replaced";
 }
 
 /** Follow recorded child Tasks, including nested download and ETL chains. */
@@ -13,7 +13,7 @@ export async function readTaskChildren(
   parent: TaskMetadata,
   target: string | undefined,
   signal: AbortSignal,
-  messages: { replaced: string; snapshot: string },
+  replacedMessage: string,
 ): Promise<TaskNode[]> {
   const visited = new Set([`${parent.task_id}:${parent.started_at}`]);
   const requests = new Map<string, Promise<TaskMetadata>>();
@@ -44,21 +44,8 @@ export async function readTaskChildren(
               {
                 record,
                 status: null,
-                error: messages.replaced,
+                error: replacedMessage,
                 issue: "replaced",
-              },
-            ];
-          if (
-            parent.replica?.snapshot &&
-            status.replica?.snapshot?.revision !==
-              parent.replica.snapshot.revision
-          )
-            return [
-              {
-                record,
-                status: null,
-                error: messages.snapshot,
-                issue: "snapshot",
               },
             ];
           return [{ record, status, error: "" }, ...(await visit(status))];

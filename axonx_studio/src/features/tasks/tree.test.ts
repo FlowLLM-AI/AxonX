@@ -45,7 +45,7 @@ it("retains the current nested Task when another branch references an earlier ex
     parent,
     "selected",
     new AbortController().signal,
-    { replaced: "replaced", snapshot: "snapshot" },
+    "replaced",
   );
   expect(
     nodes.find((node) => node.record.started_at === "2026-10-25T10:00:00Z")
@@ -74,13 +74,51 @@ it("does not load an older Task while a child has not started", async () => {
     parent,
     undefined,
     new AbortController().signal,
-    {
-      replaced: "replaced",
-      snapshot: "snapshot",
-    },
+    "replaced",
   );
   expect(getTaskStatus).not.toHaveBeenCalled();
   expect(nodes).toEqual([
     { record: parent.children[0], status: null, error: "" },
   ]);
+});
+
+it("loads the same shared child execution across independent display publications", async () => {
+  const tasks = seed().tasks;
+  const parent = structuredClone(tasks.get("base#playground_online#demo")!);
+  const child = structuredClone(tasks.get(parent.children[0].child_task_id!)!);
+  const publication = (
+    revision: number,
+    root: string,
+  ): NonNullable<TaskMetadata["replica"]> => ({
+    purpose: "display",
+    source_revision: "source",
+    policy_revision: "policy",
+    files: {},
+    omitted: {},
+    source_log_path: "",
+    log: null,
+    snapshot: {
+      source_id: "source",
+      root_task_id: root,
+      root_started_at: parent.started_at,
+      captured_at: parent.started_at,
+      revision,
+      when: "live",
+      model_names: [],
+    },
+  });
+  parent.replica = publication(1, parent.task_id);
+  child.replica = publication(2, "base#other#parent");
+  child.children = [];
+  parent.children = [{ ...parent.children[0], started_at: child.started_at }];
+  vi.mocked(getTaskStatus).mockClear().mockResolvedValue(child);
+  const nodes = await readTaskChildren(
+    parent,
+    undefined,
+    new AbortController().signal,
+    "replaced",
+  );
+  expect(nodes).toHaveLength(1);
+  expect(nodes[0].status?.task_id).toBe(child.task_id);
+  expect(nodes[0].error).toBe("");
 });

@@ -471,40 +471,32 @@ jobs:
   #     - backend: sync_flush_step
   #       sync: default
 
-  task_sync_index:
-    description: Read verified display snapshots for reconciliation.
+  sync_index:
+    description: Read committed file inventories for one synchronization source.
     parameters:
       type: object
       properties:
-        root_task_ids:
-          type: array
-          items:
-            type: string
-            minLength: 1
+        source:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{1,128}$"
+      required: [source]
       additionalProperties: false
     steps:
-      - backend: task_sync_index_step
+      - backend: sync_index_step
 
-  sync_tasks:
-    description: Replace task directories from one uploaded sync archive.
+  sync_files:
+    description: Commit a staged file batch without interpreting its contents.
     parameters:
       type: object
       properties:
         path:
           type: string
           minLength: 1
-          description: Workspace-relative path of the staged sync archive; omit to only apply deletions.
-        deletions:
-          type: array
-          maxItems: 200
-          default: []
-          description: Workspace-relative task directories to delete before applying.
-          items:
-            type: string
-            minLength: 1
+          description: Workspace-relative path of the staged file-sync archive.
+      required: [path]
       additionalProperties: false
     steps:
-      - backend: sync_tasks_step
+      - backend: sync_files_step
 
   # =========== Agent jobs ===========
   agent_chat:

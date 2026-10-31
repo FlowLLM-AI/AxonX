@@ -1210,28 +1210,58 @@
         "type": "object"
       }
     },
-    "sync_tasks": {
-      "name": "sync_tasks",
-      "description": "Replace task directories from one uploaded sync archive.",
+    "sync_files": {
+      "name": "sync_files",
+      "description": "Commit a staged file batch without interpreting its contents.",
       "input_schema": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
             "minLength": 1,
-            "description": "Workspace-relative path of the staged sync archive; omit to only apply deletions."
-          },
-          "deletions": {
-            "type": "array",
-            "maxItems": 200,
-            "default": [],
-            "description": "Workspace-relative task directories to delete before applying.",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+            "description": "Workspace-relative path of the staged file-sync archive."
           }
         },
+        "required": ["path"],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "description": "Canonical result of a Job invocation across every transport.",
+        "properties": {
+          "answer": {
+            "default": "",
+            "description": "response content",
+            "title": "Answer"
+          },
+          "success": {
+            "default": true,
+            "description": "whether succeeded",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "metadata",
+            "title": "Metadata",
+            "type": "object"
+          }
+        },
+        "title": "JobResponse",
+        "type": "object"
+      }
+    },
+    "sync_index": {
+      "name": "sync_index",
+      "description": "Read committed file inventories for one synchronization source.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        },
+        "required": ["source"],
         "additionalProperties": false
       },
       "output_schema": {
@@ -1274,47 +1304,6 @@
           }
         },
         "required": ["session_id", "tag"],
-        "additionalProperties": false
-      },
-      "output_schema": {
-        "description": "Canonical result of a Job invocation across every transport.",
-        "properties": {
-          "answer": {
-            "default": "",
-            "description": "response content",
-            "title": "Answer"
-          },
-          "success": {
-            "default": true,
-            "description": "whether succeeded",
-            "title": "Success",
-            "type": "boolean"
-          },
-          "metadata": {
-            "additionalProperties": true,
-            "description": "metadata",
-            "title": "Metadata",
-            "type": "object"
-          }
-        },
-        "title": "JobResponse",
-        "type": "object"
-      }
-    },
-    "task_sync_index": {
-      "name": "task_sync_index",
-      "description": "Read verified display snapshots for reconciliation.",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "root_task_ids": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        },
         "additionalProperties": false
       },
       "output_schema": {

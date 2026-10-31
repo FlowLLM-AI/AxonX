@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from axonx.app.components.sync.archive import build_archive
+from axonx.app.components.sync.models import FileGroup
 from axonx.app.components.sync.replica import ReplicaBuilder
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.config.models import CronConfig
@@ -328,19 +329,30 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     )
     plan = ReplicaBuilder(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(source)).prepare()
     archive = tmp_path / "replica.tar.gz"
-    build_archive({status.task_id: plan}, archive)
+    relative = str(task_path(app.workspace.root, status.task_id).relative_to(app.workspace.root))
+    plans = {relative: plan}
+    build_archive({"group": (FileGroup.capture(plans, "first", 1), plans)}, archive, source="source")
     response = client.post("/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name})
     assert response.status_code == 200, response.text
     staged = response.json()["answer"]
-    applied = invoke(client, "sync_tasks", {"path": staged["path"]})
+    applied = invoke(client, "sync_files", {"path": staged["path"]})
     assert applied["applied"] == [str(task_path(app.workspace.root, status.task_id).relative_to(app.workspace.root))]
     assert not Path(staged["location"]).exists()
+    deadline = monotonic() + 2
+    while status.task_id not in invoke(client, "list_task_ids", {}) and monotonic() < deadline:
+        sleep(0.01)
+    assert status.task_id in invoke(client, "list_task_ids", {})
     replica = invoke(client, "status", {"task_id": status.task_id})
     assert replica["replica"]["purpose"] == "display"
     assert replica["output_params"]["result"] == 7
-    index = invoke(client, "task_sync_index", {})
-    assert status.task_id in index["tasks"]
-    deletion = invoke(client, "sync_tasks", {"deletions": applied["applied"]})
+    index = invoke(client, "sync_index", {"source": "source"})
+    assert "group" in index["groups"]
+    tombstone = FileGroup(version="deleted", revision=2, directories={})
+    build_archive({"group": (tombstone, {})}, archive, source="source")
+    staged = client.post(
+        "/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name}
+    ).json()["answer"]
+    deletion = invoke(client, "sync_files", {"path": staged["path"]})
     assert deletion["deleted"] == applied["applied"]
     assert read_entry(app.workspace.root, status.task_id) is None
 

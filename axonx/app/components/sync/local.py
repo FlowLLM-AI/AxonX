@@ -12,7 +12,6 @@ from pathlib import Path
 from ....client import http as client
 from ....client.base import RemoteServiceError
 from ....task.models.identity import validate_registration_name
-from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
     read_task_metadata,
@@ -25,8 +24,8 @@ from ..registry import provider
 from ..task_index.base import BaseTaskIndex
 from .archive import SYNC_ARCHIVE_NAME, archive_budget, build_archive, pack_batches
 from .base import BaseSyncComponent
-from .models import ReplicaBudgetError, SyncReport, TaskPlan
-from .replica import prepare_group
+from .models import FileGroup, ReplicaBudgetError, SyncReport, TaskPlan
+from .replica import prepare_group, source_id
 
 
 @provider("local")
@@ -71,6 +70,7 @@ class LocalSyncComponent(BaseSyncComponent):
         self._remote_index: dict = {}
         self._last_task = ""
         self.root = self.workspace.root
+        self._source = source_id(self.root)
         self._pending: set[str] = set()
         self._flush_lock = asyncio.Lock()
         self._unsubscribe: Callable[[], None] | None = None
@@ -98,41 +98,20 @@ class LocalSyncComponent(BaseSyncComponent):
         try:
             async with self._client() as remote:
                 response = await remote.run_job(
-                    "task_sync_index",
-                    {
-                        "root_task_ids": sorted(roots),
-                    },
+                    "sync_index",
+                    {"source": self._source},
                 )
             payload = response.answer
             if not response.success or not isinstance(payload, dict):
                 raise ValueError("Remote display-replica index failed")
-            budget, remote = payload.get("transfer_budget_bytes"), payload.get("tasks")
+            budget, remote = payload.get("transfer_budget_bytes"), payload.get("groups")
             if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0 or not isinstance(remote, dict):
-                raise ValueError("Remote index must provide transfer_budget_bytes and tasks")
-            index = {}
-            for identity, value in remote.items():
-                if (
-                    not isinstance(identity, str)
-                    or not isinstance(value, dict)
-                    or not isinstance(value.get("started_at"), str)
-                ):
-                    raise ValueError("Invalid remote replica identity")
-                replica = DisplayReplica.model_validate(
-                    {key: item for key, item in value.items() if key != "started_at"}
-                )
-                index[identity] = {
-                    "started_at": value["started_at"],
-                    **replica.model_dump(mode="json"),
-                }
-            remote = index
+                raise ValueError("Remote index must provide transfer_budget_bytes and groups")
+            remote = {name: FileGroup.model_validate(value).model_dump(mode="json") for name, value in remote.items()}
             sources |= self._remote_budget is not None and self._remote_budget != budget
             self._remote_budget = budget
             self._remote_index = remote
-            self._pending.update(
-                identity
-                for identity, status in roots.items()
-                if sources or remote.get(identity, {}).get("started_at") != status.started_at.isoformat()
-            )
+            self._pending.update(identity for identity in roots if sources or identity not in remote)
             self._needs_reconcile = False
             self.logger.info(
                 f"Display sync reconciled target={self.target}: queued={len(self._pending)} budget={self.budget}"
@@ -178,7 +157,7 @@ class LocalSyncComponent(BaseSyncComponent):
             staged = copied.path
             if copied.size != archive.stat().st_size:
                 raise ValueError("Uploaded archive size mismatch")
-            response = await remote.run_job("sync_tasks", {"path": staged})
+            response = await remote.run_job("sync_files", {"path": staged})
             if not response.success:
                 raise ValueError(f"Remote replica commit failed: {response.answer}")
         finally:
@@ -186,7 +165,9 @@ class LocalSyncComponent(BaseSyncComponent):
                 with suppress(RemoteServiceError):
                     await remote.discard_file(staged)
 
-    def _pack(self, groups: dict[str, dict[str, TaskPlan]]) -> tuple[list[list[str]], list[str], list[str]]:
+    def _pack(
+        self, groups: dict[str, tuple[FileGroup, dict[str, TaskPlan]]]
+    ) -> tuple[list[list[str]], list[str], list[str]]:
         return pack_batches(
             groups,
             archive_budget(self.budget),
@@ -213,7 +194,7 @@ class LocalSyncComponent(BaseSyncComponent):
                         group_root,
                         self.budget,
                         logs,
-                        self._remote_index,
+                        self._remote_index.get(task_id, {}),
                         model_names=self.model_names,
                         when=self.rules[roots[task_id].reg_name],
                     )
@@ -242,9 +223,14 @@ class LocalSyncComponent(BaseSyncComponent):
                         self._last_task = batch[-1]
                         report.archives += 1
                         try:
-                            plans = {identity: plan for group in batch for identity, plan in groups[group].items()}
                             archive = staging / SYNC_ARCHIVE_NAME
-                            included = await run_blocking(build_archive, plans, archive)
+                            included = await run_blocking(
+                                build_archive,
+                                {name: groups[name] for name in batch},
+                                archive,
+                                source=self._source,
+                                remote=self._remote_index,
+                            )
                             if archive.stat().st_size > self.budget:
                                 raise ReplicaBudgetError("Encoded archive exceeds transfer budget")
                             await self._send(remote, archive)

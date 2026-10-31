@@ -3,36 +3,50 @@
 from __future__ import annotations
 
 import gzip
+import io
 import os
 import tarfile
 from collections.abc import Mapping
 from pathlib import Path
 
-from ....task.storage.workspace import task_directory
-from .models import TAR_PADDING_BYTES, SnapshotChangedError, TaskFile, TaskPlan
+from .models import MANIFEST_NAME, TAR_PADDING_BYTES, FileGroup, FileManifest, SnapshotChangedError, TaskFile, TaskPlan
 
 SYNC_ARCHIVE_NAME = "axonx-sync.tar.gz"
 
 
-def build_archive(plans: Mapping[str, TaskPlan], target: Path) -> list[str]:
+def build_archive(
+    groups: Mapping[str, tuple[FileGroup, Mapping[str, TaskPlan]]],
+    target: Path,
+    *,
+    source: str,
+    remote: Mapping[str, dict] | None = None,
+) -> list[str]:
+    """Send a complete file manifest and only payloads absent from the receiver."""
+    manifest = FileManifest(source=source, groups={name: manifest for name, (manifest, _) in groups.items()})
     included: list[str] = []
     with (
         target.open("wb") as raw,
         gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0, compresslevel=1) as zipped,
         tarfile.open(fileobj=zipped, mode="w") as archive,
     ):
-        for task_id, plan in plans.items():
-            if not plan.files:
-                raise SnapshotChangedError(f"Task snapshot is incomplete: {task_directory(task_id)}")
-            for item in plan.files:
-                _add_file(archive, task_id, item)
-            if any(not item.matches(item.path.stat()) for item in plan.files):
-                raise SnapshotChangedError(f"Replica changed while archiving: {task_id}")
-            included.append(task_directory(task_id))
+        content = manifest.model_dump_json().encode()
+        info = tarfile.TarInfo(MANIFEST_NAME)
+        info.size = len(content)
+        archive.addfile(info, io.BytesIO(content))
+        for name, (manifest, plans) in groups.items():
+            known = (remote or {}).get(name, {}).get("directories", {})
+            for relative, plan in plans.items():
+                for item in plan.files:
+                    record = manifest.directories[relative][item.relative]
+                    if known.get(relative, {}).get(item.relative) != record.model_dump(mode="json"):
+                        _add_file(archive, relative, item)
+                if any(not item.matches(item.path.stat()) for item in plan.files):
+                    raise SnapshotChangedError(f"Replica changed while archiving: {relative}")
+                included.append(relative)
     return included
 
 
-def _add_file(archive: tarfile.TarFile, task_id: str, item: TaskFile) -> None:
+def _add_file(archive: tarfile.TarFile, directory: str, item: TaskFile) -> None:
     try:
         handle = item.path.open("rb")
     except OSError as exc:
@@ -41,7 +55,7 @@ def _add_file(archive: tarfile.TarFile, task_id: str, item: TaskFile) -> None:
         before = os.fstat(handle.fileno())
         if not item.matches(before):
             raise SnapshotChangedError(f"Task file changed before archiving: {item.path}")
-        info = tarfile.TarInfo(f"{task_directory(task_id)}/{item.relative}")
+        info = tarfile.TarInfo(f"{directory}/{item.relative}")
         info.size = item.size
         info.mtime = 0
         info.mode = 0o644
@@ -57,7 +71,7 @@ def archive_budget(transfer_budget_bytes: int) -> int:
 
 
 def pack_batches(
-    groups: Mapping[str, Mapping[str, TaskPlan]], budget: int, max_batches: int
+    groups: Mapping[str, tuple[FileGroup, Mapping[str, TaskPlan]]], budget: int, max_batches: int
 ) -> tuple[list[list[str]], list[str], list[str]]:
     """Keep each group atomic and separate groups that share child Tasks."""
     batches: list[list[str]] = []
@@ -65,14 +79,12 @@ def pack_batches(
     current: list[str] = []
     included: set[str] = set()
     used = 0
-    for task_id, plans in groups.items():
-        if not plans:
-            continue
-        size = sum(plan.size for plan in plans.values())
+    for task_id, (manifest, _) in groups.items():
+        size = manifest.size
         if size > budget:
             rejected.append(task_id)
             continue
-        identities = plans.keys()
+        identities = manifest.directories.keys()
         if current and (used + size > budget or included & identities):
             batches.append(current)
             current, used = [], 0

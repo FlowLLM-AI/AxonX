@@ -102,7 +102,7 @@ curl --fail-with-body 'http://HOST:1024/upload' \
   -F 'file=@dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_tasks` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
+JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`sync_files` 和 `DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
 
 ## 预览响应类型
 

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="764" viewBox="0 0 1280 764" role="img" aria-labelledby="title desc">
   <title id="title">Publish, read and synchronize research evidence</title>
-  <desc id="desc">TaskExecutor writes metadata, progress events and published artifacts under the type/Task-ID directory. Research consumers read successful non-replica upstreams directly and record input revisions. TaskIndex and Studio read evidence. Bounded synchronization copies display snapshots to another workspace; replicas cannot be research inputs. Raw data, logs and software require their own preservation.</desc>
+  <desc id="desc">TaskExecutor writes metadata, progress events and published artifacts under the type/Task-ID directory. Research consumers read successful non-replica upstreams directly and record input revisions. TaskIndex and Studio read evidence. The sender prepares bounded display files; the receiver commits opaque file batches, then its TaskIndex scans metadata. Replicas cannot be research inputs. Raw data, logs and software require their own preservation.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
   <rect x="8" y="8" width="1264" height="748" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
@@ -43,10 +43,10 @@
     <text x="480" y="542" font-size="17">Observation does not run a Task.</text>
     <rect x="864" y="398" width="368" height="174" rx="20" fill="#f0edff" stroke="#cfc2ed" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="888" y="432" font-size="22" font-weight="700">Display workspace</text>
-    <text x="888" y="464" font-size="17">Terminal Tasks or opt-in live groups</text>
-    <text x="888" y="490" font-size="17">Preserve execution identity</text>
-    <text x="888" y="516" font-size="17">Report sampling and omitted files</text>
-    <text x="888" y="542" font-size="17">Read-only evidence; no process restore</text>
+    <text x="888" y="464" font-size="17">Sender exports selected display files</text>
+    <text x="888" y="490" font-size="17">Receiver commits opaque file batches</text>
+    <text x="888" y="516" font-size="17">TaskIndex scans published metadata</text>
+    <text x="888" y="542" font-size="17">Read-only; sampling shown in metadata</text>
     <rect x="48" y="610" width="1184" height="98" rx="20" fill="#ffffff" stroke="#bdcfdf" stroke-width="1.7" />
     <text x="72" y="645" font-size="22" font-weight="700">Preserve separately for reproduction</text>
     <text x="72" y="678" font-size="17">Raw market data · Service logs · Agent sessions · Plugin source / environment · Service configuration</text>

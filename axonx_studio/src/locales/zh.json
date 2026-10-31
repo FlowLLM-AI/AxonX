@@ -198,7 +198,6 @@
     },
     "remaining": "距截止 {{seconds}} 秒",
     "refreshHint": "每 60 秒刷新",
-    "changedSnapshot": "同步快照已更新，等待下一次刷新。",
     "nightly": "夜间复核"
   },
   "offline": "离线",

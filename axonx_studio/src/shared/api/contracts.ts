@@ -195,6 +195,22 @@ export type DisplayReplica = {
   log: ReplicaLog | null;
 };
 
+export type FileGroup = {
+  version: string;
+  revision: number;
+  directories: Record<string, Record<string, FileRecord>>;
+};
+
+export type FileManifest = {
+  source: string;
+  groups: Record<string, FileGroup>;
+};
+
+export type FileRecord = {
+  size: number;
+  revision: string;
+};
+
 export type GpuInfo = {
   vendor: "nvidia" | "amd";
   index: number;
@@ -507,6 +523,13 @@ export type StructuredPreview = {
   data: unknown;
   parse_error: string | null;
   truncated: boolean;
+};
+
+export type SyncFilesReport = {
+  archive: string | null;
+  applied: Array<string>;
+  deleted: Array<string>;
+  files: number;
 };
 
 export type TaskContextSnapshot = {

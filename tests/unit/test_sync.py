@@ -1,5 +1,6 @@
 """Verify application-owned display replica application."""
 
+import gzip
 import hashlib
 import io
 import os
@@ -11,18 +12,33 @@ import pytest
 
 from axonx.app.components.sync import applier as applier_module
 from axonx.app.components.sync import replica as replica_module
-from axonx.app.components.sync.applier import TaskArchiveApplier, snapshot_index
+from axonx.app.components.sync.applier import FileSyncStore
 from axonx.app.components.sync.archive import archive_budget, build_archive, pack_batches
-from axonx.app.components.sync.artifacts import plan_task, verify_replica
+from axonx.app.components.sync.artifacts import plan_task
 from axonx.app.components.sync.local import LocalSyncComponent
-from axonx.app.components.sync.models import ReplicaBudgetError, SnapshotChangedError
+from axonx.app.components.sync.models import (
+    FileGroup,
+    FileManifest,
+    FileRecord,
+    SnapshotChangedError,
+    TaskPlan,
+)
 from axonx.app.components.sync.replica import ReplicaBuilder, prepare_group
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.models.identity import TaskState
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import METADATA_FILE, read_entry, task_path, write_task_metadata
+from axonx.task.storage.workspace import read_entry, task_directory, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging
+
+
+def file_group(plans, version, revision):
+    return FileGroup.capture(plans, version, revision), plans
+
+
+def archive_plan(task_id, plan, archive):
+    group = file_group({task_directory(task_id): plan}, "publication", max(item.modified_ns for item in plan.files))
+    build_archive({"group": group}, archive, source="source")
 
 
 @pytest.fixture
@@ -52,9 +68,9 @@ def test_task_local_logs_roundtrip_through_display_sync(tmp_path, name):
     budget = 1_000_000
     plan = ReplicaBuilder(source, status.task_id, prepared, budget, TaskLogReader(source)).prepare()
     archive = tmp_path / "replica.tar.gz"
-    build_archive({status.task_id: plan}, archive)
+    archive_plan(status.task_id, plan, archive)
     target = tmp_path / "target"
-    TaskArchiveApplier(target, budget).apply(archive, [])
+    FileSyncStore(target, budget).apply(archive)
     replica = read_entry(target, status.task_id)
     chunk = TaskLogReader(target).read_status(replica, 0)
     assert chunk.content == content
@@ -66,7 +82,7 @@ def test_task_local_logs_roundtrip_through_display_sync(tmp_path, name):
 @pytest.mark.parametrize("budget", [0, -1, True, None])
 def test_task_archive_budget_is_validated_before_mutation(tmp_path, budget):
     with pytest.raises(ValueError, match="positive integer"):
-        TaskArchiveApplier(tmp_path, budget)
+        FileSyncStore(tmp_path, budget)
 
 
 @pytest.mark.parametrize("maximum", [0, -1, True, 1.5])
@@ -123,59 +139,64 @@ def test_replica_sampling_keeps_complete_days_and_preserves_the_source(tmp_path,
     assert plan.size <= archive_budget(budget)
     assert artifact.read_bytes() == original
     archive = tmp_path / "sample.tar.gz"
-    build_archive({status.task_id: plan}, archive)
+    archive_plan(status.task_id, plan, archive)
     first_archive = archive.read_bytes()
-    build_archive({status.task_id: plan}, archive)
+    archive_plan(status.task_id, plan, archive)
     assert archive.read_bytes() == first_archive
     target = tmp_path / "target"
     target.mkdir()
-    TaskArchiveApplier(target, budget).apply(archive, [])
+    FileSyncStore(target, budget).apply(archive)
     replica = read_entry(target, status.task_id).replica
     assert replica.files[artifact.name].sampled
     assert replica.files[artifact.name].dates == retained
 
 
-def test_live_metadata_delta_reuses_the_verified_remote_publication(tmp_path, source_task):
+def test_live_metadata_delta_transfers_only_changed_files(tmp_path, source_task):
     source, status, directory = source_task
-    artifact = directory / "result.txt"
-    status.state = TaskState.RUNNING
-    status.finished_at = None
+    status.state, status.finished_at = TaskState.RUNNING, None
     write_task_metadata(directory, status)
     budget = 1_000_000
     logs = TaskLogReader(source)
-    plans = prepare_group(source, status.task_id, tmp_path / "first", budget, logs, {})
-    target = tmp_path / "target"
-    target.mkdir()
-    applier = TaskArchiveApplier(target, budget)
+    prepared = prepare_group(source, status.task_id, tmp_path / "first", budget, logs, {})
+    store = FileSyncStore(tmp_path / "target", budget)
     archive = tmp_path / "live.tar.gz"
-    build_archive(plans, archive)
-    applier.apply(archive, [])
-    previous = read_entry(target, status.task_id).replica.snapshot
+    build_archive({"group": prepared}, archive, source="source")
+    store.apply(archive)
+    previous = read_entry(store.root, status.task_id).replica.snapshot
+    remote = store.index("source")
+    status.output_params["progress"] = 1
+    write_task_metadata(directory, status)
+    prepared = prepare_group(source, status.task_id, tmp_path / "second", budget, logs, remote["group"])
+    build_archive({"group": prepared}, archive, source="source", remote=remote)
+    with tarfile.open(archive) as stream:
+        assert not any(member.name.endswith("/result.txt") for member in stream.getmembers())
+    store.apply(archive)
+    assert read_entry(store.root, status.task_id).replica.snapshot.revision > previous.revision
+    assert (task_path(store.root, status.task_id) / "result.txt").read_text() == "retained publication"
 
-    remote = snapshot_index(target, frozenset({status.task_id}))
-    plans = prepare_group(source, status.task_id, tmp_path / "second", budget, logs, remote)
-    assert [item.relative for item in plans[status.task_id].files] == [METADATA_FILE]
-    build_archive(plans, archive)
-    applier.apply(archive, [])
-    current = read_entry(target, status.task_id).replica.snapshot
-    assert current.revision > previous.revision
-    assert (task_path(target, status.task_id) / artifact.name).read_text() == "retained publication"
 
-
-def test_batches_keep_overlapping_groups_separate_and_reserve_hydrated_size(tmp_path, source_task):
+def test_batches_keep_overlapping_groups_separate_and_reserve_full_size(tmp_path, source_task):
     source, status, _ = source_task
     plan = ReplicaBuilder(source, status.task_id, tmp_path / "prepared", 1_000_000).prepare()
     groups = {
-        "first": {"parent": plan, "shared": plan},
-        "second": {"other": plan, "shared": plan},
-        "third": {"independent": plan},
-        "too_large": {"large": type(plan)(plan.files, plan.size * 20)},
+        "first": file_group({"parent": plan, "shared": plan}, "first", 1),
+        "second": file_group({"other": plan, "shared": plan}, "second", 1),
+        "third": file_group({"independent": plan}, "third", 1),
+        "too_large": (
+            FileGroup(
+                version="large",
+                revision=1,
+                directories={"large": {"data": FileRecord(size=plan.size * 30, revision="1")}},
+            ),
+            {},
+        ),
     }
-    batches, oversized, deferred = pack_batches(groups, plan.size * 10, 1)
+    limit = max(groups[name][0].size for name in ("first", "second", "third"))
+    batches, oversized, deferred = pack_batches(groups, limit * 5, 1)
     assert batches == [["first"]]
     assert oversized == ["too_large"]
     assert deferred == ["second", "third"]
-    batches, _, deferred = pack_batches(groups, plan.size * 2, 3)
+    batches, _, deferred = pack_batches(groups, limit, 3)
     assert batches == [["first"], ["second"], ["third"]]
     assert not deferred
 
@@ -229,43 +250,21 @@ def test_live_window_files_are_included_without_waiting_for_parent_completion(so
     }
 
 
-@pytest.mark.parametrize("kind", ["duplicate", "symlink", "traversal"])
-def test_invalid_archives_leave_the_existing_task_untouched(tmp_path, source_task, kind):
-    source, _, directory = source_task
-    before = {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()}
-    archive = tmp_path / "invalid.tar.gz"
-    name = f"{directory.relative_to(source).as_posix()}/result.txt"
-    with tarfile.open(archive, "w:gz") as stream:
-        member = tarfile.TarInfo(name if kind != "traversal" else "../outside")
-        if kind == "symlink":
-            member.type = tarfile.SYMTYPE
-            member.linkname = "/outside"
-            stream.addfile(member)
-        else:
-            member.size = 3
-            stream.addfile(member, io.BytesIO(b"new"))
-            if kind == "duplicate":
-                stream.addfile(member, io.BytesIO(b"new"))
-    with pytest.raises(ValueError):
-        TaskArchiveApplier(source, 1_000_000).apply(archive, [])
-    assert {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()} == before
-
-
 def test_commit_failure_restores_the_previous_replica(tmp_path, source_task, monkeypatch):
     source, status, directory = source_task
     budget = 1_000_000
     target = tmp_path / "target"
     target.mkdir()
-    receiver = TaskArchiveApplier(target, budget)
+    receiver = FileSyncStore(target, budget)
     archive = tmp_path / "replica.tar.gz"
     first = ReplicaBuilder(source, status.task_id, tmp_path / "first", budget).prepare()
-    build_archive({status.task_id: first}, archive)
-    receiver.apply(archive, [])
+    archive_plan(status.task_id, first, archive)
+    receiver.apply(archive)
     destination = task_path(target, status.task_id)
     before = {path.name: path.read_bytes() for path in destination.iterdir() if path.is_file()}
     (directory / "result.txt").write_text("new publication")
     second = ReplicaBuilder(source, status.task_id, tmp_path / "second", budget).prepare()
-    build_archive({status.task_id: second}, archive)
+    archive_plan(status.task_id, second, archive)
     replace = os.replace
 
     def fail_install(incoming, final):
@@ -275,48 +274,22 @@ def test_commit_failure_restores_the_previous_replica(tmp_path, source_task, mon
 
     monkeypatch.setattr(applier_module.os, "replace", fail_install)
     with pytest.raises(OSError, match="commit failed"):
-        receiver.apply(archive, [])
+        receiver.apply(archive)
     assert {path.name: path.read_bytes() for path in destination.iterdir() if path.is_file()} == before
-    verify_replica(target, status.task_id)
 
 
-@pytest.mark.parametrize("change", ["restart", "budget"])
-def test_metadata_only_refresh_rechecks_source_and_hydrated_budget(tmp_path, source_task, monkeypatch, change):
+def test_source_restart_during_capture_is_rejected(tmp_path, source_task, monkeypatch):
     source, status, directory = source_task
-    status.state = TaskState.RUNNING
-    status.finished_at = None
-    write_task_metadata(directory, status)
-    logs = TaskLogReader(source)
-    budget = 1_000_000
-    plans = prepare_group(source, status.task_id, tmp_path / "first", budget, logs, {})
-    replica_metadata = read_entry(tmp_path / "first", status.task_id)
-    remote = {
-        "started_at": status.started_at.isoformat(),
-        **replica_metadata.replica.model_dump(mode="json"),
-    }
-    if change == "budget":
-        remote["files"]["result.txt"]["size"] = budget
-    else:
-        write = replica_module.write_task_metadata
+    write = replica_module.write_task_metadata
 
-        def restart_after_capture(destination, metadata):
-            write(destination, metadata)
-            status.started_at += timedelta(seconds=1)
-            write(directory, status)
+    def restart_after_capture(destination, metadata):
+        write(destination, metadata)
+        status.started_at += timedelta(seconds=1)
+        write(directory, status)
 
-        monkeypatch.setattr(replica_module, "write_task_metadata", restart_after_capture)
-    assert plans
-    with pytest.raises(ReplicaBudgetError if change == "budget" else SnapshotChangedError):
-        ReplicaBuilder(
-            source,
-            status.task_id,
-            tmp_path / "refresh",
-            archive_budget(budget),
-            logs,
-            snapshot=replica_metadata.replica.snapshot,
-            metadata=status,
-            remote=remote,
-        ).prepare()
+    monkeypatch.setattr(replica_module, "write_task_metadata", restart_after_capture)
+    with pytest.raises(SnapshotChangedError, match="restarted"):
+        prepare_group(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(source), {})
     assert status.replica is None
 
 
@@ -337,3 +310,214 @@ def test_live_training_sync_uses_registry_to_exclude_model_weights(source_task):
     assert model.relative_to(directory).as_posix() not in {
         item.relative for item in plan_task(source, status.task_id, snapshot=status).files
     }
+
+
+def file_batch(tmp_path, directories, revision, *, source="source", remote=None, name="view"):
+    """Prepare arbitrary bytes; these tests deliberately do not create valid Task metadata."""
+    plans = {}
+    for relative, files in directories.items():
+        directory = tmp_path / f"export-{source}-{revision}" / relative
+        directory.mkdir(parents=True, exist_ok=True)
+        for filename, content in files.items():
+            target = directory / filename
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        plans[relative] = TaskPlan.capture(directory, files)
+    prepared = file_group(plans, f"version-{revision}", revision)
+    archive = tmp_path / f"batch-{source}-{revision}.tar.gz"
+    build_archive({name: prepared}, archive, source=source, remote=remote)
+    return archive, prepared[0]
+
+
+def test_receiver_stores_unknown_metadata_and_recovers_missing_files(tmp_path):
+    directory = "tasks/base/future-task"
+    contents = {"metadata.json": b'{"unknown_task_format": 42}', "report.bin": b"opaque result"}
+    archive, _ = file_batch(tmp_path, {directory: contents}, 1)
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    store.apply(archive)
+    assert (store.root / directory / "metadata.json").read_bytes() == contents["metadata.json"]
+    assert store.index("source")["view"]["version"] == "version-1"
+    (store.root / directory / "report.bin").unlink()
+    assert not store.index("source")
+    store.apply(archive)  # Identical publication is safe to replay after a lost acknowledgement.
+    assert (store.root / directory / "report.bin").read_bytes() == contents["report.bin"]
+    assert store.index("source")
+
+
+@pytest.mark.parametrize("other_source", [False, True])
+def test_receiver_preserves_unowned_directories(tmp_path, other_source):
+    directory = "tasks/base/original"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    original = store.root / directory / "metadata.json"
+    if other_source:
+        archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"other source"}}, 1, source="other")
+        store.apply(archive)
+    else:
+        original.parent.mkdir(parents=True)
+        original.write_bytes(b"local task")
+    before = original.read_bytes()
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"replacement"}}, 2)
+    with pytest.raises(ValueError, match="unowned"):
+        store.apply(archive)
+    assert original.read_bytes() == before
+    assert not store.index("source")
+
+
+def test_receiver_rejects_stale_and_conflicting_publications(tmp_path):
+    directory = "tasks/base/ordered"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"new"}}, 2)
+    store.apply(archive)
+    for revision in (1, 2):
+        archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"old"}}, revision)
+        with pytest.raises(ValueError, match="Stale or conflicting"):
+            store.apply(archive)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"new"
+
+
+def test_receipt_and_file_commit_roll_back_together(tmp_path, monkeypatch):
+    directory = "tasks/base/transaction"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"first"}}, 1)
+    store.apply(archive)
+    previous = store.index("source")
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"second"}}, 2)
+    replace = os.replace
+
+    def fail_receipt(incoming, target):
+        if incoming.name == "receipt.json":
+            raise OSError("receipt commit failed")
+        return replace(incoming, target)
+
+    monkeypatch.setattr(applier_module.os, "replace", fail_receipt)
+    with pytest.raises(OSError, match="receipt commit failed"):
+        store.apply(archive)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"first"
+    assert store.index("source") == previous
+
+
+def test_missing_delta_base_requires_resend_without_changing_receipt(tmp_path):
+    directory = "tasks/base/delta"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    contents = {"metadata.json": b"first", "result.bin": b"unchanged"}
+    archive, prepared = file_batch(tmp_path, {directory: contents}, 1)
+    store.apply(archive)
+    previous = store.index("source")
+    # Reuse an actual unchanged exported file revision in the next publication.
+    files = dict(prepared.directories[directory])
+    files["metadata.json"] = type(files["metadata.json"])(size=6, revision="second")
+    group = FileGroup(version="second", revision=2, directories={directory: files})
+    archive = tmp_path / "delta.tar.gz"
+    manifest = FileManifest(source="source", groups={"view": group})
+    with tarfile.open(archive, "w:gz") as stream:
+        for name, content in (
+            ("sync-manifest.json", manifest.model_dump_json().encode()),
+            (directory + "/metadata.json", b"second"),
+        ):
+            member = tarfile.TarInfo(name)
+            member.size = len(content)
+            stream.addfile(member, io.BytesIO(content))
+    result = store.root / directory / "result.bin"
+    result.unlink()
+    with pytest.raises((OSError, ValueError)):
+        store.apply(archive)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"first"
+    result.write_bytes(contents["result.bin"])
+    assert store.index("source") == previous
+    store.apply(archive)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"second"
+
+
+def test_group_removal_keeps_directories_owned_by_another_group(tmp_path):
+    shared, exclusive = "tasks/base/shared", "tasks/base/exclusive"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    archive, _ = file_batch(tmp_path, {shared: {"data": b"shared"}, exclusive: {"data": b"exclusive"}}, 1)
+    store.apply(archive)
+    archive, _ = file_batch(tmp_path, {shared: {"data": b"shared"}}, 2, name="other")
+    store.apply(archive)
+    archive, _ = file_batch(tmp_path, {}, 3)
+    report = store.apply(archive)
+    assert report.deleted == [exclusive]
+    assert (store.root / shared / "data").read_bytes() == b"shared"
+    assert not (store.root / exclusive).exists()
+
+
+@pytest.mark.parametrize("kind", ["oversized", "symlink", "undeclared", "noncanonical", "duplicate", "traversal"])
+def test_invalid_file_manifests_and_payloads_leave_receipts_unchanged(tmp_path, kind):
+    directory = "tasks/base/validated"
+    store = FileSyncStore(tmp_path / "receiver", 100_000)
+    archive, prepared = file_batch(tmp_path, {directory: {"metadata.json": b"old"}}, 1)
+    store.apply(archive)
+    previous = store.index("source")
+    manifest = FileManifest(source="source", groups={"view": prepared.model_copy(deep=True)})
+    manifest.groups["view"].revision = 2
+    if kind == "oversized":
+        manifest.groups["view"].directories[directory]["metadata.json"].size = 200_000
+    if kind == "noncanonical":
+        manifest.groups["view"].directories[directory + "/../escape"] = manifest.groups["view"].directories.pop(
+            directory
+        )
+    invalid = tmp_path / "invalid-manifest.tar.gz"
+    with tarfile.open(invalid, "w:gz") as stream:
+        content = manifest.model_dump_json().encode()
+        member = tarfile.TarInfo("sync-manifest.json")
+        member.size = len(content)
+        stream.addfile(member, io.BytesIO(content))
+        if kind in {"symlink", "undeclared", "duplicate", "traversal"}:
+            name = directory + "/metadata.json" if kind in {"symlink", "duplicate"} else directory + "/unexpected"
+            member = tarfile.TarInfo("../outside" if kind == "traversal" else name)
+            if kind == "symlink":
+                member.type, member.linkname = tarfile.SYMTYPE, "/outside"
+                stream.addfile(member)
+            else:
+                member.size = 3
+                stream.addfile(member, io.BytesIO(b"new"))
+                if kind == "duplicate":
+                    stream.addfile(member, io.BytesIO(b"new"))
+    with pytest.raises(ValueError):
+        store.apply(invalid)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"old"
+    assert store.index("source") == previous
+
+
+def test_delayed_group_cannot_regress_a_shared_directory(tmp_path):
+    directory = "tasks/base/shared"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    first, _ = file_batch(tmp_path, {directory: {"metadata.json": b"first"}}, 1)
+    store.apply(first)
+    delayed, _ = file_batch(tmp_path, {directory: {"metadata.json": b"delayed"}}, 2)
+    newest, _ = file_batch(tmp_path, {directory: {"metadata.json": b"newest"}}, 3, name="other")
+    store.apply(newest)
+    with pytest.raises(ValueError, match="Stale or conflicting shared"):
+        store.apply(delayed)
+    assert (store.root / directory / "metadata.json").read_bytes() == b"newest"
+
+
+def test_old_receipt_cannot_overwrite_a_locally_recreated_directory(tmp_path):
+    directory = "tasks/base/recreated"
+    store = FileSyncStore(tmp_path / "receiver", 1_000_000)
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"replica"}}, 1)
+    store.apply(archive)
+    target = store.root / directory
+    target.rename(tmp_path / "old-replica")
+    target.mkdir()
+    (target / "metadata.json").write_bytes(b"new local task")
+    assert not store.index("source")
+    archive, _ = file_batch(tmp_path, {directory: {"metadata.json": b"updated replica"}}, 2)
+    with pytest.raises(ValueError, match="unowned"):
+        store.apply(archive)
+    assert (target / "metadata.json").read_bytes() == b"new local task"
+    tombstone, _ = file_batch(tmp_path, {}, 3)
+    with pytest.raises(ValueError, match="unowned"):
+        store.apply(tombstone)
+    assert target.is_dir()
+
+
+def test_oversized_archive_header_is_rejected_before_its_payload_is_read(tmp_path):
+    archive = tmp_path / "oversized-header.tar.gz"
+    member = tarfile.TarInfo("sync-manifest.json")
+    member.size = 10_000_000
+    with gzip.open(archive, "wb") as stream:
+        stream.write(member.tobuf())
+    with pytest.raises(ValueError, match="expands beyond"):
+        FileSyncStore(tmp_path / "receiver", 100_000).apply(archive)

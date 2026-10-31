@@ -9,11 +9,11 @@ from types import SimpleNamespace
 import pytest
 from pydantic import Field
 
-from axonx.app.components.sync.applier import TaskArchiveApplier, snapshot_index
+from axonx.app.components.sync.applier import FileSyncStore
 from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.artifacts import plan_task
 from axonx.app.components.sync.models import SnapshotChangedError
-from axonx.app.components.sync.replica import prepare_group, task_group
+from axonx.app.components.sync.replica import prepare_group, source_id, task_group
 from axonx.app.core.application import Application
 from axonx.task.core.base import BaseTask
 from axonx.task.models.identity import TaskState
@@ -108,20 +108,22 @@ def workflow(tmp_path):
 
 
 def send(source, status, target, tmp_path, patterns=(), when="live"):
-    plans = prepare_group(
+    store = FileSyncStore(target, BUDGET)
+    remote = store.index(source_id(source))
+    prepared = prepare_group(
         source,
         status.task_id,
         tmp_path / "prepared",
         BUDGET,
         TaskLogReader(source),
-        snapshot_index(target),
+        remote.get(status.task_id, {}),
         model_names=patterns,
         when=when,
     )
-    if plans:
+    if prepared:
         archive = tmp_path / "group.tar.gz"
-        build_archive(plans, archive)
-        return TaskArchiveApplier(target, BUDGET).apply(archive, [])
+        build_archive({status.task_id: prepared}, archive, source=source_id(source), remote=remote)
+        return store.apply(archive)
     return None
 
 
@@ -143,7 +145,7 @@ def test_model_views_roundtrip_without_foreign_parameters_results_steps_or_logs(
     assert excluded not in all_text
     assert "mixed parent log" not in all_text
     assert (task_path(source, status.task_id) / "metadata.json").read_bytes() == original
-    assert len(snapshot_index(target, frozenset({status.task_id}))) == 4
+    assert len(FileSyncStore(target, BUDGET).index(source_id(source))[status.task_id]["directories"]) == 4
     assert send(source, status, target, tmp_path, (model,), when) is None
 
 
@@ -169,11 +171,16 @@ def test_changing_a_view_removes_only_obsolete_owned_replicas(workflow, tmp_path
     source, status = workflow
     target = tmp_path / "target"
     send(source, status, target, tmp_path)
-    previous = set(snapshot_index(target))
+    previous = set(FileSyncStore(target, BUDGET).index(source_id(source))[status.task_id]["directories"])
     applied = send(source, status, target, tmp_path, ("axon-v1",))
     assert applied.deleted
-    assert len(previous - set(snapshot_index(target))) == 2
-    assert all(read_entry(target, identity).replica is not None for identity in snapshot_index(target))
+    assert (
+        len(previous - set(FileSyncStore(target, BUDGET).index(source_id(source))[status.task_id]["directories"])) == 2
+    )
+    assert all(
+        read_entry(target, path.rsplit("/", 1)[1]).replica is not None
+        for path in FileSyncStore(target, BUDGET).index(source_id(source))[status.task_id]["directories"]
+    )
 
 
 @pytest.mark.parametrize("when", ["live", "terminal"])
@@ -182,7 +189,7 @@ def test_flush_waits_for_the_workflow_and_retries_through_the_same_queue(workflo
     status.state, status.finished_at = TaskState.RUNNING, None
     write_task_metadata(task_path(source, status.task_id), status)
     target = tmp_path / "target"
-    applier = TaskArchiveApplier(target, BUDGET)
+    applier = FileSyncStore(target, BUDGET)
     failing = [False]
 
     class Receiver:
@@ -193,17 +200,17 @@ def test_flush_waits_for_the_workflow_and_retries_through_the_same_queue(workflo
             pass
 
         async def run_job(self, name, arguments):
-            if name == "task_sync_index":
+            if name == "sync_index":
                 return SimpleNamespace(
                     success=True,
                     answer={
                         "transfer_budget_bytes": BUDGET,
-                        "tasks": snapshot_index(target, frozenset(arguments["root_task_ids"])),
+                        "groups": applier.index(arguments["source"]),
                     },
                 )
             if failing[0]:
                 return SimpleNamespace(success=False, answer="temporary receiver failure")
-            return SimpleNamespace(success=True, answer=applier.apply(Path(arguments["path"]), []))
+            return SimpleNamespace(success=True, answer=applier.apply(Path(arguments["path"])))
 
         async def copy_file(self, path, **_):
             return SimpleNamespace(path=str(path), size=path.stat().st_size)
@@ -246,7 +253,7 @@ def test_flush_waits_for_the_workflow_and_retries_through_the_same_queue(workflo
         parent = read_entry(target, status.task_id)
         missing = parent.children[-1].child_task_id
         shutil.rmtree(task_path(target, missing))
-        assert not snapshot_index(target)
+        assert not applier.index(source_id(source))
         assert (await component.flush()).uploaded
         assert read_entry(target, missing) is not None
 
@@ -320,3 +327,26 @@ def test_partial_view_rejects_unrecognized_logical_child_nodes(workflow):
     write_task_metadata(task_path(source, status.task_id), status)
     with pytest.raises(SnapshotChangedError, match="no model node name"):
         task_group(source, status.task_id, ("axon-v1",))
+
+
+def test_shared_child_publications_do_not_cause_repeated_transfers(workflow, tmp_path):
+    source, first = workflow
+    second = first.model_copy(deep=True)
+    second.task_id = "base#workflow#another-parent"
+    second.input_params["task_name"] = "another-parent"
+    write_task_metadata(task_path(source, second.task_id), second)
+    target = tmp_path / "target"
+    assert send(source, first, target, tmp_path).applied
+    assert send(source, second, target, tmp_path).applied
+    assert send(source, first, target, tmp_path) is None
+    assert send(source, second, target, tmp_path) is None
+
+
+def test_selecting_no_models_removes_the_previous_view(workflow, tmp_path):
+    source, status = workflow
+    target = tmp_path / "target"
+    assert send(source, status, target, tmp_path).applied
+    removed = send(source, status, target, tmp_path, ("no-matching-model",))
+    assert removed is not None and removed.deleted
+    assert not task_path(target, status.task_id).exists()
+    assert send(source, status, target, tmp_path, ("no-matching-model",)) is None

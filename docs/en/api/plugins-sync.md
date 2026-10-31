@@ -6,37 +6,38 @@ Use the [HTTP/MCP protocol](overview.md) and discover schemas with `axonx help -
 
 ## Endpoint list
 
-| Job               | Purpose                                                  |
-| ----------------- | -------------------------------------------------------- |
-| `task_sync_index` | Read verified display snapshots for reconciliation.      |
-| `sync_tasks`      | Replace task directories from one uploaded sync archive. |
+| Job          | Purpose                                                  |
+| ------------ | -------------------------------------------------------- |
+| `sync_index` | Read committed file inventories for one source.          |
+| `sync_files` | Commit a staged file batch without parsing its contents. |
 
-## task_sync_index
+## sync_index
 
-Read verified display snapshots for reconciliation.
+Read committed file inventories for one synchronization source.
 
-| Argument        | Type    | Required | Default / constraints |
-| --------------- | ------- | -------- | --------------------- |
-| `root_task_ids` | `array` | no       | `[]`                  |
+| Argument | Type     | Required | Constraints                                   |
+| -------- | -------- | -------- | --------------------------------------------- |
+| `source` | `string` | yes      | 1–128 letters, digits, underscores or hyphens |
 
 ```json
 {
   "arguments": {
-    "root_task_ids": ["base#research#experiment"]
+    "source": "SOURCE_ID"
   }
 }
 ```
 
-Returns verified display-snapshot revisions for reconciliation. `root_task_ids` selects workflow groups by their root Task IDs; empty or omitted includes every group. Snapshot identity uses `root_started_at` and an ordered revision. Model filtering is performed by the sender's `model_names` and `rules` configuration.
+Returns `transfer_budget_bytes` and `groups`. Each group contains an opaque `version`, an ordered integer `revision`, and `directories`: workspace-relative directories mapped to relative filenames and `{size, revision}` records. Receipts live in `sync/receipts/SOURCE_ID.json`. The index checks each installed directory once and returns the latest file inventory for shared directories, so normal shared updates do not cause repeated transfers. Missing files make affected groups eligible for retransmission. It does not parse Task metadata or build the Task index.
 
-## sync_tasks
+The sender derives its stable source ID from its hostname and workspace path. Source selection, model patterns and publication policy remain on the sender.
 
-Replace task directories from one uploaded sync archive.
+## sync_files
 
-| Argument    | Type     | Required | Default / constraints           |
-| ----------- | -------- | -------- | ------------------------------- |
-| `path`      | `string` | no       | `{"minLength":1}`               |
-| `deletions` | `array`  | no       | `{"maxItems":200,"default":[]}` |
+Commit a staged file batch without interpreting its contents.
+
+| Argument | Type     | Required | Constraints                            |
+| -------- | -------- | -------- | -------------------------------------- |
+| `path`   | `string` | yes      | Workspace-relative staged archive path |
 
 ```json
 {
@@ -46,7 +47,32 @@ Replace task directories from one uploaded sync archive.
 }
 ```
 
-Applies an uploaded sync archive and optional deletions. A group replacement also removes obsolete display replicas owned by the same source/root. Uploads use relative path here, not the absolute plugin-install location. Returns `archive`, `applied`, `deleted` and `files`. The archive must contain verified display-replica metadata and regular files in canonical Task directories; gzip tar archives are bounded by the transfer budget. Applying refuses active original Task directories. Replicas support inspection and cannot execute or serve as research inputs.
+## File manifest
+
+The gzip tar archive contains `sync-manifest.json` and changed regular-file payloads. Its manifest has this shape:
+
+```json
+{
+  "source": "SOURCE_ID",
+  "groups": {
+    "report": {
+      "version": "source-publication-version",
+      "revision": 1,
+      "directories": {
+        "tasks/base/base#demo#report": {
+          "metadata.json": { "size": 123, "revision": "opaque-file-version" }
+        }
+      }
+    }
+  }
+}
+```
+
+Each group declares its complete desired directory inventory, including unchanged files omitted from the payload. Destinations have the workspace layout `tasks/TYPE/DIRECTORY` or `tmp/tasks/TYPE/DIRECTORY`. The receiver reuses files only when their receipt matches, checks paths, sizes and compressed/reconstructed budgets, and commits directories and receipts together with rollback on failure. Repeated identical batches are accepted; stale or conflicting revisions are rejected, including shared-directory regressions.
+
+A new inventory removes obsolete directories owned solely by that group. Empty `directories` removes the group's files and retains its revision as a tombstone. Other groups' directories and existing unowned directories are preserved. File revisions are opaque identifiers, not content checksums.
+
+Returns `archive`, `applied`, `deleted` and `files`, then removes the staged upload. The existing `task_index` scanner discovers supported `metadata.json` records after publication; file transfer does not depend on that schema. Display replicas remain read-only and cannot serve as research inputs.
 
 ## Plugin commands
 

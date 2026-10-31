@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from axonx.app.components.sync.applier import TaskArchiveApplier
+from axonx.app.components.sync.applier import FileSyncStore
 from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.components.task_index.stream import TaskEventStream
@@ -317,10 +317,10 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     assert any(json.loads(event)["state"] == "running" for event in events)
     plans = prepare_group(workspace, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path), {})
     archive = tmp_path / "tasks.tar.gz"
-    build_archive(plans, archive)
+    build_archive({parent.task_id: plans}, archive, source="source")
     target = tmp_path / "target"
     target.mkdir()
-    TaskArchiveApplier(target, 1_000_000).apply(archive, [])
+    FileSyncStore(target, 1_000_000).apply(archive)
     replica = read_entry(target, parent.task_id)
     assert replica.replica.snapshot.root_started_at == parent.started_at
     assert read_entry(target, child.task_id).started_at == second.started_at

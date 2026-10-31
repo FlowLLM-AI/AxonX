@@ -33,10 +33,12 @@ export function PipelineReport({
       const parent = await getTaskStatus(task.task_id, { target, signal });
       if (parent.started_at !== task.started_at)
         throw new Error(t("onlinePipeline.restartedTask"));
-      const nodes = await readTaskChildren(parent, target, signal, {
-        replaced: t("onlinePipeline.replacedChild"),
-        snapshot: t("onlinePipeline.changedSnapshot"),
-      });
+      const nodes = await readTaskChildren(
+        parent,
+        target,
+        signal,
+        t("onlinePipeline.replacedChild"),
+      );
       const children = nodes.map((node) => {
         try {
           return {
