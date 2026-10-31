@@ -50,7 +50,7 @@
 
 ## 🚀 快速开始
 
-当前源码版本为 **AxonX 0.3.1**，要求 **Python 3.12+，支持 macOS 和 Linux**。Studio 是独立发布的可选包。
+要求 **Python 3.12+，支持 macOS 和 Linux**。Studio 是可选包，与 AxonX 共用版本号和发布工作流。
 
 ### 1. 安装与启动
 

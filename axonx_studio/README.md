@@ -52,7 +52,7 @@ npm --prefix axonx_studio run build
 pip install ./axonx_studio
 ```
 
-Restart AxonX after installation. Python distributions include existing `dist/`; `npm pack`/`npm publish` run the build through `prepack`. `npm run preview` previews static assets without the development API proxy.
+Restart AxonX after installation. Python distributions include existing `dist/`; `npm run pack` builds the UI and creates an npm archive with the shared version, without editing source metadata. `npm run preview` previews static assets without the development API proxy.
 
 [Extending Studio](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/development/studio.md) owns the directory map, routing, API/forms, generated contracts, Playground and checks. [Artifact contracts](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/reference/research-artifacts.md) define research views; [deployment](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/guides/deployment.md) covers remote targets and hosting.
 

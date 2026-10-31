@@ -12,7 +12,6 @@ import { catalog } from "./catalog";
 import { addArtifacts, definitions, epoch, json, taskStatus } from "./data";
 import { seed } from "./fixtures";
 import { sse } from "./stream";
-import contracts from "./job-contracts.json";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
   answer,
@@ -381,7 +380,7 @@ export function createPlayground(): Transport {
         case "machine_status":
           return response({
             axonx: {
-              version: contracts.version,
+              version: import.meta.env.VITE_AXONX_VERSION,
               git_commit: null,
               git_branch: "playground",
             },

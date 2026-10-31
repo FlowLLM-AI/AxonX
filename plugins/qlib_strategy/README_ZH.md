@@ -13,11 +13,11 @@
 
 默认 `minimum_holding_days=10`、`replacement_fraction=0.2`、`rank_buffer=1`。Top5/10/20/30 的每日数量上限为 1/2/4/6 只；它不是资金换手上限。`rank_buffer` 必须为有限值。不提供固定到期参数，`planned_exit_date` 为空。
 
-插件版本 0.3.0 要求 Python 3.12+、AxonX `>=0.3.1` 和上游研究插件 `>=0.3.0`。按依赖顺序安装，研究产物使用协议 v1。
+插件版本 0.3.0 要求 Python 3.12+、当前仓库的 AxonX 源码 和上游研究插件 `>=0.3.0`。按依赖顺序安装，研究产物使用协议 v1。
 
 ## 安装与执行
 
-研究插件尚未发布到 PyPI。先克隆仓库并从根目录安装 AxonX 0.3.1 主包（`pip install -e .`），以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
+研究插件尚未发布到 PyPI。先克隆仓库并从根目录安装 AxonX 主包（`pip install -e .`），以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
 
 ```bash
 axonx plugin install -e plugins/qlib_a158

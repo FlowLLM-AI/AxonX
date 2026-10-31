@@ -71,7 +71,7 @@ Also check Agent resources with `python -m scripts.sync_agent_guides --check` an
 
 Bare `pytest` also collects plugin tests and needs their research dependencies. Integration tests are deselected by default; run `python -m pytest tests/integration -m integration` only with the required services and credentials after reviewing external effects.
 
-Contract generation updates both `axonx_studio/src/shared/api/contracts.ts` and `axonx_studio/src/playground/job-contracts.json`. Regenerate after changing serialized Python models, default Jobs, or `axonx/_version.py`; do not edit the generated output.
+Contract generation updates both `axonx_studio/src/shared/api/contracts.ts` and `axonx_studio/src/playground/job-contracts.json`. Regenerate after changing serialized Python models, or default Jobs; do not edit the generated output.
 
 Use temporary workspaces. Keep credentials, private data, `.axonx/`, logs and generated research outputs out of commits. Check affected UI flows in both languages, including empty and failed requests. Run `pre-commit run --files <changed-files>` with actual paths; review automatic fixes. Hooks use Ruff for import ordering, Black for formatting, and additional lint checks.
 
@@ -100,13 +100,16 @@ Explain the problem, resulting behavior, affected contracts and validation. Incl
 
 ## Releases
 
-AxonX and Studio release independently after version updates and passing CI:
+AxonX and Studio share the version in `axonx/_version.py` and one [Release / AxonX](.github/workflows/release.yml) workflow:
 
-- **AxonX:** update `axonx/_version.py` (currently `0.3.1`), regenerate Studio contracts, push `v<version>`, then publish its GitHub Release. Alternatively, run [Release / AxonX Python package](.github/workflows/release-python.yml) with the version without `v`; it builds that tag.
-- **Studio:** synchronize `axonx_studio/pyproject.toml`, `package.json` and `package-lock.json`, then run [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml) on `main`. `both` publishes PyPI then npm; `pypi`/`npm` select one. npm uses `latest` for stable versions and `next` for prereleases.
+1. Edit and commit only `axonx/_version.py`. Studio Python packaging reads it through the source symlink, Vite injects it at build time, and npm packaging stamps a temporary manifest. Version bumps require no metadata, contract or documentation edits. Use `X.Y.Z` for stable releases or `X.Y.Z-{alpha,beta,rc}.N` for prereleases; Python package metadata normalizes prerelease spelling.
+2. After CI passes, push `v<version>` and publish its GitHub Release. This defaults to **both**: `axonx` and `axonx-studio` on PyPI, plus `@flowllm-ai/axonx-studio` on npm.
+3. For selective publication, run the same workflow manually with the existing tag's version without `v`. `publish_target` offers `both` (default), `backend` (AxonX PyPI only), and `studio` (Studio PyPI and npm). These inputs are in **Actions → Release / AxonX → Run workflow**; the GitHub Release form has no package selector.
 
-Configure the corresponding Trusted Publishers (`pypi`/`npm` environments). Releases reject existing versions; keep tags fixed. If npm fails after PyPI succeeds, rerun the failed job in the original workflow to reuse its artifacts. Main-package releases do not publish research plugins.
+Every run tests and builds both packages from the same tag and checks its version against the source before any upload. Research plugins are verified during the build but are not published. Studio publishes to PyPI before npm; npm uses `latest` for stable versions and `next` for prereleases.
 
-Both PyPI release workflows use Twine's built-in Trusted Publishing authentication. They check package metadata before attempting to generate Sigstore attestations. If attestation generation fails or exceeds two minutes, the workflow emits a warning and uploads without attestations. Metadata, authentication, duplicate-version and upload errors still fail the release.
+Configure the Trusted Publishers for **both PyPI projects and the npm package** with workflow filename `release.yml`, using the `pypi`/`npm` environments respectively. Releases reject existing versions; keep tags fixed. Uploads across registries are not atomic. If a publishing job fails, rerun failed jobs in the original workflow to reuse its artifacts and avoid republishing successful jobs.
 
-The [AxonX Skill](skills/axonx/SKILL.md) ships in the same repository and AxonX release tags. Synchronize the Agent guides as described above and run `gh skill publish --dry-run` before release. Reuse the AxonX Release; [running `gh skill publish` without `--dry-run`](https://cli.github.com/manual/gh_skill_publish) creates a GitHub Release, and a `v<version>` release triggers the PyPI workflow.
+The PyPI publishing matrix uses Twine's built-in Trusted Publishing authentication. Each job checks package metadata before attempting to generate Sigstore attestations. If attestation generation fails or exceeds two minutes, the workflow emits a warning and uploads without attestations. Metadata, authentication, duplicate-version and upload errors still fail the release.
+
+The [AxonX Skill](skills/axonx/SKILL.md) ships in the same repository and AxonX release tags. Synchronize the Agent guides as described above and run `gh skill publish --dry-run` before release. Reuse the AxonX Release; [running `gh skill publish` without `--dry-run`](https://cli.github.com/manual/gh_skill_publish) creates a GitHub Release, and a `v<version>` release triggers the unified publishing workflow.

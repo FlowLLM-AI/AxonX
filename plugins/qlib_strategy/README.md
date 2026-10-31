@@ -13,11 +13,11 @@
 
 Defaults: `minimum_holding_days=10`, `replacement_fraction=0.2`, `rank_buffer=1`. Top5/10/20/30 permit 1/2/4/6 fills per side per day; this is a count cap, not a notional turnover cap. `rank_buffer` must be finite. There is no fixed-expiry parameter; `planned_exit_date` is null.
 
-Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.1` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
+Plugin version 0.3.0 requires Python 3.12+, the AxonX source from this checkout and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
 ## Install and run
 
-Research plugins are not published to PyPI. Clone the repository and install the AxonX 0.3.1 core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
+Research plugins are not published to PyPI. Clone the repository and install the AxonX core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
 
 ```bash
 axonx plugin install -e plugins/qlib_a158

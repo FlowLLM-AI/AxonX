@@ -8,7 +8,6 @@ from pathlib import Path
 import yaml
 from pydantic import TypeAdapter
 
-from axonx._version import __version__
 from axonx.app.components.agent.models import (
     AgentHistoryBlock,
     AgentMutationResult,
@@ -192,7 +191,7 @@ def render_jobs():
                 input_schema=config.parameters,
                 output_schema=JobResponse.model_json_schema(),
             ).model_dump(mode="json")
-    return json.dumps({"version": __version__, "jobs": contracts}, ensure_ascii=False, indent=2) + "\n"
+    return json.dumps({"jobs": contracts}, ensure_ascii=False, indent=2) + "\n"
 
 
 if __name__ == "__main__":

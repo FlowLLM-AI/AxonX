@@ -21,7 +21,6 @@ import { taskCommand } from "../features/tasks/execution";
 import { definitions } from "./data";
 import { seed } from "./fixtures";
 import { catalog } from "./catalog";
-import contracts from "./job-contracts.json";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -105,7 +104,7 @@ describe("static Playground", () => {
     const machine = await api.invoke<{ axonx: { version: string } }>(
       "machine_status",
     );
-    expect(machine.axonx.version).toBe(contracts.version);
+    expect(machine.axonx.version).toBe(import.meta.env.VITE_AXONX_VERSION);
     const ids = await api.invoke<string[]>("list_task_ids");
     const summaries = await api.invoke<TaskMetadata[]>("list_task_statuses");
     expect(ids).toEqual(summaries.map((task) => task.task_id));

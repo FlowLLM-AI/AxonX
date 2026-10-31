@@ -50,7 +50,7 @@
 
 ## 🚀 Quick start
 
-This checkout is **AxonX 0.3.1**. Requires **Python 3.12+ on macOS or Linux**. Studio is an optional, independently released package.
+Requires **Python 3.12+ on macOS or Linux**. Studio is an optional package sharing the AxonX version and release workflow.
 
 ### 1. Install and start
 

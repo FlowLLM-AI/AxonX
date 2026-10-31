@@ -7,20 +7,20 @@ on:
       - 'axonx/**'
       - 'pyproject.toml'
       - 'scripts/generate_studio_contracts.py'
+      - 'scripts/package_studio.py'
       - 'axonx_studio/**'
       - '.github/workflows/ci-studio.yml'
       - '.github/workflows/_build-studio-packages.yml'
-      - '.github/scripts/verify-studio-packages.py'
   pull_request:
     branches: [main]
     paths:
       - 'axonx/**'
       - 'pyproject.toml'
       - 'scripts/generate_studio_contracts.py'
+      - 'scripts/package_studio.py'
       - 'axonx_studio/**'
       - '.github/workflows/ci-studio.yml'
       - '.github/workflows/_build-studio-packages.yml'
-      - '.github/scripts/verify-studio-packages.py'
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-AxonX 0.3.1 is a Python framework for agent-driven quantitative research, with a React/TypeScript Studio.
+AxonX is a Python framework for agent-driven quantitative research, with a React/TypeScript Studio.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflows and [module-dependencies.md](module-dependencies.md) for architecture.
 
 ## Repository map
@@ -16,7 +16,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed workflows and [module-depend
 
 ## Runtime and configuration
 
-- `axonx/_version.py` owns the main package version. Studio has independent Python/npm version metadata.
+- `axonx/_version.py` is the only source of the AxonX and Studio version. Studio Python packaging and Vite read it directly; npm packaging stamps a temporary manifest. Only `.github/workflows/release.yml` publishes packages, defaulting to both backend and Studio from the same `v<version>` tag.
 - `axonx app --config NAME_OR_PATH` loads YAML/YML/JSON, bundled names, or installed `axonx.configs` entries. Custom files inherit defaults only with `extends: default`; mappings merge recursively, lists/scalars replace.
 - CLI startup loads the nearest `.env` without overwriting existing environment values. `example.env` documents the variables consumed by bundled configs and built-ins; execution settings use CLI options > service `get_config` > `ExecutionSettings` defaults.
 - `axonx exec` runs Tasks synchronously; remote exec/kill/plugin operations use the service's `cli` Job. `help` queries a service; `--help` is offline. Task definitions reflect the selected execution environment.
@@ -56,7 +56,7 @@ Integration tests are deselected by default; run `python -m pytest tests/integra
 - Respect the requested scope and preserve existing workspace changes. Map responsibilities and dependencies before broad refactoring; honor requests to analyze first.
 - Update affected code, configuration, tests, comments, bilingual documentation, examples, Skills, and diagrams together. Describe the current implementation concisely.
 - Write documentation and examples directly against the current code and protocols. Do not add upgrade guides, legacy aliases, or compatibility branches.
-- Keep generated `axonx_studio/src/shared/api/contracts.ts` and `axonx_studio/src/playground/job-contracts.json` synchronized with Python models, default Job config, and version metadata.
+- Keep generated `axonx_studio/src/shared/api/contracts.ts` and `axonx_studio/src/playground/job-contracts.json` synchronized with Python models and default Job config.
 - Run checks appropriate to the change and review the diff. Verify visible UI changes in a browser in both languages.
 - Use temporary test workspaces. Keep credentials, private data, `.axonx/`, logs, and generated research outputs out of commits.
 - Briefly report behavior changes, affected file responsibilities, checks run, and any remaining limitations.

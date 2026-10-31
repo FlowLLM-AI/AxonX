@@ -92,7 +92,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
             (metadata_file,) = [name for name in names if name.endswith(".dist-info/METADATA")]
             info = BytesParser().parsebytes(archive.read(metadata_file))
             assert info["Name"] == project["name"]
-            assert info["Version"] == project["version"]
+            assert Version(info["Version"]) == Version(project["version"])
             (entries_file,) = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
             entries = configparser.ConfigParser()
             entries.read_string(archive.read(entries_file).decode("utf-8"))
@@ -129,7 +129,7 @@ def verify_installation() -> None:
         module = importlib.import_module(package)
         assert not Path(module.__file__).resolve().is_relative_to(ROOT), "Import resolved to source checkout"
         distribution = metadata.distribution(project["name"])
-        assert distribution.version == project["version"]
+        assert Version(distribution.version) == Version(project["version"])
         files = resources.files(package)
         if plugin:
             assert files.joinpath("plugin.yaml").is_file()
@@ -140,7 +140,7 @@ def verify_installation() -> None:
             assert entry.name == plugin
             assert entry.load().__name__ == package
         else:
-            assert module.__version__ == distribution.version
+            assert Version(module.__version__) == Version(distribution.version)
             assert files.joinpath("app/config/default.yaml").is_file()
             assert files.joinpath("app/config/remote.yaml").is_file()
             for language in ("en", "zh"):

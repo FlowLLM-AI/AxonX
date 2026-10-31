@@ -52,7 +52,7 @@ npm --prefix axonx_studio run build
 pip install ./axonx_studio
 ```
 
-安装后重启 AxonX。Python 分发包含现有 `dist/`；`npm pack`/`npm publish` 通过 `prepack` 自动构建。`npm run preview` 仅预览静态资源，不提供开发 API 代理。
+安装后重启 AxonX。Python 分发包含现有 `dist/`；`npm run pack` 构建界面，并使用共享版本生成 npm 包，无需修改源码清单。`npm run preview` 仅预览静态资源，不提供开发 API 代理。
 
 [扩展 Studio](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/development/studio.md)统一维护目录职责、路由、API/表单、生成契约、Playground 和检查。[产物契约](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/reference/research-artifacts.md)定义研究视图，[部署指南](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/guides/deployment.md)说明远程目标与托管。
 

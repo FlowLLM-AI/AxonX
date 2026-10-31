@@ -2,6 +2,17 @@ name: _Build Studio packages
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build
+        required: false
+        type: string
+        default: ''
+      expected_version:
+        description: Expected shared release version
+        required: false
+        type: string
+        default: ''
     outputs:
       version:
         description: Validated Studio package version
@@ -20,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
@@ -35,10 +46,12 @@ jobs:
             axonx_studio/pyproject.toml
       - name: Validate package versions
         id: metadata
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
         run: |
           python -m pip install build twine
           python -m pip install -e .
-          version=$(python .github/scripts/verify-studio-packages.py)
+          version=$(python -m scripts.package_studio --expected-version "${EXPECTED_VERSION}")
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
       - name: Check and build Studio
         working-directory: axonx_studio
@@ -52,10 +65,10 @@ jobs:
       - name: Build and verify distributions
         run: |
           mkdir -p dist/studio/python dist/studio/npm
-          npm pack ./axonx_studio --ignore-scripts --pack-destination dist/studio/npm
+          python -m scripts.package_studio --pack-npm dist/studio/npm
           python -m build axonx_studio --outdir dist/studio/python
           python -m twine check dist/studio/python/*
-          python .github/scripts/verify-studio-packages.py --dist-dir dist/studio
+          python -m scripts.package_studio --dist-dir dist/studio
       - name: Verify installed static assets outside the source tree
         run: |
           python -m venv "${RUNNER_TEMP}/studio-smoke"

@@ -71,7 +71,7 @@ Agent 编写的代码遵循相同检查。改进结论需保留代码/数据版�
 
 裸命令 `pytest` 还会收集插件测试，需准备研究依赖。默认不执行集成测试；运行 `python -m pytest tests/integration -m integration` 前，准备所需服务和凭据并检查外部影响。
 
-契约生成同时更新 `axonx_studio/src/shared/api/contracts.ts` 和 `axonx_studio/src/playground/job-contracts.json`。修改 Python 序列化模型、默认 Job 或 `axonx/_version.py` 后重新生成，不手改生成文件。
+契约生成同时更新 `axonx_studio/src/shared/api/contracts.ts` 和 `axonx_studio/src/playground/job-contracts.json`。修改 Python 序列化模型、默认 Job 后重新生成，不手改生成文件。
 
 测试使用临时工作区，不提交凭据、私有数据、`.axonx/`、日志或研究生成产物。界面检查覆盖中英文、空数据和请求失败。将实际文件路径传入 `pre-commit run --files <changed-files>`，检查自动修复结果。Hooks 使用 Ruff 整理导入、Black 格式化，并执行其他 lint 检查。
 
@@ -100,13 +100,16 @@ npm --prefix github-pages run build
 
 ## 发布
 
-主包与 Studio 独立发布，发布前更新版本并通过 CI：
+主包与 Studio 共用 `axonx/_version.py` 中的版本号，统一使用 [Release / AxonX](.github/workflows/release.yml) 工作流：
 
-- **AxonX：** 更新 `axonx/_version.py`（当前为 `0.3.1`），重新生成 Studio 契约，推送 `v<version>` 并发布对应 GitHub Release；也可手动运行 [Release / AxonX Python package](.github/workflows/release-python.yml)，输入不带 `v` 的版本号，从该标签构建。
-- **Studio：** 同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json`，在 `main` 运行 [Release / AxonX Studio](.github/workflows/release-axonx-studio.yml)。`both` 先发 PyPI 再发 npm，`pypi`/`npm` 可单独选择；稳定版 npm 标签为 `latest`，预发布版为 `next`。
+1. 只编辑并提交 `axonx/_version.py`。Studio Python 打包通过源码符号链接读取它，Vite 在构建时注入版本，npm 打包时生成临时清单。更新版本无需改动元数据、契约或文档。稳定版使用 `X.Y.Z`，预发布版使用 `X.Y.Z-{alpha,beta,rc}.N`；Python 包元数据会规范化预发布版本格式。
+2. CI 通过后推送 `v<version>` 并发布对应 GitHub Release，默认 **both**：同时发布 PyPI 的 `axonx`、`axonx-studio` 和 npm 的 `@flowllm-ai/axonx-studio`。
+3. 如需选择发布范围，手动运行同一个工作流，输入已有标签的版本号（不带 `v`）。`publish_target` 提供 `both`（默认，全部）、`backend`（仅 AxonX PyPI）和 `studio`（Studio PyPI 与 npm）。选项位于 **Actions → Release / AxonX → Run workflow**；GitHub Release 表单没有包选择项。
 
-配置对应的 Trusted Publisher（`pypi`/`npm` 环境）。已有版本会发布失败，标签不可移动。PyPI 成功而 npm 失败时，在原 workflow 重跑失败 job 以复用产物。主包发布不包含研究插件。
+每次运行都会从同一标签测试并构建前后端，上传前校验标签与源码版本一致。构建会验证研究插件，但不会发布它们。Studio 先发 PyPI 再发 npm；稳定版 npm 标签为 `latest`，预发布版为 `next`。
 
-两个 PyPI 发布工作流都使用 Twine 内置的 Trusted Publishing 身份认证，并在生成 Sigstore 签名证明之前检查包元数据。如果签名证明生成失败或超过两分钟，工作流会发出警告，然后不带签名证明继续上传。元数据、身份认证、版本重复和上传错误仍会使发布失败。
+为**两个 PyPI 项目和 npm 包**配置 Trusted Publisher，工作流文件名统一为 `release.yml`，分别使用 `pypi`/`npm` 环境。已有版本会发布失败，标签不可移动。跨仓库上传不是原子操作。某个发布 job 失败时，在原 workflow 重跑失败 job，以复用产物并避免重新发布已成功的 job。
 
-[AxonX Skill](skills/axonx/SKILL.md) 随同一仓库和 AxonX 版本标签分发。发布前按上文同步 Agent 指南，并执行 `gh skill publish --dry-run`。复用 AxonX Release；[不带 `--dry-run` 的 `gh skill publish`](https://cli.github.com/manual/gh_skill_publish) 会创建 GitHub Release，`v<version>` 发布会触发 PyPI 工作流。
+PyPI 发布矩阵统一使用 Twine 内置的 Trusted Publishing 身份认证，并在生成 Sigstore 签名证明之前检查包元数据。如果签名证明生成失败或超过两分钟，工作流会发出警告，然后不带签名证明继续上传。元数据、身份认证、版本重复和上传错误仍会使发布失败。
+
+[AxonX Skill](skills/axonx/SKILL.md) 随同一仓库和 AxonX 版本标签分发。发布前按上文同步 Agent 指南，并执行 `gh skill publish --dry-run`。复用 AxonX Release；[不带 `--dry-run` 的 `gh skill publish`](https://cli.github.com/manual/gh_skill_publish) 会创建 GitHub Release，`v<version>` 发布会触发统一发布工作流。

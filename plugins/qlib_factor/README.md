@@ -27,11 +27,11 @@ Beta uses the preceding 60 market dates through T−1, with at least 30 paired s
 
 ETL reads 80 market dates before the requested output start so each residual in the 20-day risk window has its preceding 60-day beta history. The signal-eligibility history requirement remains 60 dates. With sufficient source history, overlapping features are independent of the requested output start.
 
-Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.1` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
+Plugin version 0.3.0 requires Python 3.12+, the AxonX source from this checkout and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
 ## Install and run
 
-Research plugins are not published to PyPI. Clone the repository and install the AxonX 0.3.1 core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
+Research plugins are not published to PyPI. Clone the repository and install the AxonX core (`pip install -e .` from its root); run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
 
 ```bash
 axonx plugin install -e plugins/qlib_a158

@@ -9,6 +9,7 @@ import jsonschema
 import pytest
 from packaging.requirements import Requirement
 
+from axonx._version import __version__
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.config.models import ApplicationConfig
 from axonx.cli.parser import parse_command, parse_plugin_arguments
@@ -64,7 +65,8 @@ def test_plugin_dependency_layers_require_current_contracts(name):
     if name != "qlib_a158":
         dependencies.append("axonx-qlib-a158")
     for dependency in dependencies:
-        assert ("0.3.1" if dependency == "axonx" else "0.3.0") in requirements[dependency].specifier
+        version = __version__ if dependency == "axonx" else "0.3.0"
+        assert requirements[dependency].specifier.contains(version, prereleases=True)
         assert "0.2.0" not in requirements[dependency].specifier
     assert "0.3.0" not in requirements["axonx"].specifier
 
