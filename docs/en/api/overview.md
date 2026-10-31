@@ -14,6 +14,8 @@
 | DELETE | /upload?path=...  | Discard a staged relative path       |
 | —      | /mcp              | Stateless Streamable HTTP MCP        |
 
+The CLI calls these protocol operations with `health`, `list_jobs`, `upload`, `upload_archive` and `discard_file`. They connect directly to the selected service and return one JSON response; see [CLI reference](../reference/cli.md#direct-http-operations).
+
 ## Authentication and public catalog
 
 When service.token is configured, protocol roots and subpaths require `Authorization: Bearer TOKEN` (OPTIONS is exempt). The public Job catalog also filters enable_serve/requires_auth: without a configured service token, authenticated Jobs are not exposed. A requires_auth=false Job does not bypass protocol-wide token middleware on a token-protected service. Studio static pages and upstream proxy routes have their own routing behavior.

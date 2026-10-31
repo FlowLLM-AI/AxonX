@@ -87,6 +87,8 @@ axonx app --config app.yaml
 
 ```bash
 axonx --help
+axonx health
+axonx list_jobs
 axonx help
 axonx help --job status
 axonx diagnose
@@ -95,6 +97,8 @@ axonx exec
 axonx list_task_defs --include-schemas false
 axonx get_task_def --task demo
 ```
+
+`health` 查询服务就绪状态，无法确认服务运行时返回退出码 1；`list_jobs` 返回含输入/输出 Schema 的完整公开 Job 目录。两者直接调用 HTTP 接口。
 
 `--help` 离线显示 CLI 语法；`help` 列出服务可用命令，`help --job status` 查看 `status` 的详细参数与返回格式。不带参数的 `exec` 列出当前解释器的 Task，查询命令需要连接服务。`list_task_defs`/`get_task_def` 查看服务加载的 Task 及输入/输出 Schema。`diagnose` 检查版本、Python、插件和资源；`get_config` 确认工作区和执行环境，其中可能包含敏感配置，不要原样放入报告。
 
@@ -267,10 +271,7 @@ editable 要求执行机已有源码目录，不能与 `--output` 同用。依�
 
 ```bash
 axonx plugin build ./example --output ./dist/plugins
-curl --fail-with-body \
-  --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --form 'file=@dist/plugins/ACTUAL_FILENAME.whl' \
-  http://node-b:1024/upload
+axonx upload --path dist/plugins/ACTUAL_FILENAME.whl --target node-b:1024
 ```
 
 逐条执行并填写实际返回值：构建返回 wheel 文件名与哈希；上传返回 `answer.location`（目标机绝对路径）和 `answer.path`（目标工作区相对路径）。将 `location` 用于安装：
@@ -284,10 +285,7 @@ axonx plugin show axonx-example --target node-b:1024
 确认安装退出码为 0，核对目标插件版本、`sha256` 和 `content_sha256` 与本地构建结果一致，再用上传返回的 `path` 清理暂存：
 
 ```bash
-curl --fail-with-body --request DELETE --get \
-  --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --data-urlencode 'path=tmp/uploads/ACTUAL_UPLOAD_PATH.whl' \
-  http://node-b:1024/upload
+axonx discard_file --path tmp/uploads/ACTUAL_UPLOAD_PATH.whl --target node-b:1024
 ```
 
 上传默认限额 512 MiB。连接中断时安装可能继续，先确认远端安装结束再重试或清理。依赖插件也须先安装到目标机；目标机已有源码时可直接使用远程 editable 安装：
@@ -463,6 +461,16 @@ axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
 本地服务使用相同命令并省略 `--target`。这些操作需要认证和由 `axonx app` 启动的 Daemon。更新会停止服务拥有的手动 CLI 执行，Daemon 拥有的定时 Task 继续运行；修改源码和依赖前须协调活动研究。失败可能留下部分源码/依赖变更，不会自动回滚。插件实验使用 `plugin install`，无需每次更新框架。
+
+### 传输完整目录
+
+使用 `axonx.client.files.build_file_archive` 构建含必需 `directories.json` 的 gzip tar 归档，再发送到目标服务：
+
+```bash
+axonx upload_archive --path files.tar.gz --target node-b:1024
+```
+
+接收端完整替换清单内的每个目录，移除归档中未提供的文件，响应列出已替换目录。清理普通单文件上传时，将返回的暂存路径交给 `discard_file`。
 
 ### 定时运行
 

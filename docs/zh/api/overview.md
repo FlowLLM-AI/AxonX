@@ -4,15 +4,17 @@
 
 ## 路由
 
-| 方法   | 路由              | 用途                             |
-| ------ | ----------------- | -------------------------------- |
-| GET    | /health           | JobResponse，answer.running      |
-| GET    | /jobs             | JobResponse，目录 items/total    |
-| POST   | /jobs/NAME        | 一次 JobResponse                 |
-| POST   | /jobs/NAME/events | SSE，直到终态 result             |
-| POST   | /upload           | 暂存单文件，answer 为 StagedFile |
-| DELETE | /upload?path=...  | 清理暂存相对路径                 |
-| —      | /mcp              | 无状态 Streamable HTTP MCP       |
+| 方法   | 路由              | 用途                          |
+| ------ | ----------------- | ----------------------------- |
+| GET    | /health           | JobResponse，answer.running   |
+| GET    | /jobs             | JobResponse，目录 items/total |
+| POST   | /jobs/NAME        | 一次 JobResponse              |
+| POST   | /jobs/NAME/events | SSE，直到终态 result          |
+| POST   | /upload           | 暂存单文件或替换完整目录      |
+| DELETE | /upload?path=...  | 清理暂存相对路径              |
+| —      | /mcp              | 无状态 Streamable HTTP MCP    |
+
+CLI 通过 `health`、`list_jobs`、`upload`、`upload_archive` 和 `discard_file` 调用这些协议操作，直接连接所选服务并返回一次 JSON 响应。详见 [CLI 参考](../reference/cli.md#直接-http-操作)。
 
 ## 认证与公开目录
 

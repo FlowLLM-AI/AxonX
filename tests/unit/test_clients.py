@@ -48,17 +48,17 @@ async def test_http_client_round_trip_with_the_application(tmp_path):
             events = [event async for event in remote.stream_job("version")]
             assert isinstance(events[-1], ResultEvent)
             assert events[-1].response() == response
-            copied = await remote.copy_file(source)
-            assert copied.size == source.stat().st_size
-            assert source.read_bytes() == (app.workspace.root / copied.path).read_bytes()
-            assert await remote.discard_file(copied.path) == copied.path
-            assert not (app.workspace.root / copied.path).exists()
+            uploaded = await remote.upload(source)
+            assert uploaded.size == source.stat().st_size
+            assert source.read_bytes() == (app.workspace.root / uploaded.path).read_bytes()
+            assert await remote.discard_file(uploaded.path) == uploaded.path
+            assert not (app.workspace.root / uploaded.path).exists()
             directory = tmp_path / "reports"
             directory.mkdir()
             (directory / "result.txt").write_text("complete directory")
             archive = tmp_path / "reports.tar.gz"
             build_file_archive({"reports/daily": directory}, archive)
-            report = await remote.copy_files(archive)
+            report = await remote.upload_archive(archive)
             assert report == ["reports/daily"]
             assert (app.workspace.root / "reports/daily/result.txt").read_text() == "complete directory"
             assert not list(app.workspace.uploads.root.rglob("*.tar.gz"))
@@ -218,7 +218,7 @@ async def test_cancelled_upload_finishes_reading_before_closing_the_file(tmp_pat
     monkeypatch.setattr(Path, "open", open_file)
     transport = httpx.MockTransport(lambda _: httpx.Response(200))
     async with HttpClient(target="service:1024", transport=transport) as remote:
-        transfer = asyncio.create_task(remote.copy_file(source))
+        transfer = asyncio.create_task(remote.upload(source))
         try:
             await asyncio.wait_for(reading.wait(), timeout=3)
             for _ in range(2):
@@ -299,7 +299,7 @@ async def test_http_client_validates_typed_payloads(tmp_path, operation, answer,
             if operation == "catalog":
                 await remote.list_jobs()
             else:
-                await remote.copy_file(source)
+                await remote.upload(source)
 
 
 async def test_stream_preserves_failed_terminal_result_and_ignores_later_frames():

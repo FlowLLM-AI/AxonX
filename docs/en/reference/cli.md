@@ -2,14 +2,16 @@
 
 ## Command responsibilities
 
-| Command                 | Where it runs              | Result                                  |
-| ----------------------- | -------------------------- | --------------------------------------- |
-| `axonx`, `--help`, `-h` | Local, offline             | CLI syntax                              |
-| `app`                   | Local daemon and service   | Foreground service supervision          |
-| `exec --task NAME`      | Current CLI process        | Business output JSON and Task exit code |
-| `kill --task-id ID`     | Current CLI environment    | Final Task metadata after termination   |
-| `plugin …`              | Current Python environment | Plugin metadata or installation result  |
-| Any configured Job name | Selected service           | `JobResponse` JSON or event stream      |
+| Command                               | Where it runs                     | Result                                  |
+| ------------------------------------- | --------------------------------- | --------------------------------------- |
+| `axonx`, `--help`, `-h`               | Local, offline                    | CLI syntax                              |
+| `app`                                 | Local daemon and service          | Foreground service supervision          |
+| `exec --task NAME`                    | Current CLI process               | Business output JSON and Task exit code |
+| `kill --task-id ID`                   | Current CLI environment           | Final Task metadata after termination   |
+| `plugin …`                            | Current Python environment        | Plugin metadata or installation result  |
+| `upload`, `upload_archive`            | Local CLI → selected service      | File transfer `JobResponse`             |
+| `discard_file`, `health`, `list_jobs` | Selected service's HTTP endpoints | `JobResponse` JSON                      |
+| Any configured Job name               | Selected service                  | `JobResponse` JSON or event stream      |
 
 An explicit `--target HOST:PORT` sends native commands (`app`, `exec`, `kill`, `plugin`) to the service's `cli` Job. The remote CLI rejects `app`, nested `cli`, and forwarding to another target. Ordinary Jobs connect directly to the selected service.
 
@@ -47,6 +49,24 @@ axonx kill --task-id 'base#demo#check' --timeout 5 --force false
 `exec` is synchronous. Without a service it can fall back to execution defaults; authentication, protocol and failed `get_config` responses are errors. Shared options are `workspace_dir`, `log_dir`, `timezone`, `execution_target`, `log_to_console`, `log_to_file` and `environment.KEY`. Precedence is explicit CLI options > service `get_config` > defaults. Explicit environment keys merge with the returned execution environment.
 
 For remote execution, add `--target HOST:PORT` and set `AXONX_TARGET_TOKEN`. The native command streams stdout/stderr and preserves the target process exit code. `--client-timeout` controls the connection, not the Task's business deadline. With the default cli Job, interrupting a remote command request stops observation while execution continues. Use kill to stop the Task; service shutdown also terminates its manual command groups. Inspect metadata before retrying.
+
+## Direct HTTP operations
+
+```bash
+axonx health --target node-b:1024
+axonx list_jobs --target node-b:1024
+axonx upload --path ./queue.sh --target node-b:1024
+axonx upload_archive --path ./files.tar.gz --target node-b:1024
+axonx discard_file --path tmp/uploads/UUID/queue.sh --target node-b:1024
+```
+
+These commands use the selected service's HTTP endpoints directly and return one `JobResponse` JSON document. They share `--target`, `--token` and `--client-timeout`; `--stream true` is rejected. Without `--target`, they use the default service connection.
+
+`upload` reads `--path` on the CLI machine and streams its bytes to `POST /upload`. Optional `--filename` overrides the staged filename; `--directory` selects a staging directory under `tmp/uploads`. The answer contains `path`, absolute `location` and byte `size`.
+
+`upload_archive` reads a local archive built with `axonx.client.files.build_file_archive` and replaces the remote directories listed in its `directories.json`; the answer is the replaced directory list. `discard_file` takes the remote workspace-relative path returned by `upload` and returns `answer.path`. Repeated cleanup is harmless. See [File transfer](../api/workspace.md).
+
+`health` returns `answer.running` and exits with 0 when healthy, or `success=false` and exit code 1 when readiness cannot be confirmed. `list_jobs` returns `answer.items` with full input/output schemas and `answer.total`; `help` provides a shorter command list.
 
 ## Lightweight query defaults
 

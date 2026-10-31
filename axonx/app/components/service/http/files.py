@@ -39,7 +39,7 @@ class FileRoutes(APIRouter):
         self.limit = uploads.limit or service.app_config.transfer_budget_bytes
         self.add_api_route(
             PROTOCOL_ROUTE_UPLOAD,
-            self.copy_file,
+            self.upload,
             methods=["POST"],
             openapi_extra={
                 "requestBody": {
@@ -66,7 +66,7 @@ class FileRoutes(APIRouter):
         )
         self.add_api_route(PROTOCOL_ROUTE_UPLOAD, self.discard_file, methods=["DELETE"])
 
-    async def copy_file(self, request: Request, mode: Literal["stage", "replace"] = "stage") -> JobResponse:
+    async def upload(self, request: Request, mode: Literal["stage", "replace"] = "stage") -> JobResponse:
         """Upload one file; headers override multipart filename and directory."""
         filename = request.headers.get(PROTOCOL_FILE_NAME_HEADER, "")
         directory = request.headers.get(PROTOCOL_FILE_DIRECTORY_HEADER, "").strip() or None
@@ -78,30 +78,30 @@ class FileRoutes(APIRouter):
                 "content_length": request.headers.get("content-length", ""),
             },
         )
-        self.service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
+        self.service.logger.info(f"File endpoint called: name=upload arguments={arguments}")
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         multipart = content_type == "multipart/form-data"
         body_limit = self.limit + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
         _check_upload_size(request, body_limit)
         try:
             if multipart:
-                copied = await self._copy_multipart(request, filename, directory)
+                uploaded = await self._upload_multipart(request, filename, directory)
             else:
-                copied = await self.uploads.stage_stream(_request_chunks(request, body_limit), filename, directory)
+                uploaded = await self.uploads.stage_stream(_request_chunks(request, body_limit), filename, directory)
         except FileExistsError as exc:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
         if mode == "stage":
-            return JobResponse(answer=copied)
+            return JobResponse(answer=uploaded)
         try:
-            report = await run_blocking(self.uploads.replace, self.uploads.file(copied.path), self.limit)
+            report = await run_blocking(self.uploads.replace, self.uploads.file(uploaded.path), self.limit)
             return JobResponse(answer=report)
         except (OSError, TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
         finally:
             with suppress(OSError, TypeError, ValueError):
-                await run_blocking(self.uploads.discard, copied.path)
+                await run_blocking(self.uploads.discard, uploaded.path)
 
     async def discard_file(self, path: str) -> JobResponse:
         """Discard one staged upload; repeated cleanup is intentionally harmless."""
@@ -111,7 +111,7 @@ class FileRoutes(APIRouter):
             raise HTTPException(422, str(exc)) from exc
         return JobResponse(answer={"path": discarded})
 
-    async def _copy_multipart(self, request: Request, filename: str, directory: str | None) -> StagedFile:
+    async def _upload_multipart(self, request: Request, filename: str, directory: str | None) -> StagedFile:
         """Parse one file and optional directory, then reuse workspace staging."""
         try:
             form = await _UploadParser(request, self.limit).parse()

@@ -149,7 +149,7 @@ Use delete_entries with a JSON paths array. This general file capability has no 
 
 ## Upload and subsequent consumption
 
-POST /upload or HttpClient.copy_file stages one file under `tmp/uploads/`. StagedFile contains path, size and absolute location. Install a target-side plugin using location; cleanup uses relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
+POST /upload or HttpClient.upload stages one file under `tmp/uploads/`. StagedFile contains path, size and absolute location. Install a target-side plugin using location; cleanup uses relative path. Uploading does not install anything, and plugin installation does not delete the upload automatically. Clean up in finally; see [Upload API](../api/workspace.md).
 
 See [operations and recovery](../guides/operations.md#backup-and-recovery) for consistent backups.
 

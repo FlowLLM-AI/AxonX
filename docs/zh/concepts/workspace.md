@@ -149,7 +149,7 @@ delete_entries 接受 JSON paths 数组。这是通用文件能力，不保护�
 
 ## 上传与后续消费
 
-POST /upload 或 HttpClient.copy_file 在 `tmp/uploads/` 暂存单文件。StagedFile 包含 path、size、绝对 location。目标机插件安装使用 location，清理使用相对 path。上传不安装文件，插件安装不自动删除暂存文件。应在 finally 清理，详见[上传 API](../api/workspace.md)。
+POST /upload 或 HttpClient.upload 在 `tmp/uploads/` 暂存单文件。StagedFile 包含 path、size、绝对 location。目标机插件安装使用 location，清理使用相对 path。上传不安装文件，插件安装不自动删除暂存文件。应在 finally 清理，详见[上传 API](../api/workspace.md)。
 
 一致性备份见[运维与恢复](../guides/operations.md#备份与恢复)。
 

@@ -63,7 +63,7 @@ async def main():
 asyncio.run(main())
 ```
 
-Methods are `run_job`, `stream_job`, `list_jobs`, `health`, `copy_file(Path, filename=None, directory=None)` and `discard_file(path)`. Constructor fields are target, timeout, token and optional HTTP transport injection. Use async with for connection ownership. Supply credentials explicitly; library clients do not read CLI token variables automatically. Remote answers are decoded data; local answers may contain model objects. Normalize with model_dump(mode="json") when needed.
+Methods are `run_job`, `stream_job`, `list_jobs`, `health`, `upload(Path, filename=None, directory=None)`, `upload_archive(Path)` and `discard_file(path)`. Constructor fields are target, timeout, token and optional HTTP transport injection. Use async with for connection ownership. Supply credentials explicitly; library clients do not read CLI token variables automatically. Remote answers are decoded data; local answers may contain model objects. Normalize with model_dump(mode="json") when needed.
 
 ## Consuming events
 
@@ -82,7 +82,7 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## File upload
 
-`copy_file` returns StagedFile with path, size and absolute location. Use location for target-side plugin install and path for staged-file cleanup. Clean up with discard_file in finally after command completion is confirmed; retain the upload if the command outcome is unknown. A complete remote installation example is in [Plugin management](../plugins/management.md).
+`upload` returns StagedFile with path, size and absolute location. Use location for target-side plugin install and path for staged-file cleanup. Clean up with discard_file in finally after command completion is confirmed; retain the upload if the command outcome is unknown. A complete remote installation example is in [Plugin management](../plugins/management.md).
 
 ## MCP client
 

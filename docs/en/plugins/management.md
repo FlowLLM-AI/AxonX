@@ -75,7 +75,7 @@ async def deploy():
         token=os.environ["AXONX_TARGET_TOKEN"],
         timeout=600.0,
     ) as client:
-        uploaded = await client.copy_file(wheel)
+        uploaded = await client.upload(wheel)
         response = await client.run_job("cli", {
             "argv": ["plugin", "install", uploaded.location],
         })
@@ -95,7 +95,7 @@ asyncio.run(deploy())
 
 The explicit local hash comparison verifies the installed wheel against the local artifact after installation. The CLI does not accept a caller-provided expected hash. The installer separately verifies installed provenance against the wheel read on the target. Cleanup does not roll back an installation. The default cli Job continues installations after client disconnection or timeout. Confirm command completion and inspect the target environment before retrying or cleaning up a retained upload; failed installations can leave partial environment changes.
 
-If using curl, upload with `-F 'file=@LOCAL.whl'` to `/upload`, then run `axonx plugin install '<answer.location>' --target HOST:PORT --client-timeout 600`. Use `DELETE /upload?path=<answer.path>` for cleanup. Set `AXONX_TARGET_TOKEN` for CLI authentication. Keep upload, install, cleanup and queries on the same service.
+Upload with `axonx upload --path LOCAL.whl --target HOST:PORT`, then run `axonx plugin install '<answer.location>' --target HOST:PORT --client-timeout 600`. Clean up with `axonx discard_file --path '<answer.path>' --target HOST:PORT`. Set `AXONX_TARGET_TOKEN` for CLI authentication. Keep upload, install, cleanup and queries on the same service.
 
 `location` is an absolute path for target-side installation; `path` is relative to the remote workspace and is used for upload cleanup. A local source path cannot stand in for either. A wheel or source tree already present on the target can be installed directly. Remote editable installs refer to source already on that machine.
 

@@ -87,6 +87,8 @@ Custom files inherit defaults only with `extends: default`. Mappings merge recur
 
 ```bash
 axonx --help
+axonx health
+axonx list_jobs
 axonx help
 axonx help --job status
 axonx diagnose
@@ -95,6 +97,8 @@ axonx exec
 axonx list_task_defs --include-schemas false
 axonx get_task_def --task demo
 ```
+
+`health` queries service readiness and returns exit code 1 when it cannot confirm the service is running. `list_jobs` returns the complete public Job catalog with input/output schemas. Both use direct HTTP endpoints.
 
 `--help` displays offline CLI syntax. `help` lists available service commands, and `help --job status` shows the parameters and return format for `status`. Bare `exec` lists Tasks in the current interpreter; query commands require a service. `list_task_defs`/`get_task_def` inspect the service's loaded Tasks and input/output schemas. `diagnose` checks versions, Python, plugins and resources. `get_config` identifies the workspace and execution environment; it may contain sensitive configuration, so do not copy its full output into reports.
 
@@ -267,10 +271,7 @@ Remote `plugin` commands run through the service's generic `cli` Job; installati
 
 ```bash
 axonx plugin build ./example --output ./dist/plugins
-curl --fail-with-body \
-  --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --form 'file=@dist/plugins/ACTUAL_FILENAME.whl' \
-  http://node-b:1024/upload
+axonx upload --path dist/plugins/ACTUAL_FILENAME.whl --target node-b:1024
 ```
 
 Run commands individually and substitute actual returned values. The build returns the wheel filename and hashes; upload returns `answer.location` (absolute target path) and `answer.path` (target workspace-relative path). Use `location` for installation:
@@ -284,10 +285,7 @@ axonx plugin show axonx-example --target node-b:1024
 Verify installation exit code 0 and compare the target plugin's version, `sha256` and `content_sha256` with the local build. Then clean up staging with the upload's returned `path`:
 
 ```bash
-curl --fail-with-body --request DELETE --get \
-  --header "Authorization: Bearer ${AXONX_TARGET_TOKEN}" \
-  --data-urlencode 'path=tmp/uploads/ACTUAL_UPLOAD_PATH.whl' \
-  http://node-b:1024/upload
+axonx discard_file --path tmp/uploads/ACTUAL_UPLOAD_PATH.whl --target node-b:1024
 ```
 
 The default upload limit is 512 MiB. Installation may continue after disconnection; confirm it has ended on the target before retrying or cleaning up. Install dependency plugins on the target first. If source already exists there, remote editable installation is also available:
@@ -463,6 +461,16 @@ axonx get_update_status --update-id ACTUAL_UPDATE_ID --target node-b:1024
 ```
 
 For a local service, use the same commands without `--target`. These operations require authentication and a daemon started with `axonx app`. Updates stop service-owned manual CLI executions while daemon-owned scheduled Tasks continue; coordinate active research before changing source or dependencies. Failures may leave partial source/dependency changes and do not roll back automatically. Plugin experiments use `plugin install`; they do not require updating the framework each time.
+
+### Transfer complete directories
+
+Build a gzip tar archive with `axonx.client.files.build_file_archive`, which writes the required `directories.json`, then send it to the destination service:
+
+```bash
+axonx upload_archive --path files.tar.gz --target node-b:1024
+```
+
+The receiver replaces every listed directory completely, including removing files absent from the archive. The response lists the replaced directories. Use the returned staged path with `discard_file` when cleaning up ordinary single-file uploads.
 
 ### Schedule execution
 

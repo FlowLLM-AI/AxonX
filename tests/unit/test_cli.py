@@ -3,6 +3,7 @@
 import json
 import os
 
+import httpx
 import pytest
 
 from axonx.cli import commands, main, remote
@@ -28,6 +29,189 @@ def isolate_cli_environment(monkeypatch):
 def test_help_is_offline_and_returns_success(argv, capsys):
     assert main(argv) == 0
     assert "usage:" in capsys.readouterr().out.lower()
+
+
+@pytest.mark.parametrize(
+    ("options", "target", "token"),
+    [
+        ([], "http://127.0.0.1:1024", "service-token"),
+        (["--target", "remote:1024"], "http://remote:1024", "target-token"),
+        (["--target", "remote:1024", "--token", "explicit"], "http://remote:1024", "explicit"),
+    ],
+)
+def test_upload_sends_local_file_bytes_directly_to_the_selected_service(
+    tmp_path, monkeypatch, capsys, options, target, token
+):
+    source = tmp_path / "local file.bin"
+    content = bytes(range(256)) * 5000
+    source.write_bytes(content)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("AXONX_SERVICE_TARGET", raising=False)
+    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "service-token")
+    monkeypatch.setenv("AXONX_TARGET_TOKEN", "target-token")
+    answer = {
+        "path": "tmp/uploads/id/remote.bin",
+        "location": "/workspace/tmp/uploads/id/remote.bin",
+        "size": len(content),
+    }
+    calls = []
+
+    async def receive(request):
+        calls.append(request)
+        assert request.method == "POST"
+        assert str(request.url) == f"{target}/upload"
+        assert request.headers["authorization"] == f"Bearer {token}"
+        assert request.headers["content-type"] == "application/octet-stream"
+        assert request.headers["x-file-name"] == "remote.bin"
+        assert request.headers["x-file-directory"] == "tmp/uploads/scripts"
+        assert await request.aread() == content
+        return httpx.Response(200, json={"answer": answer, "success": True, "metadata": {}})
+
+    http_client = client.HttpClient
+
+    def connect(**connection):
+        assert connection == {"target": target if options else None, "timeout": 4.0, "token": token}
+        return http_client(**connection, transport=httpx.MockTransport(receive))
+
+    monkeypatch.setattr(client, "HttpClient", connect)
+    assert (
+        main(
+            [
+                "upload",
+                "--path",
+                source.name,
+                "--filename",
+                "remote.bin",
+                "--directory",
+                "tmp/uploads/scripts",
+                "--client-timeout",
+                "4",
+                *options,
+            ]
+        )
+        == 0
+    )
+    assert len(calls) == 1
+    assert json.loads(capsys.readouterr().out) == {"answer": answer, "success": True, "metadata": {}}
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        ([], "Missing required option: --path"),
+        (["--path", "missing.bin"], "FileNotFoundError"),
+        (["--path", "source.bin", "--unknown", "value"], "unexpected keyword argument"),
+        (["--path", "source.bin", "--stream", "true"], "upload does not support --stream"),
+    ],
+)
+def test_upload_rejects_invalid_inputs_before_sending_a_request(tmp_path, monkeypatch, capsys, arguments, message):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "source.bin").write_bytes(b"data")
+    http_client = client.HttpClient
+    transport = httpx.MockTransport(lambda _: pytest.fail("Invalid upload must not send a request"))
+    monkeypatch.setattr(client, "HttpClient", lambda **connection: http_client(**connection, transport=transport))
+    assert main(["upload", *arguments]) == 2
+    assert message in capsys.readouterr().err
+
+
+def test_upload_reports_remote_rejection(tmp_path, monkeypatch, capsys):
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"data")
+    http_client = client.HttpClient
+    transport = httpx.MockTransport(lambda _: httpx.Response(401, json={"detail": "Invalid service token"}))
+    monkeypatch.setattr(client, "HttpClient", lambda **connection: http_client(**connection, transport=transport))
+    assert main(["upload", "--path", str(source), "--target", "remote:1024"]) == 1
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert "Invalid service token" in captured.err
+
+
+@pytest.mark.parametrize("action", ["upload_archive", "discard_file", "health", "list_jobs"])
+@pytest.mark.parametrize("target", [False, True])
+def test_http_commands_use_protocol_endpoints_and_preserve_responses(tmp_path, monkeypatch, capsys, action, target):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("AXONX_SERVICE_TARGET", raising=False)
+    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-token")
+    monkeypatch.setenv("AXONX_TARGET_TOKEN", "remote-token")
+    source = tmp_path / "archive with spaces.tar.gz"
+    source.write_bytes(b"\x00\xffopaque archive bytes")
+    staged = "tmp/uploads/id/file with spaces.bin"
+    catalog = {
+        "items": [{"name": "example", "description": "中文", "input_schema": {}, "output_schema": {}}],
+        "total": 1,
+    }
+    arguments, method, endpoint, answer = {
+        "upload_archive": (["--path", source.name], "POST", "/upload", ["reports/daily"]),
+        "discard_file": (["--path", staged], "DELETE", "/upload", {"path": staged}),
+        "health": ([], "GET", "/health", {"running": True}),
+        "list_jobs": ([], "GET", "/jobs", catalog),
+    }[action]
+    calls = []
+
+    async def receive(request):
+        calls.append(request)
+        assert request.method == method
+        assert request.url.path == endpoint
+        assert request.url.host == ("remote" if target else "127.0.0.1")
+        assert request.headers["authorization"] == ("Bearer remote-token" if target else "Bearer local-token")
+        if action == "upload_archive":
+            assert dict(request.url.params) == {"mode": "replace"}
+            assert request.headers["content-type"] == "application/gzip"
+            assert await request.aread() == source.read_bytes()
+        elif action == "discard_file":
+            assert dict(request.url.params) == {"path": staged}
+        else:
+            assert not request.url.params
+        return httpx.Response(200, json={"answer": answer, "success": True, "metadata": {}})
+
+    http_client = client.HttpClient
+    monkeypatch.setattr(
+        client, "HttpClient", lambda **connection: http_client(**connection, transport=httpx.MockTransport(receive))
+    )
+    connection = ["--target", "remote:1024"] if target else []
+    assert main([action, *arguments, *connection]) == 0
+    assert len(calls) == 1
+    assert json.loads(capsys.readouterr().out) == {"answer": answer, "success": True, "metadata": {}}
+
+
+@pytest.mark.parametrize("failure", ["stopped", "unauthorized", "connection"])
+def test_health_returns_failure_when_the_service_is_not_ready(monkeypatch, capsys, failure):
+    def receive(request):
+        if failure == "connection":
+            raise httpx.ConnectError("unavailable", request=request)
+        if failure == "unauthorized":
+            return httpx.Response(401, json={"detail": "Invalid service token"})
+        return httpx.Response(200, json={"answer": {"running": False}, "success": True, "metadata": {}})
+
+    http_client = client.HttpClient
+    monkeypatch.setattr(
+        client, "HttpClient", lambda **connection: http_client(**connection, transport=httpx.MockTransport(receive))
+    )
+    assert main(["health", "--target", "remote:1024"]) == 1
+    assert json.loads(capsys.readouterr().out) == {"answer": {"running": False}, "success": False, "metadata": {}}
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["upload_archive"],
+        ["upload_archive", "--path", "missing.tar.gz"],
+        ["upload_archive", "--path", "source.bin", "--filename", "unsupported"],
+        ["discard_file"],
+        ["discard_file", "--path", "tmp/uploads/file", "--unknown", "value"],
+        ["health", "--path", "unsupported"],
+        ["list_jobs", "--path", "unsupported"],
+        *[[action, "--stream", "true"] for action in ("upload_archive", "discard_file", "health", "list_jobs")],
+    ],
+)
+def test_http_commands_reject_invalid_inputs_before_sending_a_request(tmp_path, monkeypatch, capsys, argv):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "source.bin").write_bytes(b"data")
+    http_client = client.HttpClient
+    transport = httpx.MockTransport(lambda _: pytest.fail("Invalid command must not send a request"))
+    monkeypatch.setattr(client, "HttpClient", lambda **connection: http_client(**connection, transport=transport))
+    assert main(argv) == 2
+    assert "Error:" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("success", [True, False])

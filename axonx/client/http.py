@@ -53,7 +53,7 @@ def _error_detail(response: httpx.Response) -> str:
 
 
 class HttpClient(BaseClient[httpx.AsyncClient]):
-    """Call Jobs, consume event streams, and copy files through HTTP."""
+    """Call Jobs, consume event streams, and upload files through HTTP."""
 
     def __init__(
         self,
@@ -168,14 +168,14 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             return False
         return response.success and isinstance(response.answer, dict) and response.answer.get("running") is True
 
-    async def copy_file(
+    async def upload(
         self,
         path: Path,
         *,
         filename: str | None = None,
         directory: str | None = None,
     ) -> StagedFile:
-        """Copy one local file into the remote workspace."""
+        """Upload one local file into the remote workspace."""
         size = path.stat().st_size
         headers = {
             "content-type": "application/octet-stream",
@@ -187,7 +187,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         response = await self._response("POST", PROTOCOL_ROUTE_UPLOAD, content=_file_chunks(path), headers=headers)
         return self._parse_payload(response.answer, StagedFile)
 
-    async def copy_files(self, archive: Path) -> list[str]:
+    async def upload_archive(self, archive: Path) -> list[str]:
         """Replace complete remote directories through the upload endpoint."""
         response = await self._response(
             "POST",

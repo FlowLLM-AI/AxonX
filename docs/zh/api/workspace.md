@@ -77,6 +77,14 @@
 
 `POST /upload` 接受带 `x-file-name` 的二进制请求体，或 multipart `file` 和可选 `directory`；`x-file-directory` 优先于 multipart 目录。目标限制在工作区 `tmp`，使用 UUID 目录避免冲突。默认传输预算 512 MiB，multipart 额外允许 64 KiB 封装。
 
+CLI 通过此接口发送本地文件：
+
+```bash
+axonx upload --path dist/plugins/ACTUAL_FILENAME.whl --target HOST:1024
+```
+
+等价的 multipart 请求为：
+
 ```bash
 curl --fail-with-body 'http://HOST:1024/upload' \
   -H "Authorization: Bearer $AXONX_TARGET_TOKEN" \
@@ -85,15 +93,25 @@ curl --fail-with-body 'http://HOST:1024/upload' \
 
 JobResponse.answer 为 `StagedFile`：`{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`。目标机原生插件安装使用 location，`DELETE /upload?path=...` 使用 path。上传和清理使用同一服务 token。上传不安装或执行文件，插件安装也不自动消费/删除上传文件，应在 finally 中清理。过期文件在后续上传时机会性清理（默认保留七天），不是安装后的即时清理。
 
+CLI 使用返回的工作区相对路径清理：
+
+```bash
+axonx discard_file --path tmp/uploads/UUID/file.whl --target HOST:1024
+```
+
 ## 完整目录替换
 
 `POST /upload?mode=replace` 通过相同的二进制或 multipart 上传格式接收 gzip tar 归档。默认 `mode=stage` 保留普通文件暂存行为。
+
+```bash
+axonx upload_archive --path ./files.tar.gz --target HOST:1024
+```
 
 归档以 `directories.json` 开始，内容为不重叠的工作区相对目标目录 JSON 数组，随后包含这些路径下的全部普通文件。例如 `["reports/daily"]` 表示完整替换 `reports/daily/`，允许声明空目录。符号链接、路径越界、重复成员、重叠根目录，以及覆盖上传或文件接收暂存区的目标均被拒绝。
 
 请求大小和包含扩展头、填充在内的完整展开 tar 流都必须满足 `transfer_budget_bytes`。接收端先暂存解包，再替换指定目录；安装失败时回滚。被替换目录中未再提供的旧文件会移除，清单外目录保留。文件按原始字节接收，不执行、不解释。并发读取可能遇到目录替换过程，多目录批次不提供读取事务。
 
-返回已替换的目录列表，例如 `["reports/daily"]`。完成或回滚成功后清理上传归档和操作暂存；回滚本身失败时，原始目录保留在报错指出的暂存备份路径中，供恢复使用。Python 调用方可用 `axonx.client.files.build_file_archive` 构建归档，通过 `HttpClient.copy_files` 发送。
+返回已替换的目录列表，例如 `["reports/daily"]`。完成或回滚成功后清理上传归档和操作暂存；回滚本身失败时，原始目录保留在报错指出的暂存备份路径中，供恢复使用。Python 调用方可用 `axonx.client.files.build_file_archive` 构建归档，通过 `HttpClient.upload_archive` 发送。
 
 ## 预览响应类型
 

@@ -124,8 +124,8 @@ class LocalSyncComponent(BaseSyncComponent):
                         if max(expanded_size, archive.stat().st_size) > budget:
                             raise ReplicaBudgetError("Archive exceeds the transfer budget")
                         report.archives += 1
-                        copied = await remote.copy_files(archive)
-                        if set(copied) != plans.keys():
+                        uploaded = await remote.upload_archive(archive)
+                        if set(uploaded) != plans.keys():
                             raise ValueError("Remote file transfer returned an incomplete directory list")
                         self._sent[task_id] = version
                         report.uploaded.extend(plans)

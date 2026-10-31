@@ -188,7 +188,7 @@ def test_flush_waits_for_the_workflow_and_retries_through_the_same_queue(workflo
         async def __aexit__(self, *_):
             pass
 
-        async def copy_files(self, path):
+        async def upload_archive(self, path):
             if failing[0]:
                 raise OSError("temporary receiver failure")
             return uploads.replace(path, BUDGET)

@@ -77,6 +77,14 @@ Deletes workspace-relative paths. It is a general file operation without active-
 
 `POST /upload` accepts a raw binary body with `x-file-name`, or multipart fields `file` and optional `directory`. Optional `x-file-directory` overrides the multipart directory. The destination is confined to workspace `tmp`; a UUID directory avoids collisions. The transfer budget defaults to 512 MiB, with 64 KiB extra multipart framing.
 
+The CLI sends a local file through this endpoint:
+
+```bash
+axonx upload --path dist/plugins/ACTUAL_FILENAME.whl --target HOST:1024
+```
+
+The equivalent multipart request is:
+
 ```bash
 curl --fail-with-body 'http://HOST:1024/upload' \
   -H "Authorization: Bearer $AXONX_TARGET_TOKEN" \
@@ -85,15 +93,25 @@ curl --fail-with-body 'http://HOST:1024/upload' \
 
 The JobResponse answer is `StagedFile`: `{ "path": "tmp/uploads/UUID/file.whl", "location": "/absolute/workspace/tmp/uploads/UUID/file.whl", "size": 123 }`. Use location for target-side native plugin installation, path for `DELETE /upload?path=...`. Both routes use the same service token. Uploading does not install or execute the file. Plugin installation does not automatically consume/delete the upload; clean it in a finally block. Expiry cleanup is opportunistic on later uploads (default retention seven days), not an immediate install cleanup.
 
+The CLI uses the returned workspace-relative path for cleanup:
+
+```bash
+axonx discard_file --path tmp/uploads/UUID/file.whl --target HOST:1024
+```
+
 ## Directory replacement
 
 `POST /upload?mode=replace` accepts a gzip tar archive through the same binary or multipart upload formats. The default `mode=stage` retains the ordinary staged-file behavior.
+
+```bash
+axonx upload_archive --path ./files.tar.gz --target HOST:1024
+```
 
 The archive starts with `directories.json`, a JSON array of nonoverlapping workspace-relative destination directories, followed by all regular files under those paths. For example, `["reports/daily"]` declares a complete replacement of `reports/daily/`. Empty listed directories are supported. Symlinks, traversal paths, duplicate members, overlapping roots and destinations covering upload or file-transfer staging are rejected.
 
 The request and complete expanded tar stream, including extension headers and padding, must each fit `transfer_budget_bytes`. The receiver extracts into temporary storage, replaces the listed directories and rolls back installation failures. Existing files missing from a replacement directory are removed; unlisted directories remain untouched. Files are opaque and are not executed or interpreted. Concurrent readers can observe directories being replaced; a multi-directory batch is not a reader transaction.
 
-The answer is the replaced directory list, for example `["reports/daily"]`. Uploaded archives and operation staging are cleaned after completion or a successful rollback. If rollback itself fails, original directories are retained under the staging backup path reported by the error for recovery. Python callers can build an archive with `axonx.client.files.build_file_archive` and send it with `HttpClient.copy_files`.
+The answer is the replaced directory list, for example `["reports/daily"]`. Uploaded archives and operation staging are cleaned after completion or a successful rollback. If rollback itself fails, original directories are retained under the staging backup path reported by the error for recovery. Python callers can build an archive with `axonx.client.files.build_file_archive` and send it with `HttpClient.upload_archive`.
 
 ## Preview response types
 

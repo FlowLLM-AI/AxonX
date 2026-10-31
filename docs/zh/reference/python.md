@@ -63,7 +63,7 @@ async def main():
 asyncio.run(main())
 ```
 
-方法为 `run_job`、`stream_job`、`list_jobs`、`health`、`copy_file(Path, filename=None, directory=None)`、`discard_file(path)`。构造参数为 target、timeout、token 和可选 HTTP transport。用 async with 管理连接，凭据需显式传入，库客户端不会自动读取 CLI token 环境变量。远程 answer 是解码数据，本地 answer 可能含模型对象，需要时用 model_dump(mode="json") 统一。
+方法为 `run_job`、`stream_job`、`list_jobs`、`health`、`upload(Path, filename=None, directory=None)`、`upload_archive(Path)`、`discard_file(path)`。构造参数为 target、timeout、token 和可选 HTTP transport。用 async with 管理连接，凭据需显式传入，库客户端不会自动读取 CLI token 环境变量。远程 answer 是解码数据，本地 answer 可能含模型对象，需要时用 model_dump(mode="json") 统一。
 
 ## 消费事件
 
@@ -82,7 +82,7 @@ async with aclosing(client.stream_job("stream_task", {"task_id": task_id})) as e
 
 ## 文件上传
 
-`copy_file` 返回含 path、size、绝对 location 的 StagedFile。目标机插件安装使用 location，清理和同步使用 path。确认命令结束后在 finally 中调用 discard_file；命令结果不明时保留上传文件。完整远程安装示例见[插件管理](../plugins/management.md)。
+`upload` 返回含 path、size、绝对 location 的 StagedFile。目标机插件安装使用 location，清理和同步使用 path。确认命令结束后在 finally 中调用 discard_file；命令结果不明时保留上传文件。完整远程安装示例见[插件管理](../plugins/management.md)。
 
 ## MCP 客户端
 

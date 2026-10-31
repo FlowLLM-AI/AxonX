@@ -2,14 +2,16 @@
 
 ## 命令职责
 
-| 命令                    | 执行位置           | 结果                         |
-| ----------------------- | ------------------ | ---------------------------- |
-| `axonx`、`--help`、`-h` | 本地离线           | CLI 语法                     |
-| `app`                   | 本地 Daemon 与服务 | 前台监督应用服务             |
-| `exec --task NAME`      | 当前 CLI 进程      | 业务结果 JSON 和 Task 退出码 |
-| `kill --task-id ID`     | 当前 CLI 环境      | 停止执行后的 Task metadata   |
-| `plugin …`              | 当前 Python 环境   | 插件信息或安装结果           |
-| 已配置的 Job 名         | 所选服务           | `JobResponse` JSON 或事件流  |
+| 命令                                  | 执行位置             | 结果                         |
+| ------------------------------------- | -------------------- | ---------------------------- |
+| `axonx`、`--help`、`-h`               | 本地离线             | CLI 语法                     |
+| `app`                                 | 本地 Daemon 与服务   | 前台监督应用服务             |
+| `exec --task NAME`                    | 当前 CLI 进程        | 业务结果 JSON 和 Task 退出码 |
+| `kill --task-id ID`                   | 当前 CLI 环境        | 停止执行后的 Task metadata   |
+| `plugin …`                            | 当前 Python 环境     | 插件信息或安装结果           |
+| `upload`、`upload_archive`            | 本地 CLI → 所选服务  | 文件传输 `JobResponse`       |
+| `discard_file`、`health`、`list_jobs` | 所选服务的 HTTP 接口 | `JobResponse` JSON           |
+| 已配置的 Job 名                       | 所选服务             | `JobResponse` JSON 或事件流  |
 
 显式 `--target HOST:PORT` 通过目标服务的 `cli` Job 转发原生命令（`app`、`exec`、`kill`、`plugin`）。远端 CLI 拒绝 `app`、嵌套 `cli` 和继续转发到其他目标。普通 Job 直接连接所选服务。
 
@@ -47,6 +49,24 @@ axonx kill --task-id 'base#demo#check' --timeout 5 --force false
 `exec` 同步执行。服务不可连接时可使用默认执行配置；认证、协议或 `get_config` 失败均报错。共享执行选项为 `workspace_dir`、`log_dir`、`timezone`、`execution_target`、`log_to_console`、`log_to_file` 和 `environment.KEY`。优先级为显式 CLI 参数 > 服务 `get_config` > 默认值。显式环境变量按键合并。
 
 远程执行添加 `--target HOST:PORT` 并设置 `AXONX_TARGET_TOKEN`。原生命令实时传输 stdout/stderr，保留目标进程退出码。`--client-timeout` 控制连接，不是 Task 业务截止时间。默认 cli Job 在远程命令请求中断后只结束观察，执行继续运行。停止 Task 使用 kill；服务关闭也会终止其手动命令进程组。重试前先检查 metadata。
+
+## 直接 HTTP 操作
+
+```bash
+axonx health --target node-b:1024
+axonx list_jobs --target node-b:1024
+axonx upload --path ./queue.sh --target node-b:1024
+axonx upload_archive --path ./files.tar.gz --target node-b:1024
+axonx discard_file --path tmp/uploads/UUID/queue.sh --target node-b:1024
+```
+
+这些命令直接调用所选服务的 HTTP 接口，返回一次 `JobResponse` JSON，复用 `--target`、`--token` 和 `--client-timeout`；拒绝 `--stream true`。不带 `--target` 时使用默认服务连接。
+
+`upload` 在 CLI 所在机器读取 `--path`，将文件字节流发送到 `POST /upload`。可选 `--filename` 覆盖暂存文件名，`--directory` 指定 `tmp/uploads` 下的暂存目录。answer 包含 `path`、绝对 `location` 和字节数 `size`。
+
+`upload_archive` 读取用 `axonx.client.files.build_file_archive` 构建的本地归档，完整替换其中 `directories.json` 列出的远程目录，answer 为已替换目录列表。`discard_file` 接受 `upload` 返回的远程工作区相对路径，返回 `answer.path`，可重复清理。详见[文件传输](../api/workspace.md)。
+
+`health` 返回 `answer.running`，健康时退出码为 0，无法确认服务就绪时返回 `success=false` 和退出码 1。`list_jobs` 返回含完整输入/输出 Schema 的 `answer.items` 和 `answer.total`；`help` 提供简短命令列表。
 
 ## 轻量查询默认值
 

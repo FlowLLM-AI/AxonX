@@ -37,6 +37,11 @@ CLI_USAGE = f"""Usage:
   axonx list_task_defs [--include-schemas true|false] [--target HOST:PORT]
   axonx get_task_def --task NAME [--target HOST:PORT]
   axonx get_config [--target HOST:PORT]
+  axonx upload --path FILE [--filename NAME] [--directory PATH] [--target HOST:PORT]
+  axonx upload_archive --path ARCHIVE [--target HOST:PORT]
+  axonx discard_file --path REMOTE_PATH [--target HOST:PORT]
+  axonx health [--target HOST:PORT]
+  axonx list_jobs [--target HOST:PORT]
   axonx exec [--task TASK] [--workspace-dir PATH] [--field value ...] [--target HOST:PORT]
   axonx kill --task-id ID [--workspace-dir PATH] [--timeout SECONDS] [--force true] [--target HOST:PORT]
   axonx app [--config NAME_OR_PATH]
@@ -45,6 +50,9 @@ CLI_USAGE = f"""Usage:
   axonx plugin install -e SOURCE
 
 --help and -h show offline CLI usage; help queries the selected service's Jobs.
+upload reads a local file and sends it directly to the selected service's /upload endpoint.
+upload_archive replaces directories from an AxonX archive; discard_file removes one staged upload.
+health and list_jobs query the selected service directly. HTTP commands return one JSON response.
 Job commands require a running service; Task definitions describe its Python environment.
 exec and kill share --workspace-dir, --log-dir, --timezone, --execution-target,
 --log-to-console, --log-to-file and --environment.KEY options.

@@ -104,7 +104,16 @@ def test_documented_cli_commands_use_current_grammar_and_job_schemas():
                 count += 1
                 if command.action == "plugin":
                     parse_plugin_arguments(command.raw_arguments)
-                elif command.action not in {"app", "exec", "kill"}:
+                elif command.action not in {
+                    "app",
+                    "exec",
+                    "kill",
+                    "upload",
+                    "upload_archive",
+                    "discard_file",
+                    "health",
+                    "list_jobs",
+                }:
                     assert command.action in jobs, (page, line)
                     arguments = dict(command.arguments)
                     # These documented placeholders must be replaced by a real returned ID.
