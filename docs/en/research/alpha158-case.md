@@ -108,17 +108,17 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '<factor_train_task_id>'
   --pred-start 20230101 --pred-end 20261008
 
 # Fixed holding: run once for base and once for factor predictions
-axonx exec --task qlib_a158_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --holding-days 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
 
 # Strategy version: reuse factor predictions with the selected 3-day policy
-axonx exec --task qlib_strategy_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
+axonx exec --task qlib_strategy_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
 ```
 
 ## Task provenance
 
-Execution workspace: `/nas/jinli.yl/data/axon` on machine 45. Raw artifacts remain there; only this run group is listed.
+The experiment ran in a dedicated workspace on machine 45. Raw artifacts remain in the original execution workspace; only this recorded run group is listed.
 
 These records were produced by the historical 0.1.1 runtime. The Run IDs and SHA-256 input digests below are retained as recorded provenance. Current Task metadata identifies executions with `started_at` and file artifacts with `revision="<size>:<mtime_ns>"`; there is no `run_id` or Run-ID waiting argument. Reproduction creates new execution identities.
 

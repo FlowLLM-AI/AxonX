@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shlex
 from functools import cached_property
@@ -23,15 +22,14 @@ class CronConfig(BaseModel):
     expression: str
     command: str
 
-    @field_validator("command", mode="before", json_schema_input_type=str | list[Any])
+    @field_validator("command", mode="before", json_schema_input_type=str | list[str])
     @classmethod
     def normalize_command(cls, value: Any) -> Any:
-        """YAML argument lists can reuse structured values through anchors."""
+        """Join text fragments into one command before tokenizing it."""
         if isinstance(value, list):
-            return shlex.join(
-                item if isinstance(item, str) else json.dumps(item, ensure_ascii=False, allow_nan=False)
-                for item in value
-            )
+            if any(not isinstance(fragment, str) for fragment in value):
+                raise ValueError("Command fragments must be strings")
+            return " ".join(value)
         return value
 
     @field_validator("expression")

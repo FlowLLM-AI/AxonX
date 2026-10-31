@@ -13,7 +13,9 @@ extends: default
 timezone: Asia/Shanghai
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
 Start with `axonx app --config scheduled.yaml`. Set `cron: []` to disable inherited schedules. The whole list replaces its parent list. Restart to reload edits.
@@ -23,6 +25,8 @@ Start with `axonx app --config scheduled.yaml`. Set `cron: []` to disable inheri
 Expressions have exactly five numeric fields: minute, hour, day, month, weekday. Numeric ranges, lists, steps and wildcards are supported; named weekdays and a seconds field are rejected. The application timezone controls trigger calculation. Each due entry triggers once, then advances from the current time; missed occurrences are not replayed.
 
 ## Command arguments
+
+`command` is one string or a list of string fragments joined with spaces into one command. Long fragments can use YAML `>-` blocks. Keep quotes around values containing spaces and around JSON arguments; anchors can reuse a complete quoted argument fragment. All list items must be strings.
 
 Commands must start with `axonx exec` and include a nonempty `--task NAME`. Parsing uses `shlex`, without a shell. Pipes, redirection, environment assignments and client options such as `--target` are not supported. Configure execution defaults and environment at application level, or use explicit Task execution fields.
 

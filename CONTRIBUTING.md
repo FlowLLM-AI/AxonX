@@ -77,6 +77,8 @@ Use temporary workspaces. Keep credentials, private data, `.axonx/`, logs and ge
 
 ## Update documentation
 
+Keep documentation self-contained to this framework, its bundled components and plugins. Use repository-owned examples; external plugins document their own business rules, storage layouts and deployment.
+
 Edit canonical bilingual sources in `docs/{en,zh}/` or the root/plugin READMEs imported by the site. Procedures belong in guides, fields in Reference, algorithms in plugin READMEs, and experiment evidence in case studies. Link to the owner instead of repeating its content. Navigation lives in `docs/.vitepress/navigation.mjs`; shared figures live in `docs/figures/`.
 
 Job arguments come from `axonx/app/config/default.yaml`; CLI syntax from `axonx/cli/parser.py`, execution from `commands.py`/`remote.py`, and Task contracts from `axonx/task`. Update affected examples and diagrams together. Preserve recorded research results and provenance.

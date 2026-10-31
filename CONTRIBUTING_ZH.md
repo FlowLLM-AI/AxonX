@@ -77,6 +77,8 @@ Agent 编写的代码遵循相同检查。改进结论需保留代码/数据版�
 
 ## 更新文档
 
+文档只描述本框架、仓库内组件和插件，示例使用仓库内实现。外部插件的业务规则、存储布局和部署由其自身文档说明。
+
 修改 `docs/{en,zh}/` 的中英文规范来源，或由站点导入的根目录/插件 README。操作步骤放在指南，字段放在参考，算法放在插件 README，实验证据放在案例；通过链接引用归属文档，避免复制正文。导航位于 `docs/.vitepress/navigation.mjs`，共享图示位于 `docs/figures/`。
 
 Job 入参以 `axonx/app/config/default.yaml` 为准，CLI 语法属于 `axonx/cli/parser.py`，执行属于 `commands.py`/`remote.py`，Task 契约属于 `axonx/task`。同步更新受影响示例和图示，保留历史研究结果及来源。

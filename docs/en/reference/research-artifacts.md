@@ -74,7 +74,7 @@ Member count distinguishes single-member from multi-member output, independently
 
 ## ETL artifacts
 
-Axon/Axon2 A-stock ETL stores feature semantics, provenance and quality information in `metadata.json.output_params.protocol`. Each Task owns one signal time (`protocol.trade_time`), uses stable artifact roles, and publishes fixed feature filenames `features.parquet` and optional `features_stats.csv`. When an external output directory is selected, copies under the Task's `artifacts/` retain the original filenames.
+ETL producers describe feature semantics, provenance and quality in their protocol extension under `metadata.json.output_params.protocol`. Artifact roles and filenames belong to the producer contract; consumers resolve published records instead of assuming another plugin's layout. When a Task copies an externally written artifact into its own directory, retain a stable filename and publish the Task-local record.
 
 The base class stores output-file descriptions and column names. qlib_a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
 
@@ -269,7 +269,7 @@ Backtest plugins override `evaluation_files(params)` for policy resources and `e
 
 `publish_online()` writes a completed inference result under the Task's ordinary `outputs/<HHMM>/` directory and returns an `OnlineCommit` containing the producing execution, model identity, protocol and registered files. The executor's `persistent/task.lock` owns execution; `persistent/history.jsonl` appends one terminal metadata JSON object after each run. Online business files use ordinary Task output directories.
 
-Axon2 daily parents use `outputs/<HHMM>/<model>/`. Online parents retain predictions, rankings, optional scores, compact market data and display ledgers; feature matrices, calendars, weights and debug data remain in inference children. Evidence references pin child execution times and artifact revisions. Report `portfolios` maps stable portfolio keys to complete identities. Ledger tables use a `portfolio_key` column: positions record the current-day state, orders/trades record current-day events, daily contains one row per portfolio and day, and summary records as-of statistics. Studio assembles history from daily snapshots, independently of mutable children. Comparison parents retain metadata diagnostics, top_comparisons.json and optional bounded differences.parquet samples. Replaced inference evidence is unavailable for recomputation and never replaced with a newer execution.
+Online reports use `StockOnlineReport` and `OnlineCommit` to identify the producing execution, model, protocol and artifacts. Producers choose their output layout and snapshot ownership. For stock reports, `protocol.report.portfolios` maps stable portfolio keys to full identities; ledger tables use `portfolio_key` to separate portfolios. Positions describe current holdings, orders/trades describe events, daily contains one row per portfolio and date, and summary contains as-of statistics. Studio can assemble dated snapshots from these contracts. References to child evidence must pin the child execution and artifact revisions; replaced evidence cannot be substituted with a newer execution.
 
 Mean/rank-mean ensemble keys omit rolling seed membership while daily identities retain the actual members. Explicit seed selections keep distinct keys.
 

@@ -129,7 +129,7 @@ axonx python --code 'import sys; print(sys.executable)' --timeout 30
 | 已有参数足以验证     | 复用已安装 Task，直接进入运行阶段                                        |
 | 修改现有算法         | 在职责对应的插件中修改，更新参数、测试与说明                             |
 | 独立算法或可复用扩展 | 新建插件，注册唯一 Task 名；可位于 AxonX 仓库之外                        |
-| 参考完整研究链       | `plugins/qlib_a158/`：ETL、分析、训练、预测、回测与父 Task               |
+| 参考完整研究链       | `plugins/qlib_a158/`：ETL、分析、训练、预测、组合、回测与父 Task         |
 | 扩展特征或组合规则   | `plugins/qlib_factor/` 扩展 ETL/Train；`plugins/qlib_strategy/` 扩展回测 |
 
 ### 最小插件
@@ -342,7 +342,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 ### 参考研究链
 
-`qlib_a158` 主链为 ETL → Train → Predict → Backtest，Analysis 从 ETL 独立分支。安装插件并在执行机配置数据凭据后，按顺序运行；每一步确认成功再启动下游，脚本须遇错停止。已有完整原始历史时跳过下载：
+`qlib_a158` 主链为 ETL → Train → Predict → Portfolio → Backtest，Analysis 从 ETL 独立分支。安装插件并在执行机配置数据凭据后，按顺序运行；每一步确认成功再启动下游，脚本须遇错停止。已有完整原始历史时跳过下载：
 
 ```bash
 export AXONX_TUSHARE_TOKEN='replace-with-data-token'
@@ -464,12 +464,16 @@ extends: default
 timezone: Asia/Shanghai
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
 ```bash
 axonx app --config scheduled.yaml
 ```
+
+`command` 接受一个字符串，或用空格拼成同一条命令的字符串片段列表。长片段使用 YAML `>-` 块，JSON 参数须保留命令文本内的引号；YAML 锚点可复用完整的带引号参数片段。
 
 计划接受五字段表达式和本地 `axonx exec --task NAME`，不支持 shell 管道、重定向或远程选项，不补跑错过时点。配置修改后重启；已启动的定时执行可跨服务重启继续，手动执行随服务停止。检查 Task 状态与 `logs/cron/entry-N.log`，避免固定实例名的计划重叠。
 

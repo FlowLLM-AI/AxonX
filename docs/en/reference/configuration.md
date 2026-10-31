@@ -60,10 +60,12 @@ The pipeline backend accepts `event_buffer_size` (positive integer, default 64) 
 ```yaml
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
-`command` accepts a string or an argument list, such as `[axonx, exec, --task, download_tushare_task, --days-back, 7]`. Mapping and list arguments are JSON-encoded; YAML anchors can share one structured argument between schedules. Loading normalizes the argument list to a command string.
+`command` accepts one string or a list of string fragments. Fragments are joined with a space, then the complete command is tokenized once. Each schedule runs one command. Quote values containing spaces and JSON arguments within the command text, for example `--models '{"0945": [{"task_name": "model-0945"}]}'`. Use YAML `>-` blocks for long fragments and anchors to share a complete quoted argument between schedules. Every fragment must be a string; loading stores the joined command string.
 
 Only five numeric cron fields and local `axonx exec --task NAME` commands are supported by CLI startup. Commands are tokenized without a shell; client options are rejected. Lists replace inherited schedules. Triggers use application timezone, do not replay missed occurrences and require restart to reload. See [Scheduling](../guides/scheduling.md).
 

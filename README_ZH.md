@@ -148,7 +148,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 
 ## 🧩 从 Qlib Alpha158 到研究插件
 
-主链为 **ETL → Train → Predict → Backtest**，因子分析可从 ETL 分支。`qlib_a158_research` 组合各阶段，叶子 Task 可复用兼容的上游产物。
+主链为 **ETL → Train → Predict → Portfolio → Backtest**，因子分析可从 ETL 分支。`qlib_a158_research` 组合各阶段，叶子 Task 可复用兼容的上游产物。
 
 | 插件                                                                         | 能力                                           |
 | ---------------------------------------------------------------------------- | ---------------------------------------------- |

@@ -148,7 +148,7 @@ Prepare historical data and `AXONX_TUSHARE_TOKEN` before following the [research
 
 ## 🧩 From Qlib Alpha158 to research plugins
 
-The main chain is **ETL → Train → Predict → Backtest**, with optional factor analysis from ETL. `qlib_a158_research` composes these stages; leaf Tasks can reuse compatible upstream artifacts.
+The main chain is **ETL → Train → Predict → Portfolio → Backtest**, with optional factor analysis from ETL. `qlib_a158_research` composes these stages; leaf Tasks can reuse compatible upstream artifacts.
 
 | Plugin                                                                       | Capability                                                                         |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |

@@ -13,7 +13,9 @@ extends: default
 timezone: Asia/Shanghai
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
 使用 `axonx app --config scheduled.yaml` 启动。`cron: []` 关闭继承计划；列表整体替换父列表，配置变化后重启。
@@ -23,6 +25,8 @@ cron:
 表达式恰好五个数字字段：分、时、日、月、星期。支持数字范围、列表、步长和通配符，拒绝星期名称和秒字段。触发使用应用时区。到期条目触发一次，然后从当前时间推进，不补跑错过时点。
 
 ## 命令参数
+
+`command` 是一个字符串，或用空格拼成同一条命令的字符串片段列表。长片段可用 YAML `>-` 块换行。包含空格的值和 JSON 参数须保留命令内的引号，锚点可复用完整的带引号参数片段。列表每项都必须是字符串。
 
 命令必须以 `axonx exec` 开始并包含非空 `--task NAME`。通过 `shlex` 解析，不经过 shell，不支持管道、重定向、环境赋值或 `--target` 等客户端选项。执行默认值和环境配置在应用层，也可显式传入 Task 执行字段。
 

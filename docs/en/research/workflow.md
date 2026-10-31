@@ -102,10 +102,10 @@ Install the plugin and prepare historical data, then configure each stage throug
 axonx get_task_def --task qlib_a158_research
 axonx exec --task qlib_a158_research --task-name pipeline-01 \
   --etl.start-date 20150101 --train.train-end 20230101 \
-  --predict.pred-end 20231231 --backtest.top-ns '[20,30]'
+  --predict.pred-end 20231231 --portfolio.top-ns '[20,30]'
 ```
 
-The parent owns child instance names and `upstream_task_ids`, runs ETL → Train → Predict → Backtest, and returns `stage_task_ids`. Set `--analysis '{}'` to add factor analysis after ETL; it is disabled by default. `predict.pred_start` defaults to `train.train_end`. Nested stage names, dependencies and explicit backtest input-file overrides are rejected; use leaf Tasks to reuse existing upstreams. Children share the parent process and inherit its name. See [Composing Tasks](../guides/composite-tasks.md).
+The parent owns child instance names and `upstream_task_ids`, runs ETL → Train → Predict → Portfolio → Backtest, and returns `stage_task_ids`. Set `--analysis '{}'` to add factor analysis after ETL; it is disabled by default. `predict.pred_start` defaults to `train.train_end`. Nested stage names, dependencies and explicit backtest input-file overrides are rejected; use leaf Tasks to reuse existing upstreams. Children share the parent process and inherit its name. See [Composing Tasks](../guides/composite-tasks.md).
 
 ## Common failures and actions
 

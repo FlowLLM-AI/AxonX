@@ -108,17 +108,17 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '<factor_train_task_id>'
   --pred-start 20230101 --pred-end 20261008
 
 # 固定持有：分别对基础和因子预测执行一次
-axonx exec --task qlib_a158_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --holding-days 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
 
 # 策略版本：复用因子预测，采用选中的 3 日策略
-axonx exec --task qlib_strategy_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
+axonx exec --task qlib_strategy_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
 ```
 
 ## 任务来源
 
-执行工作区：45 机器 `/nas/jinli.yl/data/axon`；原始产物保存在该工作区。仅列本次实验记录。
+实验在 45 机器的独立工作区执行，原始产物保留在原执行工作区；这里只列出本次实验记录。
 
 以下记录来自历史 0.1.1 运行时，保留当时的 Run ID 和 SHA-256 输入摘要作为案例证据。当前 Task metadata 使用 `started_at` 区分执行，文件产物使用 `revision="<size>:<mtime_ns>"`；不提供 `run_id` 或按 Run ID 等待的参数。重新执行会产生新的执行身份。
 

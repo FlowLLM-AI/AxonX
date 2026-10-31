@@ -130,13 +130,13 @@ axonx python --code 'import sys; print(sys.executable)' --timeout 30
 
 Read the relevant plugin's README, `pyproject.toml`, `plugin.yaml`, Task implementation and tests before choosing an approach:
 
-| Need                                        | Implementation and reference                                                             |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Existing parameters can test the idea       | Reuse an installed Task and proceed to execution                                         |
-| Change an existing algorithm                | Modify the responsible plugin, including parameters, tests and documentation             |
-| Independent algorithm or reusable extension | Create a plugin with unique Task registrations; it may live outside the AxonX repository |
-| Reference for a complete research pipeline  | `plugins/qlib_a158/`: ETL, analysis, training, prediction, backtesting and a parent Task |
-| Extend features or portfolio rules          | `plugins/qlib_factor/` extends ETL/Train; `plugins/qlib_strategy/` extends backtesting   |
+| Need                                        | Implementation and reference                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Existing parameters can test the idea       | Reuse an installed Task and proceed to execution                                                    |
+| Change an existing algorithm                | Modify the responsible plugin, including parameters, tests and documentation                        |
+| Independent algorithm or reusable extension | Create a plugin with unique Task registrations; it may live outside the AxonX repository            |
+| Reference for a complete research pipeline  | `plugins/qlib_a158/`: ETL, analysis, training, prediction, portfolio, backtesting and a parent Task |
+| Extend features or portfolio rules          | `plugins/qlib_factor/` extends ETL/Train; `plugins/qlib_strategy/` extends backtesting              |
 
 ### Minimal plugin
 
@@ -348,7 +348,7 @@ Local execution settings resolve as explicit CLI fields > service `get_config` >
 
 ### Reference research pipeline
 
-The `qlib_a158` pipeline is ETL → Train → Predict → Backtest, with Analysis branching independently from ETL. Install the plugin and configure data credentials on the execution machine, then run stages in order. Verify success before starting each downstream stage; scripts must stop on failure. Skip downloading when complete raw history is already available:
+The `qlib_a158` pipeline is ETL → Train → Predict → Portfolio → Backtest, with Analysis branching independently from ETL. Install the plugin and configure data credentials on the execution machine, then run stages in order. Verify success before starting each downstream stage; scripts must stop on failure. Skip downloading when complete raw history is already available:
 
 ```bash
 export AXONX_TUSHARE_TOKEN='replace-with-data-token'
@@ -470,12 +470,16 @@ extends: default
 timezone: Asia/Shanghai
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
 ```bash
 axonx app --config scheduled.yaml
 ```
+
+`command` accepts one string or a list of string fragments joined with spaces into one command. Use YAML `>-` blocks for long fragments and quote JSON arguments within the command text. YAML anchors can share complete quoted argument fragments.
 
 Schedules accept five-field expressions and local `axonx exec --task NAME` commands. Shell pipes, redirection and remote options are unsupported, and missed slots are not replayed. Restart after configuration changes. Started scheduled executions can survive service restarts; manual executions stop with the service. Inspect Task status and `logs/cron/entry-N.log`, and prevent overlapping schedules with fixed instance names.
 

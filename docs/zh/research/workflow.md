@@ -102,10 +102,10 @@ qlib_a158 独立发布特征、原始标签、行情和日历产物。标签固�
 axonx get_task_def --task qlib_a158_research
 axonx exec --task qlib_a158_research --task-name pipeline-01 \
   --etl.start-date 20150101 --train.train-end 20230101 \
-  --predict.pred-end 20231231 --backtest.top-ns '[20,30]'
+  --predict.pred-end 20231231 --portfolio.top-ns '[20,30]'
 ```
 
-父 Task 管理子实例名和 `upstream_task_ids`，依次运行 ETL → Train → Predict → Backtest，返回 `stage_task_ids`。添加 `--analysis '{}'` 会在 ETL 后执行因子分析，默认不启用。`predict.pred_start` 默认采用 `train.train_end`。嵌套阶段名、依赖以及显式回测输入文件覆盖会被拒绝；复用已有上游时使用叶子 Task。子任务与父任务共享进程，并继承父实例名，详见[组合 Task](../guides/composite-tasks.md)。
+父 Task 管理子实例名和 `upstream_task_ids`，依次运行 ETL → Train → Predict → Portfolio → Backtest，返回 `stage_task_ids`。添加 `--analysis '{}'` 会在 ETL 后执行因子分析，默认不启用。`predict.pred_start` 默认采用 `train.train_end`。嵌套阶段名、依赖以及显式回测输入文件覆盖会被拒绝；复用已有上游时使用叶子 Task。子任务与父任务共享进程，并继承父实例名，详见[组合 Task](../guides/composite-tasks.md)。
 
 ## 常见失败与处理
 

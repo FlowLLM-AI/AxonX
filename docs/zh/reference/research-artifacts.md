@@ -74,7 +74,7 @@ Task 输入通过 `input_sources` 保存生产执行与产物修订。显式外�
 
 ## ETL 产物
 
-Axon/Axon2 A 股 ETL 的特征定义、来源和质量信息保存在 `metadata.json.output_params.protocol`。每个 Task 对应一个信号时刻（`protocol.trade_time`），使用固定的产物角色；特征文件固定命名为 `features.parquet` 和可选的 `features_stats.csv`。指定外部输出目录时，Task 的 `artifacts/` 内副本保留原文件名。
+ETL 生产者在 `metadata.json.output_params.protocol` 扩展中描述特征语义、来源和质量。产物角色与文件名由生产者契约定义，消费者通过发布记录解析文件，不假定其他插件的目录布局。将外部生成的文件复制进 Task 目录时，保留稳定文件名并发布任务内的产物记录。
 
 基类保存输出文件描述和列名。qlib_a158 扩展 feature_count、symbols、schema、protocol、market_state 等信息，生成：
 
@@ -269,7 +269,7 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 
 `publish_online()` 将已完成的推理结果写入 Task 普通的 `outputs/<HHMM>/` 目录，返回包含来源执行、模型身份、协议及注册文件的 `OnlineCommit`。执行器通过 `persistent/task.lock` 独占执行，每次结束向 `persistent/history.jsonl` 追加一行终态元信息 JSON。在线业务文件使用普通 Task 输出目录。
 
-Axon2 每日父任务采用 `outputs/<HHMM>/<模型>/`。online 留存预测、排名、按需聚合分数、小行情表和展示账本；特征、日历、模型权重与调试数据留在推理子任务，证据引用固定子执行时间及文件修订。报告的 `portfolios` 将稳定组合键映射到完整身份。账本以 `portfolio_key` 列区分组合：positions 是当天持仓，orders/trades 是当天事件，daily 每个组合每天一行，summary 是截至当天统计。Studio 拼接每日快照展示历史，不依赖可变子任务。compare 父任务仅留 metadata 差异摘要、top_comparisons.json 和按需有界 differences.parquet 样本；被覆盖的推理证据不可重算，不会替换为新执行。
+在线报告通过 `StockOnlineReport` 和 `OnlineCommit` 声明生产执行、模型、协议及产物，具体目录布局和快照归属由生产者决定。股票报告中的 `protocol.report.portfolios` 将稳定组合键映射到完整身份，账本用 `portfolio_key` 区分组合：positions 描述当前持仓，orders/trades 描述事件，daily 每个组合每天一行，summary 保存截至评价日的统计。Studio 可按这些契约拼接日期快照。引用子任务证据时必须固定子执行和文件修订，已替换的证据不能用新执行代替。
 
 均值或排名均值集成的组合键不包含滚动变化的 seed 成员，每日完整身份仍保留实际成员；显式选择不同 seed 的组合使用不同键。
 

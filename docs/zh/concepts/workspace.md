@@ -61,7 +61,7 @@
 
 `workspace_dir` 与 `log_dir` 独立解析，`logs/` 不默认位于 `.axonx/` 内。Agent 的状态和会话路径可配置，插件构建的 `--output` 可指定其他输出目录；上图列出默认位置。daemon 的本机通信 socket 位于系统临时目录，不在工作区中。
 
-固定名字使用 `tasks/<task_type>/<task_id>/`。自动命名保留格式为 `YYYYMMDDHH` 加四位字母数字；匹配该格式的名字（包括子任务继承名字）使用 `tmp/tasks/<task_type>/<task_id>/`。Task ID 仍为 `<类型>#<注册名>#<名字>`。新自动命名根任务不会覆盖已有目录；同一父任务的子调用重试可以复用目录。类型枚举为 base/api/etl/analysis/train/predict/inference/backtest。
+固定名字使用 `tasks/<task_type>/<task_id>/`。自动命名保留格式为 `YYYYMMDDHH` 加四位字母数字；匹配该格式的名字（包括子任务继承名字）使用 `tmp/tasks/<task_type>/<task_id>/`。Task ID 仍为 `<类型>#<注册名>#<名字>`。新自动命名根任务不会覆盖已有目录；同一父任务的子调用重试可以复用目录。类型枚举为 base/api/etl/analysis/train/predict/portfolio/inference/backtest。
 
 例如固定名训练任务位于 `tasks/train/train#qlib_a158_train#baseline/`，自动命名任务位于 `tmp/tasks/train/train#qlib_a158_train#2026102912aB3d/`。命名判断只依赖最终名字，不增加存储类别字段。参数比较使用普通分析 Task，`summary_stats.csv` 和 `comparison.json` 保存在对应 Task 目录中。
 

@@ -23,13 +23,22 @@ def test_cron_config_preserves_argv_without_executing_a_shell():
     assert entry.model_dump(mode="json") == {"expression": "* * * * *", "command": command}
 
 
-def test_structured_cron_commands_share_yaml_arguments_without_shell_expansion():
+def test_cron_fragments_form_one_command_and_share_quoted_json_without_shell_expansion():
     values = yaml.safe_load("""
 cron:
   - expression: "0 9 * * 1-5"
-    command: [axonx, exec, --task, first, --models, &models {"0945": [{task_name: "a b; $(touch unwanted)"}]}]
+    command:
+      - axonx exec --task first
+      - >-
+        --collection '{"daily_workers": 10, "requests_per_minute": 3000}'
+      - &models >-
+        --models '{
+          "0945": [{"task_name": "中文 a b; $(touch unwanted)"}]
+        }'
   - expression: "30 21 * * 1-5"
-    command: [axonx, exec, --task, second, --models, *models]
+    command:
+      - axonx exec --task second
+      - *models
 """)
     config = ApplicationConfig.model_validate(values)
     arguments = []
@@ -37,9 +46,22 @@ cron:
         validate_cron_command(entry.argv)
         command, _ = parse_command(entry.argv[1:])
         arguments.append(command.arguments)
-        assert isinstance(entry.command, str)
+        assert isinstance(entry.model_dump(mode="json")["command"], str)
+        assert entry.argv[:2] == ("axonx", "exec")
     assert [entry["task"] for entry in arguments] == ["first", "second"]
-    assert arguments[0]["models"] == arguments[1]["models"] == {"0945": [{"task_name": "a b; $(touch unwanted)"}]}
+    assert arguments[0]["collection"] == {"daily_workers": 10, "requests_per_minute": 3000}
+    assert arguments[0]["models"] == arguments[1]["models"] == {"0945": [{"task_name": "中文 a b; $(touch unwanted)"}]}
+
+
+def test_cron_tokenizes_quotes_after_joining_all_fragments():
+    entry = CronConfig(expression="* * * * *", command=['worker --message "a', 'b" --empty ""'])
+    assert entry.argv == ("worker", "--message", "a b", "--empty", "")
+
+
+@pytest.mark.parametrize("fragment", [None, 7, True, {"models": []}, ["--models", "[]"]])
+def test_cron_rejects_non_text_fragments(fragment):
+    with pytest.raises(ValueError, match="Command fragments must be strings"):
+        CronConfig(expression="* * * * *", command=["axonx exec --task demo", fragment])
 
 
 def test_cron_preserves_commands_without_interpreting_their_options():
@@ -55,7 +77,7 @@ def test_cron_preserves_commands_without_interpreting_their_options():
     )
 
 
-@pytest.mark.parametrize("command", ["", " ", '""', 'worker "unterminated'])
+@pytest.mark.parametrize("command", ["", " ", '""', 'worker "unterminated', [], [" "], ['worker "unterminated']])
 def test_cron_rejects_invalid_command_boundaries(command):
     with pytest.raises(ValueError, match=r"cron\.1"):
         ApplicationConfig(

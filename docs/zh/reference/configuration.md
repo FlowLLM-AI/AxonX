@@ -60,10 +60,12 @@ pipeline 后端支持 `event_buffer_size`（正整数，默认 64）和 `cancel_
 ```yaml
 cron:
   - expression: "0 16 * * 1-5"
-    command: "axonx exec --task download_tushare_task --days-back 7"
+    command:
+      - axonx exec --task download_tushare_task
+      - --days-back 7
 ```
 
-`command` 支持字符串或参数列表，例如 `[axonx, exec, --task, download_tushare_task, --days-back, 7]`。参数中的映射和列表自动编码为 JSON，可通过 YAML 锚点在多个计划间复用同一份结构化参数。加载后统一为命令字符串。
+`command` 接受一个字符串或字符串片段列表。列表先用空格拼接，再统一解析整条命令；每个计划只执行一条命令。包含空格的值和 JSON 参数须在命令文本内加引号，例如 `--models '{"0945": [{"task_name": "model-0945"}]}'`。长片段可用 YAML `>-` 块换行，通过锚点在多个计划间复用完整的带引号参数。每个片段都必须是字符串，加载后保存为拼接后的命令字符串。
 
 CLI 启动只支持五字段数字 cron 和本地 `axonx exec --task NAME`。命令不经 shell，拒绝客户端连接选项。列表整体替换继承计划。触发使用应用时区，不补跑错过时点，配置变化需重启。详见[调度](../guides/scheduling.md)。
 

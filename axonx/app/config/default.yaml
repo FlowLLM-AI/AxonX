@@ -14,7 +14,9 @@ targets: []
 cron: []
 # cron:
 #   - expression: "0 16 * * 1-5"
-#     command: "axonx exec --task download_tushare_task --days-back 7"
+#     command:
+#       - axonx exec --task download_tushare_task
+#       - --days-back 7
 #   - expression: "*/10 * * * *"
 #     command: "axonx exec --task demo --x 1 --y 2"
 
