@@ -8,7 +8,7 @@ Follow the dashed copy path to the display workspace. Research consumers continu
 
 ## Content and semantics
 
-Replicas include metadata, progress evidence and referenced published artifacts. They exclude environments, raw workspaces, unreferenced files and upstream input/model snapshots. Missing files are recorded in replica.omitted; source declarations and metrics remain unchanged. Replicas cannot execute or be reused as mutable research inputs, and are not forwarded as synchronization sources.
+Replicas include metadata, progress evidence and referenced published artifacts. They exclude environments, raw workspaces and unreferenced files. Missing files are recorded in replica.omitted; source declarations and metrics remain unchanged. Replicas cannot execute or be reused as mutable research inputs, and are not forwarded as synchronization sources.
 
 ## One budget
 

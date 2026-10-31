@@ -20,7 +20,7 @@ from ....task.models.lifecycle import (
     TaskMetadata,
     TaskSnapshot,
 )
-from ....task.storage.files import snapshot_file
+from ....task.storage.files import copy_file
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
     EVENTS_FILE,
@@ -118,17 +118,10 @@ class ReplicaBuilder:
             if item.relative != METADATA_FILE and (not (self.snapshot and item.relative == EVENTS_FILE))
         }
         self.omitted = dict(self.before.omitted)
-        self.omitted.update(
-            {
-                name + "/": "upstream input snapshot"
-                for name in ("inputs", "model_snapshot")
-                if (self.source / name).is_dir()
-            }
-        )
         for name, item in self.originals.items():
             target = self.destination / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            snapshot_file(item.path, target)
+            copy_file(item.path, target)
         self.metadata.log_path = ""
         self._capture_log()
         limit = archive_budget(self.budget)

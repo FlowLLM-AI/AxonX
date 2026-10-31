@@ -206,6 +206,7 @@ The distribution name `axonx-example` is used for package management, entry-poin
 
 - Derive inputs/outputs from the appropriate Pydantic models; undeclared Task inputs are rejected. Steps run synchronously and pass values through `self.state`. `build_output_params()` returns an `output_cls` instance.
 - Write output files to `self.task_dir` and state retained across same-name reruns to `self.persistent_dir`. Resolve research input paths with `self.resolve_workspace_path()`. Report progress with `report_progress()` and release resources in `close()`. Output is built after cleanup, so retain the state it needs.
+- Resolve declared implementations with `self.resolve_task(reg_name)` during execution; the injected resolver supplies their Task class and `input_cls` without importing a host. `self.input_budget` optionally bounds work and is inherited by child Tasks; the executor checks it at step boundaries.
 - Declare data dependencies with `upstream_task_ids`; this does not execute upstream Tasks. Call child Tasks synchronously with `self.run_task(...)` and check `success`, `child_task_id` and typed `output_params`. Parent/child calls and input dependencies are separate relationships.
 - Children share the process and workspace and inherit the parent instance name by default. The same registration and instance name reuse one directory; use distinct `task_name` values for repeated calls or pin artifacts before reuse.
 
@@ -213,16 +214,17 @@ For model-specific synchronization, reuse model `task_name`, logical child `node
 
 Research bases are in `axonx.task.core.research`, inputs/outputs in `axonx.task.models.params`, and protocols in `axonx.task.models.artifacts`. Main required fields for standard research outputs:
 
-| Stage          | Fields                                               |
-| -------------- | ---------------------------------------------------- |
-| ETL / Analysis | ETL: `rows`, `date_range`; Analysis: `rows`          |
-| Train          | `train_rows`                                         |
-| Predict        | `rows`, `date_range`, `protocol`                     |
-| Backtest       | `default_universe`, nonempty `universes`, `protocol` |
+| Stage          | Fields                                      |
+| -------------- | ------------------------------------------- |
+| ETL / Analysis | ETL: `rows`, `date_range`; Analysis: `rows` |
+| Train          | `feature_protocol`, `models`                |
+| Predict        | `rows`, `date_range`, `protocol`            |
+| Portfolio      | `portfolios`, `protocol`                    |
+| Backtest       | nonempty `portfolios`, `protocol`           |
 
-Write files first, then register them in output `artifacts` using `axonx.task.storage.artifacts.artifact_record(path, task_dir)`. Records contain a Task-relative path, size and revision. Reuse `axonx.task.storage.files` for atomic writes and snapshots. `verify_artifact()` checks the file; revision identifies size/modification time, not a content hash. `pin_upstream_artifacts()` in `axonx.task.storage.inputs` verifies and snapshots artifacts from successful, non-replica upstream Tasks. Plugins still check business compatibility.
+Write files first, then register them in output `artifacts` using `axonx.task.storage.artifacts.artifact_record(path, task_dir)`. Records contain a Task-relative path, size and revision. Reuse `axonx.task.storage.files` for atomic writes and output copies. `verify_artifact()` checks the file; revision identifies size/modification time, not a content hash. `upstream_artifacts()` in `axonx.task.storage.inputs` reads verified producer files directly and records their executions and revisions in metadata `input_sources`; execution revalidates these references before success. Plugins still check business compatibility.
 
-Reuse protocols with `version=1` and the correct `task_type`. Qlib training publishes a model manifest; prediction publishes model identity, dates, score columns and input revisions. Stock ETL separates data, labels, market and calendar; predictions must not contain future labels. Stock backtests can inherit `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`, implementing `build_universes()` and `select_universe()` while preserving signal, universe, execution and valuation protocols.
+Reuse protocols with `version=1` and the correct `task_type`. Training indexes all models in one Task metadata record; prediction publishes model identity, dates, score columns and input revisions. Stock ETL separates data, labels, market and calendar; predictions must not contain future labels. Stock portfolio Tasks inherit `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask` and implement signal-time `build_universes()` and `select_universe()`. Backtests inherit `axonx.task.builtins.stock.backtest.BaseStockBacktestTask` and consume frozen Portfolio artifacts, preserving execution and valuation protocols.
 
 Run affected tests in temporary workspaces, then perform a small actual run:
 
@@ -307,6 +309,10 @@ axonx get_task_def --task example_add --target node-b:1024
 
 Use the same procedure for a local service, omitting the target. Successful installation/restart responses do not prove the new code works; complete the refresh before running it. Restarting a service terminates its manual CLI executions, so do not restart it during research without coordination.
 
+### Portfolio and Backtest
+
+Research follows Predict → Portfolio → Backtest. `BasePortfolioTask` is the generic construction base and `BaseStockPortfolioTask` implements stocks. Outputs use a `portfolios` list and readable `portfolio_id` dictionaries. Reuse keys for shared meanings; producers may add fields. Portfolio freezes eligibility, ranks and strategy rules. Each stock portfolio references Predict inputs and shares one complete candidate `rankings.parquet` across all Top N values and strategies. New aggregated scores alone use `scores.parquet`; unchanged scores reference their upstream column. Metadata retains readable identities, universes and file references. `PortfolioReader` validates source executions and revisions and reconstructs signals. Targets and equal-slot weights are derived from ranks and `top_n`; Backtest does not copy signals. Backtest consumes Portfolio sources and owns shared execution accounting, valuation and performance statistics. Keep costs and evaluation parameters in Backtest. Online and offline work share prediction and construction logic. Compare reads fixed prediction, Portfolio and online-history publications to compare identities, ranks, targets and ledgers.
+
 ## 4. Run Tasks and inspect evidence
 
 Check the Task schema, data coverage and required credentials first. Market-data credentials differ from the AxonX service token. Remote execution uses the target's data, paths and environment; a local `export` does not configure the remote service.
@@ -322,6 +328,8 @@ axonx get_task_graph --task-id 'base#demo#check'
 ```
 
 `exec` runs synchronously and returns business output and the Task exit code when finished. Observe long runs from another terminal or tool call. Add the same `--target` to remote execution and all subsequent queries; execution output appears continuously in the terminal. Remote execution may continue after disconnection. Check records before retrying, and use `kill` to stop execution.
+
+Task state and exit code describe execution failures. Keep comparison differences, missing comparison data, protocol findings and handled incomplete/skipped windows in their business outputs. These findings do not fail a completed Task; exceptions and recorded execution errors do. Comparison views must display differences even when the Task succeeded.
 
 ```bash
 axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
@@ -348,9 +356,8 @@ axonx exec --task qlib_a158_train --task-name research-01 \
 axonx exec --task qlib_a158_predict --task-name research-01 \
   --upstream-task-ids '["train#qlib_a158_train#research-01","etl#qlib_a158_etl#research-01"]' \
   --pred-start 20230101 --pred-end 20231231
-axonx exec --task qlib_a158_backtest --task-name research-01 \
-  --upstream-task-ids '["predict#qlib_a158_predict#research-01"]' \
-  --top-ns '[20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --task-name research-01 --upstream-task-ids '["predict#qlib_a158_predict#research-01"]' --top-ns '[20,30]'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Downloads write shared `tushare/` partitions. The default 7-day lookback cannot support multi-year training. Check raw history, rolling-feature requirements and data permissions; missing market data is not zero return. The training end date is exclusive. Prediction must not start before training ends, and prediction/selection inputs must not use future labels.
@@ -378,7 +385,7 @@ A Task ID is `task_type#registration#task_name`. Instance names contain 1–32 l
 
 `status`/`wait_task` default to summaries; `--detail full` returns complete inputs and outputs. `get_task_context` provides the selected full record, paths and input relationships. Continue logs with `next_offset`; `--started-at TIMESTAMP` guards against reading a same-name replacement. Lists and graphs may lag behind index refreshes; single-Task status reads metadata directly.
 
-Fixed names use `<workspace>/tasks/<task_type>/<task_id>/`; names matching `YYYYMMDDHH` plus four alphanumeric characters use `<workspace>/tmp/tasks/<task_type>/<task_id>/`, including inherited names. Both contain `metadata.json`, `events.jsonl`, Task-relative `log_path` (`task.log` when file logging is enabled), and `persistent/runs.jsonl`. The executor appends `started` and `finished` events with complete execution metadata for every Task type; same-name reruns retain this journal. Execution reuses the file lock at `persistent/task.lock`, with no shared lock directory. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
+Fixed names use `<workspace>/tasks/<task_type>/<task_id>/`; names matching `YYYYMMDDHH` plus four alphanumeric characters use `<workspace>/tmp/tasks/<task_type>/<task_id>/`, including inherited names. Both contain `metadata.json`, `events.jsonl`, Task-relative `log_path` (`task.log` when file logging is enabled), and `persistent/history.jsonl`. After each Task finishes, the executor appends one complete terminal metadata JSON object per line; same-name reruns retain this history. Execution reuses the file lock at `persistent/task.lock`, with no shared lock directory. Get filenames from output `artifacts`, then combine the Task directory and artifact-relative path for inspection:
 
 ```bash
 axonx list_entries --path ''

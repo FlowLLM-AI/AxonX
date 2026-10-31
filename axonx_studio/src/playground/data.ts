@@ -12,6 +12,7 @@ export const kinds = [
   "analysis",
   "train",
   "predict",
+  "portfolio",
   "backtest",
 ] as const;
 export const definitions: TaskDefinition[] = kinds.map((kind) => ({
@@ -64,6 +65,7 @@ export function taskStatus(
     task_type: kind,
     reg_name: id.split("#")[1],
     input_params: { task_name: id.split("#")[2], upstream_task_ids: [] },
+    input_sources: {},
     state: "succeeded",
     pid: 1234,
     machine_id: "playground",
@@ -283,37 +285,39 @@ export function addArtifacts(
   );
   const output =
     task.task_type === "train"
-      ? "model.json"
+      ? "models/synthetic_seed_0_fit_end_20230101_use_20230101-onward.json"
       : task.task_type === "analysis"
         ? "scores.json"
-        : "samples.parquet";
+        : task.task_type === "predict"
+          ? "predictions.parquet"
+          : "samples.parquet";
   const artifactFiles =
     task.task_type === "backtest"
       ? {
-          all_daily: "universes/all/daily.parquet",
-          all_summary: "universes/all/summary.parquet",
-          hs300_daily: "universes/hs300/daily.parquet",
-          hs300_summary: "universes/hs300/summary.parquet",
+          all_daily: "portfolios/0/daily.parquet",
+          all_summary: "portfolios/0/summary.parquet",
+          hs300_daily: "portfolios/1/daily.parquet",
+          hs300_summary: "portfolios/1/summary.parquet",
         }
       : task.task_type === "train"
-        ? { model: "model.json", model_manifest: "models.json" }
+        ? {
+            model:
+              "models/synthetic_seed_0_fit_end_20230101_use_20230101-onward.json",
+          }
         : {
             [(
               {
                 etl: "dataset",
-                train: "model_manifest",
                 predict: "predictions",
+                portfolio: "targets",
                 analysis: "result",
               } as Partial<Record<TaskMetadata["task_type"], string>>
             )[task.task_type] || "output"]: output,
           };
   if (task.task_type === "backtest") {
-    for (const universe of ["all", "hs300"]) {
-      files.set(`${path}/universes/${universe}/daily.parquet`, table(daily));
-      files.set(
-        `${path}/universes/${universe}/summary.parquet`,
-        table(periods),
-      );
+    for (const [index] of ["all", "hs300"].entries()) {
+      files.set(`${path}/portfolios/${index}/daily.parquet`, table(daily));
+      files.set(`${path}/portfolios/${index}/summary.parquet`, table(periods));
     }
   } else
     files.set(
@@ -325,28 +329,6 @@ export function addArtifacts(
               : { momentum: 0.08, value: 0.04, quality: -0.02 },
           )
         : table(predictions),
-    );
-  if (task.task_type === "train")
-    files.set(
-      `${path}/models.json`,
-      json({
-        version: 1,
-        task_type: "train",
-        feature_protocol: { version: 1, task_type: "etl" },
-        members: {
-          model: {
-            model_artifact: "model",
-            model: { kind: "synthetic-model", strategy },
-          },
-        },
-        artifacts: {
-          model: {
-            path: "model.json",
-            size: files.get(`${path}/model.json`)!.size,
-            revision: "1:1",
-          },
-        },
-      }),
     );
   const artifacts = Object.fromEntries(
     Object.entries(artifactFiles).map(([key, file]) => [
@@ -402,9 +384,24 @@ export function addArtifacts(
         ...(task.task_type === "predict"
           ? {
               score_columns: { model: "pred" },
-              model_identity: { model: "synthetic" },
-              dates,
-              predictions_revision: "1:1",
+              windows: [
+                {
+                  prediction_start: dates[0],
+                  prediction_end_exclusive: new Date(
+                    Date.parse(
+                      dates[dates.length - 1].replace(
+                        /^(\d{4})(\d{2})(\d{2})$/,
+                        "$1-$2-$3",
+                      ),
+                    ) + 86400000,
+                  )
+                    .toISOString()
+                    .slice(0, 10)
+                    .replaceAll("-", ""),
+                  models: { model: "synthetic" },
+                  model_identity: { model: "synthetic" },
+                },
+              ],
             }
           : {}),
       },
@@ -424,28 +421,109 @@ export function addArtifacts(
       artifacts,
     },
   };
+  if (task.task_type === "train") {
+    Object.assign(metadata, {
+      output_params: {
+        feature_protocol: {
+          version: 1,
+          task_type: "etl",
+          feature_family: "synthetic",
+        },
+        training_target: { label_column: "label_return_rank" },
+        models: {
+          "synthetic_seed_0_fit_end_20230101_use_20230101-onward": {
+            model_artifact: "model",
+            state: "succeeded",
+            model: {
+              model_type: "Synthetic model",
+              feature_names: ["momentum", "value", "quality"],
+              random_seed: 0,
+            },
+            train_start: "20150101",
+            train_end_exclusive: "20230101",
+            use_from: "20230101",
+            use_to: null,
+            train_rows: 1200,
+            parameters: { strategy },
+            metrics: metadata.output_params.metrics,
+            training_curve: metadata.output_params.training_curve,
+            started_at: task.started_at,
+            finished_at: task.finished_at,
+            elapsed_seconds: 1,
+            error: "",
+          },
+        },
+        artifacts,
+      },
+    });
+  }
   if (task.task_type === "backtest") {
     const { days, date_range, dimensions, evaluation_status, ...shared } =
       metadata.output_params;
     Object.assign(metadata, {
       output_params: {
         ...shared,
-        signals_format: "stock-signals-v1",
-        default_universe: "all",
-        universes: Object.fromEntries(
-          ["all", "hs300"].map((key) => [
-            key,
-            {
-              label: key === "all" ? "All stocks" : "CSI 300",
-              parameters: {},
-              days,
-              date_range,
-              dimensions,
-              evaluation_status,
-              artifacts: { daily: `${key}_daily`, summary: `${key}_summary` },
+        signals_format: "stock-signals-v3",
+        portfolios: ["all", "hs300"].flatMap((key) =>
+          [5, 10, 30].map((n) => ({
+            portfolio_id: {
+              universe:
+                key === "all"
+                  ? { kind: "all" }
+                  : { kind: "index", index_codes: ["hs300"] },
+              strategy: { kind: "fixed_expiry", holding_days: 1 },
+              top_n: n,
+              allocation: "equal_slot",
+              trade_time: "1500",
             },
-          ]),
+            days,
+            date_range,
+            dimensions: { ...dimensions, top_ns: [n] },
+            evaluation_status,
+            artifacts: { daily: `${key}_daily`, summary: `${key}_summary` },
+          })),
         ),
+      },
+    });
+  }
+  if (task.task_type === "portfolio") {
+    const prepared = predictions.map((row) => ({
+      universe_key: "all",
+      trade_date: row.trade_date,
+      trade_time: row.trade_time,
+      ts_code: row.ts_code,
+      target_rank: row.rank,
+    }));
+    files.set(`${path}/rankings.parquet`, table(prepared));
+    const plans = [5, 10, 30].map((n) => {
+      return {
+        portfolio_id: {
+          universe: { kind: "all" },
+          score_selection: { method: "model" },
+          strategy: { kind: "fixed_expiry", holding_days: 1 },
+          top_n: n,
+          allocation: "equal_slot",
+          trade_time: "1500",
+        },
+        artifacts: { rankings: "rankings" },
+      };
+    });
+    Object.assign(metadata, {
+      output_params: {
+        signals_format: "stock-signals-v3",
+        score_column: "pred",
+        universes: [
+          { key: "all", label: "All market", parameters: { kind: "all" } },
+        ],
+        portfolios: plans,
+        protocol: { version: 1, task_type: "portfolio" },
+        artifacts: {
+          rankings: {
+            path: "rankings.parquet",
+            size: files.get(`${path}/rankings.parquet`)!.size,
+            revision: "1:1",
+          },
+        },
       },
     });
   }

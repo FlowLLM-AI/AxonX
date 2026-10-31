@@ -5,9 +5,9 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import RLock
 from time import perf_counter
 
-from ..models.identity import TaskState
 from ..models.lifecycle import TaskMetadata, TaskStepStatus
 from ..storage.logs import TaskJournal
 from ..storage.workspace import EVENTS_FILE, PERSISTENT_DIR, write_task_metadata
@@ -16,24 +16,27 @@ from ..storage.workspace import EVENTS_FILE, PERSISTENT_DIR, write_task_metadata
 class TaskProgress:
     """Own one execution's step state, progress throttling and ordered publication."""
 
-    def __init__(self, directory: Path, status: TaskMetadata, *, previous_started_at: datetime | None = None) -> None:
+    def __init__(self, directory: Path, status: TaskMetadata) -> None:
         self.directory = directory
         self.status = status
         self.journal = TaskJournal(directory / EVENTS_FILE)
-        self.runs = TaskJournal(directory / PERSISTENT_DIR / "runs.jsonl")
-        self.previous_started_at = previous_started_at
-        self._published_state: TaskState | None = None
+        self.history = TaskJournal(directory / PERSISTENT_DIR / "history.jsonl")
+        self._history_appended = False
         self.current: TaskStepStatus | None = None
         self._published: dict[tuple[str, str], float] = {}
+        self._lock = RLock()
 
     def publish(self, *steps: TaskStepStatus) -> None:
         """Write events first; terminal metadata includes every final step snapshot."""
+        with self._lock:
+            self._publish(steps)
+
+    def _publish(self, steps) -> None:
         self.journal.append_snapshots(self.status.steps if self.status.state.is_terminal else steps)
         write_task_metadata(self.directory, self.status)
-        if self.status.state != self._published_state:
-            previous = self.previous_started_at if self.status.state == TaskState.RUNNING else None
-            self.runs.append_run(self.status, previous_started_at=previous)
-            self._published_state = self.status.state
+        if self.status.state.is_terminal and not self._history_appended:
+            self.history.append(self.status.model_dump(mode="json"), durable=True)
+            self._history_appended = True
 
     def report(self, percentage: float | None = None, *, name: str | None = None, **changes) -> None:
         step = self.current

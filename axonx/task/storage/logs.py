@@ -7,11 +7,9 @@ import fcntl
 import json
 import os
 from collections.abc import Iterable
-from datetime import datetime
 from pathlib import Path
 
 from ..models.events import LogChunk, ProgressEvent
-from ..models.identity import TaskState
 from ..models.lifecycle import TaskMetadata, TaskStepStatus
 from .workspace import read_entry, resolve_relative_path, task_directory
 
@@ -61,14 +59,6 @@ class TaskJournal:
             if durable:
                 handle.flush()
                 os.fsync(handle.fileno())
-
-    def append_run(self, metadata: TaskMetadata, *, previous_started_at: datetime | None = None) -> None:
-        """Use the existing lifecycle state to record an execution start or finish."""
-        event = "started" if metadata.state == TaskState.RUNNING else "finished"
-        record = {"event": event, **json.loads(metadata.model_dump_json())}
-        if previous_started_at is not None:
-            record["previous_started_at"] = previous_started_at.isoformat().replace("+00:00", "Z")
-        self.append(record, durable=True)
 
     def append_snapshots(self, steps: Iterable[TaskStepStatus]) -> None:
         """Flush all step snapshots before publishing their terminal metadata."""

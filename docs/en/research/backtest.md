@@ -39,23 +39,11 @@ Keys are `trade_date` (YYYYMMDD string), `trade_time` (HHMM string), and `ts_cod
 For required prediction columns, optional columns and metadata requirements, see [Prediction inputs for stock backtesting](../reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ```bash
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
-  --top-ns '[1,5,10,30]' --holding-days 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[5,10,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<Portfolio Task ID>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-Source tasks resolve market, calendar and label artifacts. Explicit files use `input_file`, `market_file`, `calendar_file` and optional `labels_file`. `as_of_date` is the inclusive evaluation cutoff. The shared base defaults to the latest market date; the Alpha158 plugin overrides this to the last signal date. Set it explicitly to extend valuation/settlement. `top_ns` is an integer list; each size has an independent portfolio. Calendar dates must be valid YYYYMMDD values without nulls or duplicates; malformed calendars are rejected before computing label or holding horizons.
-
-| Parameter                       | Default  | Meaning                                          |
-| ------------------------------- | -------- | ------------------------------------------------ |
-| `holding_days`                  | `1`      | Planned holding period in market days            |
-| `buy_cost_rate`                 | `0.0005` | Fee on executed buy notional                     |
-| `sell_cost_rate`                | `0.0015` | Fee on executed sell notional                    |
-| `annual_risk_free_rate`         | `0.012`  | Annual risk-free rate                            |
-| `annualization_days`            | `252`    | Trading dates per year                           |
-| `minimum_index_weight_coverage` | `0.98`   | Required coverage for weighted benchmark proxies |
-
-The defaults match the Qlib reference: `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015` (0.05% on buys and 0.15% on sells). An explicit `0` makes that side free. Fees apply to executed notional; normalized-cash backtests do not impose a minimum monetary fee.
+Construct Portfolio before Backtest. Universe, score aggregation, TopN and strategy parameters belong to Portfolio; each readable identity has an independent account. Backtest resolves ETL through its Portfolio source or takes explicit `market_file`, `calendar_file`, and optional `labels_file`. `portfolio_ids` selects a subset and `as_of_date` sets the valuation cutoff. Default side fees are 0.0005/0.0015, annualization uses 252 days, and the annual risk-free rate is 0.012.
 
 ## Execution and valuation
 
@@ -85,7 +73,6 @@ Plugins can supply an `events` handler that resets per Top N, processes the book
 | ----------- | ----------------------------------------------------------------------------- |
 | `daily`     | Calendar-aligned returns, equity, cash, open positions and signal diagnostics |
 | `summary`   | Overall, yearly, quarterly and monthly statistics                             |
-| `signals`   | Unified stock signals with candidate flags, target ranks and label returns    |
 | `orders`    | Actual fills and unfilled reasons                                             |
 | `positions` | Actual daily holdings, adjusted units, weights and market values              |
 | `trades`    | Completed holding periods, actual entry/exit prices, returns and fees         |
@@ -104,10 +91,12 @@ IC, RankIC and NDCG use the same signal-day buyable candidate pool as target sel
 
 `benchmark_universe_return` is an available-signal cross-section mean. `index_weight_*` produces weighted return proxies only when coverage meets the configured threshold. They are not official total-return index series. Benchmark returns use the label target date, so their period aligns with portfolio valuation.
 
-Studio reads the selected `universes[key]` report, resolving its daily and summary references through the root artifact registry. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
+Studio selects a report through one dropdown per top-level `portfolio_id` key, such as `universe`, `strategy`, and `top_n`. Choices cascade to existing portfolios and retain other values where possible; fields with one choice are disabled. Nested values display their parameters in the dropdown. This selector is shared by the Portfolio, Backtest, and comparison pages.
+
+Studio reads the selected `portfolios[index]` report, resolving its daily and summary references through the root artifact registry. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
 
 Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; prediction outputs contain scores and signal-time eligibility without future returns or valid-return coverage. Empty statistics and missing labels display as unavailable.
 
-Studio comparison preserves `signals_format` from Task metadata and reads available display-replica artifacts. Stock backtests declare `signals_format: stock-signals-v1` and register their signals, daily and summary tables through artifact references. Benchmark information-ratio headers use the labels declared in `dimensions.benchmarks`.
+Studio comparison preserves `signals_format` from Task metadata and reads available display-replica artifacts. Stock backtests declare `signals_format: stock-signals-v3` and register their daily and summary tables through artifact references. Benchmark information-ratio headers use the labels declared in `dimensions.benchmarks`.
 
 `net_relative_max_drawdown_<benchmark>` shares daily active returns with net IR (net strategy return minus the same-day benchmark). Compound these as `∏(1 + active return)`, then measure maximum drawdown from the running peak, including initial equity of 1. Values are nonpositive decimals; overall, year, quarter and month reset independently. Only paired finite observations are used; no valid observations yields null. Studio displays each declared mean/index benchmark. Unavailable values display `—`.

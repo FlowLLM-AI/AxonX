@@ -30,26 +30,13 @@ export function HistoryPreparation({
       name,
       step,
       record: records.find(
-        (record) => record.node_name === `${name}-${record.reg_name}`,
+        (record) => record.node_name === `${name}-a_stock_history`,
       ),
     };
   });
-  const unmatched = records.filter(
-    (record) => !rows.some((row) => row.record === record),
-  );
-  const entries = [
-    ...rows,
-    ...unmatched.map((record) => ({
-      name: record.node_name.endsWith(`-${record.reg_name}`)
-        ? record.node_name.slice(0, -(record.reg_name.length + 1))
-        : record.node_name,
-      step: undefined,
-      record,
-    })),
-  ];
   return (
     <div className="pipeline-steps history-preparation">
-      {entries
+      {rows
         .filter((entry) =>
           slot
             ? entry.name === `${modelName}-${slot}`
@@ -68,14 +55,15 @@ export function HistoryPreparation({
             step?.state === "failed"
               ? "failed"
               : record?.state || step?.state || "pending";
+          const childSteps = child?.steps.filter((stage) => stage.parent) || [];
           const errors = [
             ...new Set(
               [step?.error, record?.error, node?.error, child?.error].filter(
-                Boolean,
+                (error) =>
+                  error && !childSteps.some((stage) => stage.error === error),
               ),
             ),
           ];
-          const childSteps = child?.steps.filter((stage) => stage.parent) || [];
           const summarized = slot
             ? childSteps.filter(
                 (stage) =>

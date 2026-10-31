@@ -125,9 +125,9 @@ export function TopComparison({
     </div>
   );
   const selection =
-    data.score_selection.seed === null
-      ? data.score_selection.aggregation
-      : `seed_${data.score_selection.seed}`;
+    data.score_selection.method === "seed"
+      ? `seed_${data.score_selection.seeds[0]}`
+      : data.score_selection.method;
   return (
     <section className="top-comparison">
       <div
@@ -152,11 +152,6 @@ export function TopComparison({
             n,
           })}
         </span>
-        {data.mock_online && (
-          <span className="online-status status-incomplete">
-            {t("topComparison.mock")}
-          </span>
-        )}
         {reason && <span>{t(`onlinePipeline.reasons.${reason}`, reason)}</span>}
         <span
           className="top-comparison-info"

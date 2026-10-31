@@ -77,14 +77,13 @@ export type BacktestDimensions = {
   benchmarks: Array<BacktestBenchmark>;
 };
 
-export type BacktestUniverseReport = {
-  label: string;
-  parameters: Record<string, unknown>;
+export type BacktestPortfolioReport = {
+  portfolio_id: Record<string, unknown>;
+  artifacts: Record<string, string>;
   dimensions: BacktestDimensions;
   date_range: Record<string, string>;
   days: number;
   evaluation_status: string;
-  artifacts: Record<string, string>;
 };
 
 export type BaseAnalysisOutputParams = {
@@ -95,8 +94,7 @@ export type BaseAnalysisOutputParams = {
 
 export type BaseBacktestOutputParams = {
   artifacts: Record<string, ArtifactRecord>;
-  default_universe: string;
-  universes: Record<string, BacktestUniverseReport>;
+  portfolios: Array<BacktestPortfolioReport>;
   protocol: Record<string, unknown>;
 };
 
@@ -112,6 +110,12 @@ export type BaseInferenceOutputParams = {
   artifacts: Record<string, ArtifactRecord>;
   windows: Array<WindowResult>;
   model_identity: Record<string, string>;
+};
+
+export type BasePortfolioOutputParams = {
+  artifacts: Record<string, ArtifactRecord>;
+  portfolios: Array<PortfolioDefinition>;
+  protocol: Record<string, unknown>;
 };
 
 export type BasePredictOutputParams = {
@@ -130,13 +134,9 @@ export type BasePredictionCompareOutputParams = {
 
 export type BaseTrainOutputParams = {
   artifacts: Record<string, ArtifactRecord>;
-  train_rows: number;
-  model_name: string | null;
-  feature_columns: Array<string>;
-  target_columns: Array<string>;
-  metrics: Record<string, number>;
-  parameters: Record<string, unknown>;
-  training_curve: TrainingCurve;
+  feature_protocol: Record<string, unknown>;
+  training_target: Record<string, unknown>;
+  models: Record<string, ModelMember>;
 };
 
 export type BuildInfo = {
@@ -205,6 +205,11 @@ export type GpuInfo = {
   memory_available_bytes: number | null;
   memory_usage_percent: number | null;
   usage_percent: number | null;
+};
+
+export type InputSource = {
+  started_at: string;
+  artifacts: Record<string, ArtifactRecord>;
 };
 
 export type JobCatalog = {
@@ -301,6 +306,24 @@ export type MemoryInfo = {
   usage_percent: number;
 };
 
+export type ModelMember = {
+  model: Record<string, unknown>;
+  train_start: string;
+  train_end_exclusive: string;
+  use_from: string;
+  use_to: string | null;
+  model_artifact: string | null;
+  state: "pending" | "running" | "succeeded" | "failed";
+  train_rows: number;
+  parameters: Record<string, unknown>;
+  metrics: Record<string, number>;
+  training_curve: TrainingCurve;
+  started_at: string | null;
+  finished_at: string | null;
+  elapsed_seconds: number;
+  error: string;
+};
+
 export type OnlineCommit = {
   commit_id: string;
   task_id: string;
@@ -339,6 +362,17 @@ export type ParquetPreview = {
   has_more: boolean;
   row_count: number;
   row_group_count: number;
+};
+
+export type PortfolioDefinition = {
+  portfolio_id: Record<string, unknown>;
+  artifacts: Record<string, string>;
+};
+
+export type PortfolioUniverse = {
+  key: string;
+  label: string;
+  parameters: Record<string, unknown>;
 };
 
 export type PredictionComparison = {
@@ -421,10 +455,9 @@ export type StepProgress = {
 
 export type StockBacktestOutput = {
   artifacts: Record<string, ArtifactRecord>;
-  default_universe: string;
-  universes: Record<string, BacktestUniverseReport>;
+  portfolios: Array<BacktestPortfolioReport>;
   protocol: Record<string, unknown>;
-  signals_format: "stock-signals-v1";
+  signals_format: "stock-signals-v3";
 };
 
 export type StockETLOutput = {
@@ -441,12 +474,23 @@ export type StockOnlineReport = {
   commit: OnlineCommit;
 };
 
+export type StockPortfolioOutput = {
+  artifacts: Record<string, ArtifactRecord>;
+  portfolios: Array<PortfolioDefinition>;
+  protocol: Record<string, unknown>;
+  signals_format: "stock-signals-v3";
+  score_column: string;
+  universes: Array<PortfolioUniverse>;
+};
+
 export type StockReportSettings = {
-  signals_format: "stock-signals-v1";
+  signals_format: "stock-signals-v3";
+  score_column: string;
   strategy_identity: string;
   dimensions: BacktestDimensions;
   date_range: Record<string, string>;
   portfolio: Record<string, unknown>;
+  portfolios: Record<string, Record<string, unknown>>;
   score_selection: Record<string, unknown>;
   evaluation_status: "done" | "incomplete_market_data";
   missing_dates: Array<string>;
@@ -522,6 +566,7 @@ export type TaskMetadata = {
   log_path: string;
   version: 1;
   input_params: Record<string, unknown>;
+  input_sources: Record<string, InputSource>;
   output_params: Record<string, unknown>;
   children: Array<ChildTaskRecord>;
   steps: Array<TaskStepStatus>;
@@ -607,6 +652,7 @@ export type TaskType =
   | "train"
   | "predict"
   | "inference"
+  | "portfolio"
   | "backtest";
 
 export type TextPreview = {

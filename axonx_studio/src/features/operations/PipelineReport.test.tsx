@@ -8,6 +8,7 @@ import type { TaskMetadata, TaskSummary } from "../../shared/api/contracts";
 import { getTaskStatus, readTaskLog } from "../tasks/api";
 import { HistoryPreparation } from "./HistoryPreparation";
 import { PipelineReport } from "./PipelineReport";
+import { PipelineSteps } from "./PipelineSteps";
 
 vi.mock("../tasks/api", () => ({
   getTaskStatus: vi.fn(),
@@ -97,7 +98,7 @@ it("shows live stages, committed files and the selected inference log on the sel
     container.querySelector(".pipeline-model-content")?.textContent,
   ).toMatch(/feature|特征/);
   await clickTab("data");
-  expect(container.textContent).toContain("data.csv");
+  expect(container.textContent).toContain("data.parquet");
   await clickTab("1445");
   await clickTab("logs");
   expect(container.querySelector(".log-content")?.textContent).toContain(
@@ -201,7 +202,9 @@ it("shows the business reason when a missed input window never started a child",
 it("shows nightly model plans, skipped comparisons and nested history task logs", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
+    models: {
+      "1445": [{ task_name: "demo", train: { reg_name: "a_stock_train" } }],
+    },
   };
   parent.steps = [
     {
@@ -281,7 +284,15 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
 it("keeps nightly stages visible when a comparison report is malformed", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
+    models: {
+      "1445": [
+        {
+          task_name: "demo",
+          train: { reg_name: "a_stock_train" },
+          compare: { reg_name: "a_stock_prediction_compare" },
+        },
+      ],
+    },
   };
   child.reg_name = "a_stock_prediction_compare";
   child.report_kind = "online";
@@ -297,7 +308,9 @@ it("keeps nightly stages visible when a comparison report is malformed", async (
 it("settles unfinished nightly model summaries after download failure and cancellation", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
-    models: { "1445": [{ task_name: "demo", feature_family: "a_stock" }] },
+    models: {
+      "1445": [{ task_name: "demo", train: { reg_name: "a_stock_train" } }],
+    },
   };
   parent.output_params = {
     models: { "1445": { demo: { status: "pending" } } },
@@ -392,7 +405,7 @@ it("flattens quality into the second navigation row and preserves workspace file
     const file = card.querySelector<HTMLAnchorElement>(
       ".pipeline-step-files a",
     )!;
-    expect(file.textContent).toContain("data.csv");
+    expect(file.textContent).toContain("data.parquet");
     expect(file.getAttribute("href")).toBe(
       "#machine-b/workspace/files/" +
         encodeURIComponent(
@@ -548,4 +561,44 @@ it("summarizes completed history reuse in one row while retaining failed stage d
   expect(
     container.querySelector(".history-preparation-stages")?.textContent,
   ).toContain("History read failed");
+  parent.steps[0].error = child.steps[0].error;
+  record.error = child.steps[0].error;
+  await renderHistory();
+  expect(container.textContent!.split("History read failed")).toHaveLength(2);
 });
+
+it.each(["en", "zh"])(
+  "keeps completed steps concise and active progress visible in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    const step = {
+      ...child.steps[0],
+      label: "prediction",
+      phase: "prediction",
+      state: "done" as const,
+      completed: 1,
+      total: 1,
+    };
+    const show = () =>
+      act(async () => root.render(<PipelineSteps steps={[step]} />));
+    await show();
+    expect(
+      container.textContent!.split(i18n.t("onlinePipeline.phases.prediction")),
+    ).toHaveLength(2);
+    expect(container.querySelector("progress")).toBeNull();
+    expect(container.textContent).not.toContain("1 / 1");
+    await act(async () =>
+      root.render(
+        <PipelineSteps steps={[{ ...step, state: "running", completed: 0 }]} />,
+      ),
+    );
+    expect(container.querySelector("progress")).not.toBeNull();
+    expect(container.textContent).toContain("0 / 1");
+    await act(async () =>
+      root.render(
+        <PipelineSteps steps={[{ ...step, total: 25, completed: 25 }]} />,
+      ),
+    );
+    expect(container.textContent).toContain("25 / 25");
+  },
+);

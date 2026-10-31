@@ -1,11 +1,11 @@
-"""Resolve upstream inputs and pin verified artifact bundles and model collections."""
+"""Resolve upstream artifacts directly and validate the executions that produced them."""
 
 from pathlib import Path
 
-from ..models.artifacts import ArtifactRecord, ModelCollection
+from ..models.artifacts import ArtifactRecord
 from ..models.identity import TaskState
-from .artifacts import artifact_record, verify_artifact
-from .files import atomic_write_json, file_revision, snapshot_file
+from ..models.lifecycle import InputSource
+from .artifacts import verify_artifact
 from .workspace import load_task_metadata, read_task_metadata, task_id_from_path, task_path
 
 
@@ -41,47 +41,74 @@ def read_upstream_metadata(workspace: Path, task_id: str) -> tuple[Path, dict]:
 
 def upstream_artifact(task, task_id: str, name: str) -> tuple[Path, dict]:
     """Read a successful upstream Task's artifact and verify its published file version."""
-    root, metadata = read_upstream_metadata(task.workspace_path, task_id)
-    record = ArtifactRecord.model_validate(metadata["output_params"]["artifacts"][name])
-    return verify_artifact(root, record), metadata
+    _, metadata = read_upstream_metadata(task.workspace_path, task_id)
+    (path,) = upstream_artifacts(task, task_id, name, metadata=metadata)
+    return path, metadata
 
 
-def pin_upstream_artifacts(task, task_id: str, *names: str, metadata: dict | None = None) -> tuple[Path, ...]:
-    """Keep one upstream artifact bundle stable while a fixed Task ID is refreshed."""
+def upstream_artifacts(task, task_id: str, *names: str, metadata: dict | None = None) -> tuple[Path, ...]:
+    """Read verified upstream files in place and record their execution and revisions."""
     if metadata is None:
         root, metadata = read_upstream_metadata(task.workspace_path, task_id)
     else:
         root = task.upstream_task_dir(task_id)
 
-    def pin(name):
+    records = {}
+
+    def resolve(name):
         record = ArtifactRecord.model_validate(metadata["output_params"]["artifacts"][name])
         source = verify_artifact(root, record)
-        target = task.task_dir / "inputs" / f"{name}{source.suffix}"
-        snapshot_file(source, target, expected_revision=record.revision)
-        return target
+        records[name] = record
+        return source
 
-    return tuple(pin(name) for name in names)
+    paths = tuple(resolve(name) for name in names)
+    record_input_source(task, task_id, metadata["started_at"], records)
+    return paths
 
 
-def snapshot_model_collection(manifest_file: Path, destination: Path, *, expected_revision: str | None = None) -> Path:
-    """Snapshot and verify every member of a model collection."""
-    revision = file_revision(manifest_file)
-    content = manifest_file.read_bytes()
-    if file_revision(manifest_file) != revision or (expected_revision is not None and revision != expected_revision):
-        raise ValueError("Model manifest changed during snapshot")
-    collection = ModelCollection.model_validate_json(content)
-    records = {}
-    for key, member in collection.members.items():
-        name = member.model_artifact
-        if name in records:
-            continue
-        record = collection.artifacts[name]
-        source = verify_artifact(manifest_file.parent, record)
-        target = destination / "members" / key / source.name
-        if not target.resolve().is_relative_to(destination.resolve()):
-            raise ValueError("Model member path escapes snapshot directory")
-        snapshot_file(source, target, expected_revision=record.revision)
-        records[name] = artifact_record(target, destination)
-    path = destination / "models.json"
-    atomic_write_json(path, {**collection.model_dump(mode="json"), "artifacts": records})
-    return path
+def record_input_source(task, task_id: str, started_at, artifacts: dict) -> None:
+    """Pin one producer execution and its consumed files, including completed live windows."""
+    current = getattr(task, "_metadata", None)
+    if current is not None and current.state == TaskState.RUNNING and current.task_id != task_id:
+        reference = InputSource(started_at=started_at, artifacts=artifacts)
+        previous = current.input_sources.get(task_id)
+        if previous is not None:
+            if previous.started_at != reference.started_at or any(
+                key in previous.artifacts and previous.artifacts[key] != record
+                for key, record in reference.artifacts.items()
+            ):
+                raise ValueError(f"Upstream input changed during execution: {task_id}")
+            reference.artifacts = previous.artifacts | reference.artifacts
+        current.input_sources[task_id] = reference
+
+
+def upstream_input_artifact(task, metadata: dict, task_id: str, name: str) -> Path:
+    """Read a producer's input at the execution and revision that producer consumed."""
+    reference = InputSource.model_validate(metadata["input_sources"][task_id])
+    _, current = read_upstream_metadata(task.workspace_path, task_id)
+    if reference.started_at.isoformat() != InputSource(started_at=current["started_at"]).started_at.isoformat():
+        raise ValueError(f"Upstream execution changed: {task_id}")
+    record = ArtifactRecord.model_validate(current["output_params"]["artifacts"][name])
+    if record != reference.artifacts[name]:
+        raise ValueError(f"Upstream input changed: {task_id}/{name}")
+    return upstream_artifacts(task, task_id, name, metadata=current)[0]
+
+
+def verify_input_sources(task) -> None:
+    """Reject replaced upstream executions or files before reporting success."""
+    for task_id, source in task.metadata.input_sources.items():
+        root = upstream_task_directory(task.workspace_path, task_id)
+        metadata = load_task_metadata(root, task_id)
+        if metadata.started_at != source.started_at:
+            raise ValueError(f"Upstream execution changed during execution: {task_id}")
+        if metadata.state != TaskState.SUCCEEDED:
+            published = {
+                f"{window['key']}/{name}": record
+                for window in metadata.output_params.get("windows", [])
+                if window.get("status") == "done"
+                for name, record in window.get("artifacts", {}).items()
+            }
+            if any(published.get(name) != record.model_dump(mode="json") for name, record in source.artifacts.items()):
+                raise ValueError(f"Upstream inputs are no longer published: {task_id}")
+        for record in source.artifacts.values():
+            verify_artifact(root, record)

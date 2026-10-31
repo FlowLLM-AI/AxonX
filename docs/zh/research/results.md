@@ -46,7 +46,7 @@ ETL 的 `statistics` 文件属于插件扩展，通用基类并不强制所有 E
 
 通过 Metric 与 Label 选择指标和标签；条形方向与数值共同表示因子评分。
 
-qlib_a158 输出 `factor_analysis.csv` 与 `factor_quantiles.csv`。前者给出各特征的诊断结果，后者用于观察按因子值分组的收益。
+qlib_a158 输出 `factor_analysis_stats.csv` 与 `factor_quantiles_stats.csv`。前者给出各特征的诊断结果，后者用于观察按因子值分组的收益。
 
 默认关联独立标签产物，仅分析信号日可买且固定次一市场日收益有效的样本。调整 `tradable_only`、`minimum_daily_samples` 或 `quantiles` 后，结果的样本口径也会变化。
 
@@ -64,9 +64,9 @@ Studio 的 `scores` 面板来自插件提供的“指标分组 → 数值”映�
 
 训练结果包含模型名称、训练行数、目标列、参数、指标和训练曲线。qlib_a158 保存：
 
-- `model.txt`：按最佳轮数拟合的最终模型。
-- `feature_importance.csv`：gain 与 split 两种重要性。
-- `evaluation_history.csv`：调参阶段逐轮训练/验证历史。
+- `models/lightgbm_seed_<seed>_fit_end_<date>_use_<date>-onward.txt`：按最佳轮数拟合的最终模型。
+- `feature_importance_stats.csv`：gain 与 split 两种重要性。
+- `metadata.json.output_params.models`：模型配置、使用日期、参数、指标和训练/验证曲线。
 
 qlib_a158 的训练窗口左闭右开，末尾日期保留作验证。调参阶段选择最佳迭代轮数，然后使用训练窗口内全部有效样本重新拟合。曲线与验证指标来自选择轮数的模型，不是最终模型的独立样本外评估。
 

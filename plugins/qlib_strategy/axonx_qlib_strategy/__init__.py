@@ -1,13 +1,9 @@
-"""Portfolio strategies using the shared stock ledger.
+"""Rank-retention portfolio construction.
 
-backtest: Rank-retention policies, bounded daily replacements and strategy Tasks.
+portfolio: Selection parameters and strategy Portfolio Tasks.
 """
 
-from . import backtest
-from .backtest import StrategyBacktestInput, StrategyBacktestTask
+from . import portfolio
+from .portfolio import StrategyPortfolioInput, StrategyPortfolioTask
 
-__all__ = [
-    "StrategyBacktestInput",
-    "StrategyBacktestTask",
-    "backtest",
-]
+__all__ = ["portfolio", "StrategyPortfolioInput", "StrategyPortfolioTask"]

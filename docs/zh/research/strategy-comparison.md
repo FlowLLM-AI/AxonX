@@ -1,11 +1,11 @@
 ---
 title: 策略比较
-description: 在共同日期、相同组合规模和明确口径下比较两个回测结果。
+description: 在共同日期和明确口径下比较两个组合的回测结果。
 ---
 
 # 策略比较
 
-Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同有效日期上重新计算收益与风险。比较不提交新的研究任务，也不会修改原有产物。
+Studio 策略比较页面读取两个选定组合的日频产物，在共同有效日期上重新计算收益与风险。A 和 B 可以来自同一个 Backtest Task，也可以来自不同任务。比较不提交新的研究任务，也不会修改原有产物。
 
 本页解释比较界面的计算与操作。比较方案的控制变量、筛选规则和独立确认窗口应事先按[实验设计与确认](experiments.md)定义。
 
@@ -18,13 +18,10 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 用不同任务名称保留不同训练、预测和回测结果。比较同一因素的变化时，其他设置尽量一致，例如使用同一 ETL、同一预测窗口，仅调整训练参数或成本。
 
 ```bash
-axonx exec --task qlib_a158_backtest --task-name fixed-holding \
-  --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-axonx exec --task qlib_strategy_backtest --task-name rank-retention \
-  --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
-  --replacement-fraction 0.2 --rank-buffer 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 各自等待成功后，在策略比较页面选择 A 和 B。Task ID 是实验身份，显示名称只能帮助识别；固定名称重跑替换目录后，无法把原结果当成仍保留的历史实验。
@@ -39,11 +36,11 @@ axonx exec --task qlib_strategy_backtest --task-name rank-retention \
 
 1. 选择当前机器以及两条成功回测记录。
 2. 核对输入参数差异与页面警告。页面会提示行情不完整和记账协议版本不同。
-3. 选择双方都支持的 Top N。
+3. 按身份 key 对应的下拉框分别选择 A/B 组合。只能选到实际存在的组合，两侧的 Top N 可以不同。
 4. 设定共同日期区间，核对观察天数。
 5. 先看净收益与回撤，再看信号质量、分期收益和目标清单交集。
 
-没有共同组合规模或共同有效日时，页面无法建立可比较样本。不要用各自总窗口的指标替代共同窗口结果。
+没有共同有效日时，页面无法建立可比较样本。组合规模不同时，应将其作为实验条件差异解释。不要用各自总窗口的指标替代共同窗口结果。
 
 ## 共同窗口如何建立
 

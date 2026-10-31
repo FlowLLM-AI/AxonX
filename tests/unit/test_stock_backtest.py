@@ -6,8 +6,9 @@ import pytest
 from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
 from axonx.task.builtins.stock.data import fixed_labels
 from axonx.task.builtins.stock.engine import run_backtest
-from axonx.task.builtins.stock.models import BacktestConfig
-from axonx.task.builtins.stock.reporting import summarize
+from axonx.task.builtins.stock.models import BacktestConfig, portfolio_key
+from axonx.task.builtins.stock.portfolio import BaseStockPortfolioTask, portfolio_identity, prepare_portfolio_signals
+from axonx.task.builtins.stock.reporting import online_frames, summarize
 from axonx.task.runtime.executor import TaskExecutor
 
 
@@ -40,13 +41,46 @@ def market_inputs(statuses=("quoted", "quoted", "quoted", "quoted")):
     return signals, market, pl.DataFrame({"trade_date": dates})
 
 
+def test_online_ledgers_share_predictions_and_publish_only_daily_portfolio_rows():
+    signals, market, calendar = market_inputs()
+    result = run_backtest(
+        prepare_portfolio_signals(signals),
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1, 30), buy_cost_rate=0, sell_cost_rate=0),
+        as_of_date="20240102",
+    )
+    identities = [
+        portfolio_identity(
+            universe={"kind": "all"},
+            score_selection={"method": "seed", "seeds": [0]},
+            strategy={"kind": "fixed_expiry", "holding_days": 1},
+            top_n=n,
+            trade_time="1500",
+        )
+        for n in (1, 30)
+    ]
+    frames = online_frames(result.frames, "20240102", {portfolio_key(identity): identity for identity in identities})
+    assert frames["daily"].height == 2
+    assert frames["daily"]["trade_date"].to_list() == ["20240102"] * 2
+    assert not any(dtype.is_nested() for dtype in frames["daily"].schema.values())
+    assert frames["positions"].is_empty()
+    assert frames["trades"]["exit_date"].to_list() == ["20240102"] * 2
+    for identity in identities:
+        key = portfolio_key(identity)
+        row = frames["daily"].filter(pl.col("portfolio_key") == key).row(0, named=True)
+        assert row["net_value"] == result.frames["daily"][f"top{identity['top_n']}_net_value"][-1]
+        assert frames["summary"].filter(pl.col("portfolio_key") == key).height == 4
+
+
 @pytest.mark.parametrize("assume_suspension", [False, True])
 def test_unavailable_quotes_carry_marks_and_delay_fixed_exits(assume_suspension):
     signals, market, calendar = market_inputs(("quoted", "suspended", "missing_data", "quoted"))
     labels = fixed_labels(signals, market, calendar)
     assert labels.select("label_target_date", "label_valid", "label_status").row(0) == ("20240102", False, "suspended")
     result = run_backtest(
-        signals,
+        prepare_portfolio_signals(signals),
         market,
         calendar,
         labels,
@@ -61,7 +95,7 @@ def test_unavailable_quotes_carry_marks_and_delay_fixed_exits(assume_suspension)
         True,
     )
     assert result.frames["positions"]["market_value"].to_list() == [1, 1, 1]
-    assert result.frames["signals"]["label_return"].null_count() == 1
+    assert "signals" not in result.frames
 
 
 def test_event_receivables_and_books_are_reset_for_every_portfolio():
@@ -93,7 +127,7 @@ def test_event_receivables_and_books_are_reset_for_every_portfolio():
     events = Events()
     signals, market, calendar = market_inputs()
     result = run_backtest(
-        signals,
+        prepare_portfolio_signals(signals),
         market,
         calendar,
         None,
@@ -138,7 +172,7 @@ def test_event_costs_and_notional_are_counted_once_at_recognition():
 
     signals, market, calendar = market_inputs()
     result = run_backtest(
-        signals,
+        prepare_portfolio_signals(signals),
         market,
         calendar,
         None,
@@ -158,24 +192,28 @@ def test_backtest_task_publishes_reconciled_ledger_artifacts(tmp_path):
     signals, market, calendar = market_inputs()
     for name, frame in [("input", signals), ("market", market), ("calendar", calendar)]:
         frame.write_parquet(tmp_path / f"{name}.parquet")
+    portfolio = BaseStockPortfolioTask(
+        {"input_file": "input.parquet", "top_ns": [1], "holding_days": 2},
+        workspace_path=tmp_path,
+        reg_name="stock",
+    )
+    TaskExecutor().execute(portfolio)
     task = BaseStockBacktestTask(
         {
             "task_name": "ledger",
-            "input_file": "input.parquet",
+            "upstream_task_ids": [portfolio.task_id],
             "market_file": "market.parquet",
             "calendar_file": "calendar.parquet",
-            "top_ns": [1],
-            "holding_days": 2,
         },
         workspace_path=tmp_path,
         reg_name="stock",
     )
     TaskExecutor().execute(task)
     output = task.output_params
-    assert output.universes["all"].evaluation_status == "done"
-    daily = pl.read_parquet(task.artifact_path("all_daily"))
-    positions = pl.read_parquet(task.artifact_path("all_positions"))
-    orders = pl.read_parquet(task.artifact_path("all_orders"))
+    assert output.portfolios[0].evaluation_status == "done"
+    daily = pl.read_parquet(task.artifact_path("0_daily"))
+    positions = pl.read_parquet(task.artifact_path("0_positions"))
+    orders = pl.read_parquet(task.artifact_path("0_orders"))
     previous = 1.0
     for row in daily.iter_rows(named=True):
         date = row["trade_date"]

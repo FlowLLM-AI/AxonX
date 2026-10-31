@@ -1,24 +1,19 @@
-"""Portable artifact records, protocol headers, model collections and replay manifests."""
+"""Portable artifact records and protocol headers."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import (
-    AwareDatetime,
     ConfigDict,
     Field,
     field_validator,
     model_validator,
 )
 
-from .base import DateString, TaskModel
+from .base import DateString, TaskModel, normalize_yyyymmdd
 from .identity import TaskType
 
 
@@ -77,92 +72,63 @@ def fingerprint(value: Any) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
-class ModelMember(TaskModel):
-    model_artifact: str = Field(min_length=1)
-    model: dict[str, Any]
+class PredictionWindow(TaskModel):
+    """A model group used over a half-open prediction interval."""
 
-
-class ModelCollection(Protocol):
-    task_type: Literal[TaskType.TRAIN]
-    feature_protocol: dict[str, Any]
-    members: dict[str, ModelMember] = Field(min_length=1)
-    artifacts: dict[str, ArtifactRecord] = Field(min_length=1)
+    prediction_start: DateString
+    prediction_end_exclusive: DateString
+    model_identity: dict[str, str] = Field(min_length=1)
+    models: dict[str, str] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_members(self):
-        validate_protocol(self.feature_protocol, TaskType.ETL)
-        for member in self.members.values():
-            if member.model_artifact not in self.artifacts:
-                raise ValueError("Model member references an unregistered artifact")
+    def validate_window(self):
+        if self.prediction_start >= self.prediction_end_exclusive:
+            raise ValueError("Prediction window must have start < end_exclusive")
+        if any(not key or not value for key, value in self.models.items()):
+            raise ValueError("Prediction model names must be nonempty")
         return self
 
 
 class PredictionProtocol(Protocol):
+    """Score semantics; file revisions and execution lineage belong to metadata."""
+
     task_type: Literal[TaskType.PREDICT, TaskType.INFERENCE]
-    model_identity: dict[str, str] = Field(min_length=1)
-    dates: list[DateString] = Field(min_length=1)
     score_columns: dict[str, str] = Field(min_length=1)
-    predictions_revision: str = Field(pattern=r"^\d+:\d+$")
+    windows: list[PredictionWindow] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_scope(self):
-        if self.dates != sorted(set(self.dates)):
-            raise ValueError("Prediction dates must be nonempty, sorted and unique")
         if any(not key or not value for key, value in self.score_columns.items()):
             raise ValueError("Prediction member IDs and score columns must be nonempty")
         if len(set(self.score_columns.values())) != len(self.score_columns):
             raise ValueError("Prediction members must have distinct score columns")
+        if self.task_type == TaskType.PREDICT and not self.windows:
+            raise ValueError("Offline predictions require model use windows")
+        if self.task_type == TaskType.INFERENCE and self.windows:
+            raise ValueError("Online model identity and date belong to the commit")
+        for index, window in enumerate(self.windows):
+            if window.models.keys() != self.score_columns.keys():
+                raise ValueError("Prediction window models must match score members")
+            if index and self.windows[index - 1].prediction_end_exclusive > window.prediction_start:
+                raise ValueError("Prediction windows must be ordered and non-overlapping")
         return self
 
-
-class ReplayEvent(TaskModel):
-    model_config = ConfigDict(frozen=True)
-    key: str = Field(min_length=1)
-    available_at: AwareDatetime
-    files: dict[str, ArtifactRecord]
-    attributes: dict[str, Any] = Field(default_factory=dict)
-
-
-class ReplayManifest(TaskModel):
-    model_config = ConfigDict(frozen=True)
-    version: Literal[1] = 1
-    kind: Literal["event_stream"] = "event_stream"
-    events: list[ReplayEvent] = Field(min_length=1)
-    context: dict[str, ArtifactRecord] = Field(default_factory=dict)
-    attributes: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def ordered(self):
-        times = [event.available_at for event in self.events]
-        if times != sorted(times):
-            raise ValueError("Replay events must be ordered by availability")
-        return self
-
-
-@dataclass(frozen=True)
-class ReplaySource:
-    """An event to snapshot; paths are never retained as live payload references."""
-
-    key: str
-    available_at: datetime
-    files: dict[str, Path]
-    attributes: dict[str, Any] = field(default_factory=dict)
+    def window_for(self, day: str | int) -> PredictionWindow:
+        date = normalize_yyyymmdd(day)
+        for window in self.windows:
+            if window.prediction_start <= date < window.prediction_end_exclusive:
+                return window
+        raise ValueError(f"No prediction model window for {date}")
 
 
 def prediction_protocol(
     task_type: TaskType,
-    identity: dict[str, str],
-    predictions_revision: str,
-    dates: Iterable,
     score_columns: dict[str, str],
     **payload,
 ) -> dict:
     return PredictionProtocol(
         version=PROTOCOL_VERSION,
         task_type=task_type,
-        model_identity=identity,
-        dates=sorted({str(day) for day in dates}),
         score_columns=score_columns,
-        predictions_revision=predictions_revision,
         **payload,
-    ).model_dump(mode="json")
+    ).model_dump(mode="json", exclude_defaults=True)

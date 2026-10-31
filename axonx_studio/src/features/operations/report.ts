@@ -23,10 +23,6 @@ export type StockOnlineReport = Omit<ReportContract, "commit"> & {
 export type OnlineHistory = Omit<HistoryContract, "commits"> & {
   commits: OnlineCommit[];
 };
-export type OnlineHistoryNode = Omit<OnlineHistory, "kind"> & {
-  kind: "online_history_node";
-  previous: ArtifactRecord | null;
-};
 const strings = (value: unknown): value is Record<string, string> =>
   isRecord(value) &&
   Object.values(value).every((item) => typeof item === "string");
@@ -52,7 +48,9 @@ function settings(value: unknown): value is ReportSettings {
   const { top_ns, benchmarks, holding_detail_top_n } = value.dimensions;
   const { start, end } = value.date_range;
   return (
-    value.signals_format === "stock-signals-v1" &&
+    value.signals_format === "stock-signals-v3" &&
+    typeof value.score_column === "string" &&
+    value.score_column.length > 0 &&
     digest(value.strategy_identity) &&
     Array.isArray(top_ns) &&
     top_ns.length > 0 &&
@@ -70,6 +68,11 @@ function settings(value: unknown): value is ReportSettings {
     validDate(end) &&
     start <= end &&
     isRecord(value.portfolio) &&
+    isRecord(value.portfolios) &&
+    Object.keys(value.portfolios).length > 0 &&
+    Object.entries(value.portfolios).every(
+      ([key, identity]) => digest(key) && isRecord(identity),
+    ) &&
     isRecord(value.score_selection) &&
     ["done", "incomplete_market_data"].includes(
       String(value.evaluation_status),
@@ -108,8 +111,7 @@ function parseCommit(value: unknown): OnlineCommit {
   )
     throw new Error("Invalid online commit");
   for (const role of [
-    "signal",
-    "signals",
+    "rankings",
     "predictions",
     "market",
     "daily",
@@ -117,9 +119,6 @@ function parseCommit(value: unknown): OnlineCommit {
     "positions",
     "orders",
     "trades",
-    "prediction_protocol",
-    "calendar",
-    "input_features",
   ])
     if (!value.artifacts[role])
       throw new Error(`Missing online artifact: ${role}`);
@@ -148,44 +147,19 @@ export function parseHistory(value: unknown): OnlineHistory {
     throw new Error("Invalid online history");
   const commits = value.commits.map(parseCommit);
   const ids = new Set<string>();
-  const revisions = new Map<string, number>();
+  const signals = new Set<string>();
   for (const commit of commits) {
     const key = `${commit.trade_date}/${commit.trade_time}`;
-    const revision = (revisions.get(key) || 0) + 1;
     if (
-      (commits.length > 0 && commit.task_id !== commits[0].task_id) ||
       ids.has(commit.commit_id) ||
-      commit.revision !== revision ||
+      signals.has(key) ||
       commit.protocol.report.strategy_identity !== value.strategy_identity
     )
       throw new Error("Invalid online revisions");
     ids.add(commit.commit_id);
-    revisions.set(key, revision);
+    signals.add(key);
   }
   return { ...(value as unknown as OnlineHistory), commits };
-}
-export function parseHistoryNode(value: unknown): OnlineHistoryNode {
-  if (
-    !isRecord(value) ||
-    value.version !== 1 ||
-    value.task_type !== "inference" ||
-    value.kind !== "online_history_node" ||
-    !digest(value.strategy_identity) ||
-    !Array.isArray(value.commits) ||
-    value.commits.length < 1 ||
-    value.commits.length > 16 ||
-    (value.previous != null &&
-      (!isArtifactRecord(value.previous) ||
-        !/^persistent\/online\/commits\/[a-f0-9]{32}\/history\.json$/.test(
-          value.previous.path,
-        )))
-  )
-    throw new Error("Invalid online history node");
-  return {
-    ...(value as unknown as OnlineHistoryNode),
-    commits: value.commits.map(parseCommit),
-    previous: (value.previous as ArtifactRecord | null) ?? null,
-  };
 }
 export function activeCommits(history: OnlineHistory) {
   const latest = new Map(
@@ -279,11 +253,6 @@ export function parseOnlineReport(value: unknown): OnlineReport {
     throw new Error("Invalid online report: model_identity");
   if (value.report != null) {
     parseStockReport(value.report);
-    if (
-      !isRecord(value.artifacts) ||
-      !isArtifactRecord(value.artifacts.signal_history)
-    )
-      throw new Error("Missing online history artifact");
   }
   return value as OnlineReport;
 }

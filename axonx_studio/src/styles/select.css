@@ -131,9 +131,6 @@
   display: block;
   width: 100%;
 }
-.compare-universe .select-field {
-  flex: 1;
-}
 .task-group-toolbar .select-trigger {
   width: 100%;
 }

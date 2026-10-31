@@ -1,32 +1,17 @@
-"""Standard stock backtest Task: plugins supply artifacts, not copied ledgers."""
-
-from collections.abc import Iterable
-from pathlib import Path
-from typing import Any
+"""Execute immutable portfolio plans and publish accounting and performance reports."""
 
 import polars as pl
 
-from ...core.base import TaskStep
 from ...core.research import BaseBacktestTask
-from ...models.artifacts import PredictionProtocol, task_protocol
+from ...models.artifacts import task_protocol
 from ...models.identity import TaskType, task_type_from_id
-from ...models.reports import (
-    BacktestBenchmark,
-    BacktestDimensions,
-    BacktestUniverse,
-    BacktestUniverseReport,
-)
+from ...models.reports import BacktestBenchmark, BacktestDimensions, BacktestPortfolioReport, PortfolioDefinition
 from ...storage.artifacts import artifact_record
 from ...storage.files import atomic_write, file_revision
-from ...storage.inputs import pin_upstream_artifacts, read_upstream_metadata
-from .data import KEYS
+from ...storage.inputs import read_upstream_metadata, upstream_artifacts
 from .engine import run_backtest
-from .ledger import PortfolioPolicy
-from .models import (
-    BacktestConfig,
-    StockBacktestInput,
-    StockBacktestOutput,
-)
+from .models import StockBacktestInput, StockBacktestOutput
+from .portfolio import PortfolioReader, StockStrategy
 from .protocol import STOCK_SIGNALS_FORMAT
 
 
@@ -34,158 +19,147 @@ class BaseStockBacktestTask(BaseBacktestTask):
     input_cls = StockBacktestInput
     output_cls = StockBacktestOutput
     input_params: StockBacktestInput
+    plan: PortfolioReader
+    portfolios: list[PortfolioDefinition]
+    portfolio_task_id: str
 
-    def build_task_steps(self) -> Iterable[TaskStep]:
+    def build_task_steps(self):
         yield self.resolve_inputs
         yield self.calculate
         yield self.write_outputs
 
-    def upstream_file(self, task_id: str, name: str) -> tuple[Path, dict[str, Any]]:
+    def upstream_file(self, task_id, name):
         _, metadata = read_upstream_metadata(self.workspace_path, task_id)
-        (path,) = pin_upstream_artifacts(self, task_id, name, metadata=metadata)
+        (path,) = upstream_artifacts(self, task_id, name, metadata=metadata)
         return path, metadata
 
-    def resolve_inputs(self) -> None:
+    def resolve_inputs(self):
         p = self.input_params
-        paths = {key: getattr(p, key + "_file") for key in ("input", "market", "calendar", "labels")}
-        upstream_ids = p.upstream_task_ids
-        etl = next((s for s in upstream_ids if task_type_from_id(s) == TaskType.ETL), None)
-        if paths["input"] is None:
-            prediction = p.upstream_task_id(TaskType.PREDICT)
-            paths["input"], metadata = self.upstream_file(prediction, "predictions")
-            protocol = metadata["output_params"]["protocol"]
-            PredictionProtocol.model_validate(protocol)
-            etl = etl or protocol["market_upstream_task_id"]
+        source = p.upstream_task_id(TaskType.PORTFOLIO)
+        self.plan = PortfolioReader(self, source)
+        output = self.plan.output
+        self.portfolios = output.portfolios
+        if p.portfolio_ids is not None:
+            if any(identity not in [item.portfolio_id for item in self.portfolios] for identity in p.portfolio_ids):
+                raise ValueError("Unknown portfolio identity")
+            self.portfolios = [item for item in self.portfolios if item.portfolio_id in p.portfolio_ids]
+        paths = {key: getattr(p, key + "_file") for key in ("market", "calendar", "labels")}
+        etl = next((s for s in p.upstream_task_ids if task_type_from_id(s) == TaskType.ETL), None)
+        etl = etl or output.protocol.get("market_upstream_task_id")
         if etl:
-            names = tuple(key for key in ("market", "calendar", "labels") if paths[key] is None)
-            if names:
-                _, metadata = read_upstream_metadata(self.workspace_path, etl)
-                pinned = pin_upstream_artifacts(self, etl, *names, metadata=metadata)
-                paths.update(zip(names, pinned, strict=True))
+            missing = tuple(key for key, value in paths.items() if value is None)
+            if missing:
+                _, etl_metadata = read_upstream_metadata(self.workspace_path, etl)
+                paths.update(zip(missing, upstream_artifacts(self, etl, *missing, metadata=etl_metadata), strict=True))
         if paths["market"] is None or paths["calendar"] is None:
             raise ValueError("Backtest requires independent market and calendar artifacts")
-        paths = {key: self.resolve_workspace_path(value) for key, value in paths.items() if value is not None}
-        self.state["input_paths"] = paths
-        self.state["input_revisions"] = {key: file_revision(value) for key, value in paths.items()}
-        self.state["signals"] = pl.read_parquet(paths["input"])
+        self.state["input_paths"] = {
+            key: self.resolve_workspace_path(value) for key, value in paths.items() if value is not None
+        } | {f"portfolio/{key}": path for key, path in self.plan.paths.items()}
+        self.state["evaluation_files"] = {
+            key: self.resolve_workspace_path(path) for key, path in self.evaluation_files(p).items()
+        }
+        self.state["input_paths"].update(self.state["evaluation_files"])
+        self.state["input_revisions"] = {key: file_revision(path) for key, path in self.state["input_paths"].items()}
+        self.portfolio_task_id = source
 
-    def fixed_holding_days(self) -> int | None:
-        return self.input_params.holding_days
-
-    def portfolio_policy(self) -> PortfolioPolicy | None:
-        """Override in a plugin to supply decisions to the shared execution ledger."""
-        return None
-
-    def build_universes(self) -> Iterable[BacktestUniverse]:
-        """Declare independent reports. Plugins own names and selection rules."""
-        yield BacktestUniverse(key="all", label="All market")
-
-    # Extension hooks keep the universe argument available to plugin overrides.
-    # pylint: disable=unused-argument
-    def select_universe(self, signals: pl.DataFrame, universe: BacktestUniverse) -> pl.DataFrame:
-        """Return prediction keys only; labels and future market data are unavailable here."""
-        return signals.select(*KEYS)
-
-    def prepare_signals(self) -> None:
-        """Plugins may aggregate declared model scores before evaluating every universe."""
-
-    def market_data(self) -> pl.DataFrame:
+    def market_data(self):
         return pl.read_parquet(self.state["input_paths"]["market"])
 
-    def universe_events(self, universe: BacktestUniverse):
-        """Create independent event state for each universe."""
-        return None
+    @classmethod
+    def evaluation_files(cls, _params):
+        """External policy inputs whose revisions must be captured by the caller."""
+        return {}
 
-    def engine_config(self) -> BacktestConfig:
-        return self.input_params.engine_config(holding_days=self.fixed_holding_days())
-
-    def run_universe(self, universe, market, calendar, labels):
+    @classmethod
+    # Policy files are consumed by plugin overrides through this shared API.
+    # pylint: disable=unused-argument
+    def evaluate(cls, signals, market, calendar, labels, identity, params, *, as_of_date, files, events=None):
+        """Evaluate the published decision rule with the same contract in every workflow."""
         return run_backtest(
+            signals,
+            market,
+            calendar,
+            labels,
+            cls.engine_config(identity, params),
+            as_of_date=as_of_date,
+            policy=StockStrategy.model_validate(identity["strategy"]).policy(),
+            events=events,
+        )
+
+    @staticmethod
+    def engine_config(identity, params):
+        strategy = StockStrategy.model_validate(identity["strategy"])
+        return params.engine_config(top_ns=(identity["top_n"],), holding_days=strategy.holding_days)
+
+    def run_portfolio(self, portfolio, market, calendar, labels):
+        return type(self).evaluate(
             self.state["signals"],
             market,
             calendar,
             labels,
-            self.engine_config(),
+            portfolio.portfolio_id,
+            self.input_params,
             as_of_date=self.state["cutoff"],
-            policy=self.portfolio_policy(),
-            universe_keys=self.select_universe(self.state["signals"], universe),
-            events=self.universe_events(universe),
+            files=self.state["evaluation_files"],
         )
 
-    def calculate(self) -> None:
-        self.prepare_signals()
+    def calculate(self):
         paths = self.state["input_paths"]
         market, calendar = self.market_data(), pl.read_parquet(paths["calendar"])
         labels = pl.read_parquet(paths["labels"]) if "labels" in paths else None
         self.state["cutoff"] = self.input_params.as_of_date or str(market["trade_date"].max())
-        universes = list(self.build_universes())
-        if not universes or len({u.key for u in universes}) != len(universes):
-            raise ValueError("Universe keys must be nonempty and unique")
-        self.state.update(universes={}, artifacts={})
-        for universe in universes:
-            self.logger.info("Evaluating universe={} label={}", universe.key, universe.label)
-            result = self.run_universe(universe, market, calendar, labels)
-            self.save_universe(universe, result)
-            # Each report is saved before the next ledger is constructed.
-            del result
+        self.state.update(portfolios=[], artifacts={})
+        for portfolio in self.portfolios:
+            self.state["signals"] = self.plan.signals(portfolio)
+            result = self.run_portfolio(portfolio, market, calendar, labels)
+            self.save_portfolio(portfolio, result)
 
-    def save_universe(self, universe, result) -> None:
+    def save_portfolio(self, portfolio, result):
         artifacts = {}
+        index = len(self.state["portfolios"])
         for name, frame in result.frames.items():
-            path = self.task_dir / "universes" / universe.key / (name + ".parquet")
-            atomic_write(
-                path,
-                lambda temporary, data=frame: data.write_parquet(temporary, compression="zstd"),
-            )
-            key = f"{universe.key}_{name}"
+            path = self.task_dir / "portfolios" / str(index) / f"{name}.parquet"
+            atomic_write(path, lambda temporary, data=frame: data.write_parquet(temporary, compression="zstd"))
+            key = f"{index}_{name}"
             self.state["artifacts"][key] = artifact_record(path, self.task_dir)
             artifacts[name] = key
         daily = result.frames["daily"]
-        self.state["universes"][universe.key] = BacktestUniverseReport(
-            label=universe.label,
-            parameters=universe.parameters,
-            dimensions=BacktestDimensions(
-                top_ns=self.input_params.top_ns,
-                holding_detail_top_n=30,
-                benchmarks=[BacktestBenchmark(key=k, label=k) for k in result.benchmark_keys],
-            ),
-            date_range={
-                "start": daily["trade_date"].min(),
-                "end": daily["trade_date"].max(),
-            },
-            days=daily.height,
-            evaluation_status=result.status,
-            artifacts=artifacts,
+        self.state["portfolios"].append(
+            BacktestPortfolioReport(
+                portfolio_id=portfolio.portfolio_id,
+                dimensions=BacktestDimensions(
+                    top_ns=[portfolio.portfolio_id["top_n"]],
+                    holding_detail_top_n=30,
+                    benchmarks=[BacktestBenchmark(key=k, label=k) for k in result.benchmark_keys],
+                ),
+                date_range={"start": daily["trade_date"].min(), "end": daily["trade_date"].max()},
+                days=daily.height,
+                evaluation_status=result.status,
+                artifacts=artifacts,
+            )
         )
 
-    def write_outputs(self) -> None:
+    def write_outputs(self):
         for key, digest in self.state["input_revisions"].items():
             if file_revision(self.state["input_paths"][key]) != digest:
                 raise ValueError(f"Backtest input changed while evaluating: {key}")
 
-    def build_output_params(self) -> StockBacktestOutput:
+    def build_output_params(self):
         return self.output_cls(
             signals_format=STOCK_SIGNALS_FORMAT,
-            default_universe=next(iter(self.state["universes"])),
-            universes=self.state["universes"],
-            protocol={
-                **task_protocol(TaskType.BACKTEST),
-                "return_unit": "decimal",
-                "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark"
-                + ("; missing quotes are assumed suspended" if self.input_params.missing_market_as_suspension else ""),
-                "execution": "same-time quote proxy, sells before buys; no queue/partial-fill guarantee",
-                "selection": "plugin universe keys intersect model eligibility and signal-time buyability; "
-                "no label filter",
-                "fees": "buy_cost_rate/sell_cost_rate on executed notional",
-                "cutoff": self.state["cutoff"],
-                "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
-                "input_revisions": self.state["input_revisions"],
-                "allocation": "each target has at most 1/N equity; locked capacity and unfilled slots retain cash",
-                "top30_holdings": "signal targets, not actual position book; positions artifact contains live holdings",
-                "ic": "fixed-next-market-day raw labels on selected-universe candidates",
-                "benchmark_date": "label target date",
-                "relative_drawdown": "drawdown of compounded daily net strategy return minus benchmark return; "
-                "finite aligned observations only; initial equity 1; reset each summary period",
-            },
+            portfolios=self.state["portfolios"],
             artifacts=self.state["artifacts"],
+            protocol=task_protocol(
+                TaskType.BACKTEST,
+                portfolio_task_id=self.portfolio_task_id,
+                return_unit="decimal",
+                execution="Same-time quote proxy; sells before buys; no queue or partial-fill guarantee",
+                valuation="Daily adjusted-price mark to market; suspension carries the last mark",
+                cutoff=self.state["cutoff"],
+                settings=self.input_params.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
+                input_revisions=self.state["input_revisions"],
+                top30_holdings="Signal targets; actual positions are published separately",
+                ic="Fixed-next-market-day raw labels on frozen portfolio candidates",
+            ),
         )

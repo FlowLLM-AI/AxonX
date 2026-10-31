@@ -238,7 +238,7 @@ Returns `task_id`, full `status` (TaskMetadata), workspace-relative `metadata_pa
 
 ## Results and lifecycle
 
-TaskMetadata has task_id, task_type, reg_name, parent_task_id, report_kind, state, process identity, started_at, input/output parameters, steps, children and optional display replica metadata. Produced Task states are running/succeeded/failed. The state filter schema also advertises a cancellation value that the current Task model does not produce. Summaries omit large business inputs/outputs.
+TaskMetadata has task_id, task_type, reg_name, parent_task_id, report_kind, state, process identity, started_at, input/output parameters, input_sources (producer executions and consumed file revisions), steps, children and optional display replica metadata. Produced Task states are running/succeeded/failed. The state filter schema also advertises a cancellation value that the current Task model does not produce. Summaries omit large business inputs/outputs.
 
 For termination call `cli` with `["kill", "--task-id", "ID"]`. General directory cleanup uses `delete_entries` after execution stops; there is no dedicated Task deletion Job. See [Task contracts](../reference/task-contracts.md).
 

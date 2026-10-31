@@ -34,7 +34,8 @@
       "train": "模型训练",
       "predict": "离线预测",
       "backtest": "离线回测",
-      "compare": "策略对比"
+      "compare": "策略对比",
+      "portfolio": "组合"
     },
     "switchLanguageLabel": "EN",
     "taskDefinitions": "任务定义"
@@ -153,10 +154,10 @@
       "data_not_ready_before_deadline": "截止前数据未就绪",
       "incomplete_history": "历史分钟数据覆盖不足",
       "missing_snapshot": "该窗口到达时尚无开盘快照",
-      "missing_or_late_replay_window": "回放窗口缺失，或数据到达时已截止",
       "download_disabled": "使用已有原始数据",
       "evaluation_disabled": "未启用回测",
       "online_source_unavailable": "没有匹配的成功在线结果；历史已更新",
+      "online_evidence_unavailable": "推理证据已被覆盖，已保存的展示结果仍可查看",
       "upstream_failed": "前置阶段失败，已跳过",
       "source_data_revised": "源数据发生修订"
     },
@@ -215,6 +216,7 @@
   "gpuUtilization": "计算使用率",
   "gpuMemory": "显存使用率",
   "states": {
+    "pending": "待训练",
     "running": "运行中",
     "succeeded": "成功",
     "failed": "失败"
@@ -431,6 +433,10 @@
       "predict": {
         "title": "预测结果",
         "lead": "查看样本范围、列信息与产物"
+      },
+      "portfolio": {
+        "title": "投资组合",
+        "lead": "查看组合定义与每日目标。"
       }
     },
     "columns": {
@@ -511,6 +517,8 @@
     "left_axis_l2_mean_squared": "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。",
     "output_files": "输出文件",
     "input_directory": "输入目录",
+    "training_range": "训练区间",
+    "use_range": "预测区间",
     "model_members": "模型成员",
     "score_columns": "模型分数列"
   },
@@ -548,7 +556,7 @@
     "choose_from_the_list": "从左侧选择",
     "swap_a_and_b": "交换 A 和 B",
     "select_two_backtests_to_compare": "选择两份回测任务开始对比",
-    "only_one_backtest_is_available": "目前只有一份回测任务；需要再运行一份回测才能比较",
+    "only_one_backtest_is_available": "可再次选择同一任务，比较其中的不同组合。",
     "click_two_task_list_on": "点击左侧两个任务，分别设为 A 和 B",
     "unable_to_load_backtests": "无法读取回测数据",
     "calculating_shared_window": "正在计算共同区间",
@@ -617,8 +625,9 @@
     "errors": {
       "parquetRequired": "回测产物必须是 Parquet 文件",
       "missingDailySummary": "回测 metadata 缺少 daily 或 summary 产物",
-      "signalsFormat": "股票信号元数据必须声明 signals_format=stock-signals-v1",
-      "missingUniverse": "回测元数据缺少所选股池报告"
+      "signalsFormat": "股票信号元数据必须声明 signals_format=stock-signals-v3",
+      "missingUniverse": "回测元数据缺少所选股池报告",
+      "missingPortfolio": "找不到组合。"
     },
     "noSummaryData": "暂无汇总数据",
     "daily_mean_in_range": "区间日均",
@@ -667,7 +676,8 @@
     "overall_metrics_by_top_n": "各 Top N 总体指标",
     "top_n_period_metric_details": "Top N 分期指标明细",
     "incomplete_market_data": "行情数据不完整，收益和估值为暂定结果。",
-    "universe": "股池"
+    "universe": "股池",
+    "portfolio": "组合"
   },
   "agent": {
     "sessions": "会话",
@@ -812,7 +822,8 @@
       "positions": "持仓记录",
       "trades": "交易记录",
       "daily": "每日账本"
-    }
+    },
+    "portfolioConstruction": "组合构建"
   },
   "onlineReport": {
     "tabsLabel": "在线报告",
@@ -832,10 +843,10 @@
     "buyable": "可买",
     "blocked": "不可买",
     "signalDate": "信号日期",
-    "stale": "后续修订改变了此报告的历史输入。原报告保留用于审计；请重放至此日期以更新组合。",
-    "staleShort": "组合需要重放",
+    "stale": "后续修订改变了此报告的历史输入，请重新计算组合以更新报告。",
+    "staleShort": "组合需要更新",
     "historyTitle": "每次已提交信号及其来源",
-    "historyHint": "最新修订为有效版本，被替代的预测和原始决策仍可查看。",
+    "historyHint": "每日任务保留当天最终信号及其来源；查看其他交易日请打开对应日期的任务。",
     "effective": "有效版本",
     "superseded": "已被替代",
     "incomplete": "市场覆盖不完整，组合表现存在数据缺口。",
@@ -931,7 +942,7 @@
   "replica": {
     "coverage": "文件覆盖范围与省略项",
     "label": "结果展示副本",
-    "description": "指标来自源端完整运行。可用文件可能只覆盖部分日期，输入快照未同步。此副本不能作为研究输入。",
+    "description": "指标来自源端完整运行。可用文件可能只覆盖部分日期。此副本不能作为研究输入。",
     "sample": "{{name}}：{{start}}–{{end}}，保留 {{rows}} / {{total}} 行",
     "omitted": "未同步：{{files}}",
     "logUnavailable": "日志未同步",
@@ -1086,7 +1097,7 @@
     "unavailable": "暂无记录",
     "noSignal": "该日期与时间点暂无已提交信号。",
     "noTaskRecord": "该交易日期没有可用的运行记录；已归档信号可在各时点的“信号结果”中查看。",
-    "historyError": "信号历史读取失败；当前结果可能不是最新有效版本。",
+    "historyError": "每日结果刷新失败，当前展示上次成功读取的结果。",
     "oldRevision": "正在查看历史版本。",
     "returnEffective": "返回有效版本",
     "updated": "最近更新",
@@ -1135,7 +1146,6 @@
     "counts": "在线 {{online}} / 离线 {{offline}} 只",
     "order": "数值顺序：在线 / 离线",
     "stdHint": "STD：全部 seed 原始分数标准差（ddof=0）",
-    "mock": "Mock 在线输入",
     "stock": "代码 / 名称",
     "membership": "Top N 入选",
     "both": "两边入选",
@@ -1209,5 +1219,14 @@
     "removeItem": "删除第 {{index}} 项",
     "requiredOutput": "必有",
     "optionalOutput": "可选"
+  },
+  "portfolio": {
+    "unspecified": "未指定",
+    "targets": "每日目标",
+    "date": "日期",
+    "code": "股票",
+    "rank": "排名",
+    "weight": "目标权重",
+    "empty": "没有可用目标。"
   }
 }

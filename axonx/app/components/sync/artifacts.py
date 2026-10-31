@@ -45,22 +45,33 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None,
         if isinstance(value, dict):
             # Only publication containers own files. Protocol provenance and
             # parent Task summaries may contain paths belonging to other Tasks.
+            model_artifacts = {
+                model.get("model_artifact") for model in value.get("models", {}).values() if isinstance(model, dict)
+            }
             for role, record in value.get("artifacts", {}).items():
                 if live and (
-                    role
+                    role in model_artifacts
+                    or role
                     in {
                         "features",
                         "input_features",
-                        "feature_protocol",
-                        "model_manifest",
+                        "model_metadata",
                     }
                     or role.startswith(("model_", "source_", "debug_"))
                 ):
                     continue
                 yield record["path"]
-            if value.get("previous"):
-                yield value["previous"]["path"]
-            for key in ("commits", "comparisons"):
+            report = value.get("report")
+            if isinstance(report, dict):
+                yield from references(report.get("commit", {}))
+            comparison = value.get("comparison")
+            if isinstance(comparison, dict):
+                yield from references(comparison)
+            for models in value.get("models", {}).values():
+                if isinstance(models, dict):
+                    for result in models.values():
+                        yield from references(result)
+            for key in ("commits", "comparisons", "windows"):
                 for item in value.get(key, []):
                     yield from references(item)
 
@@ -70,8 +81,6 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None,
             raise ValueError(f"Artifact path must stay inside its Task: {relative}")
         name = (parent / candidate).relative_to(directory).as_posix()
         path = artifact_path(directory, name)
-        if name.split("/", 1)[0] in {"inputs", "model_snapshot"}:
-            return
         if not path.is_file():
             omitted[name] = "published artifact is missing"
             return
@@ -79,13 +88,14 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None,
         if path.suffix == ".json" and name not in visited:
             visited.add(name)
             publication = json.loads(path.read_text(encoding="utf-8"))
-            # Model collections are file-relative; online publications are Task-relative.
-            base = path.parent if isinstance(publication, dict) and "members" in publication else directory
+            # Retained training records resolve artifacts relative to their metadata.
+            base = directory
+            if isinstance(publication, dict) and "output_params" in publication:
+                publication, base = publication["output_params"], path.parent
             for reference in references(publication):
                 pending.append((reference, base))
 
-    # Frozen online histories can span thousands of revisions. Traverse their
-    # manifest dependencies iteratively rather than using the Python call stack.
+    # Follow registered JSON dependencies without consuming the Python call stack.
     pending = [(reference, directory) for reference in references(metadata.output_params)]
     while pending:
         relative, parent = pending.pop()

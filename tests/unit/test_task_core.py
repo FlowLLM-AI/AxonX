@@ -1,10 +1,10 @@
 """Verify authoring extensions through the real executor and deterministic business time."""
 
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from clock_helpers import FakeClock
 
 from axonx.task.core.clock import DeadlineBudget, WindowClock
 from axonx.task.core.research import BasePredictionCompareTask
@@ -13,7 +13,6 @@ from axonx.task.models.identity import TaskState
 from axonx.task.models.params import ExecutionWindow, WindowInputParams, WindowOutputParams
 from axonx.task.models.reports import PredictionComparison, WindowResult
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.runtime.replay import ReplayClock
 from axonx.task.storage.workspace import read_entry
 from axonx.utils.logging import LoggingConfig, configure_logging
 
@@ -58,7 +57,7 @@ def make_task(tmp_path):
             {"windows": windows or [window()], **inputs},
             workspace_path=tmp_path,
             reg_name="test",
-            clock=ReplayClock(START),
+            clock=FakeClock(START),
         )
 
     return create
@@ -100,6 +99,17 @@ def test_window_failure_retains_completed_and_failed_results_and_stops(make_task
     ]
     assert task.state["closed"] == 1
     assert task.clock.now() == START + timedelta(seconds=5)
+
+
+@pytest.mark.parametrize("outcome", ["done", "skipped", "incomplete", "failed"])
+def test_window_outcomes_only_fail_for_execution_failures(make_task, outcome):
+    class Collector(CollectorTask):
+        def collect(self, window, budget):
+            return WindowResult(key=window.key, status=outcome, reason="recorded outcome")
+
+    status = TaskExecutor().execute(make_task(Collector))
+    assert status.exit_code == int(outcome == "failed")
+    assert status.output_params["windows"][0]["status"] == outcome
 
 
 def test_window_output_extensions_are_published_with_every_partial_result(make_task):
@@ -263,10 +273,23 @@ def test_comparison_errors_and_wrong_keys_are_reported_without_losing_other_resu
             return PredictionComparison(key="other" if key == "wrong" else key, status="consistent")
 
     task = CompareTask({"comparison_keys": ["ok", "error", "wrong"]}, workspace_path=tmp_path, reg_name="compare")
-    assert TaskExecutor().execute(task).state == TaskState.SUCCEEDED
+    assert TaskExecutor().execute(task).state == TaskState.FAILED
     assert [result.status for result in task.output_params.comparisons] == ["consistent", "error", "error"]
     assert "input unavailable" in task.output_params.comparisons[1].reason
     assert task.output == read_entry(tmp_path, task.task_id).output_params
+
+
+@pytest.mark.parametrize("outcome", ["consistent", "different", "missing", "protocol_mismatch"])
+def test_comparison_findings_do_not_fail_execution(tmp_path, outcome):
+    class CompareTask(BasePredictionCompareTask):
+        def compare(self, key):
+            return PredictionComparison(key=key, status=outcome)
+
+    task = CompareTask({"comparison_keys": ["window"]}, workspace_path=tmp_path, reg_name="compare")
+    status = TaskExecutor().execute(task)
+    assert status.state == TaskState.SUCCEEDED
+    assert status.exit_code == 0
+    assert status.output_params["comparisons"][0]["status"] == outcome
 
 
 def test_deadline_budget_uses_elapsed_seconds_across_repeated_local_time():
@@ -274,7 +297,7 @@ def test_deadline_budget_uses_elapsed_seconds_across_repeated_local_time():
     start = datetime(2026, 11, 1, 1, 45, tzinfo=zone, fold=0)
     end = datetime(2026, 11, 1, 1, 15, tzinfo=zone, fold=1)
 
-    class LocalClock(ReplayClock):
+    class LocalClock(FakeClock):
         def now(self):
             return super().now().astimezone(zone)
 
@@ -297,20 +320,7 @@ def test_deadline_budget_uses_elapsed_seconds_across_repeated_local_time():
         WindowInputParams(windows=[late, early])
 
 
-def test_replay_clock_only_allows_its_owner_to_advance_and_rejects_invalid_time():
-    clock = ReplayClock(START)
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        assert pool.submit(clock.now).result() == START
-        with pytest.raises(RuntimeError, match="replay driver"):
-            pool.submit(clock.sleep, 1).result()
-    assert clock.now() == START
-    for seconds in (-1, float("inf"), float("nan")):
-        with pytest.raises(ValueError):
-            clock.sleep(seconds)
-    with pytest.raises(ValueError):
-        clock.advance_to(START - timedelta(seconds=1))
-    with pytest.raises(ValueError):
-        ReplayClock(datetime(2001, 1, 1))
+def test_deadline_budget_requires_an_aware_deadline():
+    clock = WindowClock()
     with pytest.raises(ValueError, match="aware"):
         DeadlineBudget(clock, datetime(2001, 1, 1))
-    assert isinstance(clock, WindowClock)

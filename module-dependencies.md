@@ -129,7 +129,7 @@ flowchart TD
 
   调用方：[app.components.task_index.base](axonx/app/components/task_index/base.py)、[app.components.task_index.local](axonx/app/components/task_index/local.py)、[app.components.task_index.stream](axonx/app/components/task_index/stream.py)、[app.steps.task](axonx/app/steps/task.py)、[cli.remote](axonx/cli/remote.py)、[client.events](axonx/client/events.py)。
 
-- [task.storage.files](axonx/task/storage/files.py)（`task`）：`snapshot_file`；准备副本和补齐增量时复用 Task 文件快照能力。
+- [task.storage.files](axonx/task/storage/files.py)（`task`）：`copy_file`；准备展示副本和补齐增量时复用原子输出复制。
 
   调用方：[app.components.sync.applier](axonx/app/components/sync/applier.py)、[app.components.sync.replica](axonx/app/components/sync/replica.py)。
 
@@ -171,11 +171,11 @@ flowchart TD
 
 `utils` 不依赖另外六个包；`task` 的跨包直接依赖只有 `utils.logging`。`plugin` 不依赖 Task 或 App。`app` 的定义查询使用注入的 Task 目录，仅在类型检查时导入目录类型；不直接导入 `plugin`、`cli` 或 `daemon`，通过命令子进程和注入后端与它们交互。`daemon` 对 App、Task 和 Plugin 发现的导入集中在启动装配层，独立监督进程 `daemon.supervisor` 只导入标准库。Client 只依赖 Task 事件数据契约和共享工具，不依赖 App；App 直接使用 Client 的公开连接与通信模型。取消安全工具归 `utils.async_work`。App 能力包入口显式导入并导出直接子模块；具体实现从所属模块显式导入。边界测试在全新解释器中检查实际 HTTP/MCP 客户端不会加载任何 App 模块，Task 模型和 App 配置模型的导入也不会触发客户端传输实现。
 
-`task/` 的一级内容只有 `__init__.py` 和 `models`、`core`、`runtime`、`storage`、`builtins` 五个能力包。枚举、身份规则和纯值校验归 models；进程识别、显式终止、失效记录收尾、进度收尾与回放归 runtime。所有 Task 通过执行器在执行期间绑定的回调运行子任务；解析器只由运行时持有，由同一个执行器递归执行子任务时复用。Storage 不管理进程，在线存储对 `core.clock.DeadlineBudget` 只保留类型检查导入。Task 包内的运行时依赖方向为：`runtime → builtins/core/storage/models`、`builtins → core/storage/models`、`core → storage/models`、`storage → models`。
+`task/` 的一级内容只有 `__init__.py` 和 `models`、`core`、`runtime`、`storage`、`builtins` 五个能力包。枚举、身份规则和纯值校验归 models；进程识别、显式终止、失效记录收尾、进度收尾归 runtime。所有 Task 通过执行器在执行期间绑定的回调运行子任务；解析器只由运行时持有，由同一个执行器递归执行子任务时复用。Storage 不管理进程，在线存储对 `core.clock.DeadlineBudget` 只保留类型检查导入。Task 包内的运行时依赖方向为：`runtime → builtins/core/storage/models`、`builtins → core/storage/models`、`core → storage/models`、`storage → models`。
 
-`task/core` 按编写职责保留五个文件：`base.py` 管理 `BaseTask`、`ChildTaskError`、子任务调用接口、步骤契约与统一的有类型输出发布；调用身份与子任务结果归 `models.lifecycle`；`research.py` 集中标准研究基类和预测对比；`windows.py` 集中通用窗口、实时采集和固定模型推理；`clock.py` 提供真实业务时钟与截止预算，回放时钟和事件驱动归 `runtime.replay`，回放文件访问归 `storage.replay`；`__init__.py` 逐项说明全部直接子模块，显式导入并通过 `__all__` 导出。窗口资源通过执行器调用的 `BaseTask.close()` 统一清理。
+`task/core` 按编写职责保留五个文件：`base.py` 管理 `BaseTask`、`ChildTaskError`、子任务调用接口、步骤契约与统一的有类型输出发布；调用身份与子任务结果归 `models.lifecycle`；`research.py` 集中标准研究基类和预测对比；`windows.py` 集中通用窗口、实时采集和固定模型推理；`clock.py` 提供真实业务时钟与截止预算；`__init__.py` 逐项说明全部直接子模块，显式导入并通过 `__all__` 导出。窗口资源通过执行器调用的 `BaseTask.close()` 统一清理。
 
-共享调用身份、子任务结果与持久化状态统一归 `models.lifecycle`；输入参数、窗口输入和输出结构归 `models.params`；训练曲线、预测对比、窗口结果、回测报告及历史节点格式归 `models.reports`。股票报告与信号格式规则归 `builtins.stock`；通用 models 不依赖股票业务。BaseTask 的来源任务和输入路径检查委托 `storage.inputs`。回放输入描述、文件快照、时钟驱动分别归 models、storage、runtime。任务身份集合校验统一归 models。副本准备、采样、归档、传输、索引和应用统一归 `app/components/sync`，内部计划和两种同步结果归该目录的 `models.py`。Task 保留副本数据契约与只读约束；接收和索引入口无需配置发送组件或目标。
+共享调用身份、子任务结果与持久化状态统一归 `models.lifecycle`；输入参数、窗口输入和输出结构归 `models.params`；训练曲线、预测对比、窗口结果、回测报告及历史节点格式归 `models.reports`。股票报告与信号格式规则归 `builtins.stock`；通用 models 不依赖股票业务。BaseTask 的来源任务和输入路径检查委托 `storage.inputs`。任务身份集合校验统一归 models。副本准备、采样、归档、传输、索引和应用统一归 `app/components/sync`，内部计划和两种同步结果归该目录的 `models.py`。Task 保留副本数据契约与只读约束；接收和索引入口无需配置发送组件或目标。
 
 任务摘要、排序、血缘图、查询上下文和进度与日志跟踪统一归 `app/components/task_index`，由该组件直接使用 Task 模型与存储接口。
 
@@ -328,18 +328,18 @@ HTTP 应用由 `HttpService` 装配；同步规划和归档由 `sync/archive.py`
 
 ## 其他能力包职责
 
-| 包              | 文件与职责                                                                                                                                                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `task/models`   | `identity` 定义身份与枚举，`params` 定义输入输出，`lifecycle` 定义调用身份和持久化状态，`artifacts` 定义产物引用，`events` 定义日志/进度，`query` 定义查询响应，`reports` 定义研究报告。模型不依赖执行实现。                       |
-| `task/core`     | `base` 提供 Task/步骤/子任务与输出契约；`research` 提供研究阶段基类；`windows` 提供窗口、在线采集和推理；`clock` 提供业务时钟与截止预算。                                                                                          |
-| `task/runtime`  | `catalog` 解析注册和 Schema，`executor` 同步执行并绑定子任务回调，`lifecycle` 收尾/终止任务，`process` 校验进程身份，`progress` 持久化进度，`settings` 定义执行配置，`replay` 驱动回放。                                           |
-| `task/storage`  | `workspace` 由 Task 名字定位 tasks/ 或 tmp/tasks/ 下的目录和元数据，`artifacts` 发布产物，`inputs` 校验来源，`logs` 统一进度与执行日志并提供相对路径日志读取，`files` 提供文件快照，`online` 提交在线产物，`replay` 访问回放文件。 |
-| `task/builtins` | `demo` 提供无外部凭据的示例；`tushare` 下载行情，`dingtalk` 发送通知，`stock` 提供股票数据契约、账本、撮合与报告。插件复用这些契约并实现研究算法。                                                                                 |
-| `client`        | `config` 定义地址/鉴权/路由约定，`models` 定义 Job 和上传模型，`events` 组合公开事件，`base` 管理连接生命周期，`http`/`mcp` 实现传输。库客户端不隐式读取 CLI token 环境变量。                                                      |
-| `cli`           | `parser` 定义命令与连接选项，`commands` 适配本地 app/exec/kill/plugin，`remote` 适配远程 Job/CLI 调用，`rendering` 输出结果与事件，`main` 路由并转换退出码，`__main__` 提供模块入口。                                              |
-| `daemon`        | `launcher` 加载配置、校验 Cron、发现 Task 并注入宿主能力；`supervisor` 管理服务和定时进程；`client` 提供宿主 IPC；`update` 执行更新。后三者只依赖标准库和 Daemon 内部模块。                                                        |
-| `plugin`        | `manifest` 校验清单，`discovery` 从 `axonx.plugins` 发现注册，`fingerprint` 计算内容身份，`wheel` 校验构建产物，`installer` 负责构建/安装/卸载，`models` 定义安装结果。插件发现不负责执行 Task。                                   |
-| `utils`         | `env` 显式加载 `.env` 并展开变量，`values` 转换标量，`logging` 管理日志，`async_work` 在传播取消前完成自有清理；不依赖其他 AxonX 包。                                                                                              |
+| 包              | 文件与职责                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task/models`   | `identity` 定义身份与枚举，`params` 定义输入输出，`lifecycle` 定义调用身份和持久化状态，`artifacts` 定义产物引用，`events` 定义日志/进度，`query` 定义查询响应，`reports` 定义研究报告。模型不依赖执行实现。                                |
+| `task/core`     | `base` 提供 Task/步骤/子任务与输出契约；`research` 提供研究阶段基类；`windows` 提供窗口、在线采集和推理；`clock` 提供业务时钟与截止预算。                                                                                                   |
+| `task/runtime`  | `catalog` 解析注册和 Schema，`executor` 同步执行并绑定子任务回调，`lifecycle` 收尾/终止任务，`process` 校验进程身份，`progress` 持久化进度，`settings` 定义执行配置。                                                                       |
+| `task/storage`  | `workspace` 由 Task 名字定位 tasks/ 或 tmp/tasks/ 下的目录和元数据，`artifacts` 发布产物，`inputs` 直接解析上游并记录来源执行及产物修订，`logs` 统一进度与执行日志并提供相对路径日志读取，`files` 提供文件版本校验，`online` 提交在线产物。 |
+| `task/builtins` | `demo` 提供无外部凭据的示例；`tushare` 下载行情，`dingtalk` 发送通知，`stock` 提供股票数据契约、账本、撮合与报告。插件复用这些契约并实现研究算法。                                                                                          |
+| `client`        | `config` 定义地址/鉴权/路由约定，`models` 定义 Job 和上传模型，`events` 组合公开事件，`base` 管理连接生命周期，`http`/`mcp` 实现传输。库客户端不隐式读取 CLI token 环境变量。                                                               |
+| `cli`           | `parser` 定义命令与连接选项，`commands` 适配本地 app/exec/kill/plugin，`remote` 适配远程 Job/CLI 调用，`rendering` 输出结果与事件，`main` 路由并转换退出码，`__main__` 提供模块入口。                                                       |
+| `daemon`        | `launcher` 加载配置、校验 Cron、发现 Task 并注入宿主能力；`supervisor` 管理服务和定时进程；`client` 提供宿主 IPC；`update` 执行更新。后三者只依赖标准库和 Daemon 内部模块。                                                                 |
+| `plugin`        | `manifest` 校验清单，`discovery` 从 `axonx.plugins` 发现注册，`fingerprint` 计算内容身份，`wheel` 校验构建产物，`installer` 负责构建/安装/卸载，`models` 定义安装结果。插件发现不负责执行 Task。                                            |
+| `utils`         | `env` 显式加载 `.env` 并展开变量，`values` 转换标量，`logging` 管理日志，`async_work` 在传播取消前完成自有清理；不依赖其他 AxonX 包。                                                                                                       |
 
 ## 配置、生成资源与打包
 

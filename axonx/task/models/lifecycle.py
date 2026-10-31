@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, ConfigDict, Field
 
-from .artifacts import Protocol
+from .artifacts import ArtifactRecord, Protocol
 from .base import TaskModel
 from .identity import TaskState, TaskType
 from .params import BaseOutputParams
@@ -146,11 +146,19 @@ class ChildTaskResult:
         return self.output_params.model_dump(mode="json", by_alias=True)
 
 
+class InputSource(TaskModel):
+    """The upstream execution and file versions consumed by one Task."""
+
+    started_at: AwareDatetime
+    artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
+
+
 class TaskMetadata(Protocol, TaskStatus):
     """The complete current lifecycle record, from running to terminal."""
 
     model_config = ConfigDict(extra="forbid")
     input_params: dict[str, Any] = Field(default_factory=dict)
+    input_sources: dict[str, InputSource] = Field(default_factory=dict)
     output_params: dict[str, Any] = Field(default_factory=dict)
     children: list[ChildTaskRecord] = Field(
         default_factory=list, description="Direct child invocation records, independent of input dependencies."

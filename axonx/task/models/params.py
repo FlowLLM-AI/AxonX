@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
 
@@ -13,9 +13,9 @@ from .artifacts import (
     PredictionProtocol,
     validate_protocol,
 )
-from .base import TaskModel
+from .base import TaskModel, normalize_yyyymmdd
 from .identity import TaskType, task_type_from_id, validate_task_name, validate_upstream_task_ids
-from .reports import BacktestUniverseReport, PredictionComparison, TrainingCurve, WindowResult
+from .reports import BacktestPortfolioReport, ModelMember, PortfolioDefinition, PredictionComparison, WindowResult
 
 
 class BaseInputParams(TaskModel):
@@ -73,31 +73,45 @@ class BaseETLOutputParams(BaseOutputParams):
     label_columns: list[str] = Field(default_factory=list)
 
 
-class BaseBacktestOutputParams(BaseOutputParams):
-    default_universe: str
-    universes: dict[str, BacktestUniverseReport] = Field(min_length=1)
+class BasePortfolioOutputParams(BaseOutputParams):
+    portfolios: list[PortfolioDefinition] = Field(min_length=1)
     protocol: dict[str, Any]
 
     @model_validator(mode="after")
-    def validate_universes(self):
-        if self.default_universe not in self.universes:
-            raise ValueError("default_universe must reference a published report")
-        for report in self.universes.values():
-            if not {"daily", "summary"} <= report.artifacts.keys():
-                raise ValueError("Every universe requires daily and summary artifacts")
+    def validate_portfolios(self):
+        identities = [report.portfolio_id for report in self.portfolios]
+        if any(value in identities[:index] for index, value in enumerate(identities)):
+            raise ValueError("Portfolio identities must be unique")
+        for report in self.portfolios:
             if set(report.artifacts.values()) - self.artifacts.keys():
-                raise ValueError("Universe references an unregistered artifact")
+                raise ValueError("Portfolio references an unregistered artifact")
         return self
 
     @field_validator("protocol")
     @classmethod
-    def validate_backtest_protocol(cls, value):
+    def validate_portfolio_protocol(cls, value):
+        return validate_protocol(value, TaskType.PORTFOLIO)
+
+
+class BaseBacktestOutputParams(BasePortfolioOutputParams):
+    portfolios: list[BacktestPortfolioReport] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_reports(self):
+        if any(not {"daily", "summary"} <= report.artifacts.keys() for report in self.portfolios):
+            raise ValueError("Every portfolio requires daily and summary artifacts")
+        return self
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_portfolio_protocol(cls, value):
         return validate_protocol(value, TaskType.BACKTEST)
 
 
 class BasePredictOutputParams(BaseOutputParams):
     """Describe the prediction artifact consumed by downstream tasks."""
 
+    artifacts: dict[Literal["predictions"], ArtifactRecord] = Field(min_length=1)
     rows: int
     date_range: dict[str, str]
     output_columns: list[str] = Field(default_factory=list)
@@ -114,16 +128,32 @@ class BasePredictOutputParams(BaseOutputParams):
 
 
 class BaseTrainOutputParams(BaseOutputParams):
-    train_rows: int
-    model_name: str | None = None
-    feature_columns: list[str] = Field(default_factory=list)
-    target_columns: list[str] = Field(default_factory=list)
-    metrics: dict[str, float] = Field(default_factory=dict)
-    parameters: dict[str, Any] = Field(default_factory=dict)
-    training_curve: TrainingCurve = Field(
-        default_factory=TrainingCurve,
-        description="Optional aligned training history with up to two value ranges, one per y-axis.",
-    )
+    """Model index stored directly in a training Task's output_params."""
+
+    feature_protocol: dict[str, Any]
+    training_target: dict[str, Any] = Field(default_factory=dict)
+    models: dict[str, ModelMember] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_models(self):
+        validate_protocol(self.feature_protocol, TaskType.ETL)
+        for name, member in self.models.items():
+            if not name or "/" in name or "\\" in name:
+                raise ValueError("Model names must be nonempty file names")
+            if member.model_artifact is not None and member.model_artifact not in self.artifacts:
+                raise ValueError("Model references an unregistered artifact")
+        return self
+
+    def select_models(self, use_at: str | int) -> dict[str, ModelMember]:
+        date = normalize_yyyymmdd(use_at)
+        selected = {
+            name: member
+            for name, member in self.models.items()
+            if member.use_from <= date and (member.use_to is None or date < member.use_to)
+        }
+        if not selected or any(member.state != "succeeded" for member in selected.values()):
+            raise ValueError(f"No completed model group for {date}")
+        return selected
 
 
 class BasePredictionCompareInputParams(BaseInputParams):

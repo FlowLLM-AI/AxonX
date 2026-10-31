@@ -1,5 +1,7 @@
 import { loadArtifactRows } from "../../shared/api/artifacts";
 import type { ArtifactRecord } from "../../shared/api/contracts";
+import { restorePortfolioSignals } from "../research/portfolio";
+import { activeCommits, type OnlineCommit, type OnlineHistory } from "./report";
 
 type Rows = Record<string, unknown>[];
 
@@ -16,11 +18,15 @@ export class ArtifactTableCache {
     private readonly maxBytes = 16 * 1024 * 1024,
   ) {}
 
-  async load(artifact: ArtifactRecord, signal?: AbortSignal): Promise<Rows> {
+  async load(
+    artifact: ArtifactRecord,
+    signal?: AbortSignal,
+    taskId = this.taskId,
+  ): Promise<Rows> {
     signal?.throwIfAborted();
     const key = JSON.stringify([
       this.target,
-      this.taskId,
+      taskId,
       artifact.path,
       artifact.revision,
     ]);
@@ -34,7 +40,7 @@ export class ArtifactTableCache {
     if (!request) {
       const controller = new AbortController();
       this.controllers.add(controller);
-      request = loadArtifactRows(this.taskId, artifact, {
+      request = loadArtifactRows(taskId, artifact, {
         target: this.target,
         signal: controller.signal,
       })
@@ -63,6 +69,64 @@ export class ArtifactTableCache {
     const rows = await request;
     signal?.throwIfAborted();
     return rows;
+  }
+
+  async signals(commit: OnlineCommit, signal?: AbortSignal): Promise<Rows> {
+    const read = (role: string) =>
+      this.load(commit.artifacts[role], signal, commit.task_id);
+    const [predictions, rankings, scores] = await Promise.all([
+      read("predictions"),
+      read("rankings"),
+      commit.artifacts.scores ? read("scores") : Promise.resolve(null),
+    ]);
+    return restorePortfolioSignals(
+      predictions,
+      rankings,
+      commit.protocol.report.score_column,
+      scores,
+    );
+  }
+
+  async ledger(
+    commit: OnlineCommit,
+    history: OnlineHistory | null | undefined,
+    role: string,
+    signal?: AbortSignal,
+  ) {
+    const index = history?.commits.findIndex(
+      (c) => c.commit_id === commit.commit_id,
+    );
+    if (index !== undefined && index < 0)
+      throw new Error("Selected publication is missing from its history");
+    const commits =
+      history && ["daily", "trades"].includes(role)
+        ? activeCommits({
+            ...history,
+            commits: history.commits.slice(0, index! + 1),
+          })
+        : [commit];
+    return (
+      await Promise.all(
+        commits.map(async (c) => {
+          const rows = await this.load(c.artifacts[role], signal, c.task_id);
+          if (
+            rows.some(
+              (row) =>
+                !Object.hasOwn(
+                  c.protocol.report.portfolios,
+                  String(row.portfolio_key),
+                ) ||
+                (role !== "summary" &&
+                  row[role === "trades" ? "exit_date" : "trade_date"] !==
+                    c.trade_date),
+            )
+          ) {
+            throw new Error("Ledger rows differ from their daily publication");
+          }
+          return rows;
+        }),
+      )
+    ).flat();
   }
 
   clear(): void {

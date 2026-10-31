@@ -34,7 +34,8 @@
       "train": "Model training",
       "predict": "Offline prediction",
       "backtest": "Offline backtest",
-      "compare": "Strategy comparison"
+      "compare": "Strategy comparison",
+      "portfolio": "Portfolios"
     },
     "switchLanguageLabel": "中文",
     "taskDefinitions": "Task definitions"
@@ -153,10 +154,10 @@
       "data_not_ready_before_deadline": "Inputs were not ready before the deadline",
       "incomplete_history": "Historical bar coverage is insufficient",
       "missing_snapshot": "Opening snapshot was unavailable when this window arrived",
-      "missing_or_late_replay_window": "Replay window is missing or arrived at or after the cutoff",
       "download_disabled": "Using existing raw data",
       "evaluation_disabled": "Portfolio evaluation disabled",
       "online_source_unavailable": "No matching successful online result; history was updated",
+      "online_evidence_unavailable": "Inference evidence was replaced; the saved display remains available",
       "upstream_failed": "Skipped because a prerequisite failed",
       "source_data_revised": "Source data was revised"
     },
@@ -215,6 +216,7 @@
   "gpuUtilization": "Compute usage",
   "gpuMemory": "Memory usage",
   "states": {
+    "pending": "Pending",
     "running": "Running",
     "succeeded": "Succeeded",
     "failed": "Failed"
@@ -431,6 +433,10 @@
       "predict": {
         "title": "Predictions",
         "lead": "Inspect sample coverage, columns, and artifacts"
+      },
+      "portfolio": {
+        "title": "Portfolios",
+        "lead": "Inspect portfolio definitions and daily targets."
       }
     },
     "columns": {
@@ -511,6 +517,8 @@
     "left_axis_l2_mean_squared": "Left axis L2: mean squared error; right axis L1: mean absolute error. Solid lines show training, dashed lines validation. Do not compare heights across axes.",
     "output_files": "Output files",
     "input_directory": "Input directory",
+    "training_range": "Training",
+    "use_range": "Prediction",
     "model_members": "Model members",
     "score_columns": "Score columns"
   },
@@ -548,7 +556,7 @@
     "choose_from_the_list": "Choose from the list",
     "swap_a_and_b": "Swap A and B",
     "select_two_backtests_to_compare": "Select two backtests to compare",
-    "only_one_backtest_is_available": "Only one backtest is available; run another to compare",
+    "only_one_backtest_is_available": "Select the same task again to compare its portfolios.",
     "click_two_task_list_on": "Click two tasks on the left to assign A and B",
     "unable_to_load_backtests": "Unable to load backtests",
     "calculating_shared_window": "Calculating shared window",
@@ -617,8 +625,9 @@
     "errors": {
       "parquetRequired": "Backtest artifacts must be Parquet files",
       "missingDailySummary": "Backtest metadata is missing daily or summary artifacts",
-      "signalsFormat": "Stock signal metadata must declare signals_format=stock-signals-v1",
-      "missingUniverse": "Backtest metadata is missing the selected universe report"
+      "signalsFormat": "Stock signal metadata must declare signals_format=stock-signals-v3",
+      "missingUniverse": "Backtest metadata is missing the selected universe report",
+      "missingPortfolio": "Portfolio not found."
     },
     "noSummaryData": "NO SUMMARY DATA",
     "daily_mean_in_range": "Daily mean in range",
@@ -667,7 +676,8 @@
     "overall_metrics_by_top_n": "Overall metrics by Top N",
     "top_n_period_metric_details": "Top N period metric details",
     "incomplete_market_data": "Market data is incomplete. Returns and valuations are provisional.",
-    "universe": "Stock universe"
+    "universe": "Stock universe",
+    "portfolio": "Portfolio"
   },
   "agent": {
     "sessions": "Sessions",
@@ -812,7 +822,8 @@
       "positions": "Positions",
       "trades": "Trades",
       "daily": "Daily ledger"
-    }
+    },
+    "portfolioConstruction": "Portfolio construction"
   },
   "onlineReport": {
     "tabsLabel": "Online report",
@@ -832,10 +843,10 @@
     "buyable": "Buyable",
     "blocked": "Blocked",
     "signalDate": "Signal date",
-    "stale": "A later revision changed this report’s input history. The original report is retained for audit; replay through this date to refresh the portfolio.",
-    "staleShort": "Portfolio replay required",
+    "stale": "A later revision changed this report’s input history. Recompute the portfolio to refresh this report.",
+    "staleShort": "Portfolio update required",
     "historyTitle": "Every committed signal, with provenance",
-    "historyHint": "Latest revisions are effective. Superseded predictions and original decisions remain available for audit.",
+    "historyHint": "This daily Task retains its final signal and provenance. Open another daily Task to inspect another trading date.",
     "effective": "Effective",
     "superseded": "Superseded",
     "incomplete": "Market coverage is incomplete. Portfolio performance includes gaps.",
@@ -931,7 +942,7 @@
   "replica": {
     "coverage": "File coverage and omissions",
     "label": "Result display replica",
-    "description": "Metrics describe the full source run. Available files may cover fewer dates; input snapshots are omitted. This replica cannot be used as a research input.",
+    "description": "Metrics describe the full source run. Available files may cover fewer dates. This replica cannot be used as a research input.",
     "sample": "{{name}}: {{start}}–{{end}}, {{rows}} of {{total}} rows",
     "omitted": "Not synchronized: {{files}}",
     "logUnavailable": "Logs were not synchronized",
@@ -1086,7 +1097,7 @@
     "unavailable": "Unavailable",
     "noSignal": "No submitted signal for this date and time.",
     "noTaskRecord": "No execution records are available for this trading date. Archived signals remain available under each time’s Signal results.",
-    "historyError": "Signal history could not be loaded; the displayed result may not be the latest effective revision.",
+    "historyError": "The daily result could not be refreshed; the last successfully loaded result is shown.",
     "oldRevision": "Viewing a historical revision.",
     "returnEffective": "Return to effective revision",
     "updated": "Last updated",
@@ -1135,7 +1146,6 @@
     "counts": "Online {{online}} / Offline {{offline}} stocks",
     "order": "Values: online / offline",
     "stdHint": "STD: raw scores across all seeds (ddof=0)",
-    "mock": "Mock online input",
     "stock": "Code / name",
     "membership": "Top N membership",
     "both": "Both",
@@ -1209,5 +1219,14 @@
     "removeItem": "Remove item {{index}}",
     "requiredOutput": "Required",
     "optionalOutput": "Optional"
+  },
+  "portfolio": {
+    "unspecified": "Not specified",
+    "targets": "Daily targets",
+    "date": "Date",
+    "code": "Stock",
+    "rank": "Rank",
+    "weight": "Target weight",
+    "empty": "No targets available."
   }
 }

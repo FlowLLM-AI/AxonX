@@ -66,8 +66,8 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # After prediction succeeds, generate backtest artifacts
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '<Predict Task ID>'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Each exec waits. Check its exit code and metadata before the next stage. upstream_task_ids is a JSON array; CLI exec also accepts comma-separated IDs. Validate each stage against its actual definition.

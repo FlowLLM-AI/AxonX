@@ -23,6 +23,26 @@ export function executionCostRates(input: Record<string, unknown>) {
   };
 }
 
+/** Project one selected portfolio into the column namespace shared by existing comparison calculations. */
+export function portfolioDaily(
+  rows: DailyRow[],
+  sourceN: number,
+  comparisonN: number,
+): DailyRow[] {
+  const prefix = `top${sourceN}_`;
+  return rows.map((row) => ({
+    ...row,
+    ...Object.fromEntries(
+      Object.entries(row)
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, value]) => [
+          `top${comparisonN}_${key.slice(prefix.length)}`,
+          value,
+        ]),
+    ),
+  }));
+}
+
 export function pairDays(
   a: DailyRow[],
   b: DailyRow[],

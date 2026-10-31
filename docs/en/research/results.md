@@ -46,7 +46,7 @@ ETL `statistics` files are a plugin extension. The generic base class does not r
 
 Select metrics and labels through Metric and Label. Both bar direction and value express factor scores.
 
-qlib_a158 produces `factor_analysis.csv` and `factor_quantiles.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
+qlib_a158 produces `factor_analysis_stats.csv` and `factor_quantiles_stats.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
 
 By default, analysis joins the independent labels artifact and uses signal-day buyable samples with valid fixed-next-market-day returns. Changing `tradable_only`, `minimum_daily_samples`, or `quantiles` also changes the sample definition.
 
@@ -64,9 +64,9 @@ Training details show samples, features, target column, and effective parameters
 
 Training results include model name, training row count, target column, parameters, metrics, and training curves. qlib_a158 saves:
 
-- `model.txt`: the final model fitted with the best iteration count.
-- `feature_importance.csv`: gain and split importance.
-- `evaluation_history.csv`: per-iteration training/validation history from tuning.
+- `models/lightgbm_seed_<seed>_fit_end_<date>_use_<date>-onward.txt`: the final model fitted using the selected iteration count.
+- `feature_importance_stats.csv`: gain and split importance.
+- `metadata.json.output_params.models`: model configurations, use dates, parameters, metrics and training/validation curves.
 
 qlib_a158's training window includes the start and excludes the end, reserving the final dates for validation. Tuning selects the best iteration count, then refits using all valid samples within the training window. Curves and validation metrics come from the model used to select the iteration count, not an independent out-of-sample evaluation of the final model.
 

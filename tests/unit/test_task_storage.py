@@ -1,31 +1,41 @@
 """Verify storage publication, incremental reads and immutable input contracts."""
 
-import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
+import polars as pl
 import pytest
+from clock_helpers import FakeClock
 
-from axonx.task.core.clock import DeadlineBudget, WindowClock
+from axonx.task.core.base import BaseTask
+from axonx.task.core.clock import DeadlineBudget
 from axonx.task.models.artifacts import ArtifactRecord, task_protocol
 from axonx.task.models.events import ProgressEvent
 from axonx.task.models.identity import TaskState, TaskType
-from axonx.task.models.lifecycle import DisplayReplica, ReplicaFile, ReplicaLog, TaskMetadata, TaskStepStatus
-from axonx.task.models.reports import HISTORY_BLOCK_SIZE
-from axonx.task.runtime.replay import ReplayClock
+from axonx.task.models.lifecycle import (
+    DisplayReplica,
+    InputSource,
+    ReplicaFile,
+    ReplicaLog,
+    TaskMetadata,
+    TaskStepStatus,
+)
+from axonx.task.models.params import BaseOutputParams
+from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.artifacts import artifact_record, verify_artifact
-from axonx.task.storage.files import atomic_write_json, file_revision, snapshot_file
+from axonx.task.storage.files import atomic_write_json, copy_file, file_revision
 from axonx.task.storage.inputs import (
-    pin_upstream_artifacts,
     read_upstream_metadata,
-    snapshot_model_collection,
     upstream_artifact,
+    upstream_artifacts,
+    upstream_input_artifact,
     upstream_task_directory,
+    verify_input_sources,
 )
 from axonx.task.storage.logs import TaskJournal, TaskLogReader
-from axonx.task.storage.online import OnlineStore, pin_online_history, read_online_history
+from axonx.task.storage.online import publish_online
 from axonx.task.storage.workspace import load_task_metadata, scan_entries, scan_metadata, task_path, write_task_metadata
 
 
@@ -47,7 +57,7 @@ def record(tmp_path):
     return metadata
 
 
-def test_source_metadata_and_input_snapshots_share_the_published_record(tmp_path, record):
+def test_upstream_inputs_resolve_the_published_files_directly(tmp_path, record):
     directory = task_path(tmp_path, record.task_id)
     source = directory / "data.bin"
     source.write_bytes(b"published")
@@ -62,18 +72,118 @@ def test_source_metadata_and_input_snapshots_share_the_published_record(tmp_path
         upstream_task_dir=lambda task_id: upstream_task_directory(tmp_path, task_id),
     )
     assert upstream_artifact(consumer, record.task_id, "dataset") == (source, metadata)
-    (pinned,) = pin_upstream_artifacts(consumer, record.task_id, "dataset")
+    (resolved,) = upstream_artifacts(consumer, record.task_id, "dataset")
+    assert resolved == source
+    assert not consumer.task_dir.exists()
     replacement = directory / "new.bin"
     replacement.write_bytes(b"refreshed output")
     replacement.replace(source)
     with pytest.raises(ValueError, match="Artifact revision mismatch"):
-        pin_upstream_artifacts(consumer, record.task_id, "dataset", metadata=metadata)
-    assert pinned.read_bytes() == b"published"
+        upstream_artifacts(consumer, record.task_id, "dataset", metadata=metadata)
     # Pinning an earlier record must still reject a newly published display replica.
     record.replica = DisplayReplica(source_revision="source", policy_revision="policy", files={})
     write_task_metadata(directory, record)
     with pytest.raises(ValueError, match="Display replicas"):
-        pin_upstream_artifacts(consumer, record.task_id, "dataset", metadata=metadata)
+        upstream_artifacts(consumer, record.task_id, "dataset", metadata=metadata)
+
+
+@pytest.mark.parametrize("change", [None, "execution", "publication", "file"])
+def test_indirect_inputs_require_the_execution_and_revision_consumed_by_the_parent(tmp_path, record, change):
+    directory = task_path(tmp_path, record.task_id)
+    path = directory / "data.bin"
+    path.write_bytes(b"original")
+    original = artifact_record(path, directory)
+    record.output_params = {"artifacts": {"dataset": original}}
+    write_task_metadata(directory, record)
+    parent = {
+        "input_sources": {
+            record.task_id: {"started_at": record.started_at.isoformat(), "artifacts": {"dataset": original}}
+        }
+    }
+    consumer = SimpleNamespace(
+        workspace_path=tmp_path,
+        upstream_task_dir=lambda task_id: upstream_task_directory(tmp_path, task_id),
+    )
+    if change == "execution":
+        record.started_at += timedelta(seconds=1)
+    elif change in ("publication", "file"):
+        path.write_bytes(b"replacement")
+        if change == "publication":
+            record.output_params["artifacts"]["dataset"] = artifact_record(path, directory)
+    write_task_metadata(directory, record)
+    if change is None:
+        assert upstream_input_artifact(consumer, parent, record.task_id, "dataset") == path
+    else:
+        with pytest.raises(ValueError, match="execution changed|input changed|revision mismatch"):
+            upstream_input_artifact(consumer, parent, record.task_id, "dataset")
+
+
+@pytest.mark.parametrize("change", ["unchanged", "file", "execution"])
+def test_direct_inputs_record_provenance_and_reject_changes(tmp_path, record, change):
+    directory = task_path(tmp_path, record.task_id)
+    source = directory / "data.bin"
+    source.write_bytes(b"published")
+    record.output_params = {"artifacts": {"dataset": artifact_record(source, directory)}}
+    write_task_metadata(directory, record)
+
+    class Consumer(BaseTask):
+        def build_task_steps(self):
+            yield self.consume
+
+        def consume(self):
+            path, _ = upstream_artifact(self, record.task_id, "dataset")
+            assert path == source
+            assert path.read_bytes() == b"published"
+            assert not (self.task_dir / "inputs").exists()
+            if change == "file":
+                source.write_bytes(b"replaced input")
+            elif change == "execution":
+                record.started_at += timedelta(seconds=1)
+                write_task_metadata(directory, record)
+
+        def build_output_params(self):
+            return BaseOutputParams()
+
+    consumer = Consumer({}, workspace_path=tmp_path, reg_name="consumer")
+    if change == "unchanged":
+        status = TaskExecutor().execute(consumer)
+        reference = status.input_sources[record.task_id]
+        assert reference.started_at == record.started_at
+        assert reference.artifacts["dataset"].revision == file_revision(source)
+    else:
+        with pytest.raises(ValueError, match="revision mismatch|execution changed"):
+            TaskExecutor().execute(consumer)
+        assert consumer.metadata.state == TaskState.FAILED
+
+
+@pytest.mark.parametrize("change", ["unchanged", "revoked", "execution", "file"])
+def test_completed_window_inputs_are_valid_while_their_producer_runs(tmp_path, record, change):
+    directory = task_path(tmp_path, record.task_id)
+    path = directory / "1045_bar_data.parquet"
+    pl.DataFrame({"ts_code": ["A"], "close": [10]}).write_parquet(path)
+    artifact = artifact_record(path, directory)
+    record.state = TaskState.RUNNING
+    record.output_params = {"windows": [{"key": "1045_bar", "status": "done", "artifacts": {"data": artifact}}]}
+    consumer = SimpleNamespace(
+        workspace_path=tmp_path,
+        metadata=SimpleNamespace(
+            input_sources={
+                record.task_id: InputSource(started_at=record.started_at, artifacts={"1045_bar/data": artifact}),
+            }
+        ),
+    )
+    if change == "revoked":
+        record.output_params["windows"][0]["status"] = "incomplete"
+    elif change == "execution":
+        record.started_at += timedelta(seconds=1)
+    elif change == "file":
+        path.write_text("changed")
+    write_task_metadata(directory, record)
+    if change == "unchanged":
+        verify_input_sources(consumer)
+    else:
+        with pytest.raises(ValueError, match="no longer published|execution changed|revision mismatch"):
+            verify_input_sources(consumer)
 
 
 def test_current_metadata_roundtrips_without_rewriting_relationships(tmp_path, record):
@@ -220,19 +330,19 @@ def test_log_chunks_keep_utf8_boundaries_and_reset_after_truncation(tmp_path):
     assert chunk.reset and chunk.content == "新"
 
 
-def test_snapshot_revision_mismatch_preserves_the_previous_target(tmp_path):
+def test_copy_revision_mismatch_preserves_the_previous_target(tmp_path):
     source, target = tmp_path / "source", tmp_path / "target"
     source.write_text("original", encoding="utf-8")
     expected = file_revision(source)
     target.write_text("previous", encoding="utf-8")
     source.write_text("refreshed contents", encoding="utf-8")
     with pytest.raises(ValueError, match="Source revision mismatch"):
-        snapshot_file(source, target, expected_revision=expected)
+        copy_file(source, target, expected_revision=expected)
     assert target.read_text() == "previous"
     assert {path.name for path in tmp_path.iterdir()} == {"source", "target"}
 
 
-def test_source_changes_during_snapshot_preserve_the_previous_target(tmp_path, monkeypatch):
+def test_source_changes_during_copy_preserve_the_previous_target(tmp_path, monkeypatch):
     from axonx.task.storage import files
 
     source, target = tmp_path / "source", tmp_path / "target"
@@ -245,8 +355,8 @@ def test_source_changes_during_snapshot_preserve_the_previous_target(tmp_path, m
         source.write_bytes(b"refreshed while copying")
 
     monkeypatch.setattr(files.shutil, "copy2", changed)
-    with pytest.raises(ValueError, match="Source changed during snapshot"):
-        snapshot_file(source, target, isolated=True)
+    with pytest.raises(ValueError, match="Source changed during copy"):
+        copy_file(source, target)
     assert target.read_bytes() == b"previous"
     assert {path.name for path in tmp_path.iterdir()} == {"source", "target"}
 
@@ -296,120 +406,38 @@ def test_artifact_verification_rejects_symlinks_and_inconsistent_sizes(tmp_path)
         verify_artifact(tmp_path, record.model_copy(update={"path": "link"}))
 
 
-def test_model_snapshot_copies_shared_payload_once_and_rejects_stale_files(tmp_path):
-    source = tmp_path / "model.bin"
-    source.write_bytes(b"model")
-    manifest = tmp_path / "source.json"
-    value = task_protocol(
-        TaskType.TRAIN,
-        feature_protocol=task_protocol(TaskType.ETL),
-        members={key: {"model_artifact": "weights", "model": {}} for key in ("first", "second")},
-        artifacts={"weights": artifact_record(source, tmp_path)},
-    )
-    atomic_write_json(manifest, value)
-    root = tmp_path / "snapshot"
-    snapshot = snapshot_model_collection(manifest, root, expected_revision=file_revision(manifest))
-    saved = json.loads(snapshot.read_text())
-    assert len(list((root / "members").rglob("*.bin"))) == 1
-    pinned = verify_artifact(root, ArtifactRecord(**saved["artifacts"]["weights"]))
-    assert pinned.read_bytes() == b"model"
-    # Atomic source replacement leaves the immutable input snapshot intact.
-    replacement = tmp_path / "new.bin"
-    replacement.write_bytes(b"new model")
-    replacement.replace(source)
-    assert pinned.read_bytes() == b"model"
-    with pytest.raises(ValueError, match="Artifact revision mismatch"):
-        snapshot_model_collection(manifest, tmp_path / "stale")
-    assert not (tmp_path / "stale" / "models.json").exists()
-
-
-def test_online_history_spans_frozen_blocks_and_pins_isolated_inputs(tmp_path):
-    source = tmp_path / "signals.csv"
-    source.write_text("signals", encoding="utf-8")
-    directory = tmp_path / "inference" / "inference#demo#online"
+def test_online_publication_uses_regular_outputs_and_respects_deadline(tmp_path):
+    source = tmp_path / "signals.parquet"
+    frame = pl.DataFrame({"ts_code": ["A"], "pred": [1.0]})
+    frame.write_parquet(source)
     task = SimpleNamespace(
-        task_id=directory.name,
-        task_dir=directory,
-        persistent_dir=directory / "persistent",
+        task_id="inference#demo#online",
+        task_dir=tmp_path / "task",
         metadata=SimpleNamespace(started_at=datetime.now(UTC)),
     )
-    budget = DeadlineBudget(WindowClock(), datetime.now(UTC) + timedelta(minutes=1))
-    store = OnlineStore(task)
-    strategy = "a" * 64
-    history = store.history(strategy)
-    snapshots = []
-    for _ in range(HISTORY_BLOCK_SIZE + 1):
-        commit, snapshot = store.commit(
-            history=history,
-            trade_date="20261026",
-            trade_time="0930",
-            model_identity={"model": "test"},
-            protocol=task_protocol(TaskType.INFERENCE),
-            files={"signals": source},
-            budget=budget,
-        )
-        history = store.history(strategy)
-        assert read_online_history(snapshot) == history
-        snapshots.append(snapshot)
-    assert commit.revision == HISTORY_BLOCK_SIZE + 1
-    assert json.loads(snapshots[-1].read_text())["previous"]
-
-    consumer = SimpleNamespace(task_dir=tmp_path / "consumer", upstream_task_dir=lambda _: directory)
-    pinned, manifest = pin_online_history(consumer, task.task_id)
-    assert read_online_history(manifest) == pinned
-    payload = verify_artifact(consumer.task_dir, pinned.commits[0].artifacts["signals"])
-    original = verify_artifact(directory, history.commits[0].artifacts["signals"])
-    original.write_text("changed upstream", encoding="utf-8")
-    assert payload.read_text() == "signals"
-
-    before = store.manifest.read_bytes()
-    folders = set((store.root / "commits").iterdir())
-
-    def fail_prepare(*_):
-        raise RuntimeError("report failed")
-
-    with pytest.raises(RuntimeError, match="report failed"):
-        store.commit(
-            history=history,
-            trade_date="20261026",
-            trade_time="0930",
-            model_identity={"model": "test"},
-            protocol=task_protocol(TaskType.INFERENCE),
-            files={"signals": source},
-            budget=budget,
-            prepare=fail_prepare,
-        )
-    assert store.manifest.read_bytes() == before
-    assert set((store.root / "commits").iterdir()) == folders
-
-    clock = ReplayClock(datetime.now(UTC))
-    expired_budget = DeadlineBudget(clock, clock.now() + timedelta(seconds=60))
-
-    def expire(*_):
-        clock.sleep(61)
-
+    clock = FakeClock(datetime.now(UTC))
+    budget = DeadlineBudget(clock, clock.now() + timedelta(seconds=60))
+    commit = publish_online(
+        task,
+        trade_date="20261026",
+        trade_time="0930",
+        model_identity={"model": "test"},
+        protocol=task_protocol(TaskType.INFERENCE),
+        files={"signals": source},
+        budget=budget,
+    )
+    assert pl.read_parquet(verify_artifact(task.task_dir, commit.artifacts["signals"])).equals(frame)
+    assert commit.artifacts["signals"].path == "outputs/0930/signals.parquet"
+    assert not (task.task_dir / "persistent").exists()
+    clock.sleep(61)
     with pytest.raises(TimeoutError, match="Window deadline exceeded"):
-        store.commit(
-            history=history,
-            trade_date="20261026",
-            trade_time="0930",
+        publish_online(
+            task,
+            trade_date="20261027",
+            trade_time="1000",
             model_identity={"model": "test"},
             protocol=task_protocol(TaskType.INFERENCE),
             files={"signals": source},
-            budget=expired_budget,
-            prepare=expire,
+            budget=budget,
         )
-    assert store.manifest.read_bytes() == before
-    assert set((store.root / "commits").iterdir()) == folders
-
-    # Portable histories may use a full history as the base of a frozen chain.
-    boundary = snapshots[HISTORY_BLOCK_SIZE - 1]
-    atomic_write_json(boundary, read_online_history(boundary).model_dump(mode="json"))
-    node = json.loads(snapshots[-1].read_text())
-    node["previous"] = artifact_record(boundary, directory)
-    atomic_write_json(snapshots[-1], node)
-    assert read_online_history(snapshots[-1]) == history
-
-    snapshots[HISTORY_BLOCK_SIZE - 1].write_text("{}", encoding="utf-8")
-    with pytest.raises(ValueError, match="Artifact revision mismatch"):
-        read_online_history(snapshots[-1])
+    assert not (task.task_dir / "outputs/1000").exists()

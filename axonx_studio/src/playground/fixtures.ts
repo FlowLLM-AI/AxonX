@@ -25,13 +25,33 @@ export function seed() {
     const id = `${kind}#playground_${kind}#${variant === "steady" ? "demo" : "volatile"}`;
     const task = taskStatus(kind, id);
     if (kind === "train") upstreamIds = ["etl#playground_etl#demo"];
-    if (kind === "backtest") upstreamIds = ["predict#playground_predict#demo"];
+    if (kind === "backtest")
+      upstreamIds = ["portfolio#playground_portfolio#demo"];
     task.input_params.upstream_task_ids = [...upstreamIds];
     tasks.set(id, task);
     addArtifacts(files, task, variant, upstreamIds);
     if (variant === "steady") upstreamIds = [id];
   }
   seedOnline(tasks, files);
+  for (const task of tasks.values()) {
+    if (task.task_type !== "portfolio") continue;
+    const id = (task.input_params.upstream_task_ids as string[]).find((id) =>
+      id.startsWith("predict#"),
+    )!;
+    const source = tasks.get(id)!;
+    task.input_sources[id] = {
+      started_at: source.started_at,
+      artifacts: {
+        predictions: (
+          source.output_params.artifacts as Record<
+            string,
+            import("../shared/api/contracts").ArtifactRecord
+          >
+        ).predictions,
+      },
+    };
+    files.set(`${taskDirectory(task.task_id)}/metadata.json`, json(task));
+  }
   seedNightly(tasks, files);
   for (const task of tasks.values()) {
     if (task.reg_name === "tushare_mins") task.report_kind = "data_update";

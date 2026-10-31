@@ -5,4 +5,5 @@ tasks:
   qlib_a158_compare: axonx_qlib_a158.comparison:ParameterComparisonTask
   qlib_a158_train: axonx_qlib_a158.train:LgbmTrainTask
   qlib_a158_predict: axonx_qlib_a158.predict:LgbmPredictTask
+  qlib_a158_portfolio: axonx_qlib_a158.portfolio:Alpha158PortfolioTask
   qlib_a158_backtest: axonx_qlib_a158.backtest:Alpha158BacktestTask

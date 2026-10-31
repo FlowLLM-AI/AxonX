@@ -36,7 +36,7 @@ Register `demo_chain: example_plugin.chain:DemoChainTask` in plugin.yaml, then e
 
 ## Failures and stage barriers
 
-`run_task` returns only after the child finishes. Read result.success, child_task_id, record and output. Default on_error=stop raises ChildTaskError. With continue, the failed record remains and later work may run, but the default parent exit policy still reports failure. Override exit_code only for explicitly handled business outcomes.
+`run_task` returns only after the child finishes. Read result.success, child_task_id, record and output. Default on_error=stop raises ChildTaskError. With continue, the failed record remains and later work may run, but the default parent exit policy still reports failure. Override exit_code only when an execution failure has been explicitly handled; completed business findings belong in output fields.
 
 Upstream input dependencies must be passed explicitly as upstream_task_ids. Parent/child containment does not create these edges. node_name labels a call and attempt; task_name selects the directory. Repeated calls to one registration/name replace previous current output; consume or pin artifacts first.
 

@@ -215,12 +215,138 @@ it("keeps a failed model separate from another model's valid signal at the same 
   await clickTab("results");
   expect(panel().textContent).toContain("Synthetic 1");
   await selectModel("other");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+  expect(panel().textContent).not.toContain(i18n.t("onlineWorkbench.noSignal"));
   expect(panel().textContent).not.toContain("Synthetic 1");
   await clickTab("results");
   expect(panel().textContent).toContain(
     i18n.t("onlinePipeline.reasons.data_not_ready_before_deadline"),
   );
+});
+
+it.each(["en", "zh"])(
+  "waits quietly for the first signal and loads it on refresh in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    vi.useFakeTimers();
+    const playground = createPlayground();
+    let unpublished = true;
+    parent.output_params.models = {};
+    nodes[0].report = null;
+    parent.children[0].state = "running";
+    nodes[0].status!.state = "running";
+    nodes[0].status!.steps = [];
+    configureClient(
+      new AxonXClient(async (url, init) => {
+        if (
+          url === "/jobs/preview_file" &&
+          String(init?.body).includes("metadata.json") &&
+          unpublished
+        ) {
+          expect(JSON.parse(String(init?.body)).arguments.allow_missing).toBe(
+            true,
+          );
+          return Response.json({ success: true, answer: null });
+        }
+        return playground(url, init);
+      }, false),
+    );
+    await render();
+    await clickTab("1445");
+    await clickTab("results");
+    expect(container.querySelector(".online-warning")).toBeNull();
+    expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+    unpublished = false;
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(panel().textContent).toContain("Synthetic 1");
+    // A previously read history disappearing is a real error; retain its last valid signals.
+    configureClient(
+      new AxonXClient(async (url, init) => {
+        if (
+          url === "/jobs/preview_file" &&
+          String(init?.body).includes("metadata.json")
+        ) {
+          expect(
+            JSON.parse(String(init?.body)).arguments.allow_missing,
+          ).toBeUndefined();
+          return Response.json({
+            success: false,
+            answer: "Workspace file does not exist",
+          });
+        }
+        return playground(url, init);
+      }, false),
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(container.textContent).toContain(
+      i18n.t("onlineWorkbench.historyError"),
+    );
+    expect(panel().textContent).toContain("Synthetic 1");
+  },
+);
+
+it("keeps missing published daily metadata visible as an error", async () => {
+  const playground = createPlayground();
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      if (
+        url === "/jobs/preview_file" &&
+        String(init?.body).includes("metadata.json")
+      ) {
+        expect(
+          JSON.parse(String(init?.body)).arguments.allow_missing,
+        ).toBeUndefined();
+        return Response.json({
+          success: false,
+          answer: "Workspace file does not exist",
+        });
+      }
+      return playground(url, init);
+    }, false),
+  );
+  await render();
+  expect(container.textContent).toContain(
+    i18n.t("onlineWorkbench.historyError"),
+  );
+});
+
+it("shows active stages and each failure once without a redundant no-signal message", async () => {
+  nodes[0].report = null;
+  const playground = createPlayground();
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      if (
+        url === "/jobs/preview_file" &&
+        String(init?.body).includes("metadata.json")
+      )
+        return Response.json({ success: true, answer: null });
+      return playground(url, init);
+    }, false),
+  );
+  nodes[0].status!.steps = [
+    {
+      ...parent.steps[0],
+      name: "waiting_inputs",
+      label: "waiting_inputs",
+      parent: "run_windows",
+      group: "inference",
+      state: "running",
+      error: "",
+    },
+  ];
+  await render();
+  await clickTab("1445");
+  await clickTab("results");
+  expect(panel().textContent).toContain(
+    i18n.t("onlinePipeline.phases.waiting_inputs"),
+  );
+  expect(panel().textContent).not.toContain(i18n.t("onlineWorkbench.noSignal"));
+  const error = "Prediction deadline exceeded";
+  parent.children[0].error = error;
+  nodes[0].status!.steps[0].state = "failed";
+  nodes[0].status!.steps[0].error = error;
+  await render();
+  expect(panel().textContent!.split(error)).toHaveLength(2);
+  expect(panel().textContent).not.toContain(i18n.t("onlineWorkbench.noSignal"));
 });
 
 it("shows only the signal table in daily results without nested result views", async () => {
@@ -247,6 +373,9 @@ it("never substitutes current signals, stages or logs for an empty historical da
   await date("2020-01-01");
   expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
   expect(panel().textContent).not.toContain("Synthetic 1");
+  expect(panel().textContent).not.toContain(
+    i18n.t("onlineWorkbench.noTaskRecord"),
+  );
   await clickTab("logs");
   expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
   expect(panel().querySelector(".log-content")).toBeNull();
@@ -254,179 +383,77 @@ it("never substitutes current signals, stages or logs for an empty historical da
   expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
 });
 
-it("opens archived signals without attaching today's diagnostics and retains them on refresh failure", async () => {
+it("keeps a daily archive readable after its child is replaced and metadata refresh fails", async () => {
   vi.useFakeTimers();
-  try {
-    await render();
-    const available = [
-      ...container.querySelectorAll<HTMLOptionElement>("datalist option"),
-    ].map((option) => option.value);
-    await date(available.find((value) => value !== "2026-01-05")!);
-    await clickTab("1445");
-    await clickTab("results");
-    expect(panel().textContent).toContain("Synthetic 1");
-    const playground = createPlayground();
-    configureClient(
-      new AxonXClient(async (url, init) => {
-        if (
-          url === "/jobs/preview_file" &&
-          String(init?.body).includes("manifest.json")
-        )
-          return new Response("unavailable", { status: 503 });
-        return playground(url, init);
-      }, false),
-    );
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
-    expect(container.textContent).toContain(
-      i18n.t("onlineWorkbench.historyError"),
-    );
-    expect(panel().textContent).toContain("Synthetic 1");
-    await clickTab("logs");
-    expect(panel().textContent).toContain(
-      i18n.t("onlineWorkbench.noTaskRecord"),
-    );
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-it("loads archived and same-day signals without current inference children", async () => {
-  vi.useFakeTimers();
-  const playground = createPlayground();
-  const taskId = nodes[0].record.child_task_id;
-  let unavailable = false;
-  let target = "46:1024";
-  configureClient(
-    new AxonXClient(async (url, init) => {
-      expect(JSON.parse(String(init?.body)).target).toBe(target);
-      if (unavailable && url === "/jobs/list_task_statuses")
-        return new Response("unavailable", { status: 503 });
-      const invocation = JSON.parse(String(init?.body));
-      const response = await playground(url, {
-        ...init,
-        body: JSON.stringify({ ...invocation, target: undefined }),
-      });
-      if (url === "/jobs/list_task_statuses") {
-        const body = await response.json();
-        body.answer = body.answer.map((task: { task_id: string }) =>
-          task.task_id === taskId
-            ? { ...task, display_name: "demo-1445" }
-            : task,
-        );
-        return Response.json(body);
-      }
-      return response;
-    }, false),
-  );
   parent.children = [];
-  parent.state = "running";
-  parent.output_params.models = {
-    "1445": { status: "missed", reason: "data_not_ready_before_deadline" },
-  };
   nodes = [];
-  await render("", "46:1024");
-  const available = [
-    ...container.querySelectorAll<HTMLOptionElement>("datalist option"),
-  ].map((option) => option.value);
-  expect(available).toContain("2026-01-05");
-  expect(available.length).toBeGreaterThan(1);
+  await render();
   await clickTab("1445");
   await clickTab("results");
   expect(panel().textContent).toContain("Synthetic 1");
-  expect(
-    container.querySelector(".online-day-summary strong")?.textContent,
-  ).toMatch(/^1\s*\/ 1$/);
-  expect(
-    container.querySelector('[id$="-1445-tab"] .status-missed'),
-  ).not.toBeNull();
-  await date(available.find((value) => value !== "2026-01-05")!);
-  expect(panel().textContent).toContain("Synthetic 1");
-  try {
-    unavailable = true;
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
-    expect(container.textContent).toContain(
-      i18n.t("onlineWorkbench.historyError"),
-    );
-    expect(panel().textContent).toContain("Synthetic 1");
-  } finally {
-    vi.useRealTimers();
-  }
-  await clickTab("logs");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
-  await date("2026-01-05");
-  expect(panel().querySelector(".log-content")).toBeNull();
-  target = "45:1024";
-  await render("", target);
-  await clickTab("results");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
-  expect(panel().textContent).not.toContain("Synthetic 1");
-});
-
-it("still reads known histories when discovery for another model fails", async () => {
   const playground = createPlayground();
-  // Remove the report fallback so this can pass only by reading the manifest.
-  nodes[0].report = null;
-  parent.input_params.models = {
-    "1445": [{ task_name: "demo" }, { task_name: "other" }],
-  };
   configureClient(
     new AxonXClient(async (url, init) => {
-      if (url === "/jobs/list_task_statuses")
+      if (
+        url === "/jobs/preview_file" &&
+        String(init?.body).includes("metadata.json")
+      )
         return new Response("unavailable", { status: 503 });
       return playground(url, init);
     }, false),
   );
-  await render();
+  await act(async () => vi.advanceTimersByTimeAsync(60_000));
   expect(container.textContent).toContain(
     i18n.t("onlineWorkbench.historyError"),
   );
+  expect(panel().textContent).toContain("Synthetic 1");
+});
+
+it("loads the daily parent archive without discovering current inference children", async () => {
+  const playground = createPlayground();
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      expect(url).not.toBe("/jobs/list_task_statuses");
+      return playground(url, init);
+    }, false),
+  );
+  parent.children = [];
+  nodes = [];
+  await render();
+  expect(container.querySelectorAll("datalist option")).toHaveLength(12);
+  await clickTab("1445");
+  await clickTab("results");
+  expect(panel().textContent).toContain("Synthetic 1");
+  await date("2020-01-01");
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+  expect(panel().textContent).not.toContain("Synthetic 1");
+});
+
+it("keeps archived models separate when another planned model has no result", async () => {
+  parent.children = [];
+  nodes = [];
+  parent.input_params.models = {
+    "1445": [{ task_name: "demo" }, { task_name: "other" }],
+  };
+  await render();
   await clickTab("1445");
   await clickTab("results");
   expect(panel().textContent).toContain("Synthetic 1");
   await selectModel("other");
   expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+  expect(panel().textContent).not.toContain("Synthetic 1");
 });
 
-it.each(["ambiguous", "unavailable", "missing"])(
-  "does not substitute another model's history when discovery is %s",
-  async (mode) => {
-    const playground = createPlayground();
-    const template = nodes[0].status!;
-    configureClient(
-      new AxonXClient(async (url, init) => {
-        if (url === "/jobs/list_task_statuses") {
-          if (mode === "unavailable")
-            return new Response("unavailable", { status: 503 });
-          return Response.json({
-            success: true,
-            answer:
-              mode === "missing"
-                ? []
-                : [
-                    { ...template, display_name: "demo-1445" },
-                    {
-                      ...template,
-                      task_id: "inference#another#demo-1445",
-                      display_name: "demo-1445",
-                    },
-                  ],
-          });
-        }
-        return playground(url, init);
-      }, false),
-    );
-    parent.children = [];
-    nodes = [];
-    await render();
-    await clickTab("1445");
-    await clickTab("results");
-    expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
-    expect(panel().textContent).not.toContain("Synthetic 1");
-    expect(Boolean(container.querySelector(".online-warning"))).toBe(
-      mode !== "missing",
-    );
-  },
-);
+it("does not substitute a current worker for a missing daily archived result", async () => {
+  parent.children = [];
+  parent.output_params.models = {};
+  nodes = [];
+  await render();
+  await clickTab("1445");
+  await clickTab("results");
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+  expect(panel().textContent).not.toContain("Synthetic 1");
+});
 
 it("keeps quality sources within the selected scope and displays checks directly", async () => {
   const quality = (reason: string) => ({

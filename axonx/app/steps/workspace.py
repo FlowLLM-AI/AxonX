@@ -26,6 +26,7 @@ class PreviewFileStep(BaseStep):
             self.context.get("offset", 0),
             self.context.get("limit", PREVIEW_ROWS),
             max_bytes=self.context.get("max_bytes"),
+            allow_missing=self.context.get("allow_missing", False),
         )
 
 

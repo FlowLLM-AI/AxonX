@@ -112,3 +112,14 @@ describe("strategy comparison", () => {
     expect(overlap.ratio).toBeCloseTo(1 / 3);
   });
 });
+
+it("aligns the returns of portfolios with different TopN sizes", async () => {
+  const { portfolioDaily } = await import("./model");
+  const a = [{ ...day("20260105", 0), top5_net_return: 0.01 }];
+  const b = [
+    { ...day("20260105", 0), top10_net_return: 0.02, top5_net_return: -0.9 },
+  ];
+  const paired = pairDays(a, portfolioDaily(b, 10, 5), 5);
+  expect(cumulativeSeries(paired, 5).at(-1)?.b).toBeCloseTo(0.02);
+  expect(b[0].top5_net_return).toBe(-0.9);
+});

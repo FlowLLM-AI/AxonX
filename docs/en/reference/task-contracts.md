@@ -6,6 +6,8 @@ Import `BaseTask` from `axonx.task.core.base` and parameters from `axonx.task.mo
 
 Subclasses declare `input_cls`, `output_cls`, `task_type`, optional `report_kind`, synchronous `build_task_steps()` and typed `build_output_params()`. The executor owns metadata/progress and invokes `close()` before final output construction. `publish_output()` validates and persists a partial snapshot; `report_progress()` works only during execution.
 
+Task state and `exit_code` describe execution. Completed comparison findings (`consistent`, `different`, `missing`, `protocol_mismatch`) and handled window outcomes (`skipped`, `incomplete`) remain in business outputs and do not fail execution. Exceptions, comparison `error` results and window `failed` results fail the Task. Override `exit_code` only to report execution failures captured while continuing other work; do not use it to reject a completed research result.
+
 ## Child Task contracts
 
 Every BaseTask offers `run_task(reg_name, *, node_name=None, on_error="stop", task_name=None, **inputs)`. It returns `ChildTaskResult` with record, success, child_task_id, optional typed output_params and JSON output. Failed construction may have no child ID or output. Accessing unavailable output raises.
@@ -61,7 +63,7 @@ Child `node_name` identifies a logical invocation independently of its physical 
 
 ## Artifact records
 
-File records contain relative path, size and revision; paths must remain inside the Task directory. Shared models live in `models.artifacts`, research results in `models.reports`. Use `storage.inputs` to validate and pin upstream artifacts. Atomic metadata publication is not protection against concurrent directory writers.
+File records contain relative path, size and revision; paths must remain inside the Task directory. Artifact protocols live in `models.artifacts`, training inputs/outputs in `models.params`, and individual model records in `models.reports`. Use `storage.inputs` to validate and pin upstream artifacts. Atomic metadata publication is not protection against concurrent directory writers.
 
 ## Workspace reads and events
 
@@ -71,8 +73,8 @@ File records contain relative path, size and revision; paths must remain inside 
 
 Replica metadata identifies source/policy revisions, sampled or omitted files and optional selected workflow snapshots. TaskSnapshot uses source_id, root_task_id, root_started_at, captured_at, ordered revision, when and model_names. Replicas cannot execute or serve as mutable research sources.
 
-## Business clocks and event replay
+## Business clocks and deadlines
 
-BaseWindowTask and BaseInferenceTask live in `core.windows`; WindowClock/DeadlineBudget in `core.clock`; ReplayClock in `runtime.replay`. Lifecycle timing remains real. Window business outcomes are independent of Task state. Verify/freeze online history before replay or reporting; see [Research artifacts](research-artifacts.md).
+BaseWindowTask and BaseInferenceTask live in `core.windows`; WindowClock/DeadlineBudget in `core.clock`. Lifecycle timing remains real. Window business outcomes are independent of Task state. Verify/freeze online history before reporting; see [Research artifacts](research-artifacts.md).
 
 Sources: [authoring](../../../axonx/task/core/base.py), [models](../../../axonx/task/models/lifecycle.py), [executor](../../../axonx/task/runtime/executor.py).

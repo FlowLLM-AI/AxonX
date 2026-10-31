@@ -32,6 +32,7 @@ class TaskType(StrEnum):
     TRAIN = "train"
     PREDICT = "predict"
     INFERENCE = "inference"
+    PORTFOLIO = "portfolio"
     BACKTEST = "backtest"
 
 

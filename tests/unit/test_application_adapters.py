@@ -293,6 +293,7 @@ def test_upload_preview_and_workspace_deletion(application):
     staged = response.json()["answer"]
     assert Path(staged["location"]).read_bytes() == b"hello"
     assert invoke(client, "preview_file", {"path": staged["path"]})["content"] == "hello"
+    assert invoke(client, "preview_file", {"path": "not-yet.json", "allow_missing": True}) is None
     assert client.delete("/upload", params={"path": staged["path"]}).status_code == 200
     assert not Path(staged["location"]).exists()
     (app.workspace.root / ".internal").mkdir()

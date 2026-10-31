@@ -66,8 +66,8 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # 预测成功后，生成回测产物
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '<Predict Task ID>'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 每条 `exec` 都等待完成，执行下一阶段前检查退出码与 metadata。`upstream_task_ids` 是 JSON 数组，CLI `exec` 也接受逗号分隔 ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。

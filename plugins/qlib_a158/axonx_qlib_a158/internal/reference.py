@@ -46,8 +46,8 @@ DEVIATIONS = {
     ),
     "limits": "Official board-specific daily price limits with fallback, not a uniform 9.5% change threshold.",
     "strategy": (
-        "Fixed holding expiry and TopN cash ledger, not TopkDropout/95% cash allocation; "
-        "retention belongs to the strategy plugin."
+        "Portfolio-defined TopN policies on the shared cash ledger; strategy details live in portfolio_id. "
+        "Qlib uses TopkDropout with 95% cash allocation."
     ),
     "evaluation": (
         "Compound net equity and 252-day annualization; constituent-weighted HS300 is a "

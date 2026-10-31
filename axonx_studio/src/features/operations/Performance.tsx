@@ -27,8 +27,8 @@ export function Performance({
     [rows, range],
   );
   const chartRows = useMemo(
-    () => performanceRows(selected, topN, benchmarks),
-    [selected, topN, benchmarks],
+    () => performanceRows(selected, benchmarks),
+    [selected, benchmarks],
   );
   const series: ChartSeries[] = [
     { key: "net", label: `Top ${topN}`, format: "percent" },
@@ -88,12 +88,12 @@ export function Performance({
             rows={chartRows}
             series={[
               {
-                key: `top${topN}_turnover`,
+                key: "turnover",
                 label: t("onlineReport.turnover"),
                 format: "percent",
               },
               {
-                key: `top${topN}_transaction_cost`,
+                key: "transaction_cost",
                 label: t("onlineReport.cost"),
                 format: "percent",
                 axis: 1,
@@ -110,7 +110,7 @@ export function Performance({
           { key: "trade_date", label: t("onlineReport.signalDate") },
           ...["net_return", "turnover", "transaction_cost", "cash_weight"].map(
             (key) => ({
-              key: `top${topN}_${key}`,
+              key,
               label: t(`onlineReport.columns.${key}`),
               format: "percent" as const,
             }),
@@ -129,7 +129,7 @@ export function Performance({
           },
           ...["net_annualized_return", "gross_sharpe", "net_max_drawdown"].map(
             (key) => ({
-              key: `top${topN}_${key}`,
+              key,
               label: t(`onlineReport.columns.${key}`),
               format:
                 key === "gross_sharpe"

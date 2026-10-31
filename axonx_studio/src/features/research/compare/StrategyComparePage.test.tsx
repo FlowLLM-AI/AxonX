@@ -32,7 +32,13 @@ it.each(["en", "zh"])(
     await i18n.changeLanguage(language);
     vi.mocked(previewWorkspaceFile).mockImplementation(async ({ path }) => {
       if (!path.endsWith("metadata.json"))
-        return table([{ trade_date: "20260105", top1_net_return: 0.01 }]);
+        return table([
+          {
+            trade_date: "20260105",
+            top1_net_return: 0.01,
+            top3_net_return: 0.02,
+          },
+        ]);
       const name = path.split("/")[1];
       const file = { path: "daily.parquet", size: 1, revision: "1:1" };
       return {
@@ -48,23 +54,19 @@ it.each(["en", "zh"])(
           created_at: "20260105",
           input_params: { task_name: name },
           output_params: {
-            signals_format: "stock-signals-v1",
-            default_universe: "all",
-            universes: {
-              all: {
-                label: "All",
-                parameters: {},
-                dimensions: {
-                  top_ns: [1],
-                  holding_detail_top_n: 1,
-                  benchmarks: [],
-                },
-                date_range: {},
-                days: 1,
-                evaluation_status: "done",
-                artifacts: { daily: "daily", summary: "summary" },
+            signals_format: "stock-signals-v3",
+            portfolios: [1, 3].map((n) => ({
+              portfolio_id: { universe: { kind: "all" }, top_n: n },
+              dimensions: {
+                top_ns: [n],
+                holding_detail_top_n: 1,
+                benchmarks: [],
               },
-            },
+              date_range: {},
+              days: 1,
+              evaluation_status: "done",
+              artifacts: { daily: "daily", summary: "summary" },
+            })),
             artifacts: {
               daily: file,
               summary: { ...file, path: "summary.parquet" },
@@ -89,7 +91,7 @@ it.each(["en", "zh"])(
             { path: `tasks/backtest/${name}/metadata.json` },
             {},
           );
-          if (preview.kind !== "json") throw new Error("Expected metadata");
+          if (preview?.kind !== "json") throw new Error("Expected metadata");
           return {
             ...(preview.data as Record<string, unknown>),
             task_id: `backtest#${name}`,
@@ -114,6 +116,19 @@ it.each(["en", "zh"])(
     expect(container.textContent).not.toContain(
       i18n.t("backtest.errors.signalsFormat"),
     );
+    expect(container.querySelector(".compare-tabs")).not.toBeNull();
+    const topA = container.querySelector<HTMLSelectElement>(
+      'select[aria-label$=" A · top_n"]',
+    )!;
+    const topB = container.querySelector<HTMLSelectElement>(
+      'select[aria-label$=" B · top_n"]',
+    )!;
+    await act(async () => {
+      topB.value = "3";
+      topB.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(topA.value).toBe("1");
+    expect(topB.value).toBe("3");
     expect(container.querySelector(".compare-tabs")).not.toBeNull();
     for (const name of ["a", "b"]) {
       expect(previewWorkspaceFile).toHaveBeenCalledWith(

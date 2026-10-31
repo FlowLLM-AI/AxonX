@@ -19,6 +19,7 @@ import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { upstreamTaskIds } from "../../shared/lib/tasks";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { getResearchTask } from "./api";
+import { PortfolioView } from "./PortfolioView";
 import { BaseOutputView } from "./ResearchOutput";
 import type { ResearchKind, ResearchPageId, ResearchTask } from "./types";
 
@@ -79,6 +80,7 @@ function ResearchReport({
     analysis: "factors",
     train: "train",
     predict: "predict",
+    portfolio: "portfolio",
     backtest: "backtest",
   };
   const upstreams = upstreamTaskIds(meta.input_params.upstream_task_ids).map(
@@ -170,6 +172,12 @@ function ResearchReport({
         >
           <BacktestView meta={meta} target={target} />
         </Suspense>
+      ) : meta.task_type === "portfolio" ? (
+        <PortfolioView
+          key={`${meta.task_id}:${meta.started_at}`}
+          meta={meta}
+          target={target}
+        />
       ) : (
         <BaseOutputView meta={meta} target={target} />
       )}

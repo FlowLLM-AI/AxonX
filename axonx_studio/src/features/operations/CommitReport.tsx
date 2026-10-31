@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { formatTableValue as display } from "../../shared/lib/format";
 import { Select } from "../../shared/ui/Select";
+import { isRecord } from "../../shared/lib/values";
+import { portfolioValueLabel, valueKey } from "../research/portfolio";
 import type { ArtifactTableCache } from "./artifactCache";
 import { Performance } from "./Performance";
 import {
@@ -30,7 +32,10 @@ export function CommitReport({
   const [signalFilters, setSignalFilters] = useState<SignalFilters>({
     buyableOnly: true,
   });
-  const [topN, setTopN] = useState(commit.protocol.report.dimensions.top_ns[0]);
+  const [portfolioKey, setPortfolioKey] = useState(
+    Object.keys(commit.protocol.report.portfolios)[0],
+  );
+  const topN = Number(commit.protocol.report.portfolios[portfolioKey].top_n);
   const load = useCallback(
     async (signal: AbortSignal) => {
       const previous =
@@ -54,12 +59,17 @@ export function CommitReport({
       const tables = await Promise.all(
         roles.map(
           async (role) =>
-            [role, await cache.load(commit.artifacts[role], signal)] as const,
+            [
+              role,
+              role === "signal"
+                ? await cache.signals(commit, signal)
+                : await cache.ledger(commit, history, role, signal),
+            ] as const,
         ),
       );
       const previousRows =
         tab === "signal" && previous
-          ? await cache.load(previous.artifacts.signal, signal)
+          ? await cache.signals(previous, signal)
           : [];
       return {
         tables: Object.fromEntries(tables),
@@ -81,9 +91,22 @@ export function CommitReport({
   if (loading || !data)
     return <div className="loading-state">{t("shell.loading")}</div>;
   const settings = commit.protocol.report;
+  const multipleStrategies =
+    new Set(
+      Object.values(settings.portfolios).map((identity) =>
+        valueKey(identity.strategy),
+      ),
+    ).size > 1;
+  const evaluation =
+    isRecord(commit.protocol.backtest) &&
+    isRecord(commit.protocol.backtest.params)
+      ? commit.protocol.backtest.params
+      : {};
   const tables = data.tables;
   const current = tables.daily?.find(
-    (row) => row.trade_date === commit.trade_date,
+    (row) =>
+      row.trade_date === commit.trade_date &&
+      row.portfolio_key === portfolioKey,
   );
   const column = (key: string, format?: Column["format"]): Column => ({
     key,
@@ -91,10 +114,10 @@ export function CommitReport({
     format,
   });
   const nRows = (role: string) =>
-    (tables[role] || []).filter((row) => row.top_n === topN);
+    (tables[role] || []).filter((row) => row.portfolio_key === portfolioKey);
   return (
     <>
-      {settings.evaluation_status !== "done" && (
+      {tab !== "signal" && settings.evaluation_status !== "done" && (
         <div className="online-warning" role="status">
           {t("onlineReport.incomplete")}
           {settings.missing_dates.length > 0 && (
@@ -110,18 +133,21 @@ export function CommitReport({
           <label>
             {t("onlineReport.strategy")}
             <Select
-              value={topN}
-              onChange={(e) => setTopN(Number(e.target.value))}
+              value={portfolioKey}
+              onChange={(e) => setPortfolioKey(e.target.value)}
             >
-              {settings.dimensions.top_ns.map((n) => (
-                <option key={n} value={n}>
-                  Top {n}
+              {Object.entries(settings.portfolios).map(([key, identity]) => (
+                <option key={key} value={key}>
+                  Top {Number(identity.top_n)}
+                  {multipleStrategies
+                    ? ` · ${portfolioValueLabel(identity.strategy)}`
+                    : ""}
                 </option>
               ))}
             </Select>
           </label>
           <span>{t("onlineReport.simulated")}</span>
-          {settings.portfolio.missing_market_as_suspension === true && (
+          {evaluation.missing_market_as_suspension === true && (
             <span className="online-assumption">
               <Info aria-hidden="true" />
               {t("onlineReport.suspensionAssumption")}
@@ -148,19 +174,19 @@ export function CommitReport({
           <div className="online-metrics">
             <Kpi
               label={t("onlineReport.netValue")}
-              value={display(current?.[`top${topN}_net_value`], "score")}
+              value={display(current?.net_value, "score")}
             />
             <Kpi
               label={t("onlineReport.cashWeight")}
-              value={display(current?.[`top${topN}_cash_weight`], "percent")}
+              value={display(current?.cash_weight, "percent")}
             />
             <Kpi
               label={t("onlineReport.positionCount")}
-              value={current?.[`top${topN}_count`]}
+              value={current?.count}
             />
             <Kpi
               label={t("onlineReport.turnover")}
-              value={display(current?.[`top${topN}_turnover`], "percent")}
+              value={display(current?.turnover, "percent")}
             />
           </div>
           <h3>{t("onlineReport.positions")}</h3>
@@ -211,8 +237,8 @@ export function CommitReport({
       ) : (
         <Performance
           key={topN}
-          rows={tables.daily}
-          summary={tables.summary}
+          rows={nRows("daily")}
+          summary={nRows("summary")}
           topN={topN}
           benchmarks={settings.dimensions.benchmarks}
         />
@@ -254,7 +280,7 @@ export function CommitProvenance({ commit }: { commit: OnlineCommit }) {
           <small>{t("onlineReport.strategyId")}</small>
           <code>{settings.strategy_identity}</code>
         </span>
-        <pre>{JSON.stringify(settings.portfolio, null, 2)}</pre>
+        <pre>{JSON.stringify(settings.portfolios, null, 2)}</pre>
       </div>
     </section>
   );

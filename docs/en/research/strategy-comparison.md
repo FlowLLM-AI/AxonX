@@ -1,11 +1,11 @@
 ---
 title: Strategy Comparison
-description: Compare two backtests using common dates, the same portfolio size, and explicit calculation definitions.
+description: Compare two portfolios using common dates and explicit calculation definitions.
 ---
 
 # Strategy Comparison
 
-The Studio strategy comparison page reads daily artifacts from two Backtest Tasks and recalculates returns and risk on common valid dates. Comparison does not submit new research tasks or modify existing artifacts.
+The Studio strategy comparison page reads daily artifacts from two selected portfolios and recalculates returns and risk on common valid dates. A and B may come from the same Backtest Task or different tasks. Comparison does not submit new research tasks or modify existing artifacts.
 
 This page explains comparison UI calculations and operations. Define controls, selection rules, and independent confirmation windows beforehand using [experiment design and confirmation](experiments.md).
 
@@ -18,13 +18,10 @@ The lower half shows the comparison page calculation: select matching reports, p
 Use different task names to retain different training, prediction, and backtest results. When comparing changes in one factor, keep other settings as consistent as possible—for example, use the same ETL and prediction window while changing only training parameters or costs.
 
 ```bash
-axonx exec --task qlib_a158_backtest --task-name fixed-holding \
-  --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-axonx exec --task qlib_strategy_backtest --task-name rank-retention \
-  --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
-  --replacement-fraction 0.2 --rank-buffer 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Wait for each task to succeed, then select A and B on the strategy comparison page. The Task ID identifies the experiment; display names only help recognition. After a rerun with a fixed name replaces the directory, the original result can no longer be treated as retained experiment history.
@@ -39,11 +36,11 @@ The complete Studio 0.3.0 screenshot compares Playground's synthetic `demo` and 
 
 1. Select the current machine and two successful backtest records.
 2. Check input parameter differences and page warnings. The page flags incomplete market data and differing accounting protocol versions.
-3. Select a Top N supported by both.
+3. Select each side's portfolio through its identity key dropdowns. Only existing combinations are selectable; Top N may differ between A and B.
 4. Set a common date range and check the number of observations.
 5. Read net returns and drawdowns first, then signal quality, period returns, and intersections of target lists.
 
-Without a common portfolio size or common valid dates, the page cannot establish a comparable sample. Do not substitute metrics from each task's full window for common-window results.
+Without common valid dates, the page cannot establish a comparable sample. When portfolio sizes differ, interpret that difference as an experiment setting. Do not substitute metrics from each task's full window for common-window results.
 
 ## Building the common window
 

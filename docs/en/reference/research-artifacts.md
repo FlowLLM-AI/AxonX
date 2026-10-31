@@ -5,23 +5,29 @@ description: Production and consumption contracts for standard research outputs,
 
 # Research artifacts and Studio presentation contracts
 
-Research file records use `revision="<size>:<mtime_ns>"`, not content checksums. Publication, input snapshots, online history and replay check file size and modification time rather than hashing payload bytes. Copies preserve nanosecond mtime; published files must be immutable and replaced atomically. Metadata checks cannot detect edits preserving both size and mtime. Model identity fingerprints member revisions; configuration and source-code fingerprints remain SHA-256.
+Research file records use `revision="<size>:<mtime_ns>"`, not content checksums. Publication, upstream input access and online history check file size and modification time rather than hashing payload bytes. Copies preserve nanosecond mtime; published files must be immutable and replaced atomically. Metadata checks cannot detect edits preserving both size and mtime. Model identity fingerprints member revisions; configuration and source-code fingerprints remain SHA-256.
 
 Research Tasks publish results through typed `output_params`. Studio extracts presentation fields from successful tasks' `metadata.json`, then reads artifacts through file previews. This page distinguishes three layers of requirements: required Python base-class fields, fields actually read by Studio, and extension contracts of specific plugins.
+
+Data tables use `<name>.parquet`; CSV is reserved for statistical reports and every CSV filename ends in `_stats.csv`. Examples are `features.parquet` with `features_stats.csv`, and `alpha158.parquet` with `alpha158_stats.csv`. Realtime windows and row-level prediction differences remain Parquet. Execution records, native model files, Markdown reports and hierarchical JSON reports keep their own formats.
 
 ## Shared protocol v1
 
 AxonX owns the shared research protocol in `axonx.task.models.artifacts`. Research protocol headers require `version=1` and a `TaskType` value in `task_type`. Readers reject missing headers and other versions.
 
-Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its revision lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
+One training plan has one Task ID for all seeds and rolling windows. Its `metadata.json.output_params` is a `BaseTrainOutputParams`: shared contracts live in `feature_protocol` and `training_target`; `models` maps names to configurations, training/use ranges, state, row counts, parameters, metrics, curves and timing. Each member references an `artifacts` entry by `model_artifact`; final files are flat under `models/`. Prediction selects by `[use_from,use_to)`; the last group has `use_to=null` and serves later dates.
 
-Offline and online prediction use `PredictionProtocol`, with producer type `predict` or `inference`. It stores one nonempty `model_identity: dict[str, str]`, covered `dates`, `score_columns` and `predictions_revision`. The Qlib plugin uses `models_sha256` and `features_sha256` identity entries; the shared type allows plugin-defined string keys and values. Dates and paths are not model identity. Predictions do not duplicate identities for each date. Qlib feature contracts and fingerprints come from the plugin module `axonx_qlib_a158.internal.modeling`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. `snapshot_model_collection` in `axonx.task.storage.inputs` verifies portable model snapshots. Artifacts remain exclusively in `output_params.artifacts` on Task records; package release versions are independent.
+Each offline prediction Task publishes one `predictions.parquet`, including all dates, seeds and score columns. Stock rows are unique by `(trade_date, trade_time, ts_code)`. `metadata.json.output_params.protocol` contains `score_columns` and ordered, non-overlapping `windows`. Each window records `[prediction_start,prediction_end_exclusive)`, a `models` mapping from score member to training model name, and that group's `model_identity`. Readers select the window by prediction date. Model configurations remain in training metadata; producing executions and consumed revisions remain in `input_sources`. The prediction file's path, size and revision appear only in `output_params.artifacts.predictions`; actual dates are in the parquet, with lightweight `rows`, `date_range`, `output_columns` and optional `statistics` summaries in output metadata. Prediction outputs always belong to the Task directory. Rolling parents retain their own `predictions.parquet` snapshot so reusable child Tasks cannot overwrite a published parent result.
 
-The Qlib feature contract uses one ordered `feature_columns` list. Models record the selected subset and order in their manifest. Signal eligibility is `is_buyable_at_signal`; executable market conditions remain `can_buy` and `can_sell`. Training reports validation scores through `metrics` and row counts before/after trimming and for tuning/validation.
+Online prediction uses the same `PredictionProtocol` score mapping with type `inference`, stored in the published commit within Task metadata. Its model identity, date, time and artifact records belong to the commit, without an extra model window or protocol file. The Qlib plugin uses `models_sha256` and `features_sha256` identity entries; the shared window type allows plugin-defined string keys and values. Qlib feature contracts and fingerprints come from `axonx_qlib_a158.internal.modeling`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. Package release versions are independent.
+
+The Qlib feature contract uses one ordered `feature_columns` list. Models record the selected subset and order in metadata. Signal eligibility is `is_buyable_at_signal`; executable market conditions remain `can_buy` and `can_sell`. Training reports validation scores through `metrics` and row counts before/after trimming and for tuning/validation.
 
 ## Mapping metadata to artifacts
 
 Standard Task records store identity, input parameters, output parameters, and related information at the metadata top level. Research fields belong in `output_params`; placing them at the top level does not make Studio recognize them automatically.
+
+Task inputs use `input_sources` for producer execution and artifact revisions. An explicit external prediction file has no producing Task reference; Portfolio records its revision once in `protocol.input_revisions`.
 
 The following is a structural excerpt, rather than complete TaskMetadata:
 
@@ -43,39 +49,42 @@ The example size and revision only illustrate fields; calculate actual values fr
 
 `BaseOutputParams.artifacts` is `dict[str, ArtifactRecord]`. Every output validates each relative path, nonnegative byte size and file revision. `task.artifact_path(name)` resolves a published output without a separate absolute-path field.
 
-`task.artifact_path(name)` resolves a path without verifying file contents or revision. Use `upstream_artifact()` to require a successful non-replica producer and verify one artifact; use `pin_upstream_artifacts()` to copy verified inputs into the consumer's `inputs/` directory. `snapshot_model_collection()` verifies the manifest and each referenced model member. These checks use size and mtime, rather than content hashes, and do not establish semantic data compatibility.
+`task.artifact_path(name)` resolves an output path. `upstream_artifact()` and `upstream_artifacts()` require successful non-replica producers and read their published files directly. Task metadata records the producing execution and file revisions in `input_sources`; execution rejects replaced sources or changed files before reporting success. Revisions use size and nanosecond mtime, not content hashes. Business compatibility remains the plugin's responsibility.
 
-## Five base output types
+## Research stage outputs
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type     | Required base-class fields                  | Optional or default base-class fields                      |
-| -------- | ------------------------------------------- | ---------------------------------------------------------- |
-| ETL      | `rows`, `date_range`                        | `feature_columns=[]`, `label_columns=[]`                   |
-| Analysis | `rows`                                      | `scores={}`                                                |
-| Train    | `train_rows`                                | `model_name`, columns, metrics, parameters, training_curve |
-| Predict  | `protocol`, `rows`, `date_range`            | `output_columns=[]`, `statistics={}`                       |
-| Backtest | `default_universe`, `universes`, `protocol` | Shared `artifacts={}`                                      |
+| Type      | Required base-class fields       | Optional or default base-class fields           |
+| --------- | -------------------------------- | ----------------------------------------------- |
+| ETL       | `rows`, `date_range`             | `feature_columns=[]`, `label_columns=[]`        |
+| Analysis  | `rows`                           | `scores={}`                                     |
+| Train     | `feature_protocol`, `models`     | `training_target={}`, `artifacts={}`            |
+| Predict   | `protocol`, `rows`, `date_range` | `output_columns=[]`, `statistics={}`            |
+| Portfolio | `portfolios`, `protocol`         | Readable identities and frozen signal artifacts |
+| Backtest  | `portfolios`, `protocol`         | Shared `artifacts={}`                           |
 
-A `model_manifest` artifact is required by the Qlib prediction consumer, rather than by `BaseTrainOutputParams` itself.
+Consumers read the model index directly from Task metadata.
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
-Training members are declared only in the model manifest. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
+Training members are declared only in `output_params.models`. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
 
 Member count distinguishes single-member from multi-member output, independently of prediction target count.
 
 ## ETL artifacts
 
+Axon/Axon2 A-stock ETL stores feature semantics, provenance and quality information in `metadata.json.output_params.protocol`. Each Task owns one signal time (`protocol.trade_time`), uses stable artifact roles, and publishes fixed feature filenames `features.parquet` and optional `features_stats.csv`. When an external output directory is selected, copies under the Task's `artifacts/` retain the original filenames.
+
 The base class stores output-file descriptions and column names. qlib_a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
 
-| Artifact name | File               | Purpose                                                   |
-| ------------- | ------------------ | --------------------------------------------------------- |
-| `dataset`     | `alpha158.parquet` | Source data for training, factor analysis, and prediction |
-| `statistics`  | `alpha158.csv`     | Quality statistics for each feature column                |
-| `labels`      | `labels.parquet`   | Fixed-next-market-day raw returns and availability        |
-| `market`      | `market.parquet`   | Quotes, adjustment factors, execution flags and states    |
-| `calendar`    | `calendar.parquet` | Market dates independent of prediction eligibility        |
+| Artifact name | File                 | Purpose                                                   |
+| ------------- | -------------------- | --------------------------------------------------------- |
+| `dataset`     | `alpha158.parquet`   | Source data for training, factor analysis, and prediction |
+| `statistics`  | `alpha158_stats.csv` | Quality statistics for each feature column                |
+| `labels`      | `labels.parquet`     | Fixed-next-market-day raw returns and availability        |
+| `market`      | `market.parquet`     | Quotes, adjustment factors, execution flags and states    |
+| `calendar`    | `calendar.parquet`   | Market dates independent of prediction eligibility        |
 
 All consumers resolve output files through the task-relative `artifacts` registry. ETL, analysis, prediction and training register task-relative output paths.
 
@@ -94,7 +103,7 @@ All consumers resolve output files through the task-relative `artifacts` registr
 
 This illustrates a valid shape rather than a fixed qlib_a158 metric set. Studio dynamically iterates groups and metrics. Plugins should ensure metric names and definitions are understandable and explain samples, units, and calculation scope in detailed files or extended definition fields.
 
-qlib_a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
+qlib_a158 actually generates `factor_analysis_stats.csv` and `factor_quantiles_stats.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
 
 ## Training curve model
 
@@ -121,9 +130,9 @@ Requirements:
 - Series names cannot repeat across the left and right axes.
 - Empty x and empty groups on both axes indicate no curve data.
 
-Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio reads the validated training curve directly from `output_params.training_curve`; chart rendering filters mismatched series and nonfinite values.
+Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio reads the validated training curve directly from `output_params.models[model_name].training_curve`; chart rendering filters mismatched series and nonfinite values.
 
-qlib_a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history. `model`, `feature_importance`, and `evaluation_history` reference the final model, feature importance, and history CSV, respectively.
+qlib_a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history stored directly in model metadata. `model` and `feature_importance` reference the final model and `feature_importance_stats.csv`.
 
 ## Prediction statistics
 
@@ -142,99 +151,78 @@ Stock backtesting uses the shared `axonx.task.builtins.stock` contract. Predicti
 
 ## Prediction inputs for stock backtesting
 
-`BaseStockBacktestTask` reads these 8 required columns from prediction Parquet files. Both Alpha158 plugins publish this contract in `predictions.parquet`.
+Predict publishes the complete score cross section. `BaseStockPortfolioTask` constructs portfolios using signal-time information. `BaseStockBacktestTask` consumes Portfolio artifacts and independently resolves market data, calendar and optional labels. Construction never consults future returns.
 
-| Required column            | Type and constraints                                            | Meaning                                                              |
-| -------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `trade_date`               | Non-null string, valid YYYYMMDD, present in the market calendar | Signal date                                                          |
-| `trade_time`               | Non-null string, valid HHMM; one signal time per backtest       | Signal time, for example `1500`                                      |
-| `ts_code`                  | Non-null string                                                 | Stock identifier                                                     |
-| `pred`                     | Non-null finite numeric value                                   | Ranking score; higher ranks first; not a return or probability       |
-| `is_model_candidate`       | Non-null Boolean                                                | Model candidate eligibility                                          |
-| `is_buyable_at_signal`     | Non-null Boolean                                                | Signal-time buyability filter                                        |
-| `signal_price`             | Non-null finite numeric value                                   | Signal reference quote, stored separately from its adjustment factor |
-| `signal_adjustment_factor` | Non-null finite numeric value                                   | Adjustment factor for the signal reference quote                     |
+Portfolio reads original scores and signal context in place from Predict. It publishes one `rankings.parquet` with `universe_key`, `trade_date`, `trade_time`, `ts_code`, and `target_rank` for every eligible candidate in every universe. `score_column` references an unchanged upstream column; actual score aggregation publishes only the keys and final `pred` in one `scores.parquet`. `universes` maps ranking keys to universe definitions. Different Top N values and strategies share these files. Candidate flags are reconstructed from ranking membership; targets use `target_rank <= top_n` with weight `1/top_n`, leaving unfilled slots in cash.
 
-The prediction table must be nonempty, and the composite key `(trade_date, trade_time, ts_code)` must be unique and non-null. Stock identifiers and signal times must use the same conventions as the market table. Reference prices and adjustment factors should be positive according to their price meaning. Both eligibility flags must be `true` to enter the selection candidate pool, intersected with the plugin-selected universe.
+```bash
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[5,10,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<Portfolio Task ID>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+```
 
-These columns are optional for the base backtest:
-
-| Optional column        | Use                                                                                                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                 | Display name in details; defaults to `ts_code` when omitted                                                                                                               |
-| `rank`, `buyable_rank` | Prediction-side helper ranks; backtesting computes target ranks from `pred` descending and `ts_code` ascending                                                            |
-| `index_weight_<code>`  | Decimal index weights; positive weights indicate index membership; plugins select index universes with these columns; weight columns also supply benchmark return proxies |
-
-Predictions need no feature columns, `actual_return`, future labels or future execution dates. `signal_price` and `signal_adjustment_factor` are signal reference information; execution and daily valuation use `price`, `adjustment_factor` and trading states from the independent `market` table.
-
-Backtesting also requires independent `market` and `calendar` artifacts. Optional `labels` supplies IC, RankIC, NDCG, target label returns and benchmark returns; the portfolio ledger can run without labels. For explicit files, pass `input_file`, `market_file`, `calendar_file` and optional `labels_file`, where `input_file` is prediction Parquet.
-
-When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `revision`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=1`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `upstream_task_ids`, or the corresponding file paths can be provided. Task resolution verifies source artifact sizes and modification times. `statistics` is presentation information, not a selection input.
+`strategies` optionally declares multiple strategy definitions. Construction expands universe × strategy × Top N; omitting it uses the Task default. `output_params.portfolios` stores readable identities and references to the shared rankings and optional scores. No per-portfolio signal or target table is written.
 
 ## Backtest dimensions and protocol
 
+Portfolio outputs are lists. Each entry carries a readable `portfolio_id` dictionary. Producers may add fields; shared meanings use `universe`, `score_selection`, `strategy`, `top_n`, `allocation`, and `trade_time`. Key order does not affect identity and duplicate identities are rejected. Locate a portfolio across Tasks using its producer Task ID and readable identity.
+
 ```json
 {
-  "default_universe": "all",
-  "universes": {
-    "all": {
-      "label": "All market",
-      "parameters": {},
-      "dimensions": {
-        "top_ns": [1, 5, 10, 30],
-        "holding_detail_top_n": 30,
-        "benchmarks": [
-          {
-            "key": "universe",
-            "label": "Universe"
-          }
-        ]
+  "signals_format": "stock-signals-v3",
+  "portfolios": [
+    {
+      "portfolio_id": {
+        "universe": {
+          "kind": "all"
+        },
+        "score_selection": {
+          "method": "model"
+        },
+        "strategy": {
+          "kind": "fixed_expiry",
+          "holding_days": 1
+        },
+        "top_n": 5,
+        "allocation": "equal_slot",
+        "trade_time": "1500"
       },
-      "date_range": {
-        "start": "20230103",
-        "end": "20231229"
-      },
-      "days": 250,
-      "evaluation_status": "done",
       "artifacts": {
-        "daily": "all_daily",
-        "summary": "all_summary"
+        "rankings": "rankings"
       }
     }
-  },
+  ],
   "protocol": {
     "version": 1,
-    "task_type": "backtest",
-    "return_unit": "decimal"
+    "task_type": "portfolio",
+    "market_upstream_task_id": "etl#qlib_a158_etl#data"
   },
   "artifacts": {
-    "all_daily": {
-      "path": "universes/all/daily.parquet",
-      "size": 1234,
-      "revision": "1234:1700000000000000000"
-    },
-    "all_summary": {
-      "path": "universes/all/summary.parquet",
-      "size": 1234,
-      "revision": "1234:1700000000000000000"
+    "rankings": {
+      "path": "rankings.parquet",
+      "size": 100,
+      "revision": "100:1"
     }
-  }
+  },
+  "score_column": "pred",
+  "universes": [
+    {
+      "key": "all",
+      "label": "All market",
+      "parameters": {
+        "kind": "all"
+      }
+    }
+  ]
 }
 ```
 
-This illustrates a valid base-class structure. The shared stock Task publishes execution, valuation, allocation, fee, cutoff, and input-digest definitions in `protocol`, and `evaluation_status` identifies incomplete market data. The page is not a backtest engine that automatically validates protocol text; plugin authors must clearly state actual execution behavior and units.
+Backtest `upstream_task_ids` requires a Portfolio Task and may also specify an ETL. `portfolio_ids` optionally selects identities. Costs, missing-market assumptions, cutoff, annualization and benchmark coverage belong to Backtest. Reports retain the `portfolios` list, adding `dimensions`, `date_range`, `days`, `evaluation_status`, and references to `daily`, `summary`, `orders`, `positions`, and `trades`. Files live under `portfolios/<ordinal>/`; ordinals only identify storage locations.
 
-Studio loads two tables from the selected report’s `artifacts.daily` and `artifacts.summary` references in the root artifact registry, requesting 5000 rows per page and continuing according to `has_more` until the complete tables are read. Satisfying the Backtest output model alone does not guarantee usable charts.
-
-Each universe is an independent report with its own dimensions, dates, status and artifact references. Studio selects `default_universe` initially and offers a dropdown; comparison selects a universe independently on each side.
-
-Plugins inherit `BaseStockBacktestTask`, implement `build_universes()` returning `BacktestUniverse` definitions and `select_universe(signals, universe)` returning unique `(trade_date, trade_time, ts_code)` keys. The selector receives signal-time data; labels and future prices are not selector inputs. The framework verifies keys, runs separate ledgers, and publishes each report under `universes/<key>/`. Optional `universe_events()` creates fresh event state per report. Shared predictions and labels are loaded once.
+Plugin Portfolio Tasks override `build_universes()`, `select_universe()`, `prepare_signals()`, and `strategy()`. Evaluation extensions use Backtest `evaluation_files()` and `evaluate()` so offline and online callers share policy resources and accounting. Targets express intent. Cash, holdings and market restrictions determine actual fills; stateful policies consult actual positions in the ledger.
 
 ## Unified backtest signals
 
-The `signals.parquet` table retains every input signal and contains non-null Boolean `is_backtest_candidate`, nullable `target_rank`, and nullable `label_return`. Filtering the candidate flag yields the backtest candidate table. Missing labels do not remove candidate membership.
-
-Backtest outputs and online reports declare `signals_format: stock-signals-v1`. Readers validate this field before loading the selected universe’s artifact references.
+Portfolio and online reports declare `stock-signals-v3`. `PortfolioReader` reconstructs complete signals from the referenced predictions, final scores and frozen rankings. Reads validate the producer execution and artifact revisions recorded in `input_sources`; a replaced prediction publication is rejected. Backtest reads labels directly from ETL and publishes only accounting and evaluation results. Online commits keep their own predictions, rankings and optional scores; continuous signals are reconstructed from daily commits without a cumulative signals copy. Studio and comparison readers use the same separation.
 
 ## Presentation fields in the daily table
 
@@ -273,13 +261,17 @@ topN_information_ratio_<benchmark key>
 
 Replace N with the actual numbers in dimensions. The summary table is plugin output; return charts and strategy comparisons are calculated in the browser. qlib_a158 compounds gross cumulative summary returns, while its gross return chart is additive. See [Backtest interpretation](../research/backtest.md) for calculation conventions.
 
-## Windowed work, online history and replay
+## Windowed work and online history
+
+Backtest plugins override `evaluation_files(params)` for policy resources and `evaluate(signals, market, calendar, labels, identity, params, *, as_of_date, files)` for shared evaluation. The ordinary Backtest Task and online/comparison callers use this same method; `identity` supplies the published strategy and Top N. Callers capture the declared file revisions before evaluation.
 
 `BaseWindowTask` runs ordered `ExecutionWindow` inputs with timezone-aware start/end times. It publishes each `WindowResult` as `done`, `skipped`, `incomplete` or `failed`. These are business outcomes, separate from the Task lifecycle state. `BaseRealtimeApiTask` polls `collect()`; `BaseInferenceTask` fixes a nonempty model identity for the entire execution. Bound network calls and retries by `DeadlineBudget.remaining_seconds`.
 
-`OnlineStore` stores immutable commit files under `persistent/online/commits/<commit_id>/` and atomically publishes selected history through `persistent/online/manifest.json`. Commits record the producing `task_id`, `started_at`, signal date/time, consecutive per-signal revision, model identity, protocol and artifact records. A changed strategy identity requires a new instance name. Use `read_online_history()` for both full manifests and frozen history chains, and `pin_online_history()` to verify and snapshot referenced files into a consumer before reporting or replay. Studio follows these frozen blocks in order and validates the assembled history before displaying signal results.
+`publish_online()` writes a completed inference result under the Task's ordinary `outputs/<HHMM>/` directory and returns an `OnlineCommit` containing the producing execution, model identity, protocol and registered files. The executor's `persistent/task.lock` owns execution; `persistent/history.jsonl` appends one terminal metadata JSON object after each run. Online business files use ordinary Task output directories.
 
-`ReplayStream.create()` snapshots files and publishes `stream.json` into a new directory; it refuses to overwrite an existing dataset. Opening a stream verifies every referenced payload by size/revision. Events are ordered by timezone-aware `available_at`. Inject `ReplayClock` into the Task and use `ReplayCursor` to deliver events strictly before the business deadline. Only the creating thread advances replay time; lifecycle timestamps and execution measurements still use real time.
+Axon2 daily parents use `outputs/<HHMM>/<model>/`. Online parents retain predictions, rankings, optional scores, compact market data and display ledgers; feature matrices, calendars, weights and debug data remain in inference children. Evidence references pin child execution times and artifact revisions. Report `portfolios` maps stable portfolio keys to complete identities. Ledger tables use a `portfolio_key` column: positions record the current-day state, orders/trades record current-day events, daily contains one row per portfolio and day, and summary records as-of statistics. Studio assembles history from daily snapshots, independently of mutable children. Comparison parents retain metadata diagnostics, top_comparisons.json and optional bounded differences.parquet samples. Replaced inference evidence is unavailable for recomputation and never replaced with a newer execution.
+
+Mean/rank-mean ensemble keys omit rolling seed membership while daily identities retain the actual members. Explicit seed selections keep distinct keys.
 
 ## Producer acceptance checks
 

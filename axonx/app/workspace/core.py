@@ -141,10 +141,16 @@ class Workspace:
                 yield entry
 
     def preview_file(
-        self, path: str, offset: int = 0, limit: int = PREVIEW_ROWS, *, max_bytes: int | None = None
-    ) -> FilePreview:
+        self,
+        path: str,
+        offset: int = 0,
+        limit: int = PREVIEW_ROWS,
+        *,
+        max_bytes: int | None = None,
+        allow_missing: bool = False,
+    ) -> FilePreview | None:
         """Read a bounded preview, loading format libraries on demand."""
-        return preview_file(self, path, offset, limit, max_bytes=max_bytes)
+        return preview_file(self, path, offset, limit, max_bytes=max_bytes, allow_missing=allow_missing)
 
     def delete_entries(self, requested_paths: list[str]) -> list[DeletedEntry]:
         """Validate the complete selection before deleting its top-level roots."""

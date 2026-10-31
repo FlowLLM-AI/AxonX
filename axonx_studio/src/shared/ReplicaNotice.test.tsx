@@ -22,7 +22,7 @@ const replica: DisplayReplica = {
       dates: ["20260105", "20260106"],
     },
   },
-  omitted: { "inputs/": "upstream input snapshot" },
+  omitted: { "features.parquet": "transfer budget exceeded" },
   source_log_path: "/source/logs/run.log",
 };
 let dispose: (() => void) | undefined;
@@ -51,6 +51,6 @@ it.each(["en", "zh"])(
     expect(container.textContent).toContain("20260106");
     expect(container.textContent).toContain("100");
     expect(container.textContent).toContain("500");
-    expect(container.textContent).toContain("inputs/");
+    expect(container.textContent).toContain("features.parquet");
   },
 );

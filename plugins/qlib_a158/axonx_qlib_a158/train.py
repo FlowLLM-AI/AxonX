@@ -14,24 +14,15 @@ from pydantic import Field, model_validator
 from axonx.task.builtins.stock.data import transform_labels
 from axonx.task.core.base import TaskStep
 from axonx.task.core.research import BaseTrainTask
-from axonx.task.models.artifacts import (
-    ModelCollection,
-    task_protocol,
-)
 from axonx.task.models.base import DateString
 from axonx.task.models.identity import TaskType
 from axonx.task.models.params import BaseInputParams, BaseTrainOutputParams
 from axonx.task.storage.artifacts import artifact_record
-from axonx.task.storage.files import atomic_write, atomic_write_json
-from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
+from axonx.task.storage.files import atomic_write
+from axonx.task.storage.inputs import read_upstream_metadata, upstream_artifacts
 
 from .internal.modeling import feature_contract, feature_matrix, load_lightgbm
 from .internal.reference import DEVIATIONS, QLIB_PARAMETERS, QLIB_REFERENCE
-
-
-class LgbmTrainOutputParams(BaseTrainOutputParams):
-    best_iteration: int
-    rows: dict[str, int]
 
 
 class LgbmTrainInputParams(BaseInputParams):
@@ -135,7 +126,6 @@ class LgbmTrainTask(BaseTrainTask):
     """
 
     input_cls = LgbmTrainInputParams
-    output_cls = LgbmTrainOutputParams
     input_params: LgbmTrainInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
@@ -153,18 +143,17 @@ class LgbmTrainTask(BaseTrainTask):
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
         _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         protocol = feature_contract(source_metadata["output_params"]["protocol"])
-        dataset_path, labels_path = pin_upstream_artifacts(
-            self, etl_task_id, "dataset", "labels", metadata=source_metadata
-        )
+        dataset_path, labels_path = upstream_artifacts(self, etl_task_id, "dataset", "labels", metadata=source_metadata)
         output_dir = self.task_dir
+        seed, cutoff = self.input_params.random_seed, self.input_params.train_end
+        name = f"lightgbm_seed_{seed}_fit_end_{cutoff}_use_{cutoff}-onward.txt"
         self.state.update(
             feature_protocol=protocol,
             parameters=self._parameters(),
             dataset_path=dataset_path,
             labels_path=labels_path,
-            model_path=output_dir / "model.txt",
-            importance_path=output_dir / "feature_importance.csv",
-            history_path=output_dir / "evaluation_history.csv",
+            model_path=output_dir / "models" / name,
+            importance_path=output_dir / "feature_importance_stats.csv",
         )
         self.logger.info(
             f"Training source resolved etl_task_id={etl_task_id} "
@@ -428,85 +417,64 @@ class LgbmTrainTask(BaseTrainTask):
             lambda temporary: self.state["model"].save_model(str(temporary)),
         )
         self.report_progress(40)
-        outputs = (("importance", "importance_path"), ("history", "history_path"))
-        for index, (key, path_key) in enumerate(outputs, start=1):
-            path: Path = self.state[path_key]
-            atomic_write(path, self.state[key].write_csv)
-            self.report_progress(40 + index / len(outputs) * 55)
-        self.logger.info(
-            f"Training artifacts written model={self.state['model_path']} "
-            f"importance={self.state['importance_path']} history={self.state['history_path']}",
-        )
+        atomic_write(self.state["importance_path"], self.state["importance"].write_csv)
 
     def additional_training_protocol(self) -> dict:
         return {}
 
-    def build_output_params(self) -> LgbmTrainOutputParams:
-        artifacts = {
-            name: artifact_record(self.state[path_key], self.task_dir)
-            for name, path_key in (
-                ("model", "model_path"),
-                ("feature_importance", "importance_path"),
-                ("evaluation_history", "history_path"),
-            )
-        }
-        parameters = self.state["parameters"]
-        collection = ModelCollection(
-            **task_protocol(TaskType.TRAIN),
-            **self.additional_training_protocol(),
-            qlib_reference=QLIB_REFERENCE,
-            qlib_deviations={key: DEVIATIONS[key] for key in ("label", "training")},
-            parameter_preset=self.input_params.parameter_preset,
-            train_start_inclusive=self.input_params.train_start,
-            train_end_exclusive=self.input_params.train_end,
-            validation_start_inclusive=self.state["validation_start"],
-            label_column=self.input_params.label_column,
-            label_transform={
-                "reference": "cutoff-safe eligible training rows",
-                "winsorize_tail": self.input_params.label_winsorize_tail,
-                "rank": "average (rank-1)/(n-1); singleton=.5",
-                "csz_ddof": 0,
+    def build_output_params(self) -> BaseTrainOutputParams:
+        path = self.state["model_path"]
+        name = path.stem
+        history = self.state["history"]
+        return self.output_cls(
+            feature_protocol=self.state["feature_protocol"],
+            training_target={
+                **self.additional_training_protocol(),
+                "qlib_reference": QLIB_REFERENCE,
+                "qlib_deviations": {key: DEVIATIONS[key] for key in ("label", "training")},
+                "parameter_preset": self.input_params.parameter_preset,
+                "validation_start_inclusive": self.state["validation_start"],
+                "label_column": self.input_params.label_column,
+                "label_transform": {
+                    "reference": "cutoff-safe eligible training rows",
+                    "winsorize_tail": self.input_params.label_winsorize_tail,
+                    "rank": "average (rank-1)/(n-1); singleton=.5",
+                    "csz_ddof": 0,
+                },
+                "raw_label_for_trimming": "label_return",
+                "daily_trim_tail": self.input_params.trim_tail,
+                "prediction_rows_are_not_trimmed": True,
+                "sample_filter": (
+                    "signal-date buyability; label_target_date < train_end; "
+                    "transforms after eligibility and tail filtering"
+                ),
             },
-            raw_label_for_trimming="label_return",
-            daily_trim_tail=self.input_params.trim_tail,
-            prediction_rows_are_not_trimmed=True,
-            sample_filter=(
-                "signal-date buyability, valid fixed-one-day label available before exclusive cutoff, "
-                "label_target_date < train_end; per-date transforms after eligibility and tail filtering"
-            ),
-            members={
-                "model": {
-                    "model_artifact": "model",
+            models={
+                name: {
+                    "model_artifact": name,
+                    "state": "succeeded",
                     "model": {
                         "library": "lightgbm",
                         "library_version": load_lightgbm().__version__,
-                        "parameters": parameters,
+                        "parameters": self.state["parameters"],
                         "best_iteration": self.state["best_iteration"],
                         "feature_names": list(self.state["features"]),
                     },
+                    "train_start": self.input_params.train_start,
+                    "train_end_exclusive": self.input_params.train_end,
+                    "use_from": self.input_params.train_end,
+                    "train_rows": self.state["frame"].height,
+                    "parameters": {"rows": self.state["rows"]},
+                    "metrics": {name: value for name, value in self.state["metrics"].items() if math.isfinite(value)},
+                    "training_curve": {
+                        "x": [str(i) for i in history["iteration"].to_list()],
+                        "y_left": {c: history[c].to_list() for c in history.columns if c.endswith("_l2")},
+                        "y_right": {c: history[c].to_list() for c in history.columns if c.endswith("_l1")},
+                    },
                 }
             },
-            feature_protocol=self.state["feature_protocol"],
-            artifacts=artifacts,
-        )
-        manifest_path = self.task_dir / "models.json"
-        atomic_write_json(manifest_path, collection.model_dump(mode="json"))
-        artifacts["model_manifest"] = artifact_record(manifest_path, self.task_dir)
-        history = self.state["history"]
-        return self.output_cls(
-            model_name="LightGBM",
-            train_rows=self.state["frame"].height,
-            feature_columns=list(self.state["features"]),
-            target_columns=[self.input_params.label_column],
-            parameters=parameters,
-            best_iteration=self.state["best_iteration"],
-            rows=self.state["rows"],
-            metrics={name: value for name, value in self.state["metrics"].items() if math.isfinite(value)},
-            training_curve={
-                "x": [str(iteration) for iteration in history["iteration"].to_list()],
-                # L2 and L1 have different numeric ranges; each metric gets one axis.
-                "y_left": {column: history[column].to_list() for column in history.columns if column.endswith("_l2")},
-                "y_right": {column: history[column].to_list() for column in history.columns if column.endswith("_l1")},
+            artifacts={
+                name: artifact_record(path, self.task_dir),
+                "feature_importance": artifact_record(self.state["importance_path"], self.task_dir),
             },
-            artifacts=artifacts,
         )

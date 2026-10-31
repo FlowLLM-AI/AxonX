@@ -23,6 +23,7 @@ from ..core.base import ChildTaskError
 from ..models.artifacts import PROTOCOL_VERSION
 from ..models.identity import TaskState, validate_registration_name
 from ..models.lifecycle import ChildTaskRecord, ChildTaskResult, TaskMetadata
+from ..storage.inputs import verify_input_sources
 from ..storage.workspace import LOG_FILE
 from .lifecycle import finish_task, prepare_task_directory
 from .process import machine_id, process_started_at
@@ -110,6 +111,7 @@ class TaskExecutor:
                 execution_target=parent.context.execution_target,
                 clock=parent.clock,
             )
+            child.input_budget = parent.input_budget
             record.child_task_id = child.task_id
             try:
                 parent.persist_metadata()
@@ -141,8 +143,12 @@ class TaskExecutor:
         started = perf_counter()
         try:
             with progress.step(name):
+                if task.input_budget is not None:
+                    task.input_budget.check()
                 task.logger.info(f"Task step started step={name}")
                 result = step()
+                if task.input_budget is not None:
+                    task.input_budget.check()
                 if inspect.isawaitable(result):
                     if inspect.iscoroutine(result):
                         result.close()
@@ -185,11 +191,12 @@ class TaskExecutor:
                         started_at=started_at,
                         log_path=LOG_FILE if log_path else "",
                     )
-                    progress = TaskProgress(task.task_dir, status, previous_started_at=previous_start)
+                    progress = TaskProgress(task.task_dir, status)
                     task._metadata = status
                     task._persist_metadata = progress.publish
                     task._progress = progress.report
                     task._execute_child = partial(self._execute_child, task)
+                    task._resolve_task = self.resolve_task
                     task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
                     progress.publish()
                     if on_started is not None:
@@ -201,6 +208,7 @@ class TaskExecutor:
                     raise
                 else:
                     task.close()
+                verify_input_sources(task)
                 task._output_params = task._build_output()
                 output = task.output
                 exit_code = task.exit_code(output)
@@ -233,3 +241,4 @@ class TaskExecutor:
                 task._progress = None
                 task._persist_metadata = None
                 task._execute_child = None
+                task._resolve_task = None

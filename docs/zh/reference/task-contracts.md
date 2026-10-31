@@ -6,6 +6,8 @@
 
 子类声明 `input_cls`、`output_cls`、`task_type`、可选 `report_kind`、同步 `build_task_steps()` 和有类型的 `build_output_params()`。执行器管理 metadata/进度，在最终输出构建前调用 `close()`。`publish_output()` 校验并保存部分结果，`report_progress()` 只在执行期间可用。
 
+Task 状态和 `exit_code` 描述程序执行情况。已完成的比对结论（`consistent`、`different`、`missing`、`protocol_mismatch`）以及已处理的窗口结果（`skipped`、`incomplete`）保留在业务输出中，不使执行失败。异常、比对 `error` 和窗口 `failed` 结果使 Task 失败。仅在继续其他工作时需要报告已捕获的执行错误，才覆盖 `exit_code`；不要用它拒绝正常完成的研究结果。
+
 ## 子任务契约
 
 所有 BaseTask 都支持 `run_task(reg_name, *, node_name=None, on_error="stop", task_name=None, **inputs)`，返回包含 record、success、child_task_id、可选有类型 output_params 和 JSON output 的 `ChildTaskResult`。构造失败可能没有子任务 ID 或输出，读取不可用输出会抛错。
@@ -61,7 +63,7 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 
 ## 产物记录
 
-文件记录包含相对 path、size 和 revision，路径必须位于 Task 目录内。共享模型位于 `models.artifacts`，研究结果位于 `models.reports`。用 `storage.inputs` 核验并固定上游产物。原子发布 metadata 不保护目录免受并发写入。
+文件记录包含相对 path、size 和 revision，路径必须位于 Task 目录内。产物协议位于 `models.artifacts`，训练输入输出位于 `models.params`，各模型训练记录位于 `models.reports`。用 `storage.inputs` 核验并固定上游产物。原子发布 metadata 不保护目录免受并发写入。
 
 ## 工作区读取与事件
 
@@ -71,8 +73,8 @@ print(metadata.task_id, metadata.started_at, metadata.output_params)
 
 副本记录源/策略修订、采样或省略文件和可选工作流分支快照。TaskSnapshot 包含 source_id、root_task_id、root_started_at、captured_at、有序 revision、when 和 model_names。副本不能执行，也不应作为可修改的研究源。
 
-## 业务时钟与事件回放
+## 业务时钟与截止预算
 
-BaseWindowTask、BaseInferenceTask 位于 `core.windows`，WindowClock/DeadlineBudget 位于 `core.clock`，ReplayClock 位于 `runtime.replay`。生命周期计时仍为真实时间，窗口业务结果与 Task 状态独立。回放或报告前核验并固定在线历史，详见[研究产物](research-artifacts.md)。
+BaseWindowTask、BaseInferenceTask 位于 `core.windows`，WindowClock/DeadlineBudget 位于 `core.clock`。生命周期计时仍为真实时间，窗口业务结果与 Task 状态独立。报告前核验并固定在线历史，详见[研究产物](research-artifacts.md)。
 
 源码：[开发接口](../../../axonx/task/core/base.py)、[模型](../../../axonx/task/models/lifecycle.py)、[执行器](../../../axonx/task/runtime/executor.py)。

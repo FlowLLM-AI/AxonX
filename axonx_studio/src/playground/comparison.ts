@@ -13,10 +13,33 @@ export function seedNightly(
     task_name: "demo",
     trade_date: "2026-01-05",
     models: {
-      "0945": [{ task_name: "morning", feature_family: "a_stock" }],
+      "0945": [{ task_name: "morning", train: { reg_name: "a_stock_train" } }],
       "1445": [
-        { task_name: "nightly", feature_family: "a_stock" },
-        { task_name: "missing", feature_family: "v1" },
+        {
+          task_name: "nightly",
+          train: { reg_name: "a_stock_train" },
+          predict: { reg_name: "a_stock_predict" },
+          portfolio: { reg_name: "a_stock_portfolio" },
+          compare: { reg_name: "a_stock_prediction_compare" },
+        },
+        {
+          task_name: "missing",
+          etl: [
+            { reg_name: "v1_merge", params: {} },
+            { reg_name: "v1_feature", params: {} },
+          ],
+          train: { reg_name: "v1_train", params: {} },
+          predict: { reg_name: "v1_predict", params: {} },
+          portfolio: {
+            reg_name: "v1_portfolio",
+            params: {
+              universes: [{ kind: "all" }],
+              top_ns: [10],
+              holding_days: 10,
+            },
+          },
+          compare: { reg_name: "a_stock_prediction_compare", params: {} },
+        },
       ],
     },
   };
@@ -110,7 +133,7 @@ export function seedNightly(
   parent.steps = [
     step("download", "download", "done"),
     ...["nightly", "missing"].flatMap((model) =>
-      ["etl", "online_source", "prediction", "comparison", "backtest"].map(
+      ["etl", "online_source", "prediction", "portfolio", "comparison"].map(
         (stage) =>
           step(
             `${model}-1445:${stage}`,

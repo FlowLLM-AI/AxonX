@@ -38,12 +38,18 @@ export function ComparisonResults({
             {
               row: parseOnlineReport({ comparisons: [model.finding] })
                 .comparisons![0],
-              taskId: "",
-              startedAt: "",
+              taskId: model.taskId,
+              startedAt: model.startedAt,
             },
           ]
         : [];
-    const results = published.length ? published : fallback;
+    const snapshot = model.outcome.comparison;
+    const archived = isRecord(snapshot) && isRecord(snapshot.artifacts);
+    const results = archived
+      ? fallback
+      : published.length
+        ? published
+        : fallback;
     const unavailableReason =
       typeof model.finding?.reason === "string" && model.finding.reason
         ? model.finding.reason
@@ -70,15 +76,8 @@ export function ComparisonResults({
           const stages = isRecord(row.metrics?.stages)
             ? row.metrics.stages
             : {};
-          const ledger = new Set([
-            "signals",
-            "orders",
-            "positions",
-            "trades",
-            "daily",
-          ]);
           const records = Object.entries(stages)
-            .filter(([key, value]) => isRecord(value) && !ledger.has(key))
+            .filter(([, value]) => isRecord(value))
             .map(([key, value]) => {
               const stage = value as Record<string, unknown>;
               const mismatches = isRecord(stage.mismatches)

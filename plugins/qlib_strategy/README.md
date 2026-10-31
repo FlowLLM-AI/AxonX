@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_strategy` extends `qlib_a158` to study portfolio policies using fixed predictions. The shared framework owns quotes, price limits, valuation, cash, side fees, orders, positions and trades.
+`qlib_strategy` extends `qlib_a158` for offline portfolio-policy research using fixed historical predictions. The shared backtest framework owns quotes, price limits, valuation, cash, side fees, orders, positions and trades.
 
 ## Rank-retention policy
 
@@ -27,17 +27,15 @@ axonx plugin install -e plugins/qlib_strategy
 For remote installation and service refresh, follow [plugin management](../../docs/en/plugins/management.md). The examples below require installed plugins/data, `AXONX_TARGET_TOKEN`, and your service address in place of `http://research.example:1024`.
 
 ```bash
-axonx exec --task qlib_strategy_backtest --upstream-task-ids '["<predict_task_id>"]' \
-  --top-ns '[20,30]' --as-of-date 20261008 \
-  --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
+axonx exec --task qlib_strategy_portfolio --upstream-task-ids '["<predict_task_id>"]' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 --target http://research.example:1024
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --as-of-date 20261008 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-Reuse successful base or factor predictions. Record each Task ID and `started_at` from execution logs or `status --detail full`; continue only after successful execution. The plugin registers only `qlib_strategy_backtest`; policy comparisons reuse base or factor predictions. Installation modifies the selected interpreter. New CLI processes discover installed plugins; definition Jobs and Studio retain the service startup catalog until restart. Stop on installation or verification failures.
+Reuse successful base or factor predictions. Record each Task ID and `started_at` from execution logs or `status --detail full`; continue only after successful execution. The plugin registers only `qlib_strategy_portfolio`; policy comparisons reuse base or factor predictions. Installation modifies the selected interpreter. New CLI processes discover installed plugins; definition Jobs and Studio retain the service startup catalog until restart. Stop on installation or verification failures.
 
 ## Execution and configuration
 
-Use the standard `axonx app` configuration. This plugin registers only `qlib_strategy_backtest` and depends on `qlib_a158`; `qlib_factor` is optional. Create predictions with the base or factor training Tasks and `qlib_a158_predict`. Prediction accepts a Train and an optional compatible ETL to score new data.
+Use the standard `axonx app` configuration. This plugin registers only `qlib_strategy_portfolio` and depends on `qlib_a158`; `qlib_factor` is optional. Create predictions with the base or factor training Tasks and `qlib_a158_predict`. Prediction accepts a Train and an optional compatible ETL to score new data.
 
 ## Local validation
 

@@ -19,7 +19,7 @@ class PortfolioPolicy(Protocol):
 
 
 class PortfolioLedger:
-    """Replay portfolios with original position records grouped by current security."""
+    """Evaluate portfolios with original position records grouped by current security."""
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class PortfolioLedger:
         self.cash = self.previous_equity = 1.0
         self.book: dict[str, list[dict[str, Any]]] = {}
 
-    def replay(self, n, dates, market_days, signals_by_date, ranks_by_date, signal_dates) -> None:
+    def run(self, n, dates, market_days, signals_by_date, ranks_by_date, signal_dates) -> None:
         """Reset portfolio and event state while retaining records from earlier runs."""
         self.n = n
         self.cash = self.previous_equity = 1.0

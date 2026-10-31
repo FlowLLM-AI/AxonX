@@ -176,7 +176,16 @@ it("keeps operation page IDs distinct in routes and navigation", async () => {
   ).toEqual([
     ["tasks", "resources", "environment", "workspace"],
     ["operation-online", "operation-comparison", "operation-data"],
-    ["agent", "etl", "factors", "train", "predict", "backtest", "compare"],
+    [
+      "agent",
+      "etl",
+      "factors",
+      "train",
+      "predict",
+      "portfolio",
+      "backtest",
+      "compare",
+    ],
     ["task-defs", "apis"],
   ]);
   for (const page of operationPages) {

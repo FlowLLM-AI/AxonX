@@ -54,12 +54,13 @@ Lists directories of the selected task_type that contain metadata.json. This is 
 
 Preview one supported file inside the configured workspace.
 
-| Argument    | Type      | Required | Default / constraints                        |
-| ----------- | --------- | -------- | -------------------------------------------- |
-| `max_bytes` | `integer` | no       | `{"minimum":1,"maximum":33554432}`           |
-| `path`      | `string`  | yes      | `—`                                          |
-| `offset`    | `integer` | no       | `{"minimum":0,"default":0}`                  |
-| `limit`     | `integer` | no       | `{"minimum":1,"maximum":5000,"default":200}` |
+| Argument        | Type      | Required | Default / constraints                        |
+| --------------- | --------- | -------- | -------------------------------------------- |
+| `allow_missing` | `boolean` | no       | `{"default":false}`                          |
+| `max_bytes`     | `integer` | no       | `{"minimum":1,"maximum":33554432}`           |
+| `path`          | `string`  | yes      | `—`                                          |
+| `offset`        | `integer` | no       | `{"minimum":0,"default":0}`                  |
+| `limit`         | `integer` | no       | `{"minimum":1,"maximum":5000,"default":200}` |
 
 ```json
 {
@@ -70,6 +71,8 @@ Preview one supported file inside the configured workspace.
   }
 }
 ```
+
+Set `allow_missing: true` for a file that has not been produced yet: an absent file returns a successful `answer: null`. The default treats absence as an error. Invalid paths, permission failures and malformed file contents retain their normal error or `parse_error` behavior.
 
 ## delete_entries
 

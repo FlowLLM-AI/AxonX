@@ -5,7 +5,12 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from axonx.task.builtins.stock.models import STOCK_REPORT_ARTIFACTS, StockOnlineReport, StockReportSettings
+from axonx.task.builtins.stock.models import (
+    STOCK_REPORT_ARTIFACTS,
+    StockOnlineReport,
+    StockReportSettings,
+    portfolio_key,
+)
 from axonx.task.models.artifacts import ArtifactRecord, PredictionProtocol, task_protocol
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.events import TASK_EVENT_ADAPTER, LogChunk, LogEvent, ProgressEvent
@@ -87,33 +92,85 @@ def test_date_normalization_rejects_invalid_dates(value):
 def prediction_protocol():
     return task_protocol(
         TaskType.PREDICT,
-        model_identity={"model": "revision"},
-        dates=["20240229"],
         score_columns={"model": "score"},
-        predictions_revision="10:20",
+        windows=[
+            {
+                "prediction_start": "20240229",
+                "prediction_end_exclusive": "20240301",
+                "models": {"model": "final-model"},
+                "model_identity": {"model": "revision"},
+            }
+        ],
         plugin_settings={"feature": "close"},
     )
 
 
-@pytest.mark.parametrize("dates", [["20230229"], ["20240301", "20240229"], ["20240229", "20240229"]])
-def test_prediction_dates_are_valid_sorted_and_unique(prediction_protocol, dates):
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"prediction_start": "20230229"},
+        {"prediction_start": "20240301"},
+        {"prediction_end_exclusive": "20240228"},
+        {"models": {"other": "final-model"}},
+    ],
+)
+def test_prediction_windows_validate_dates_and_members(prediction_protocol, changes):
     with pytest.raises(ValidationError):
-        PredictionProtocol.model_validate({**prediction_protocol, "dates": dates})
+        PredictionProtocol.model_validate(
+            {**prediction_protocol, "windows": [{**prediction_protocol["windows"][0], **changes}]}
+        )
+
+
+def test_prediction_windows_route_half_open_intervals(prediction_protocol):
+    first = prediction_protocol["windows"][0]
+    second = {
+        **first,
+        "prediction_start": "20240301",
+        "prediction_end_exclusive": "20240401",
+        "model_identity": {"model": "next-revision"},
+    }
+    protocol = PredictionProtocol.model_validate({**prediction_protocol, "windows": [first, second]})
+    assert protocol.window_for(20240229).model_identity == {"model": "revision"}
+    assert protocol.window_for("20240301").model_identity == {"model": "next-revision"}
+    with pytest.raises(ValueError, match="No prediction model window"):
+        protocol.window_for("20240401")
+    for windows in ([second, first], [first, first]):
+        with pytest.raises(ValidationError, match="ordered and non-overlapping"):
+            PredictionProtocol.model_validate({**prediction_protocol, "windows": windows})
 
 
 def test_protocol_extensions_survive_roundtrip(prediction_protocol):
     protocol = PredictionProtocol.model_validate(prediction_protocol)
     assert protocol.model_dump(mode="json") == prediction_protocol
     output = BasePredictOutputParams(
-        rows=1, date_range={"start": "20240229", "end": "20240229"}, protocol=protocol.model_dump()
+        rows=1,
+        date_range={"start": "20240229", "end": "20240229"},
+        protocol=protocol.model_dump(),
+        artifacts={"predictions": ArtifactRecord(path="predictions.parquet", size=0, revision="0:1")},
     )
     assert output.model_dump(mode="json")["protocol"] == prediction_protocol
 
 
-@pytest.mark.parametrize("changes", [{"task_type": "inference"}, {"version": True}, {"dates": ["20230229"]}])
+@pytest.mark.parametrize("changes", [{"task_type": "inference"}, {"version": True}, {"windows": []}])
 def test_prediction_results_validate_their_protocol(prediction_protocol, changes):
     with pytest.raises(ValidationError):
-        BasePredictOutputParams(rows=1, date_range={}, protocol={**prediction_protocol, **changes})
+        BasePredictOutputParams(
+            rows=1,
+            date_range={},
+            protocol={**prediction_protocol, **changes},
+            artifacts={"predictions": ArtifactRecord(path="predictions.parquet", size=0, revision="0:1")},
+        )
+
+
+@pytest.mark.parametrize("roles", [[], ["other"], ["predictions", "protocol"]])
+def test_prediction_output_requires_one_prediction_artifact(prediction_protocol, roles):
+    with pytest.raises(ValidationError):
+        BasePredictOutputParams(
+            rows=1,
+            date_range={},
+            protocol=prediction_protocol,
+            artifacts={name: ArtifactRecord(path="predictions.parquet", size=0, revision="0:1") for name in roles},
+        )
 
 
 @pytest.mark.parametrize("path", ["/absolute", "../outside", "a/../b", "a//b", "a\\b"])
@@ -178,6 +235,15 @@ def test_report_dimensions_validate_for_every_report(top_ns, detail):
         BacktestDimensions(top_ns=top_ns, holding_detail_top_n=detail, benchmarks=[])
 
 
+def test_portfolio_series_survive_ensemble_rolls_without_changing_recorded_identities():
+    first = {"top_n": 10, "score_selection": {"method": "mean", "seeds": [0]}}
+    rolled = {"top_n": 10, "score_selection": {"method": "mean", "seeds": [42]}}
+    assert portfolio_key(first) == portfolio_key(rolled)
+    assert first["score_selection"]["seeds"] == [0]
+    first["score_selection"]["method"] = rolled["score_selection"]["method"] = "seed"
+    assert portfolio_key(first) != portfolio_key(rolled)
+
+
 def test_online_dates_share_calendar_validation():
     now = datetime.now(UTC)
     values = {
@@ -198,11 +264,13 @@ def test_online_dates_share_calendar_validation():
     with pytest.raises(ValidationError, match="settings must be an object"):
         OnlineCommit(**{**values, "protocol": task_protocol(TaskType.INFERENCE, report=1)})
     settings = {
-        "signals_format": "stock-signals-v1",
+        "signals_format": "stock-signals-v3",
+        "score_column": "pred",
         "strategy_identity": "a" * 64,
         "dimensions": {"top_ns": [1], "holding_detail_top_n": 1, "benchmarks": []},
         "date_range": {"start": "20240228", "end": "20240229"},
         "portfolio": {},
+        "portfolios": {portfolio_key({"top_n": 1}): {"top_n": 1}},
         "score_selection": {},
         "evaluation_status": "done",
     }
@@ -216,11 +284,13 @@ def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
     now = datetime.now(UTC)
     record = ArtifactRecord(path="data.parquet", size=0, revision="0:1")
     settings = {
-        "signals_format": "stock-signals-v1" if problem != "format" else "custom-signals-v1",
+        "signals_format": "stock-signals-v3" if problem != "format" else "custom-signals-v1",
+        "score_column": "pred",
         "strategy_identity": "a" * 64,
         "dimensions": {"top_ns": [1], "holding_detail_top_n": 1, "benchmarks": []},
         "date_range": {"start": "20240229", "end": "20240229"},
         "portfolio": {},
+        "portfolios": {portfolio_key({"top_n": 1}): {"top_n": 1}},
         "score_selection": {},
         "evaluation_status": "done",
     }
@@ -228,7 +298,7 @@ def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
     if problem == "date":
         settings["date_range"]["end"] = "20240301"
     if problem == "missing":
-        artifacts.pop("calendar")
+        artifacts.pop("rankings")
     commit = OnlineCommit(
         commit_id="a" * 32,
         task_id="inference#model#daily",
@@ -262,3 +332,35 @@ def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
 def test_window_results_reject_partial_commits_and_nonfinite_elapsed_time(changes):
     with pytest.raises(ValidationError):
         WindowResult(**{"key": "open", "status": "done", **changes})
+
+
+def test_training_model_index_routes_boundaries_and_future_dates():
+    from axonx.task.models.params import BaseTrainOutputParams
+
+    def member(start, stop=None, state="succeeded"):
+        return {
+            "model": {"random_seed": 7},
+            "train_start": 20220101,
+            "train_end_exclusive": start,
+            "use_from": start,
+            "use_to": stop,
+            "state": state,
+            "model_artifact": "weights",
+        }
+
+    output = BaseTrainOutputParams(
+        feature_protocol=task_protocol(TaskType.ETL),
+        models={"first": member(20230101, 20230701), "latest": member(20230701)},
+        artifacts={"weights": {"path": "models/latest.pt", "size": 1, "revision": "1:1"}},
+    )
+    assert list(output.select_models(20230630)) == ["first"]
+    assert list(output.select_models(20230701)) == ["latest"]
+    assert list(output.select_models(20990101)) == ["latest"]
+    for day in (20221231, "20230230"):
+        with pytest.raises(ValueError):
+            output.select_models(day)
+    output.models["latest"].state = "failed"
+    with pytest.raises(ValueError, match="No completed model group"):
+        output.select_models(20230701)
+    with pytest.raises(ValueError, match="unregistered artifact"):
+        BaseTrainOutputParams(feature_protocol=task_protocol(TaskType.ETL), models={"model": member(20230101)})

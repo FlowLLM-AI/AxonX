@@ -6,10 +6,11 @@ models: Portfolio configuration, Task inputs/outputs and stock report contracts.
 ledger: Cash, positions, orders, trades and policy-driven execution accounting.
 reporting: Daily diagnostics, benchmarks, portfolio metrics and period summaries.
 engine: Backtest input validation, candidate preparation and result assembly.
-backtest: Task-level input resolution, universe orchestration and artifact publication.
+portfolio: Frozen signals, derived targets and reusable portfolio decision rules.
+backtest: Portfolio execution, accounting and performance report publication.
 """
 
-from . import backtest, data, engine, ledger, models, protocol, reporting
+from . import backtest, data, engine, ledger, models, portfolio, protocol, reporting
 
 __all__ = [
     "backtest",
@@ -17,6 +18,7 @@ __all__ = [
     "engine",
     "ledger",
     "models",
+    "portfolio",
     "protocol",
     "reporting",
 ]

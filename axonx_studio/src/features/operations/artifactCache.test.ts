@@ -1,10 +1,55 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { loadArtifactRows } from "../../shared/api/artifacts";
 import { ArtifactTableCache } from "./artifactCache";
+import { seed } from "../../playground/fixtures";
+import { parseStockReport, type OnlineHistory } from "./report";
 
-vi.mock("../../shared/api/artifacts", () => ({ loadArtifactRows: vi.fn() }));
+vi.mock(import("../../shared/api/artifacts"), async (original) => ({
+  ...(await original()),
+  loadArtifactRows: vi.fn(),
+}));
 const artifact = { path: "signal.parquet", size: 10, revision: "1:1" };
 beforeEach(() => vi.resetAllMocks());
+
+it("assembles daily snapshots through the selected publication without duplicating cumulative ledgers", async () => {
+  const current = parseStockReport(
+    seed().tasks.get("inference#playground_online#demo")!.output_params.report,
+  ).commit;
+  const previous = structuredClone(current);
+  previous.commit_id = "f".repeat(32);
+  previous.task_id = "base#a_stock_online#demo-20260102";
+  previous.trade_date = "20260102";
+  const history: OnlineHistory = {
+    version: 1,
+    task_type: "inference",
+    kind: "online_history",
+    strategy_identity: current.protocol.report.strategy_identity,
+    commits: [previous, current],
+  };
+  const portfolio_key = Object.keys(current.protocol.report.portfolios)[0];
+  vi.mocked(loadArtifactRows).mockImplementation(async (id) => [
+    {
+      trade_date:
+        id === previous.task_id ? previous.trade_date : current.trade_date,
+      portfolio_key,
+      net_value: id === previous.task_id ? 1.01 : 1.02,
+    },
+  ]);
+  const cache = new ArtifactTableCache(current.task_id);
+  expect(await cache.ledger(current, history, "daily")).toEqual([
+    { trade_date: previous.trade_date, portfolio_key, net_value: 1.01 },
+    { trade_date: current.trade_date, portfolio_key, net_value: 1.02 },
+  ]);
+  expect(await cache.ledger(previous, history, "daily")).toHaveLength(1);
+  expect(loadArtifactRows).toHaveBeenCalledTimes(2);
+  expect(await cache.ledger(current, history, "positions")).toHaveLength(1);
+  vi.mocked(loadArtifactRows).mockResolvedValue([
+    { trade_date: previous.trade_date, portfolio_key },
+  ]);
+  await expect(cache.ledger(current, history, "orders")).rejects.toThrow(
+    "daily publication",
+  );
+});
 
 it("shares in-flight and completed tables, isolating content and service identity", async () => {
   const rows = [{ ts_code: "000001" }];
@@ -27,6 +72,15 @@ it("shares in-flight and completed tables, isolating content and service identit
   await cache.load({ ...artifact, revision: "1:2" });
   await new ArtifactTableCache("inference#test#one", "other").load(artifact);
   expect(loadArtifactRows).toHaveBeenCalledTimes(3);
+  await cache.load(artifact, undefined, "base#archive#earlier");
+  expect(loadArtifactRows).toHaveBeenLastCalledWith(
+    "base#archive#earlier",
+    artifact,
+    {
+      target: "remote",
+      signal: expect.any(AbortSignal),
+    },
+  );
 });
 
 it("bounds retained data and retries failures", async () => {

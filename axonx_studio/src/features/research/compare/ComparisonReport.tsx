@@ -183,7 +183,7 @@ export function ComparisonReport({
     { key: "rank_ic", label: "RankIC", digits: 4 },
     {
       key: `top${selectedTopN}_ndcg`,
-      label: `NDCG@${selectedTopN}`,
+      label: "NDCG",
       digits: 4,
     },
   ];

@@ -47,7 +47,7 @@ function fixture(): TopComparisonData {
     std_ddof: 0,
     absolute_tolerance: 1e-6,
     relative_tolerance: 1e-6,
-    score_selection: { seed: null, aggregation: "mean" },
+    score_selection: { method: "mean", seeds: [0, 42] },
     universe: { kind: "all" },
     scopes: { buyable: group, all: structuredClone(group) },
   };
@@ -93,7 +93,7 @@ it.each(["en", "zh"])(
     document.body.append(container);
     const root = createRoot(container);
     const artifact = {
-      path: "top_comparisons/20240102_1445.json",
+      path: "outputs/1445/demo/top_comparisons.json",
       size: 1000,
       revision: "1:1",
     };

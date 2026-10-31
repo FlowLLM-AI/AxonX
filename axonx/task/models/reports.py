@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from math import isfinite
 from typing import Annotated, Any, Literal
 
-from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from .artifacts import ArtifactRecord, Protocol, validate_protocol
 from .base import DateString, TaskModel
@@ -53,6 +54,36 @@ class TrainingCurve(TaskModel):
                 raise ValueError(f"Training curve series {name!r} must match the x-axis length")
             if not all(isfinite(value) for value in values):
                 raise ValueError(f"Training curve series {name!r} must contain finite values")
+        return self
+
+
+class ModelMember(TaskModel):
+    """One named final model and its training record within a training Task."""
+
+    model: dict[str, Any]
+    train_start: DateString
+    train_end_exclusive: DateString
+    use_from: DateString
+    use_to: DateString | None = None
+    model_artifact: str | None = None
+    state: Literal["pending", "running", "succeeded", "failed"] = "pending"
+    train_rows: int = Field(default=0, ge=0)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, float] = Field(default_factory=dict)
+    training_curve: TrainingCurve = Field(default_factory=TrainingCurve)
+    started_at: AwareDatetime | None = None
+    finished_at: AwareDatetime | None = None
+    elapsed_seconds: float = Field(default=0, ge=0, allow_inf_nan=False)
+    error: str = ""
+
+    @model_validator(mode="after")
+    def validate_window(self):
+        if not self.train_start < self.train_end_exclusive <= self.use_from:
+            raise ValueError("Require train_start < train_end_exclusive <= use_from")
+        if self.use_to is not None and self.use_to <= self.use_from:
+            raise ValueError("Model use_to must follow use_from")
+        if self.state == "succeeded" and not self.model_artifact:
+            raise ValueError("A completed model requires its final artifact")
         return self
 
 
@@ -119,19 +150,17 @@ class OnlineHistory(Protocol):
         identities = [item.commit_id for item in self.commits]
         if len(identities) != len(set(identities)):
             raise ValueError("Duplicate online commit")
-        if len({c.task_id for c in self.commits}) > 1:
-            raise ValueError("Online history must belong to one Task")
         if any(
             c.protocol.get("report", {}).get("strategy_identity", self.strategy_identity) != self.strategy_identity
             for c in self.commits
         ):
             raise ValueError("Online commit strategy differs from its history")
-        revisions: dict[tuple[str, str], int] = {}
+        signals = set()
         for item in self.commits:
             key = (item.trade_date, item.trade_time)
-            revisions[key] = revisions.get(key, 0) + 1
-            if item.revision != revisions[key]:
-                raise ValueError("Online revisions must be consecutive")
+            if key in signals:
+                raise ValueError("Duplicate daily online signal")
+            signals.add(key)
         return self
 
 
@@ -157,7 +186,7 @@ class BacktestDimensions(TaskModel):
         return values
 
 
-class BacktestUniverse(TaskModel):
+class PortfolioUniverse(TaskModel):
     """Plugin-owned selection definition; the framework owns result publication."""
 
     key: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
@@ -165,27 +194,22 @@ class BacktestUniverse(TaskModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
-class BacktestUniverseReport(TaskModel):
-    """One independent portfolio report; artifact names reference the Task registry."""
+class PortfolioDefinition(TaskModel):
+    """A readable, plugin-owned identity and references to immutable selection artifacts."""
 
-    label: str
-    parameters: dict[str, Any]
+    portfolio_id: dict[str, Any] = Field(min_length=1)
+    artifacts: dict[str, str]
+
+    @field_validator("portfolio_id")
+    @classmethod
+    def validate_identity(cls, value):
+        # JSON disallows non-finite numbers; key order is not part of identity.
+        json.dumps(value, allow_nan=False, sort_keys=True)
+        return value
+
+
+class BacktestPortfolioReport(PortfolioDefinition):
     dimensions: BacktestDimensions
     date_range: dict[str, str]
     days: int
     evaluation_status: str
-    artifacts: dict[str, str]
-
-
-HISTORY_BLOCK_SIZE = 16
-
-
-class HistoryNode(Protocol):
-    """A bounded revision group referencing the preceding completed group."""
-
-    model_config = ConfigDict(extra="forbid")
-    task_type: Literal[TaskType.INFERENCE] = TaskType.INFERENCE
-    kind: Literal["online_history_node"] = "online_history_node"
-    strategy_identity: str = Field(pattern=r"^[0-9a-f]{64}$")
-    commits: list[OnlineCommit] = Field(min_length=1, max_length=HISTORY_BLOCK_SIZE)
-    previous: ArtifactRecord | None = None

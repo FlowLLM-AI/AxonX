@@ -2,9 +2,9 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_factor` extends Alpha158 ETL with 13 optional market-moment, neutral-momentum and risk features, producing 171 feature columns. Training selects groups; the default empty group list uses the 158 base features. The example below selects `risk` (160 features).
+`qlib_factor` is an offline feature-research plugin extending Alpha158 ETL with 13 optional market-moment, neutral-momentum and risk features, producing 171 feature columns. Training selects groups; the default empty group list uses the 158 base features. The example below selects `risk` (160 features).
 
-Training inherits cutoff-safe labels, early stopping on the final 10% of training dates and full-period refitting. Prediction and ordinary backtesting reuse the base plugin.
+Training inherits cutoff-safe labels, early stopping on the final 10% of training dates and full-period refitting. Factor analysis, prediction, portfolio construction and backtesting reuse the base plugin.
 
 ## Factors and timing
 
@@ -50,16 +50,15 @@ axonx exec --task qlib_factor_train --upstream-task-ids '["<etl_task_id>"]' \
   --context-groups '["risk"]' --feature-fraction 1.0 --target http://research.example:1024
 axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
-  --top-ns '[5,10,20,30]' --as-of-date 20261008 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<predict_task_id>"]' --top-ns '[5,10,20,30]' --target http://research.example:1024
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --as-of-date 20261008 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
 Record each Task ID and `started_at` from execution logs or `status --detail full`; continue only after a zero exit code and `succeeded` state. `qlib_a158_analysis` analyzes the factor ETL as an optional diagnostic branch. Installation modifies the selected interpreter. New CLI processes discover installed plugins; definition Jobs and Studio retain the service startup catalog until restart. Stop on installation or verification failures. [Qlib Alpha158](../qlib_a158/README.md)
 
 ## Execution and configuration
 
-Use `axonx app` with the standard application configuration. This plugin registers `qlib_factor_etl` and `qlib_factor_train`; reuse `qlib_a158_analysis`, `qlib_a158_predict` and `qlib_a158_backtest` for the other stages. Supply dates, feature groups and model settings to each Task. Prediction accepts a Train and an optional compatible ETL to score new data.
+Use `axonx app` with the standard application configuration. This plugin registers `qlib_factor_etl` and `qlib_factor_train`; reuse `qlib_a158_analysis`, `qlib_a158_predict`, `qlib_a158_portfolio` and `qlib_a158_backtest` for the other stages. Supply dates, feature groups and model settings to each Task. Prediction accepts a Train and an optional compatible ETL to score new data.
 
 ## Local validation
 

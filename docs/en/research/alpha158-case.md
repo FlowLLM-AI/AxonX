@@ -108,19 +108,12 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '<factor_train_task_id>'
   --pred-start 20230101 --pred-end 20261008
 
 # Fixed holding: run once for base and once for factor predictions
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<factor_predict_task_id>' \
-  --top-ns '[20,30]' --holding-days 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
-  --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
-  --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
-  --labels-file '<base_etl_labels_path>'
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --holding-days 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
 
 # Strategy version: reuse factor predictions with the selected 3-day policy
-axonx exec --task qlib_strategy_backtest --upstream-task-ids '<factor_predict_task_id>' \
-  --top-ns '[20,30]' --minimum-holding-days 3 \
-  --replacement-fraction 0.2 --rank-buffer 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
-  --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
-  --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
-  --labels-file '<base_etl_labels_path>'
+axonx exec --task qlib_strategy_portfolio --upstream-task-ids '<factor_predict_task_id>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' --labels-file '<base_etl_labels_path>'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012
 ```
 
 ## Task provenance
@@ -129,17 +122,17 @@ Execution workspace: `/nas/jinli.yl/data/axon` on machine 45. Raw artifacts rema
 
 These records were produced by the historical 0.1.1 runtime. The Run IDs and SHA-256 input digests below are retained as recorded provenance. Current Task metadata identifies executions with `started_at` and file artifacts with `revision="<size>:<mtime_ns>"`; there is no `run_id` or Run-ID waiting argument. Reproduction creates new execution identities.
 
-| Stage             | Task ID                                                       | Run ID                             |
-| ----------------- | ------------------------------------------------------------- | ---------------------------------- |
-| base_etl          | `etl#qlib_a158_etl#fees-1010-base-etl`                        | `41fb603467ac4e78acc68294ae7d2699` |
-| base_train        | `train#qlib_a158_train#fees-1010-base-train`                  | `eff2152ad9a244cb95a91f834e41a33a` |
-| base_predict      | `predict#qlib_a158_predict#fees-1010-base-predict`            | `c9eaa50835004b9284897e5f2ad001e6` |
-| base_backtest     | `backtest#qlib_a158_backtest#fees-1010-base-backtest`         | `b7ca108ed67a4ef4b38968f0770430bc` |
-| factor_etl        | `etl#qlib_factor_etl#fees-1010-factor-etl`                    | `1d17d053b24b4e58b2175184372ea718` |
-| factor_train      | `train#qlib_factor_train#fees-1010-factor-train`              | `c3ec05d4cbac4905b5603d9d6d2b07b1` |
-| factor_predict    | `predict#qlib_factor_predict#fees-1010-factor-predict`        | `f541bb3b20eb406fb9dfb5c9c4f705a4` |
-| factor_backtest   | `backtest#qlib_factor_backtest#fees-1010-factor-backtest`     | `3d0a9f5a718a4bb4a6f14873cad8e8ad` |
-| strategy_backtest | `backtest#qlib_strategy_backtest#fees-1010-strategy-backtest` | `51c8cf5fca3d47cf95c6f4965e0c0302` |
+| Stage             | Task ID                                                        | Run ID                             |
+| ----------------- | -------------------------------------------------------------- | ---------------------------------- |
+| base_etl          | `etl#qlib_a158_etl#fees-1010-base-etl`                         | `41fb603467ac4e78acc68294ae7d2699` |
+| base_train        | `train#qlib_a158_train#fees-1010-base-train`                   | `eff2152ad9a244cb95a91f834e41a33a` |
+| base_predict      | `predict#qlib_a158_predict#fees-1010-base-predict`             | `c9eaa50835004b9284897e5f2ad001e6` |
+| base_backtest     | `backtest#qlib_a158_backtest#fees-1010-base-backtest`          | `b7ca108ed67a4ef4b38968f0770430bc` |
+| factor_etl        | `etl#qlib_factor_etl#fees-1010-factor-etl`                     | `1d17d053b24b4e58b2175184372ea718` |
+| factor_train      | `train#qlib_factor_train#fees-1010-factor-train`               | `c3ec05d4cbac4905b5603d9d6d2b07b1` |
+| factor_predict    | `predict#qlib_factor_predict#fees-1010-factor-predict`         | `f541bb3b20eb406fb9dfb5c9c4f705a4` |
+| factor_backtest   | `backtest#qlib_factor_backtest#fees-1010-factor-backtest`      | `3d0a9f5a718a4bb4a6f14873cad8e8ad` |
+| strategy_backtest | `backtest#qlib_strategy_portfolio#fees-1010-strategy-backtest` | `51c8cf5fca3d47cf95c6f4965e0c0302` |
 
 | Shared input |                                                            SHA-256 |
 | ------------ | -----------------------------------------------------------------: |

@@ -63,17 +63,20 @@ export function ComparePipeline({
   const stageNodes =
     currentStage === "logs"
       ? []
-      : currentNodes.filter((node) => {
-          const kind =
-            node.status?.task_type || node.record.child_task_id?.split("#")[0];
-          if (currentStage === "download") return true;
-          if (currentStage === "etl")
-            return kind === "etl" || /history/.test(node.record.reg_name);
-          if (currentStage === "prediction") return kind === "predict";
-          if (currentStage === "results")
-            return /compare/.test(node.record.reg_name);
-          return false;
-        });
+      : currentStage === "download"
+        ? currentNodes
+        : ownedCompareNodes(
+            model?.roles[
+              currentStage === "results" ? "comparison" : currentStage
+            ]
+              ? [
+                  model.roles[
+                    currentStage === "results" ? "comparison" : currentStage
+                  ]!,
+                ]
+              : [],
+            currentNodes,
+          );
   const featureLog =
     stageNodes.find(
       (node) =>
@@ -184,11 +187,13 @@ export function ComparePipeline({
     { id: "download", label: t("nightly.dataCompletion") },
     { id: "etl", label: t("nightly.featureUpdate") },
     { id: "prediction", label: t("nightly.offlinePrediction") },
+    { id: "portfolio", label: t("nightly.portfolioConstruction") },
     { id: "results", label: t("nightly.signalComparison") },
   ];
   const phase = {
     etl: "etl",
     prediction: "prediction",
+    portfolio: "portfolio",
     results: "comparison",
   }[currentStage];
   const selectedSteps = preparation

@@ -19,7 +19,7 @@ Alpha158 和增强 Alpha158 共用 `BaseStockBacktestTask` 和持仓账本。ETL
 
 完整截图展示 Playground 合成回测的 **总体** 标签页，指标用于说明界面，不是 Alpha158 结果。
 
-Studio 回测页优先展示股池选择器和报告，报告下方保留产物清单，每份发布文件仅在清单中列出一次。
+Studio 回测页优先展示组合选择器和报告，报告下方保留产物清单，每份发布文件仅在清单中列出一次。
 
 ETL 发布四份独立产物：
 
@@ -39,23 +39,11 @@ ETL 发布四份独立产物：
 预测 Parquet 的必需列、可选列和 metadata 要求见[预测到股票回测的输入契约](../reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ```bash
-axonx exec --task qlib_a158_backtest --upstream-task-ids '<Predict Task ID>' \
-  --top-ns '[1,5,10,30]' --holding-days 1 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[5,10,30]' --holding-days 1
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<Portfolio Task ID>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-来源任务自动解析行情、日历和标签产物。指定文件时使用 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`。`as_of_date` 为包含当天的评价截止日期。共享基类默认取行情最后日期，Alpha158 插件覆盖为最后信号日，需要延长估值/结算时显式指定。`top_ns` 是整数列表，各组合独立记账。日历日期必须是有效 YYYYMMDD，不能有空值或重复；计算标签期限和持有期前会拒绝非法日历。
-
-| 参数                            | 默认值   | 含义                         |
-| ------------------------------- | -------- | ---------------------------- |
-| `holding_days`                  | `1`      | 按市场日计算的计划持有期     |
-| `buy_cost_rate`                 | `0.0005` | 买入成交金额费用率           |
-| `sell_cost_rate`                | `0.0015` | 卖出成交金额费用率           |
-| `annual_risk_free_rate`         | `0.012`  | 年无风险收益率               |
-| `annualization_days`            | `252`    | 年交易日数                   |
-| `minimum_index_weight_coverage` | `0.98`   | 指数权重收益代理的覆盖率要求 |
-
-默认与 Qlib 参考配置一致： `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015`，即买入 0.05%、卖出 0.15%。显式设为 `0` 表示该侧免费。费用按实际成交金额收取，归一化资金回测不设最低金额费用。
+先构建 Portfolio，再运行 Backtest。股池、分数聚合、TopN 和策略参数属于 Portfolio；每份明文身份对应一个独立账户。Backtest 通过上游组合解析 ETL，或显式接收 `market_file`、`calendar_file` 和可选 `labels_file`。`portfolio_ids` 可选择部分组合；`as_of_date` 控制估值截止日。买卖费率默认 0.0005/0.0015，年化天数 252，无风险年收益率 0.012。
 
 ## 成交与估值
 
@@ -85,7 +73,6 @@ Turnover = (executed buy/sell notional + cash-event notional) / previous equity
 | ----------- | ------------------------------------------------ |
 | `daily`     | 按交易日历排列的收益、权益、现金、持仓及信号诊断 |
 | `summary`   | 总体、年度、季度和月度统计                       |
-| `signals`   | 统一股票信号、候选标记、目标排名及标签收益       |
 | `orders`    | 实际成交与未成交原因                             |
 | `positions` | 每日实际持仓、复权单位、权重和市值               |
 | `trades`    | 已完成持有期的实际买卖价格、收益和费用           |
@@ -104,10 +91,12 @@ IC、RankIC、NDCG 与目标选股共用信号当天可买候选池，包括插�
 
 `benchmark_universe_return` 是可用信号横截面的平均收益。`index_weight_*` 只有覆盖率达标时才生成加权收益代理，它们不是官方全收益指数。基准收益按标签目标日期排列，与组合估值周期对齐。
 
-Studio 读取选中 `universes[key]` 的报告，通过根级产物表解析 daily 和 summary 引用。净收益图复合每日净收益，累计毛收益图相加每日毛收益，因此后者不必等于汇总表中的复合毛收益。期间统计由任务生成，移动图表日期范围不会自动重新回测。
+Studio 按 `portfolio_id` 的每个顶层 key 展示一个下拉框，例如 `universe`、`strategy` 和 `top_n`。选项按顺序联动，只选择实际存在的组合，并尽量保留其他字段的当前值；只有一个可选值的字段置灰。嵌套值的参数直接显示在对应下拉框中。Portfolio、回测和对比页共用此选择器。
+
+Studio 读取选中 `portfolios[index]` 的报告，通过根级产物表解析 daily 和 summary 引用。净收益图复合每日净收益，累计毛收益图相加每日毛收益，因此后者不必等于汇总表中的复合毛收益。期间统计由任务生成，移动图表日期范围不会自动重新回测。
 
 Studio 根据 `dimensions.top_ns` 生成收益和 NDCG 曲线，将行情不完整的评价标为暂定结果，并展示全部组合产物。预测统计只描述信号时分数和选股资格；预测输出包含分数和信号时资格，不包含未来收益或有效收益覆盖率。统计为空或标签缺失时显示不可用。
 
-Studio 比较页保留任务元数据中的 `signals_format`，并读取展示副本中实际可用的产物。股票回测声明 `signals_format: stock-signals-v1`，通过产物引用注册信号、日频和汇总表。基准信息比率表头使用 `dimensions.benchmarks` 声明的名称。
+Studio 比较页保留任务元数据中的 `signals_format`，并读取展示副本中实际可用的产物。股票回测声明 `signals_format: stock-signals-v3`，通过产物引用注册日频和汇总表。基准信息比率表头使用 `dimensions.benchmarks` 声明的名称。
 
 `net_relative_max_drawdown_<基准>` 与净 IR 共用每日超额收益（策略净收益减去同日基准收益），先按 `∏(1 + 超额收益)` 复合为净值，再计算相对历史峰值的最大回撤。初始净值 1 参与峰值计算，回撤以非正小数表示；总体、年、季、月分别重置。仅使用双方均有限的日期，无有效观察值时为空。Studio 按报告声明的平均与指数基准展示；不可用的数值显示 `—`。

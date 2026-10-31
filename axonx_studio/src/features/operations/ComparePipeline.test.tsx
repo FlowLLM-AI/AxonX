@@ -97,14 +97,14 @@ it.each(["en", "zh"])(
     await i18n.changeLanguage(language);
     await render();
     expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(1);
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(5);
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(6);
     expect(container.querySelector("pre")?.dataset.task).toBe(parent.task_id);
     await click("results");
     expect(container.querySelectorAll(".operation-tab-connector")).toHaveLength(
       0,
     );
     const checks = container.querySelectorAll(".comparison-check");
-    expect(checks).toHaveLength(4);
+    expect(checks).toHaveLength(9);
     expect(checks[0].textContent).toContain(
       i18n.t("nightly.checks.predictions"),
     );
@@ -162,6 +162,78 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   expect(container.querySelector("pre")).toBeNull();
 });
 
+it.each(["en", "zh"])(
+  "keeps a successful comparison's ledger differences visible in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    parent.state = "succeeded";
+    parent.error = "";
+    const report = nodes.find((node) =>
+      Array.isArray(node.status?.output_params.comparisons),
+    )!.status!;
+    report.state = "succeeded";
+    report.error = "";
+    report.output_params.comparisons = [
+      {
+        key: "20260115/1445",
+        status: "different",
+        metrics: {
+          stages: {
+            predictions: { consistent: true },
+            daily: {
+              consistent: false,
+              offline_rows: 1,
+              online_rows: 1,
+              mismatches: { top30_holdings: 1 },
+            },
+          },
+        },
+      },
+    ];
+    await render();
+    await click("results");
+    const checks = container.querySelectorAll(".comparison-check");
+    expect(checks).toHaveLength(2);
+    expect(checks[0].textContent).toContain(i18n.t("nightly.checks.daily"));
+    expect(checks[0].textContent).toContain("top30_holdings");
+    expect(checks[0].classList.contains("state-different")).toBe(true);
+    expect(checks[1].classList.contains("state-consistent")).toBe(true);
+    expect(container.querySelector(".online-warning")).toBeNull();
+  },
+);
+
+it("prefers the parent's archived comparison and keeps it after children disappear", async () => {
+  const outcomes = parent.output_params.models as Record<
+    string,
+    Record<string, Record<string, unknown>>
+  >;
+  outcomes["1445"].nightly.comparison = {
+    key: "20260105/1445",
+    status: "consistent",
+    artifacts: {},
+    metrics: {
+      stages: { predictions: { consistent: true, mismatches: { pred: 0 } } },
+    },
+  };
+  await render();
+  await chooseModel("nightly · 14:45");
+  await click("results");
+  expect(container.querySelectorAll(".comparison-check")).toHaveLength(1);
+  expect(
+    container
+      .querySelector(".comparison-check")
+      ?.classList.contains("state-consistent"),
+  ).toBe(true);
+  nodes = [];
+  await render();
+  expect(container.querySelectorAll(".comparison-check")).toHaveLength(1);
+  expect(
+    container
+      .querySelector(".comparison-check")
+      ?.classList.contains("state-consistent"),
+  ).toBe(true);
+});
+
 it("keeps model logs isolated and refuses to substitute a restarted task", async () => {
   await render();
   await click("etl");
@@ -187,7 +259,7 @@ it("keeps model logs isolated and refuses to substitute a restarted task", async
 
 it("resolves owned descendants and ignores an earlier attempt and similarly named models", () => {
   const old = structuredClone(
-    parent.children.find((r) => r.node_name.includes("history"))!,
+    parent.children.find((r) => r.node_name.endsWith("-a_stock_history"))!,
   );
   old.started_at = "2026-01-01T00:00:00Z";
   parent.children.unshift(old);
@@ -217,34 +289,52 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
   expect(ownedCompareNodes([], nodes)).toHaveLength(0);
 });
 
-it("omits backtests even when an older comparison task contains one", async () => {
-  window.location.hash = "#selected-machine/operations/comparison";
+it("shows registered portfolio logs through their semantic stage", async () => {
+  const schedule = parent.input_params.models as Record<
+    string,
+    Record<string, unknown>[]
+  >;
+  schedule["1445"][0].portfolio = { reg_name: "custom_construction" };
   const template = nodes[0];
   const task = structuredClone(template.status!);
-  task.task_id = "backtest#nightly#report";
-  task.started_at = "2026-01-05T00:00:00Z";
-  task.task_type = "backtest";
-  task.output_params = { universes: { all: {} }, artifacts: {} };
+  task.task_id = "portfolio#custom_construction#nightly";
+  task.task_type = "portfolio";
+  task.children = [];
   const record = {
     ...template.record,
-    reg_name: "a_stock_backtest",
+    reg_name: "custom_construction",
     child_task_id: task.task_id,
-    started_at: task.started_at,
-    node_name: "nightly-1445-a_stock_backtest",
+    node_name: "nightly-1445-custom_construction",
   };
   parent.children.push(record);
   nodes.push({ record, status: task, error: "" });
   await render();
-  expect(
-    container.querySelector('[role="tab"][id$="-portfolio-tab"]'),
-  ).toBeNull();
-  expect(container.querySelector(".embedded-backtest")).toBeNull();
+  await click("portfolio");
+  expect(container.querySelector("pre")?.dataset.task).toBe(task.task_id);
+});
+
+it("finds comparison output through its declared custom registration", async () => {
+  const schedule = parent.input_params.models as Record<
+    string,
+    Record<string, unknown>[]
+  >;
+  schedule["1445"][0].compare = { reg_name: "custom_audit" };
+  const node = nodes.find((item) =>
+    Array.isArray(item.status?.output_params.comparisons),
+  )!;
+  node.record.reg_name = "custom_audit";
+  node.record.node_name = "nightly-1445-custom_audit";
+  node.record.child_task_id = "analysis#custom_audit#nightly";
+  node.status!.task_id = node.record.child_task_id;
+  await render();
+  await click("results");
+  expect(container.querySelectorAll(".comparison-check")).toHaveLength(9);
 });
 
 it("keeps the same model isolated across signal times", () => {
   parent.input_params.models = {
-    "1445": [{ task_name: "same", feature_family: "a_stock" }],
-    "0945": [{ task_name: "same", feature_family: "a_stock" }],
+    "1445": [{ task_name: "same", train: { reg_name: "a_stock_train" } }],
+    "0945": [{ task_name: "same", train: { reg_name: "a_stock_train" } }],
   };
   parent.output_params.models = {
     "0945": { same: { status: "failed", error: "morning failed" } },

@@ -3,24 +3,21 @@
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import Field
 
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask, ChildTaskError
-from axonx.task.models.artifacts import ReplaySource
+from axonx.task.core.clock import WindowClock
 from axonx.task.models.events import ProgressEvent
 from axonx.task.models.identity import TaskState, TaskType
 from axonx.task.models.lifecycle import DisplayReplica
 from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime import progress
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.runtime.replay import ReplayClock, ReplayCursor
-from axonx.task.storage.files import atomic_write, file_lock, snapshot_file
+from axonx.task.storage.files import atomic_write, file_lock
 from axonx.task.storage.logs import TaskJournal
-from axonx.task.storage.replay import ReplayStream
 from axonx.task.storage.workspace import read_entry, resolve_relative_path, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging
 
@@ -58,6 +55,55 @@ def test_executor_resolves_and_runs_child_tasks(tmp_path):
     child = result.children[0]
     assert child.state == TaskState.SUCCEEDED
     assert read_entry(tmp_path, child.child_task_id).parent_task_id == result.task_id
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_registered_task_resolution_is_bound_only_during_execution(tmp_path, fail):
+    class Inspect(DemoTask):
+        def initialize(self):
+            assert self.resolve_task("demo") is DemoTask
+            super().initialize()
+
+    task = Inspect({"x": 1, "y": 2, "fail": fail}, workspace_path=tmp_path, reg_name="inspect")
+    executor = TaskExecutor(resolve_task={"demo": DemoTask}.__getitem__)
+    if fail:
+        with pytest.raises(RuntimeError, match="Demo failure"):
+            executor.execute(task)
+    else:
+        executor.execute(task)
+    with pytest.raises(RuntimeError, match="bound TaskExecutor"):
+        task.resolve_task("demo")
+
+
+def test_nested_tasks_share_deadline_and_stop_before_publishing_late_work(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    from axonx.task.core.clock import DeadlineBudget
+
+    class Clock(WindowClock):
+        elapsed = 0
+
+        def now(self):
+            return datetime(2024, 1, 2, tzinfo=UTC) + timedelta(seconds=self.elapsed)
+
+        def monotonic(self):
+            return self.elapsed
+
+    class Slow(DemoTask):
+        def initialize(self):
+            super().initialize()
+            self.clock.elapsed += 2
+
+    clock = Clock()
+    parent = ParentTask({"task_name": "deadline"}, workspace_path=tmp_path, reg_name="parent", clock=clock)
+    # pylint: disable=attribute-defined-outside-init
+    parent.input_budget = DeadlineBudget(clock, clock.now() + timedelta(seconds=1))
+    with pytest.raises(ChildTaskError, match="deadline"):
+        TaskExecutor(resolve_task=lambda _: Slow).execute(parent)
+    child = read_entry(tmp_path, parent.children[0].child_task_id)
+    assert child.state == TaskState.FAILED
+    assert child.output_params == {}
+    assert len(child.steps) == 1
 
 
 @pytest.mark.parametrize("parent_code, child_code, expected", [(0, 0, 0), (0, 7, 0), (9, 0, 9), (9, 7, 9)])
@@ -374,7 +420,7 @@ def test_nested_tasks_inherit_the_execution_context_and_clock(tmp_path):
         workspace_path=tmp_path,
         reg_name="root",
         timezone="America/New_York",
-        clock=ReplayClock(datetime(2026, 1, 1, tzinfo=UTC)),
+        clock=WindowClock(),
     )
     resolved = []
 
@@ -508,28 +554,6 @@ def test_child_is_closed_when_parent_publication_fails_before_child_execution(tm
     assert read_entry(tmp_path, closed[0]) is None
 
 
-def test_replay_uses_snapshots_and_delivers_events_strictly_before_the_deadline(tmp_path):
-    source = tmp_path / "input.txt"
-    source.write_text("original")
-    start = datetime(2026, 1, 1, tzinfo=UTC)
-    stream = ReplayStream.create(
-        tmp_path / "stream",
-        [ReplaySource(key="first", available_at=start + timedelta(seconds=1), files={"input": source})],
-    )
-    source.write_text("changed")
-    clock = ReplayClock(start)
-    cursor = ReplayCursor(stream, clock)
-    consumed = []
-    deadline = start + timedelta(seconds=1)
-    assert not cursor.wait(deadline, consumed.append, lambda: bool(consumed))
-    assert not consumed
-    assert cursor.wait(deadline + timedelta(seconds=1), consumed.append, lambda: bool(consumed))
-    assert stream.file(consumed[0].files["input"]).read_text() == "original"
-    stream.file(consumed[0].files["input"]).write_text("corrupt")
-    with pytest.raises(ValueError, match="Artifact revision mismatch"):
-        ReplayStream(stream.root)
-
-
 def test_input_resolution_rejects_display_replicas_through_task_authoring_helpers(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
     source = TaskExecutor().execute(
@@ -574,14 +598,6 @@ def test_failed_atomic_publication_keeps_the_previous_file(tmp_path):
         atomic_write(target, fail)
     assert target.read_text() == "previous"
     assert list(tmp_path.iterdir()) == [target]
-
-
-def test_isolated_snapshot_is_unchanged_when_source_is_rewritten(tmp_path):
-    source, target = tmp_path / "source", tmp_path / "snapshot"
-    source.write_text("original")
-    snapshot_file(source, target, isolated=True)
-    source.write_text("changed")
-    assert target.read_text() == "original"
 
 
 @pytest.mark.parametrize("path", ["", ".", "../outside", "/absolute"])

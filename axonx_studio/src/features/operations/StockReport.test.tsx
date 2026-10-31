@@ -46,7 +46,7 @@ it.each(
     ["light", "dark"].map((theme) => [language, theme]),
   ),
 )(
-  "shows signals, portfolio, performance and revisions in %s / %s",
+  "shows daily signals, portfolio, performance and the producing execution in %s / %s",
   async (language, theme) => {
     await i18n.changeLanguage(language);
     document.documentElement.dataset.theme = theme;
@@ -79,14 +79,10 @@ it.each(
       i18n.t("onlineReport.labelsPending"),
     );
     await click(i18n.t("onlineReport.tabs.history"));
-    expect(container.querySelectorAll(".online-revision")).toHaveLength(13);
-    expect(container.textContent).toContain(i18n.t("onlineReport.superseded"));
-    await act(async () =>
-      container
-        .querySelectorAll<HTMLButtonElement>(".online-revision")[1]
-        .click(),
+    expect(container.querySelectorAll(".online-revision")).toHaveLength(12);
+    expect(container.textContent).not.toContain(
+      i18n.t("onlineReport.superseded"),
     );
-    expect(container.textContent).toContain(i18n.t("onlineReport.stale"));
     await click(i18n.t("onlineReport.tabs.runtime"));
     expect(container.textContent).toContain(i18n.t("onlinePipeline.windows"));
   },
@@ -97,9 +93,9 @@ it("rejects corrupt history, incomplete reports and unsafe artifact paths", () =
     seed().tasks.get(taskId)!.output_params.report,
   );
   const invalid = structuredClone(parsed);
-  invalid.commit.artifacts.signal.path = "../escape.parquet";
+  invalid.commit.artifacts.rankings.path = "../escape.parquet";
   expect(() => parseStockReport(invalid)).toThrow();
-  delete invalid.commit.artifacts.signal;
+  delete invalid.commit.artifacts.rankings;
   expect(() => parseStockReport(invalid)).toThrow("Missing online artifact");
   expect(() =>
     parseHistory({
@@ -112,7 +108,7 @@ it("rejects corrupt history, incomplete reports and unsafe artifact paths", () =
   ).toThrow("Invalid online revisions");
 });
 
-it("uses the latest manifest commit when lifecycle metadata still points to an older revision", async () => {
+it("uses the daily publication from producer metadata instead of an unrelated lifecycle summary", async () => {
   const transport = createPlayground();
   configureClient(
     new AxonXClient(async (url, init) => {
@@ -148,7 +144,7 @@ it("uses the latest manifest commit when lifecycle metadata still points to an o
   await click(i18n.t("onlineReport.tabs.history"));
   expect(
     container.querySelector(".online-revision.active")?.textContent,
-  ).toContain("r2");
+  ).toContain("r1");
   expect(
     container.querySelector(".online-revision.active")?.textContent,
   ).not.toContain("f".repeat(32));
@@ -194,6 +190,7 @@ it("preserves signal pool and buyability filters when the same commit is refresh
   ];
   const cache = {
     load: vi.fn(async () => rows),
+    signals: vi.fn(async () => rows),
   } as unknown as ArtifactTableCache;
   await act(async () =>
     root.render(<CommitReport commit={commit} cache={cache} tab="signal" />),
@@ -228,3 +225,32 @@ it("preserves signal pool and buyability filters when the same commit is refresh
       .checked,
   ).toBe(false);
 });
+
+it.each(["en", "zh"])(
+  "limits incomplete evaluation notices to evaluation views in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    const commit = parseStockReport(
+      seed().tasks.get(taskId)!.output_params.report,
+    ).commit;
+    commit.protocol.report.evaluation_status = "incomplete_market_data";
+    commit.protocol.report.missing_dates = [commit.trade_date];
+    const cache = {
+      ledger: vi.fn(async () => []),
+      signals: vi.fn(async () => []),
+    } as unknown as ArtifactTableCache;
+    await act(async () =>
+      root.render(<CommitReport commit={commit} cache={cache} tab="signal" />),
+    );
+    expect(container.textContent).not.toContain(
+      i18n.t("onlineReport.incomplete"),
+    );
+    await act(async () =>
+      root.render(
+        <CommitReport commit={commit} cache={cache} tab="portfolio" />,
+      ),
+    );
+    expect(container.textContent).toContain(i18n.t("onlineReport.incomplete"));
+    expect(container.textContent).toContain(commit.trade_date);
+  },
+);

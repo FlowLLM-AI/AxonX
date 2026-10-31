@@ -57,7 +57,7 @@ Inject task_catalog for definition Jobs, updates for update control, launch_sche
 
 ## Task composition and research bases
 
-Use BaseTask.run_task for synchronous children. TaskExecutor owns lifecycle and cleanup; caller coordination protects same-name directories. Use core.windows and an injected clock for windowed work, storage.online for immutable online publication and verified history. For stock portfolios inherit task.builtins.stock.backtest.BaseStockBacktestTask and provide universes/selectors; do not reproduce accounting in UI.
+Use BaseTask.run_task for synchronous children. TaskExecutor owns lifecycle and cleanup; caller coordination protects same-name directories. Use core.windows and an injected clock for windowed work, storage.online for immutable online publication and verified history. Stock portfolio Tasks inherit task.builtins.stock.portfolio.BaseStockPortfolioTask and provide universes/selectors. Backtests inherit task.builtins.stock.backtest.BaseStockBacktestTask and consume frozen Portfolio artifacts for execution and valuation; do not reproduce accounting in UI.
 
 ## Verification scope
 

@@ -15,12 +15,12 @@ import {
   toNumber as finite,
 } from "../../../shared/lib/format";
 import { upstreamTaskIds } from "../../../shared/lib/tasks";
-import { Select } from "../../../shared/ui/Select";
+import { PortfolioSelector } from "../PortfolioSelector";
 import { getResearchTask, listResearchTasks } from "../api";
 import { loadBacktestDaily } from "../backtest/api";
 import type { BacktestArtifact, DailyRow } from "../backtest/types";
 import { ComparisonReport } from "./ComparisonReport";
-import { executionCostRates, pairDays } from "./model";
+import { executionCostRates, pairDays, portfolioDaily } from "./model";
 
 const EMPTY_TASKS: TaskSummary[] = [];
 
@@ -50,13 +50,13 @@ export default function StrategyComparePage({
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState("");
   const [loadedPair, setLoadedPair] = useState("");
-  const [topN, setTopN] = useState(30);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const toggleTask = (taskId: string) => {
-    if (idA === taskId) setIdA("");
+    if (!idA) setIdA(taskId);
+    else if (!idB) setIdB(taskId);
+    else if (idA === taskId) setIdA("");
     else if (idB === taskId) setIdB("");
-    else if (!idA) setIdA(taskId);
     else setIdB(taskId);
     setFrom("");
     setTo("");
@@ -114,17 +114,17 @@ export default function StrategyComparePage({
   const taskB = selectedTasks?.find((task) => task.task_id === idB) || null;
   const settingsA = comparisonSettings(taskA);
   const settingsB = comparisonSettings(taskB);
-  const selectedA = taskA?.output_params.universes[universeA]
+  const selectedA = taskA?.output_params.portfolios[Number(universeA)]
     ? universeA
-    : taskA?.output_params.default_universe || "";
-  const selectedB = taskB?.output_params.universes[universeB]
+    : "0";
+  const selectedB = taskB?.output_params.portfolios[Number(universeB)]
     ? universeB
-    : taskB?.output_params.default_universe || "";
-  const reportA = taskA?.output_params.universes[selectedA];
-  const reportB = taskB?.output_params.universes[selectedB];
+    : "0";
+  const reportA = taskA?.output_params.portfolios[Number(selectedA)];
+  const reportB = taskB?.output_params.portfolios[Number(selectedB)];
   const pair = `${idA}:${selectedA}\n${idB}:${selectedB}`;
   useEffect(() => {
-    if (detailLoading || !taskA || !taskB || idA === idB) {
+    if (detailLoading || !taskA || !taskB) {
       setDailyA([]);
       setDailyB([]);
       setDataError("");
@@ -175,18 +175,16 @@ export default function StrategyComparePage({
     onConnection,
   ]);
 
-  const commonTopNs =
-    taskA && taskB
-      ? (reportA?.dimensions.top_ns || []).filter((n) =>
-          (reportB?.dimensions.top_ns || []).includes(n),
-        )
-      : [];
-  const selectedTopN = commonTopNs.includes(topN)
-    ? topN
-    : commonTopNs.at(-1) || 30;
+  const selectedTopN = reportA?.dimensions.top_ns[0] || 1;
+  const otherTopN = reportB?.dimensions.top_ns[0] || 1;
   const points = useMemo(
-    () => pairDays(dailyA, dailyB, selectedTopN),
-    [dailyA, dailyB, selectedTopN],
+    () =>
+      pairDays(
+        dailyA,
+        portfolioDaily(dailyB, otherTopN, selectedTopN),
+        selectedTopN,
+      ),
+    [dailyA, dailyB, selectedTopN, otherTopN],
   );
   const visible = useMemo(
     () =>
@@ -274,26 +272,12 @@ export default function StrategyComparePage({
                     {task?.task_id || t("compare.choose_from_the_list")}
                   </strong>
                   {task && (
-                    <label className="compare-universe">
-                      <span>{t("backtest.universe")}</span>
-                      <Select
-                        aria-label={`${t("backtest.universe")} ${index === 0 ? "A" : "B"}`}
-                        value={index === 0 ? selectedA : selectedB}
-                        onChange={(event) =>
-                          (index === 0 ? setUniverseA : setUniverseB)(
-                            event.target.value,
-                          )
-                        }
-                      >
-                        {Object.entries(task.output_params.universes).map(
-                          ([key, report]) => (
-                            <option key={key} value={key}>
-                              {report.label}
-                            </option>
-                          ),
-                        )}
-                      </Select>
-                    </label>
+                    <PortfolioSelector
+                      label={`${t("backtest.portfolio")} ${index === 0 ? "A" : "B"}`}
+                      portfolios={task.output_params.portfolios}
+                      value={index === 0 ? selectedA : selectedB}
+                      onChange={index === 0 ? setUniverseA : setUniverseB}
+                    />
                   )}
                 </div>
               </div>
@@ -335,11 +319,6 @@ export default function StrategyComparePage({
                   : t("compare.click_two_task_list_on")}
               </span>
             </div>
-          ) : !commonTopNs.length ? (
-            <div className="compare-empty error">
-              <AlertTriangle />
-              <strong>{t("compare.no_shared_top_n")}</strong>
-            </div>
           ) : !points.length ? (
             <div className="compare-empty error">
               <CalendarDays />
@@ -358,19 +337,9 @@ export default function StrategyComparePage({
                     </strong>
                   </div>
                 </div>
-                <label>
-                  Top N
-                  <Select
-                    value={selectedTopN}
-                    onChange={(event) => setTopN(Number(event.target.value))}
-                  >
-                    {commonTopNs.map((n) => (
-                      <option value={n} key={n}>
-                        Top {n}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
+                <span>
+                  A: Top {selectedTopN} · B: Top {otherTopN}
+                </span>
                 <label>
                   {t("compare.from")}
                   <input

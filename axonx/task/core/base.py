@@ -26,7 +26,7 @@ from ..storage.workspace import (
     resolve_relative_path,
     task_path,
 )
-from .clock import WindowClock
+from .clock import DeadlineBudget, WindowClock
 
 TaskStep: TypeAlias = Callable[[], None]
 
@@ -86,11 +86,13 @@ class BaseTask(ABC):
         self.logger = get_logger(type(self).__name__)
         self.state: dict[str, Any] = {}
         self.clock = clock if clock is not None else WindowClock()
+        self.input_budget: DeadlineBudget | None = None
         self._output_params: BaseOutputParams | None = None
 
         self._progress: Callable[..., None] | None = None
         self._persist_metadata: Callable[[], None] | None = None
         self._execute_child: Callable[..., ChildTaskResult] | None = None
+        self._resolve_task: Callable[[str], type[BaseTask]] | None = None
         self._metadata: TaskMetadata | None = None
 
     @property
@@ -139,6 +141,14 @@ class BaseTask(ABC):
     def children(self) -> tuple[ChildTaskRecord, ...]:
         """Return defensive snapshots of this Task's direct child invocations."""
         return tuple(child.model_copy(deep=True) for child in self._metadata.children) if self._metadata else ()
+
+    def resolve_task(self, reg_name: str) -> type[BaseTask]:
+        """Resolve a registered implementation through the owning execution environment."""
+        validate_registration_name(reg_name)
+        resolver = self._resolve_task
+        if resolver is None:
+            raise RuntimeError("Task resolution requires a bound TaskExecutor")
+        return resolver(reg_name)  # pylint: disable=not-callable
 
     def run_task(
         self,
@@ -231,4 +241,5 @@ class BaseTask(ABC):
         progress(percentage, name=name, **changes)  # pylint: disable=not-callable
 
     def exit_code(self, _output: dict) -> int:
+        """Report execution failures; business findings belong in the output."""
         return next((child.exit_code or 1 for child in self.children if child.state != TaskState.SUCCEEDED), 0)

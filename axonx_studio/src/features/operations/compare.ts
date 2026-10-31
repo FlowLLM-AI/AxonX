@@ -50,8 +50,26 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
         const slotOutcomes = isRecord(outcomes[slot]) ? outcomes[slot] : {};
         const value = slotOutcomes[taskName];
         const outcome = isRecord(value) ? value : {};
-        const roots = records.filter(
-          (r) => r.node_name === `${name}-${r.reg_name}`,
+        const registrations = {
+          etl: "a_stock_history",
+          prediction: isRecord(model.predict)
+            ? String(model.predict.reg_name)
+            : "",
+          portfolio: isRecord(model.portfolio)
+            ? String(model.portfolio.reg_name)
+            : "",
+          comparison: isRecord(model.compare)
+            ? String(model.compare.reg_name)
+            : "",
+        };
+        const roles = Object.fromEntries(
+          Object.entries(registrations).map(([role, registration]) => [
+            role,
+            records.find((r) => r.node_name === `${name}-${registration}`),
+          ]),
+        );
+        const roots = Object.values(roles).filter(
+          (record): record is ChildTaskRecord => !!record,
         );
         const children = ownedCompareNodes(roots, nodes);
         const steps = parent.steps.filter((step) => step.group === name);
@@ -83,13 +101,16 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
           (step) =>
             step.name.endsWith(":comparison") && step.state === "skipped",
         );
-        const findings: Record<string, unknown>[] = reported.length
-          ? reported
-          : comparison
+        const findings: Record<string, unknown>[] =
+          comparison && isRecord(comparison.artifacts)
             ? [comparison]
-            : skipped
-              ? [{ status: "skipped", reason: skipped.error }]
-              : [];
+            : reported.length
+              ? reported
+              : comparison
+                ? [comparison]
+                : skipped
+                  ? [{ status: "skipped", reason: skipped.error }]
+                  : [];
         const finding =
           findings.find(
             (r) => r.status !== "consistent" && r.status !== "skipped",
@@ -97,13 +118,16 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
         return {
           name,
           label,
-          provider: String(model.feature_family || ""),
+          provider: isRecord(model.train) ? String(model.train.reg_name) : "",
           outcome,
           roots,
+          roles,
           children,
           steps,
           state,
           finding,
+          taskId: parent.task_id,
+          startedAt: parent.started_at,
         };
       }),
     );

@@ -3,7 +3,7 @@
 models: Shared data contracts, identity rules, parameters and validation.
 storage: Task directories, records, artifacts, snapshots, journals and histories.
 core: Synchronous Task authoring, composition, research bases and execution windows.
-runtime: Task execution, progress, lifecycle, process control and replay drivers.
+runtime: Task execution, progress, lifecycle and process control.
 builtins: Bundled demo, notification, data-download and stock research implementations.
 
 This package is a namespace. Import models, Task authoring, storage, execution

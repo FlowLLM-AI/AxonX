@@ -26,7 +26,7 @@
     <text x="72" y="390" font-size="22" font-weight="700">Train</text>
     <text x="72" y="422" font-size="17">Read one successful ETL Task</text>
     <text x="72" y="448" font-size="17">Publish a verified model collection</text>
-    <text x="72" y="474" font-size="17">models.json + model member artifacts</text>
+    <text x="72" y="474" font-size="17">metadata.json + models/*</text>
     <rect x="456" y="356" width="368" height="146" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="480" y="390" font-size="22" font-weight="700">Predict</text>
     <text x="480" y="422" font-size="17">Read Train + compatible ETL</text>

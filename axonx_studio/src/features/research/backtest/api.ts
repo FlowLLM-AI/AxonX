@@ -4,15 +4,15 @@ import { loadParquetRows } from "../../../shared/api/tables";
 import { taskDirectory } from "../../../shared/lib/tasks";
 import type { BacktestArtifact, DailyRow, SummaryRow } from "./types";
 
-function universeArtifact(
+function portfolioArtifact(
   meta: BacktestArtifact,
-  universe: string,
+  portfolio: string,
   role: "daily" | "summary",
 ) {
-  if (meta.output_params.signals_format !== "stock-signals-v1")
+  if (meta.output_params.signals_format !== "stock-signals-v3")
     throw new Error(i18n.t("backtest.errors.signalsFormat"));
-  const report = meta.output_params.universes?.[universe];
-  if (!report) throw new Error(i18n.t("backtest.errors.missingUniverse"));
+  const report = meta.output_params.portfolios[Number(portfolio)];
+  if (!report) throw new Error(i18n.t("backtest.errors.missingPortfolio"));
   const path = meta.output_params.artifacts[report.artifacts[role]]?.path;
   if (!path) throw new Error(i18n.t("backtest.errors.missingDailySummary"));
   return `${taskDirectory(meta.task_id)}/${path}`;
@@ -20,16 +20,16 @@ function universeArtifact(
 
 export async function loadBacktest(
   meta: BacktestArtifact,
-  universe: string,
+  portfolio: string,
   options: RequestOptions = {},
 ) {
   const [daily, summary] = await Promise.all([
     loadParquetRows<DailyRow>(
-      universeArtifact(meta, universe, "daily"),
+      portfolioArtifact(meta, portfolio, "daily"),
       options,
     ),
     loadParquetRows<SummaryRow>(
-      universeArtifact(meta, universe, "summary"),
+      portfolioArtifact(meta, portfolio, "summary"),
       options,
     ),
   ]);
@@ -38,11 +38,11 @@ export async function loadBacktest(
 
 export async function loadBacktestDaily(
   meta: BacktestArtifact,
-  universe: string,
+  portfolio: string,
   options: RequestOptions = {},
 ) {
   return loadParquetRows<DailyRow>(
-    universeArtifact(meta, universe, "daily"),
+    portfolioArtifact(meta, portfolio, "daily"),
     options,
   );
 }

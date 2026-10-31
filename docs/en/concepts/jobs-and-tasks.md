@@ -41,7 +41,7 @@ The executor runs synchronous callables from `build_task_steps()`, records their
 
 ## Rerunning a fixed name
 
-The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer. Every Task type appends `started` and `finished` events to `persistent/runs.jsonl`; each line contains `event` and the complete Task metadata, including inputs, outputs, child calls and artifact revisions. Exceptions and reconciled dead processes also append a finished record. Appends are locked, flushed and recover an incomplete trailing line. The journal retains metadata rather than old payloads.
+The runtime verifies that an existing execution is stopped, rejects display replicas and unverified/foreign running records, then replaces current files while retaining `persistent/`. Anonymous generated-name collisions are rejected. Explicit reruns advance `started_at`; the directory is not an immutable history store. Consume/pin artifacts before replacing their producer. After each Task finishes, the runtime appends one complete terminal metadata JSON object to `persistent/history.jsonl`, including inputs, outputs, child calls and artifact revisions. Failed executions and reconciled dead processes also append one terminal record. Running updates remain in `metadata.json`. Appends are locked, flushed and recover an incomplete trailing line. The history retains metadata rather than old payloads.
 
 ## Waiting and termination
 

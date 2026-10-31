@@ -202,6 +202,33 @@ def test_published_symlinks_are_rejected_and_unpublished_files_are_excluded(tmp_
         plan_task(source, status.task_id)
 
 
+def test_live_window_files_are_included_without_waiting_for_parent_completion(source_task):
+    source, status, directory = source_task
+    pl.DataFrame({"ts_code": ["A"], "open": [10]}).write_parquet(directory / "snapshot_data.parquet")
+    (directory / "snapshot_quality.parquet").write_bytes(b"details")
+    (directory / "unpublished_data.parquet").write_text("partial")
+    status.state = TaskState.RUNNING
+    status.output_params = {
+        "windows": [
+            {
+                "key": "snapshot",
+                "status": "done",
+                "artifacts": {
+                    "data": {"path": "snapshot_data.parquet"},
+                    "quality_details": {"path": "snapshot_quality.parquet"},
+                },
+            }
+        ]
+    }
+    plan = plan_task(source, status.task_id, snapshot=status)
+    assert {item.relative for item in plan.files} == {
+        "metadata.json",
+        "events.jsonl",
+        "snapshot_data.parquet",
+        "snapshot_quality.parquet",
+    }
+
+
 @pytest.mark.parametrize("kind", ["duplicate", "symlink", "traversal"])
 def test_invalid_archives_leave_the_existing_task_untouched(tmp_path, source_task, kind):
     source, _, directory = source_task
@@ -291,3 +318,22 @@ def test_metadata_only_refresh_rechecks_source_and_hydrated_budget(tmp_path, sou
             remote=remote,
         ).prepare()
     assert status.replica is None
+
+
+def test_live_training_sync_uses_registry_to_exclude_model_weights(source_task):
+    source, status, directory = source_task
+    model = directory / "models" / "mlp_seed_42_fit_end_20230101.pt"
+    model.parent.mkdir()
+    model.write_bytes(b"final weights")
+    name = model.stem
+    status.output_params = {
+        "models": {name: {"model_artifact": name, "training_curve": {"x": ["1"]}}},
+        "artifacts": {name: {"path": model.relative_to(directory).as_posix()}},
+    }
+    write_task_metadata(directory, status)
+    assert model.relative_to(directory).as_posix() in {
+        item.relative for item in plan_task(source, status.task_id).files
+    }
+    assert model.relative_to(directory).as_posix() not in {
+        item.relative for item in plan_task(source, status.task_id, snapshot=status).files
+    }

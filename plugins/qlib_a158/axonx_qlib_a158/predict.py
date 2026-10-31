@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
 
@@ -13,25 +14,20 @@ from pydantic import Field, model_validator
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.core.base import TaskStep
 from axonx.task.core.research import BasePredictTask
-from axonx.task.models.artifacts import (
-    ModelCollection,
-    fingerprint,
-    prediction_protocol,
-)
+from axonx.task.models.artifacts import fingerprint, prediction_protocol
 from axonx.task.models.base import DateString
 from axonx.task.models.identity import (
     TaskType,
     task_type_from_id,
     validate_upstream_task_ids,
 )
-from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
+from axonx.task.models.params import BaseInputParams, BasePredictOutputParams, BaseTrainOutputParams
 from axonx.task.storage.artifacts import artifact_record
-from axonx.task.storage.files import atomic_write, file_revision
+from axonx.task.storage.files import atomic_write
 from axonx.task.storage.inputs import (
-    pin_upstream_artifacts,
     read_upstream_metadata,
-    snapshot_model_collection,
     upstream_artifact,
+    upstream_artifacts,
 )
 
 from .internal.modeling import feature_contract, feature_identity, feature_matrix, load_lightgbm
@@ -82,23 +78,19 @@ class LgbmPredictTask(BasePredictTask):
 
     def resolve_train_task(self) -> None:
         train_task_id = self.input_params.upstream_task_id(TaskType.TRAIN)
-        manifest_path, train_metadata = upstream_artifact(self, train_task_id, "model_manifest")
-        manifest_path = snapshot_model_collection(
-            manifest_path,
-            self.task_dir / "model_snapshot",
-            expected_revision=train_metadata["output_params"]["artifacts"]["model_manifest"]["revision"],
-        )
-        collection = ModelCollection.model_validate_json(manifest_path.read_text()).model_dump(mode="json")
-        self.state["model_collection"] = collection
-        member = collection["members"]["model"]
-        model_path = manifest_path.parent / collection["artifacts"][member["model_artifact"]]["path"]
-        train_end = collection["train_end_exclusive"]
-        if not isinstance(train_end, str):
-            raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
+        _, train_metadata = read_upstream_metadata(self.workspace_path, train_task_id)
+        collection = BaseTrainOutputParams.model_validate(train_metadata["output_params"])
+        selected = collection.select_models(self.input_params.pred_start)
+        if len(selected) != 1:
+            raise ValueError("LightGBM prediction requires one active model")
+        member_name, member = next(iter(selected.items()))
+        self.state["member_name"] = member_name
+        self.state["member"] = member.model_dump(mode="json")
+        self.state["model_collection"] = collection.model_dump(mode="json")
+        model_path = upstream_artifact(self, train_task_id, member.model_artifact)[0]
+        train_end = member.train_end_exclusive
         if self.input_params.pred_start < train_end:
-            raise ValueError(
-                f"pred_start 不能早于 train_end: {self.input_params.pred_start} < {train_end}",
-            )
+            raise ValueError("Prediction precedes the training cutoff")
         output_dir = self.task_dir
         self.state.update(
             train_metadata=train_metadata,
@@ -127,7 +119,7 @@ class LgbmPredictTask(BasePredictTask):
         feature_protocol = etl_metadata["output_params"]["protocol"]
         if feature_identity(feature_protocol) != feature_identity(self.state["model_collection"]["feature_protocol"]):
             raise ValueError("Feature protocol differs from training")
-        (dataset_path,) = pin_upstream_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
+        (dataset_path,) = upstream_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
         self.state.update(
             etl_task_id=etl_task_id,
             feature_protocol=feature_contract(feature_protocol),
@@ -137,7 +129,7 @@ class LgbmPredictTask(BasePredictTask):
 
     def load_and_validate_prediction_data(self) -> None:
         path: Path = self.state["dataset_path"]
-        features = tuple(self.state["model_collection"]["members"]["model"]["model"]["feature_names"])
+        features = tuple(self.state["member"]["model"]["feature_names"])
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(path)
@@ -177,6 +169,9 @@ class LgbmPredictTask(BasePredictTask):
             raise ValueError(
                 f"预测日期范围内没有数据: {self.input_params.pred_start}..{pred_end}",
             )
+        use_to = self.state["member"]["use_to"]
+        if use_to is not None and frame["trade_date"].max() >= use_to:
+            raise ValueError("Prediction interval exceeds the selected model's use window")
         validate_keys(frame)
         self.state.update(
             frame=frame,
@@ -200,7 +195,7 @@ class LgbmPredictTask(BasePredictTask):
         frame: pl.DataFrame = self.state["frame"]
         matrix = feature_matrix(frame, self.state["features"])
         self.report_progress(30)
-        best_iteration = self.state["model_collection"]["members"]["model"]["model"]["best_iteration"]
+        best_iteration = self.state["member"]["model"]["best_iteration"]
         prediction = np.asarray(
             self.state["model"].predict(matrix, num_iteration=best_iteration),
             dtype=float,
@@ -251,6 +246,8 @@ class LgbmPredictTask(BasePredictTask):
 
     def build_output_params(self) -> LgbmPredictOutputParams:
         frame = self.state["predictions"]
+        member_name = self.state["member_name"]
+        model_revision = self.state["model_collection"]["artifacts"][self.state["member"]["model_artifact"]]["revision"]
         return self.output_cls(
             rows=frame.height,
             date_range={
@@ -278,25 +275,27 @@ class LgbmPredictTask(BasePredictTask):
                     for column in self.state["index_columns"]
                 },
             },
-            model_target=self.state["model_collection"]["label_column"],
+            model_target=self.state["model_collection"]["training_target"]["label_column"],
             index_weight_columns=list(self.state["index_columns"]),
             protocol=prediction_protocol(
                 TaskType.PREDICT,
-                {
-                    "models_sha256": fingerprint(
-                        {
-                            key: self.state["model_collection"]["artifacts"][value["model_artifact"]]["revision"]
-                            for key, value in self.state["model_collection"]["members"].items()
-                        }
-                    ),
-                    "features_sha256": feature_identity(self.state["feature_protocol"]),
-                    "family": self.state["feature_protocol"]["feature_family"],
-                    "trade_time": "1500",
-                    "return_unit": "decimal",
-                },
-                file_revision(self.state["predictions_path"]),
-                frame["trade_date"].unique(),
                 {"model": "pred"},
+                windows=[
+                    {
+                        "prediction_start": self.input_params.pred_start,
+                        "prediction_end_exclusive": (
+                            datetime.strptime(frame["trade_date"].max(), "%Y%m%d") + timedelta(days=1)
+                        ).strftime("%Y%m%d"),
+                        "models": {"model": member_name},
+                        "model_identity": {
+                            "models_sha256": fingerprint({member_name: model_revision}),
+                            "features_sha256": feature_identity(self.state["feature_protocol"]),
+                            "family": self.state["feature_protocol"]["feature_family"],
+                            "trade_time": "1500",
+                            "return_unit": "decimal",
+                        },
+                    }
+                ],
                 market_upstream_task_id=self.state["etl_task_id"],
             ),
             artifacts={"predictions": artifact_record(self.state["predictions_path"], self.task_dir)},

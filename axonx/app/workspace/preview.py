@@ -57,7 +57,8 @@ def preview_file(
     limit: int = PREVIEW_ROWS,
     *,
     max_bytes: int | None = None,
-) -> FilePreview:
+    allow_missing: bool = False,
+) -> FilePreview | None:
     if isinstance(offset, bool) or not isinstance(offset, int):
         raise TypeError("Preview offset must be an integer")
     if offset < 0:
@@ -70,6 +71,13 @@ def preview_file(
         isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or not 1 <= max_bytes <= MAX_STRUCTURED_BYTES
     ):
         raise ValueError(f"max_bytes must be an integer between 1 and {MAX_STRUCTURED_BYTES}")
+    if not isinstance(allow_missing, bool):
+        raise TypeError("allow_missing must be a boolean")
+    if allow_missing:
+        try:
+            workspace.resolve(relative_path).stat()
+        except FileNotFoundError:
+            return None
     path = workspace.resolve_file(relative_path)
     size = path.stat().st_size
     kind = preview_kind(path)
@@ -81,9 +89,11 @@ def preview_file(
         return _preview_jsonl(path, size, offset, limit)
     if kind == "csv":
         return _preview_csv(path, size, offset, limit)
-    if kind in {"json", "yaml"}:
-        return _preview_structured(path, size, kind, max_bytes=max_bytes)
-    return _preview_text(path, size, kind, max_bytes=max_bytes or TEXT_PREVIEW_BYTES)
+    return (
+        _preview_structured(path, size, kind, max_bytes=max_bytes)
+        if kind in {"json", "yaml"}
+        else _preview_text(path, size, kind, max_bytes=max_bytes or TEXT_PREVIEW_BYTES)
+    )
 
 
 def _json_compatible(value: Any) -> Any:

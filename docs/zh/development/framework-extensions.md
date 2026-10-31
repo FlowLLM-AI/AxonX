@@ -57,7 +57,7 @@ await self.emit(event) 提供背压。事件从 axonx.client.events 导入，Tas
 
 ## Task 组合与研究基类
 
-同步子任务使用 BaseTask.run_task。TaskExecutor 管理生命周期和清理，同名目录由调用方协调。窗口工作使用 core.windows 和注入时钟，不可变在线发布和核验历史使用 storage.online。股票组合继承 task.builtins.stock.backtest.BaseStockBacktestTask 并提供范围/选择器，UI 不重复实现记账。
+同步子任务使用 BaseTask.run_task。TaskExecutor 管理生命周期和清理，同名目录由调用方协调。窗口工作使用 core.windows 和注入时钟，不可变在线发布和核验历史使用 storage.online。股票组合 Task 继承 task.builtins.stock.portfolio.BaseStockPortfolioTask 并提供股池与选择器；回测继承 task.builtins.stock.backtest.BaseStockBacktestTask，消费冻结的 Portfolio 产物完成执行与估值，UI 不重复实现记账。
 
 ## 验证范围
 

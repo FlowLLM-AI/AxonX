@@ -91,6 +91,9 @@ class BaseWindowTask(BaseTask):
     def build_output_params(self) -> WindowOutputParams:
         return self.output_cls(windows=self.window_results)
 
+    def exit_code(self, output: dict) -> int:
+        return super().exit_code(output) or int(any(item["status"] == "failed" for item in output["windows"]))
+
 
 class BaseRealtimeApiTask(BaseWindowTask):
     """Poll a collector within each window until it returns a final result."""

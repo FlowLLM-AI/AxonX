@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import Field, model_validator
 
-from axonx.task.builtins.stock.models import StockBacktestInput
+from axonx.task.builtins.stock.models import StockBacktestInput, StockPortfolioInput
 from axonx.task.core.base import BaseTask, TaskStep
 from axonx.task.models.params import BaseInputParams, BaseOutputParams
 
@@ -19,6 +19,7 @@ class ResearchInputParams(BaseInputParams):
     etl: Alpha158InputParams = Field(default_factory=lambda: Alpha158InputParams(start_date="20150101"))
     train: LgbmTrainInputParams = Field(default_factory=LgbmTrainInputParams)
     predict: LgbmPredictInputParams = Field(default_factory=LgbmPredictInputParams)
+    portfolio: StockPortfolioInput = Field(default_factory=StockPortfolioInput)
     backtest: StockBacktestInput = Field(default_factory=StockBacktestInput)
     analysis: FactorAnalysisInputParams | None = None
 
@@ -26,15 +27,14 @@ class ResearchInputParams(BaseInputParams):
     def validate_chain(self) -> Self:
         if self.upstream_task_ids:
             raise ValueError("Research builds its own ETL; use the leaf Tasks to reuse existing inputs")
-        for name in ("etl", "train", "predict", "backtest", "analysis"):
+        for name in ("etl", "train", "predict", "portfolio", "backtest", "analysis"):
             params = getattr(self, name)
             if params is not None and (params.task_name is not None or params.upstream_task_ids):
                 raise ValueError(f"Research owns {name}.task_name and {name}.upstream_task_ids")
-        if any(
-            getattr(self.backtest, name) is not None
-            for name in ("input_file", "market_file", "calendar_file", "labels_file")
-        ):
+        if any(getattr(self.backtest, name) is not None for name in ("market_file", "calendar_file", "labels_file")):
             raise ValueError("Research owns the backtest's input artifacts")
+        if self.portfolio.input_file is not None or self.portfolio.score_columns is not None:
+            raise ValueError("Research owns portfolio input artifacts")
         if "pred_start" not in self.predict.model_fields_set:
             self.predict.pred_start = self.train.train_end
         if self.predict.pred_start < self.train.train_end:
@@ -47,7 +47,7 @@ class ResearchOutputParams(BaseOutputParams):
 
 
 class Alpha158ResearchTask(BaseTask):
-    """Run ETL, optional factor analysis, training, prediction and backtesting.
+    """Run offline ETL, optional factor analysis, training, prediction, portfolio construction and backtesting.
 
     Each stage remains an independently observable Task. Nested inputs configure
     the research, while the parent owns child names and dependency references.
@@ -63,6 +63,7 @@ class Alpha158ResearchTask(BaseTask):
             yield self.analyze_factors
         yield self.train_model
         yield self.predict
+        yield self.portfolio
         yield self.backtest
 
     def stage(self, name: str, registration: str, params: BaseInputParams, *upstream: str) -> None:
@@ -92,9 +93,14 @@ class Alpha158ResearchTask(BaseTask):
             self.state["stage_task_ids"]["etl"],
         )
 
+    def portfolio(self):
+        self.stage(
+            "portfolio", "qlib_a158_portfolio", self.input_params.portfolio, self.state["stage_task_ids"]["predict"]
+        )
+
     def backtest(self):
         self.stage(
-            "backtest", "qlib_a158_backtest", self.input_params.backtest, self.state["stage_task_ids"]["predict"]
+            "backtest", "qlib_a158_backtest", self.input_params.backtest, self.state["stage_task_ids"]["portfolio"]
         )
 
     def build_output_params(self) -> ResearchOutputParams:

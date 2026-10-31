@@ -2,10 +2,10 @@
 
 base: Shared model policy, calendar-date validation and date value types.
 identity: Task types, states, categories, names and upstream dependency identities.
-artifacts: Artifact references, protocol headers, model collections and replay manifests.
+artifacts: Artifact references and protocol headers.
 lifecycle: Invocation context, child results, step progress and persisted metadata.
 params: Task input parameters and typed output envelopes, including window inputs.
-reports: Training curves, comparisons, window outcomes, backtest reports and history nodes.
+reports: Training curves, comparisons, window outcomes, backtest reports and daily online results.
 query: Catalog definitions, summaries, lineage graphs and context projections.
 events: Log chunks, progress/log events and discriminated event parsing.
 """
@@ -14,13 +14,9 @@ from . import artifacts, base, events, identity, lifecycle, params, query, repor
 from .artifacts import (
     PROTOCOL_VERSION,
     ArtifactRecord,
-    ModelCollection,
-    ModelMember,
     PredictionProtocol,
+    PredictionWindow,
     Protocol,
-    ReplayEvent,
-    ReplayManifest,
-    ReplaySource,
     fingerprint,
     prediction_protocol,
     task_protocol,
@@ -45,6 +41,7 @@ from .lifecycle import (
     ChildTaskRecord,
     ChildTaskResult,
     DisplayReplica,
+    InputSource,
     ReplicaFile,
     ReplicaLog,
     TaskContext,
@@ -61,6 +58,7 @@ from .params import (
     BaseInferenceOutputParams,
     BaseInputParams,
     BaseOutputParams,
+    BasePortfolioOutputParams,
     BasePredictionCompareInputParams,
     BasePredictionCompareOutputParams,
     BasePredictOutputParams,
@@ -81,14 +79,14 @@ from .query import (
     TaskSummary,
 )
 from .reports import (
-    HISTORY_BLOCK_SIZE,
     BacktestBenchmark,
     BacktestDimensions,
-    BacktestUniverse,
-    BacktestUniverseReport,
-    HistoryNode,
+    BacktestPortfolioReport,
+    ModelMember,
     OnlineCommit,
     OnlineHistory,
+    PortfolioDefinition,
+    PortfolioUniverse,
     PredictionComparison,
     TrainingCurve,
     WindowResult,
@@ -98,10 +96,12 @@ __all__ = [
     "ArtifactRecord",
     "BacktestBenchmark",
     "BacktestDimensions",
-    "BacktestUniverse",
-    "BacktestUniverseReport",
+    "PortfolioUniverse",
+    "PortfolioDefinition",
+    "BacktestPortfolioReport",
     "BaseAnalysisOutputParams",
     "BaseBacktestOutputParams",
+    "BasePortfolioOutputParams",
     "BaseETLInputParams",
     "BaseETLOutputParams",
     "BaseInferenceOutputParams",
@@ -113,25 +113,21 @@ __all__ = [
     "BaseTrainOutputParams",
     "ChildTaskRecord",
     "ChildTaskResult",
+    "InputSource",
     "DateString",
     "DisplayReplica",
     "ExecutionWindow",
-    "HISTORY_BLOCK_SIZE",
-    "HistoryNode",
     "LogChunk",
     "LogEvent",
-    "ModelCollection",
     "ModelMember",
     "OnlineCommit",
     "OnlineHistory",
     "PROTOCOL_VERSION",
     "PredictionComparison",
     "PredictionProtocol",
+    "PredictionWindow",
     "ProgressEvent",
     "Protocol",
-    "ReplayEvent",
-    "ReplayManifest",
-    "ReplaySource",
     "ReplicaFile",
     "ReplicaLog",
     "StepProgress",

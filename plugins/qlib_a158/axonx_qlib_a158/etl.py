@@ -156,7 +156,7 @@ class Alpha158Task(BaseETLTask):
             daily_files = [path for path in daily_files if path.parent.name >= history_start]
             factor_files = [path for path in factor_files if path.parent.name >= history_start]
         output_path = self.task_dir / "alpha158.parquet"
-        statistics_path = output_path.with_suffix(".csv")
+        statistics_path = self.task_dir / "alpha158_stats.csv"
         self.state.update(
             daily_files=daily_files,
             factor_files=factor_files,

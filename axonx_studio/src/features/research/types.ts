@@ -4,13 +4,20 @@ import type {
   BasePredictOutputParams,
   BaseTrainOutputParams,
   StockBacktestOutput,
+  StockPortfolioOutput,
   TaskMetadata,
 } from "../../shared/api/contracts";
 
 export type ResearchKind =
-  "analysis" | "backtest" | "etl" | "train" | "predict";
+  "analysis" | "backtest" | "etl" | "train" | "predict" | "portfolio";
 export type ResearchPageId =
-  "etl" | "factors" | "train" | "predict" | "backtest" | "compare";
+  | "etl"
+  | "factors"
+  | "train"
+  | "predict"
+  | "portfolio"
+  | "backtest"
+  | "compare";
 
 interface PredictionStatistics {
   days?: number;
@@ -31,6 +38,7 @@ interface ResearchOutputs {
     statistics: PredictionStatistics;
     index_weight_columns?: string[];
   };
+  portfolio: StockPortfolioOutput;
   backtest: StockBacktestOutput;
 }
 /** Discriminated views over the original wire record; no flattened data copy. */

@@ -466,6 +466,7 @@ export function createPlayground(): Transport {
         }
         case "preview_file": {
           const file = files.get(String(args.path));
+          if (!file && args.allow_missing === true) return response(null);
           if (!file) throw new Error(`Demo file not found: ${args.path}`);
           const maxBytes =
             args.max_bytes === undefined ? undefined : Number(args.max_bytes);

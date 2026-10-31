@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md) · [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
 
-An AxonX research plugin built from the Qlib Alpha158 / LightGBM workflow, providing data processing, factor analysis, model training, out-of-sample prediction, and TopN backtesting.
+An AxonX offline research plugin built from the Qlib Alpha158 / LightGBM workflow, providing data processing, factor analysis, model training, out-of-sample prediction, portfolio construction, and TopN backtesting. Tasks consume prepared historical Parquet data.
 
 Uses 158 price and volume features as a research baseline. For context features and ablation experiments, see [Qlib Factor](../qlib_factor/README.md).
 
@@ -18,7 +18,7 @@ The plugin combines Alpha158 features, daily cross-sectional labels and LightGBM
 | Labels     | T→T+1 close return, daily rank by default, 2.5% trimming per tail                                                                           | T+1→T+2 close return, DropnaLabel + sample-std CSZScoreNorm                     |
 | Training   | Last 10% of dates select rounds, then refit all training dates; purge cutoff-crossing labels                                                | Independent train/valid/test, retain early-stopped model                        |
 | Trading    | Same-close quote proxy, official limits with board-specific fallback, 0.05% buy / 0.15% sell by default                                     | Next-close execution, uniform 9.5% threshold, 0.05% buy / 0.15% sell, minimum 5 |
-| Strategy   | Fixed holding expiry TopN; retention remains in the strategy plugin                                                                         | Top50, at most 5 replacements, 95% cash allocation                              |
+| Strategy   | Portfolio-defined TopN policies; each `portfolio_id` records the strategy and parameters                                                    | Top50, at most 5 replacements, 95% cash allocation                              |
 | Evaluation | Compound net equity, 252-day annualization; constituent-weighted HS300 proxy                                                                | Actual CSI300 index quotes; default arithmetic risk accumulation                |
 
 Stage metadata records `qlib_reference` / `qlib_deviations` to track the reference version and workflow differences.
@@ -119,27 +119,28 @@ ETL reads the preceding market dates required by its longest rolling window. Ear
 
 ## Composed research
 
-`qlib_a158_research` runs ETL → Train → Predict → Backtest as independently observable child Tasks. Supply `--analysis '{}'` to run factor analysis from the ETL output. Historical Tushare inputs must already exist.
+`qlib_a158_research` runs ETL → Train → Predict → Portfolio → Backtest as independently observable child Tasks. Supply `--analysis '{}'` to run factor analysis from the ETL output. Historical Tushare inputs must already exist.
 
 ```bash
 axonx exec --task qlib_a158_research --task-name baseline \
   --etl '{"start_date":"20150101","end_date":"20261008"}' \
   --train '{"train_end":"20230101"}' \
   --predict '{"pred_end":"20261008"}' \
-  --backtest '{"top_ns":[5,10,20,30]}'
+  --portfolio '{"top_ns":[5,10,20,30]}'
 ```
 
 Prediction starts at the training cutoff when omitted. The plugin owns nested research inputs, child names and dependencies. Backtests end at the last signal by default; set `backtest.as_of_date` explicitly for later valuation or settlement. Leaf prediction accepts a Train and an optional compatible ETL, allowing saved models to score new datasets.
 
 ## Tasks and execution
 
-| Task                 | Upstream              | Outputs                                                             |
-| -------------------- | --------------------- | ------------------------------------------------------------------- |
-| `qlib_a158_etl`      | Workspace market data | Features, labels, trading status, and statistics                    |
-| `qlib_a158_analysis` | ETL Task ID           | Factor diagnostics and analysis                                     |
-| `qlib_a158_train`    | ETL Task ID           | Model, training protocol, validation curves, and feature importance |
-| `qlib_a158_predict`  | Train + optional ETL  | Full-cross-section predictions and statistics                       |
-| `qlib_a158_backtest` | Predict Task ID       | Daily backtests, period summaries, and holding-related artifacts    |
+| Task                  | Upstream              | Outputs                                                             |
+| --------------------- | --------------------- | ------------------------------------------------------------------- |
+| `qlib_a158_etl`       | Workspace market data | Features, labels, trading status, and statistics                    |
+| `qlib_a158_analysis`  | ETL Task ID           | Factor diagnostics and analysis                                     |
+| `qlib_a158_train`     | ETL Task ID           | Model, training protocol, validation curves, and feature importance |
+| `qlib_a158_predict`   | Train + optional ETL  | Full-cross-section predictions and statistics                       |
+| `qlib_a158_portfolio` | Predict Task ID       | Frozen portfolio plans, signal rankings, and strategy identities    |
+| `qlib_a158_backtest`  | Portfolio Task ID     | Daily backtests, period summaries, and holding-related artifacts    |
 
 Factor analysis branches from ETL and is not a prerequisite for training. Submit in the following order, record Task IDs from execution logs, and wait for each stage to succeed before submitting its downstream stage.
 
@@ -156,8 +157,8 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008
 
 # After prediction succeeds
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
-  --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<predict_task_id>"]' --top-ns '[5,10,20,30]'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Inspect each Task's schema with `axonx get_task_def --task qlib_a158_train`. For remote execution, add the same `--target` to execution and definition commands and use the target service's Python environment.
@@ -213,7 +214,7 @@ axonx exec --task qlib_a158_compare --task-name preset-comparison \
   --workspace-dir /tmp/axonx-research --upstream-task-ids '["<etl_task_id>"]' --labels '["rank","csz"]'
 ```
 
-The comparison uses the ordinary CLI execution settings and child Task lifecycle. Its `summary.csv` and `comparison.json` record stage Task IDs, `started_at` and input revisions. Nested `train`, `predict` and `backtest` options reuse the corresponding stage parameters and defaults; `predict.pred_start` must be at or after `train.train_end`. The comparison owns child names, dependencies, training preset/label, and backtest inputs/cutoff; omit those nested options.
+The comparison uses the ordinary CLI execution settings and child Task lifecycle. Its `summary_stats.csv` and `comparison.json` record stage Task IDs, `started_at` and input revisions. Nested `train`, `predict` and `backtest` options reuse the corresponding stage parameters and defaults; `predict.pred_start` must be at or after `train.train_end`. The comparison owns child names, dependencies, training preset/label, and backtest inputs/cutoff; omit those nested options.
 
 ## Experiments
 

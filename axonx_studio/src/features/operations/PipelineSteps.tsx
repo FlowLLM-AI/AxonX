@@ -31,63 +31,68 @@ export function PipelineSteps({
       : "—";
   return (
     <div className={`pipeline-steps${compact ? " pipeline-stages" : ""}`}>
-      {steps.map((step) => (
-        <section
-          className={`pipeline-step step-${step.state}`}
-          key={`${step.parent}:${step.name}`}
-        >
-          <header>
-            <strong>
-              {t(
-                `onlinePipeline.phases.${step.label || step.name}`,
-                step.label || step.name,
+      {steps.map((step) => {
+        const label = t(
+          `onlinePipeline.phases.${step.label || step.name}`,
+          step.label || step.name,
+        );
+        const status = t(
+          `onlinePipeline.status.${step.state}`,
+          step.state || "pending",
+        );
+        const phase = step.phase
+          ? t(`onlinePipeline.phases.${step.phase}`, step.phase)
+          : "";
+        const active = ["pending", "waiting", "running"].includes(
+          step.state || "pending",
+        );
+        return (
+          <section
+            className={`pipeline-step step-${step.state}`}
+            key={`${step.parent}:${step.name}`}
+          >
+            <header>
+              <strong>{label}</strong>
+              <span className={`online-status status-${step.state}`}>
+                {status}
+              </span>
+            </header>
+            <div className="pipeline-step-meta">
+              {phase && phase !== label && phase !== status && (
+                <span>{phase}</span>
               )}
-            </strong>
-            <span className={`online-status status-${step.state}`}>
-              {t(
-                `onlinePipeline.status.${step.state}`,
-                step.state || "pending",
+              {step.completed != null && (active || step.total !== 1) && (
+                <span>
+                  {step.completed.toLocaleString()} /{" "}
+                  {step.total?.toLocaleString() ?? "—"}{" "}
+                  {t(`onlinePipeline.units.${step.unit}`, step.unit || "")}
+                </span>
               )}
-            </span>
-          </header>
-          <div className="pipeline-step-meta">
-            {step.phase && (
-              <span>
-                {t(`onlinePipeline.phases.${step.phase}`, step.phase)}
-              </span>
-            )}
-            {step.completed != null && (
-              <span>
-                {step.completed.toLocaleString()} /{" "}
-                {step.total?.toLocaleString() ?? "—"}{" "}
-                {t(`onlinePipeline.units.${step.unit}`, step.unit || "")}
-              </span>
-            )}
-            {typeof step.metrics?.coverage === "number" && (
-              <span>
-                {t("onlinePipeline.coverage")}:{" "}
-                {(step.metrics?.coverage * 100).toFixed(1)}%
-              </span>
-            )}
-          </div>
-          {step.total != null && step.total > 0 && step.completed != null && (
-            <progress max={step.total} value={step.completed} />
-          )}
-          <div className="pipeline-step-meta">
-            {step.scheduled_at && (
-              <small>
-                {t("onlinePipeline.scheduled")}: {stamp(step.scheduled_at)}
-              </small>
-            )}
-            {step.deadline && (
-              <small>
-                {t("onlinePipeline.deadline")}: {stamp(step.deadline)}
-              </small>
-            )}
-            {["pending", "waiting", "running"].includes(
-              step.state || "pending",
-            ) &&
-              step.deadline && (
+              {typeof step.metrics?.coverage === "number" && (
+                <span>
+                  {t("onlinePipeline.coverage")}:{" "}
+                  {(step.metrics?.coverage * 100).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            {active &&
+              step.total != null &&
+              step.total > 0 &&
+              step.completed != null && (
+                <progress max={step.total} value={step.completed} />
+              )}
+            <div className="pipeline-step-meta">
+              {step.scheduled_at && (
+                <small>
+                  {t("onlinePipeline.scheduled")}: {stamp(step.scheduled_at)}
+                </small>
+              )}
+              {step.deadline && (
+                <small>
+                  {t("onlinePipeline.deadline")}: {stamp(step.deadline)}
+                </small>
+              )}
+              {active && step.deadline && (
                 <small>
                   {t("onlinePipeline.remaining", {
                     seconds: Math.max(
@@ -99,34 +104,35 @@ export function PipelineSteps({
                   })}
                 </small>
               )}
-            {step.updated_at && (
-              <small>
-                {t("onlinePipeline.updated")}: {stamp(step.updated_at)}
-              </small>
+              {step.updated_at && (
+                <small>
+                  {t("onlinePipeline.updated")}: {stamp(step.updated_at)}
+                </small>
+              )}
+            </div>
+            {task && step.group === "collection" && !filesOnly ? (
+              <TaskQuality
+                windows={task.output_params.windows}
+                windowKey={step.name.replace(/^collection:/, "")}
+                taskId={task.task_id}
+                target={target}
+                files={
+                  Object.keys(step.files || {}).length ? (
+                    <StepFiles files={step.files} />
+                  ) : undefined
+                }
+              />
+            ) : (
+              <StepFiles files={step.files} />
             )}
-          </div>
-          {task && step.group === "collection" && !filesOnly ? (
-            <TaskQuality
-              windows={task.output_params.windows}
-              windowKey={step.name.replace(/^collection:/, "")}
-              taskId={task.task_id}
-              target={target}
-              files={
-                Object.keys(step.files || {}).length ? (
-                  <StepFiles files={step.files} />
-                ) : undefined
-              }
-            />
-          ) : (
-            <StepFiles files={step.files} />
-          )}
-          {step.error && (
-            <p className="online-reason">
-              {t(`onlinePipeline.reasons.${step.error}`, step.error)}
-            </p>
-          )}
-        </section>
-      ))}
+            {step.error && (
+              <p className="online-reason">
+                {t(`onlinePipeline.reasons.${step.error}`, step.error)}
+              </p>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }

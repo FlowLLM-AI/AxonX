@@ -147,7 +147,7 @@ export function seedOnline(
     finished_at: epoch,
     updated_at: epoch,
     metrics: { coverage: 0.998 },
-    files: { data: "tushare/2026/20260105/rt/rt_k/data.csv" },
+    files: {},
     error: "",
   };
   child.steps = [
@@ -171,49 +171,65 @@ export function seedOnline(
       metrics: {},
     })),
   ];
-  const collectionPath = "tushare/2026/20260105/rt/rt_k";
+  const collectionPath = taskDirectory(parent.task_id);
   const quality = {
     version: 1,
     trade_date: "20260105",
     trade_time: "0930",
     checks: [],
   };
-  files.set(`${collectionPath}/data.csv`, {
-    kind: "csv",
-    size: 64,
-    columns: ["ts_code", "price"],
-    rows: [["DEMO001", 10.5]],
-    offset: 0,
-    limit: 200,
-    has_more: false,
-  });
   files.set(
-    `${collectionPath}/metadata.json`,
-    json({ trade_date: "20260105", trade_time: "0930" }),
+    `${collectionPath}/snapshot_data.parquet`,
+    table([{ ts_code: "DEMO001", price: 10.5 }]),
   );
-  files.set(`${collectionPath}/quality_summary.json`, json(quality));
   files.set(
-    `${collectionPath}/quality_details.parquet`,
+    `${collectionPath}/snapshot_quality.parquet`,
     table([{ ts_code: "DEMO001", status: "valid" }]),
   );
   step.files = Object.fromEntries(
     Object.entries({
-      data: "data.csv",
-      metadata: "metadata.json",
-      quality_summary: "quality_summary.json",
-      quality_details: "quality_details.parquet",
+      data: "snapshot_data.parquet",
+      quality_details: "snapshot_quality.parquet",
     }).map(([role, name]) => [
       role,
       `/demo/workspace/${collectionPath}/${name}`,
     ]),
   );
   parent.output_params.windows = [
-    { key: "snapshot", status: "done", metrics: { quality } },
+    {
+      key: "snapshot",
+      status: "done",
+      metrics: { quality },
+      artifacts: {
+        data: { path: "snapshot_data.parquet", size: 64, revision: "64:1" },
+        quality_details: {
+          path: "snapshot_quality.parquet",
+          size: 1,
+          revision: "1:1",
+        },
+      },
+    },
   ];
   parent.steps.push(step);
   parent.input_params.models = { "1445": [{ task_name: "demo" }] };
+  const report = structuredClone(
+    child.output_params.report,
+  ) as import("../features/operations/report").StockOnlineReport;
+  report.commit.task_id = parent.task_id;
+  report.commit.started_at = parent.started_at;
+  for (const artifact of Object.values(report.commit.artifacts)) {
+    const original = `${taskDirectory(child.task_id)}/${artifact.path}`;
+    artifact.path = `outputs/1445/demo/${artifact.path.split("/").at(-1)}`;
+    const preview = files.get(original);
+    if (preview)
+      files.set(`${taskDirectory(parent.task_id)}/${artifact.path}`, preview);
+  }
+  parent.output_params.models = {
+    "1445": { demo: { status: "done", report } },
+  };
+
   parent.children[0].reg_name = child.task_id.split("#")[1];
-  parent.children[0].node_name = `demo-1445-${parent.children[0].reg_name}`;
+  parent.children[0].node_name = "demo-1445-a_stock_online_predict";
   tasks.set(id, parent);
   files.set(`${taskDirectory(id)}/metadata.json`, json(parent));
 }
@@ -231,9 +247,30 @@ function seedStockOnline(
     commits: [],
   };
   const allDaily = dailyRows("steady").slice(0, 12);
-  for (let i = 0; i <= allDaily.length; i++) {
+  const end = allDaily.at(-1)!.trade_date;
+  const shift =
+    Date.UTC(2026, 0, 5) -
+    Date.parse(
+      `${end.slice(0, 4)}-${end.slice(4, 6)}-${end.slice(6)}T00:00:00Z`,
+    );
+  for (const row of allDaily) {
+    const day = row.trade_date;
+    row.trade_date = new Date(
+      Date.parse(
+        `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6)}T00:00:00Z`,
+      ) + shift,
+    )
+      .toISOString()
+      .slice(0, 10)
+      .replaceAll("-", "");
+  }
+  for (let i = 0; i < allDaily.length; i++) {
     const index = Math.min(i, allDaily.length - 1);
     const date = allDaily[index].trade_date;
+    const ownerId =
+      i === allDaily.length - 1
+        ? task.task_id
+        : `base#playground_online#demo-${date}`;
     const commitId = (i + 1).toString(16).padStart(32, "0");
     const signal = Array.from({ length: 30 }, (_, rank) => ({
       trade_date: date,
@@ -273,7 +310,8 @@ function seedStockOnline(
       sell_cost_rate: 0.0015,
     };
     const settings: import("../features/operations/report").ReportSettings = {
-      signals_format: "stock-signals-v1",
+      signals_format: "stock-signals-v3",
+      score_column: "pred_seed_0",
       strategy_identity: strategyIdentity,
       dimensions: {
         top_ns: [5, 10],
@@ -282,18 +320,36 @@ function seedStockOnline(
       },
       date_range: { start: allDaily[0].trade_date, end: date },
       portfolio,
+      portfolios: Object.fromEntries(
+        [5, 10].map((n, index) => [
+          [
+            "ecf61f27984e4a31752d56c5b2aa97d2d5bf9dbfeec5cc27cbb250e5aeb98c83",
+            "d48e60cb4e04ee4be4606caa6facb8836060138d08714a73899ffdb8c6191fc1",
+          ][index],
+          {
+            universe: { kind: "all" },
+            strategy: { kind: "fixed_expiry", holding_days: 3 },
+            top_n: n,
+            allocation: "equal_slot",
+            trade_time: "1445",
+            score_selection: { method: "mean", seeds: [0] },
+          },
+        ]),
+      ),
       score_selection: { method: "mean", seeds: [0] },
       evaluation_status: "done",
       missing_dates: [],
     };
     const tables: Record<string, Record<string, unknown>[]> = {
-      signal,
-      signals: signal.map((row) => ({
-        ...row,
-        is_backtest_candidate: row.is_buyable_at_signal,
-        target_rank: row.is_buyable_at_signal ? row.buyable_rank : null,
-        label_return: null,
-      })),
+      rankings: signal
+        .filter((row) => row.is_buyable_at_signal)
+        .map((row) => ({
+          universe_key: "all",
+          trade_date: row.trade_date,
+          trade_time: row.trade_time,
+          ts_code: row.ts_code,
+          target_rank: row.buyable_rank,
+        })),
       predictions: signal,
       market: signal,
       daily,
@@ -352,17 +408,47 @@ function seedStockOnline(
         realized_return: 0.012,
         fee: 0.0003,
       })),
-      calendar: allDaily.map((row) => ({ trade_date: row.trade_date })),
-      input_features: signal,
     };
+    for (const role of ["daily", "summary", "positions", "orders", "trades"]) {
+      tables[role] = Object.entries(settings.portfolios).flatMap(
+        ([key, identity]) => {
+          const n = Number(identity.top_n);
+          const prefix = `top${n}_`;
+          return tables[role]
+            .filter(
+              (row) =>
+                role === "summary" ||
+                row[role === "trades" ? "exit_date" : "trade_date"] === date,
+            )
+            .filter((row) => row.top_n === undefined || row.top_n === n)
+            .map((row) => ({
+              ...Object.fromEntries(
+                Object.entries(row)
+                  .filter(
+                    ([column]) =>
+                      column !== "top_n" &&
+                      (!column.startsWith("top") || column.startsWith(prefix)),
+                  )
+                  .map(([column, value]) => [
+                    column.startsWith(prefix)
+                      ? column.slice(prefix.length)
+                      : column,
+                    value,
+                  ]),
+              ),
+              portfolio_key: key,
+            }));
+        },
+      );
+    }
     const artifacts: Record<
       string,
       { path: string; size: number; revision: string }
     > = {};
     const put = (role: string, preview: WorkspacePreview, suffix: string) => {
-      const path = `persistent/online/commits/${commitId}/${role}.${suffix}`;
+      const path = `outputs/1445/${role}.${suffix}`;
       artifacts[role] = { path, size: preview.size, revision: "1:1" };
-      files.set(`${taskDirectory(task.task_id)}/${path}`, preview);
+      files.set(`${taskDirectory(ownerId)}/${path}`, preview);
     };
     for (const [role, rows] of Object.entries(tables))
       put(role, table(rows), "parquet");
@@ -395,7 +481,7 @@ function seedStockOnline(
         },
       ],
     };
-    put("quality_summary", json(quality), "json");
+
     put(
       "quality_details",
       table([
@@ -425,36 +511,59 @@ function seedStockOnline(
     const protocol = {
       version: 1,
       task_type: "inference",
-      model_identity: identity,
-      dates: [date],
       score_columns: { seed_0: "pred_seed_0" },
-      predictions_revision: "1:1",
-      portfolio,
+      quality,
       report: settings,
+      history_sources: history.commits.map(
+        ({ task_id, started_at, commit_id }) => ({
+          task_id,
+          started_at,
+          commit_id,
+        }),
+      ),
     };
-    put("prediction_protocol", json(protocol), "json");
     history.commits.push({
       commit_id: commitId,
-      task_id: task.task_id,
+      task_id: ownerId,
       started_at: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T14:45:00+08:00`,
       trade_date: date,
       trade_time: "1445",
-      revision: i === allDaily.length ? 2 : 1,
+      revision: 1,
       committed_at: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T14:45:10+08:00`,
       model_identity: identity,
       protocol,
       artifacts,
     });
+    if (ownerId !== task.task_id) {
+      const commit = history.commits.at(-1)!;
+      files.set(
+        `${taskDirectory(ownerId)}/metadata.json`,
+        json({
+          ...task,
+          task_id: ownerId,
+          task_type: "base",
+          report_kind: "online_pipeline",
+          started_at: commit.started_at,
+          finished_at: commit.committed_at,
+          children: [],
+          input_params: { models: { "1445": [{ task_name: "demo" }] } },
+          output_params: {
+            models: {
+              "1445": {
+                demo: {
+                  status: "done",
+                  report: { kind: "stock_online", commit },
+                },
+              },
+            },
+          },
+        }),
+      );
+    }
   }
   const commit = history.commits.at(-1)!;
   task.started_at = commit.started_at;
   task.finished_at = commit.committed_at;
-  const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
-  files.set(`${taskDirectory(task.task_id)}/${historyPath}`, json(history));
-  files.set(
-    `${taskDirectory(task.task_id)}/persistent/online/manifest.json`,
-    json(history),
-  );
   task.output_params = {
     model_identity: commit.model_identity,
     windows: [
@@ -476,7 +585,6 @@ function seedStockOnline(
     report: { kind: "stock_online", commit },
     artifacts: {
       ...commit.artifacts,
-      signal_history: { path: historyPath, size: 1, revision: "1:1" },
     },
   };
 }

@@ -886,6 +886,11 @@
       "input_schema": {
         "type": "object",
         "properties": {
+          "allow_missing": {
+            "type": "boolean",
+            "default": false,
+            "description": "Return null when the requested file does not exist; invalid paths and other read failures remain errors."
+          },
           "max_bytes": {
             "type": "integer",
             "minimum": 1,

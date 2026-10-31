@@ -56,13 +56,13 @@ it.each(["en", "zh"])(
       await vi.waitFor(async () => {
         await act(async () => {});
         expect(
-          container.querySelector(".backtest-universe-selector select"),
+          container.querySelector(".portfolio-selector select"),
         ).not.toBeNull();
       });
       const selector = container.querySelector<HTMLSelectElement>(
-        ".backtest-universe-selector select",
+        '.portfolio-selector select[aria-label$=" · universe"]',
       );
-      expect(selector?.value).toBe("all");
+      expect(selector?.selectedOptions[0].textContent).toBe("all");
       expect(container.querySelector(".base-files-card")).toBeNull();
       expect(container.querySelector(".artifact-kpis")).toBeNull();
       expect(container.textContent).not.toContain(
@@ -72,14 +72,14 @@ it.each(["en", "zh"])(
         container.querySelector(".backtest-report-dates")?.textContent,
       ).toContain("60");
       await act(async () => {
-        selector!.value = "hs300";
+        selector!.value = selector!.options[1].value;
         selector!.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      expect(selector?.value).toBe("hs300");
-      for (const universe of ["all", "hs300"]) {
+      expect(selector?.selectedOptions[0].textContent).toContain("hs300");
+      for (const index of [0, 1]) {
         expect(previewWorkspaceFile).toHaveBeenCalledWith(
           {
-            path: `${path}/universes/${universe}/daily.parquet`,
+            path: `${path}/portfolios/${index}/daily.parquet`,
             offset: 0,
             limit: 5000,
           },
@@ -93,7 +93,7 @@ it.each(["en", "zh"])(
   },
 );
 
-it("reads training member count from the canonical model manifest", async () => {
+it("reads the model index directly from training metadata", async () => {
   const { files, tasks } = seed();
   const task = tasks.get("train#playground_train#demo")!;
   vi.mocked(axonx.invoke).mockImplementation(async (name) =>
@@ -127,14 +127,13 @@ it("reads training member count from the canonical model manifest", async () => 
       );
       expect(card?.querySelector("strong")?.textContent).toBe("1");
     });
-    expect(previewWorkspaceFile).toHaveBeenCalledWith(
-      {
-        path: "tasks/train/train#playground_train#demo/models.json",
-        offset: 0,
-        limit: 1,
-      },
-      { target: "remote", signal: expect.any(AbortSignal) },
+    expect(previewWorkspaceFile).not.toHaveBeenCalled();
+    const selector = container.querySelector<HTMLSelectElement>(
+      ".artifact-content select",
     );
+    expect(selector?.options).toHaveLength(1);
+    expect(selector?.options[0].textContent).toContain("seed_0");
+    expect(container.textContent).toContain("∞");
   } finally {
     await act(async () => root.unmount());
   }

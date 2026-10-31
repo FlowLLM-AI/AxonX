@@ -154,11 +154,13 @@ export function StockReport({
               </button>
             </div>
           )}
-          {history && !reportIsCurrent(history, commit) && (
-            <div className="online-warning" role="status">
-              {t("onlineReport.stale")}
-            </div>
-          )}
+          {commit.commit_id === effective?.commit_id &&
+            history &&
+            !reportIsCurrent(history, commit) && (
+              <div className="online-warning" role="status">
+                {t("onlineReport.stale")}
+              </div>
+            )}
           {tab === "history" && history ? (
             <RevisionHistory
               history={

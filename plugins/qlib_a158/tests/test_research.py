@@ -101,7 +101,7 @@ def test_research_publishes_real_children_and_uses_explicit_prediction_etl(tmp_p
                 "early_stopping_rounds": 3,
             },
             "predict": {"pred_end": days[95]},
-            "backtest": {"top_ns": [5]},
+            "portfolio": {"top_ns": [5]},
             "analysis": {"minimum_daily_samples": 5},
         },
         workspace_path=tmp_path,
@@ -109,10 +109,29 @@ def test_research_publishes_real_children_and_uses_explicit_prediction_etl(tmp_p
     )
     status = executor.execute(task)
     assert status.state == TaskState.SUCCEEDED
-    assert [child.node_name for child in status.children] == ["etl", "analysis", "train", "predict", "backtest"]
+    assert [child.node_name for child in status.children] == [
+        "etl",
+        "analysis",
+        "train",
+        "predict",
+        "portfolio",
+        "backtest",
+    ]
     stages = task.output["stage_task_ids"]
+    etl = read_entry(tmp_path, stages["etl"])
+    assert etl.output_params["artifacts"]["statistics"]["path"] == "alpha158_stats.csv"
+    for stage in ("etl", "analysis"):
+        producer = read_entry(tmp_path, stages[stage])
+        for artifact in producer.output_params["artifacts"].values():
+            path = task.upstream_task_dir(producer.task_id) / artifact["path"]
+            if path.suffix == ".parquet":
+                frame = pl.read_parquet(path)
+            else:
+                assert path.name.endswith("_stats.csv")
+                frame = pl.read_csv(path)
+            assert frame.height > 0
     backtest = read_entry(tmp_path, stages["backtest"])
-    assert backtest.output_params["universes"]["all"]["date_range"]["end"] == days[95]
+    assert backtest.output_params["portfolios"][0]["date_range"]["end"] == days[95]
     predict = read_entry(tmp_path, stages["predict"])
     assert predict.input_params["upstream_task_ids"] == [stages["train"], stages["etl"]]
     replacement = Alpha158Task(
@@ -164,8 +183,8 @@ def test_research_owns_dependencies_and_derives_prediction_cutoff():
     assert "input_dir" in Alpha158Task.input_cls.model_json_schema()["properties"]
 
 
-@pytest.mark.parametrize("backtest_registration", ["qlib_a158_backtest", "qlib_strategy_backtest"])
-def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalog, backtest_registration):
+@pytest.mark.parametrize("portfolio_registration", ["qlib_a158_portfolio", "qlib_strategy_portfolio"])
+def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalog, portfolio_registration):
     days = market
     executor = TaskExecutor(resolve_task=catalog.resolve)
 
@@ -192,10 +211,11 @@ def test_factor_and_strategy_exchange_current_artifacts(tmp_path, market, catalo
         "qlib_a158_predict", upstream_task_ids=[train.task_id, etl.task_id], pred_start=days[85], pred_end=days[95]
     )
     assert predict.output["protocol"]["market_upstream_task_id"] == etl.task_id
-    backtest = run(backtest_registration, upstream_task_ids=[predict.task_id], top_ns=[5])
-    assert backtest.output["universes"]["all"]["date_range"]["end"] == days[95]
-    if backtest_registration == "qlib_strategy_backtest":
-        assert backtest.output["protocol"]["strategy"] == "rank_retention"
+    portfolio = run(portfolio_registration, upstream_task_ids=[predict.task_id], top_ns=[5])
+    backtest = run("qlib_a158_backtest", upstream_task_ids=[portfolio.task_id])
+    assert backtest.output["portfolios"][0]["date_range"]["end"] == days[95]
+    if portfolio_registration == "qlib_strategy_portfolio":
+        assert backtest.output["portfolios"][0]["portfolio_id"]["strategy"]["kind"] == "rank_retention"
 
 
 @pytest.mark.parametrize("registration", ["qlib_a158_train", "qlib_a158_analysis"])
@@ -227,14 +247,14 @@ def test_parameter_comparison_records_current_execution_provenance(tmp_path, mar
             "labels": ["rank", "csz"],
             "train": {"train_start": market[60], "train_end": market[85], "num_threads": 1, "num_boost_round": 4},
             "predict": {"pred_start": market[85], "pred_end": market[95]},
-            "backtest": {"top_ns": [5]},
+            "portfolio": {"top_ns": [5]},
         },
         workspace_path=tmp_path,
         reg_name="qlib_a158_compare",
     )
     TaskExecutor(resolve_task=catalog.resolve).execute(task)
     output = task.task_dir
-    assert len(task.children) == 12
+    assert len(task.children) == 16
     assert output == tmp_path / "tasks/analysis" / task.task_id
     assert set(task.output["artifacts"]) == {"summary", "comparison"}
     saved = json.loads((output / "comparison.json").read_text())
@@ -245,8 +265,8 @@ def test_parameter_comparison_records_current_execution_provenance(tmp_path, mar
             metadata = read_entry(tmp_path, task_id)
             assert metadata.exit_code == 0
             assert record["started_at"][stage] == metadata.model_dump(mode="json", include={"started_at"})["started_at"]
-    summary = pl.read_csv(output / "summary.csv")
-    assert set(summary["universe"]) == {"all", "hs300"}
+    summary = pl.read_csv(output / "summary_stats.csv")
+    assert {json.loads(value)["universe"]["kind"] for value in summary["portfolio_id"]} == {"all", "index"}
     assert set(summary["label"]) == {"rank", "csz"}
 
 

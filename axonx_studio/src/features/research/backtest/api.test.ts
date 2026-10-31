@@ -16,23 +16,20 @@ const meta: BacktestArtifact = {
   task_type: "backtest",
   output_params: {
     protocol: { version: 1, task_type: "backtest" },
-    signals_format: "stock-signals-v1",
-    default_universe: "all",
-    universes: {
-      all: {
-        label: "All market",
-        parameters: {},
+    signals_format: "stock-signals-v3",
+    portfolios: [
+      {
+        portfolio_id: { universe: { kind: "all" }, top_n: 1 },
         dimensions: { top_ns: [1], holding_detail_top_n: 30, benchmarks: [] },
         date_range: { start: "20260105", end: "20260106" },
         days: 2,
         evaluation_status: "done",
-        artifacts: { daily: "daily", summary: "summary", signals: "signals" },
+        artifacts: { daily: "daily", summary: "summary" },
       },
-    },
+    ],
     artifacts: {
       daily: file,
       summary: { ...file, path: "summary.parquet" },
-      signals: { ...file, path: "signals.parquet" },
     },
   },
 };
@@ -47,7 +44,7 @@ it("loads current signals metadata through both report readers with pagination a
     } as Awaited<ReturnType<typeof previewWorkspaceFile>>)
     .mockResolvedValueOnce(table([{ trade_date: "20260106" }]));
   expect(
-    await loadBacktestDaily(meta, "all", {
+    await loadBacktestDaily(meta, "0", {
       target: "remote",
       signal: controller.signal,
     }),
@@ -62,7 +59,7 @@ it("loads current signals metadata through both report readers with pagination a
   );
   vi.mocked(previewWorkspaceFile).mockResolvedValue(table([]));
   await expect(
-    loadBacktest(meta, "all", { target: "remote", signal: controller.signal }),
+    loadBacktest(meta, "0", { target: "remote", signal: controller.signal }),
   ).resolves.toEqual({ daily: [], summary: [] });
 });
 it.each([loadBacktest, loadBacktestDaily])(
@@ -82,7 +79,7 @@ it.each([loadBacktest, loadBacktestDaily])(
       },
     ]) {
       await expect(
-        load(invalid as unknown as BacktestArtifact, "all"),
+        load(invalid as unknown as BacktestArtifact, "0"),
       ).rejects.toThrow(i18n.t("backtest.errors.signalsFormat"));
     }
     expect(previewWorkspaceFile).not.toHaveBeenCalled();
@@ -92,9 +89,9 @@ it.each([loadBacktest, loadBacktestDaily])(
 it("rejects a missing universe instead of loading top-level artifacts", async () => {
   await expect(
     loadBacktest(
-      { ...meta, output_params: { ...meta.output_params, universes: {} } },
-      "all",
+      { ...meta, output_params: { ...meta.output_params, portfolios: [] } },
+      "0",
     ),
-  ).rejects.toThrow(i18n.t("backtest.errors.missingUniverse"));
+  ).rejects.toThrow(i18n.t("backtest.errors.missingPortfolio"));
   expect(previewWorkspaceFile).not.toHaveBeenCalled();
 });

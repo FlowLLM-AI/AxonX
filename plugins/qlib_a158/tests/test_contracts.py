@@ -44,10 +44,11 @@ def test_all_shipped_registrations_resolve_with_current_schemas():
         "qlib_a158_compare",
         "qlib_a158_train",
         "qlib_a158_predict",
+        "qlib_a158_portfolio",
         "qlib_a158_backtest",
         "qlib_factor_etl",
         "qlib_factor_train",
-        "qlib_strategy_backtest",
+        "qlib_strategy_portfolio",
     }
     assert {definition.name for definition in definitions if definition.name.startswith("qlib_")} == expected
     for definition in definitions:
@@ -89,7 +90,12 @@ def test_documented_plugin_commands_match_current_contracts(name, readme):
         for line in body.replace("\\\n", " ").splitlines():
             if not line.strip().startswith("axonx "):
                 continue
-            for stage, task_type in [("etl", "etl"), ("train", "train"), ("predict", "predict")]:
+            for stage, task_type in [
+                ("etl", "etl"),
+                ("train", "train"),
+                ("predict", "predict"),
+                ("portfolio", "portfolio"),
+            ]:
                 line = line.replace(f"<{stage}_task_id>", f"{task_type}#qlib_a158_{stage}#example")
             command, _ = parse_command(shlex.split(line, comments=True)[1:])
             if command.action == "plugin":

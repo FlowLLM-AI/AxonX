@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md) · [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
 
-AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的量化插件，提供数据处理、因子分析、模型训练、样本外预测和 TopN 回测。
+AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的离线量化研究插件，提供数据处理、因子分析、模型训练、样本外预测、组合构建和 TopN 回测。Task 以已准备好的历史 Parquet 数据为输入。
 
 使用 158 个价量特征作为研究基线。需要环境增强特征与消融实验时，参见 [Qlib Factor](../qlib_factor/README_ZH.md)。
 
@@ -18,7 +18,7 @@ AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的量化插件，提供
 | 标签   | T→T+1 收盘收益，默认日截面 rank；两侧各剔除 2.5%                                  | T+1→T+2 收盘收益，DropnaLabel + CSZScoreNorm（样本标准差）   |
 | 训练   | 末尾 10% 日期验证选轮数，再重拟合全部训练期；剔除跨截止日标签                     | 独立 train/valid/test，保留早停模型                          |
 | 交易   | 当日收盘报价代理、官方涨跌停价格及分板块回退、默认买入 0.05% / 卖出 0.15%         | 次日收盘、统一 9.5% 阈值、买入 0.05% / 卖出 0.15%，最低 5 元 |
-| 策略   | 固定持有期 TopN；排名保留策略留在策略插件                                         | Top50、最多替换 5 只、95% 现金分配                           |
+| 策略   | Portfolio 定义 TopN 策略；各组合的 `portfolio_id` 记录策略与参数                  | Top50、最多替换 5 只、95% 现金分配                           |
 | 评价   | 复利净权益与 252 日年化；HS300 成分加权收益是代理基准                             | CSI300 指数行情；风险分析默认算术累计                        |
 
 每阶段 metadata 记录 `qlib_reference` / `qlib_deviations`，用于追踪参考版本和方案差异。
@@ -119,14 +119,14 @@ ETL 从输出起始日前读取最长滚动窗口所需的市场日；更早且�
 
 ## 一次执行研究流程
 
-`qlib_a158_research` 使用普通子 Task 执行 ETL → Train → Predict → Backtest；提供 `analysis` 时还会从 ETL 分支运行因子分析。每个子任务有独立状态、日志和产物，父任务记录 `stage_task_ids`。
+`qlib_a158_research` 使用普通子 Task 执行 ETL → Train → Predict → Portfolio → Backtest；提供 `analysis` 时还会从 ETL 分支运行因子分析。每个子任务有独立状态、日志和产物，父任务记录 `stage_task_ids`。
 
 ```bash
 axonx exec --task qlib_a158_research --task-name baseline \
   --etl '{"start_date":"20150101","end_date":"20261008"}' \
   --train '{"train_start":"20150101","train_end":"20230101","parameter_preset":"axonx"}' \
   --predict '{"pred_end":"20261008"}' \
-  --backtest '{"top_ns":[5,10,20,30]}' \
+  --portfolio '{"top_ns":[5,10,20,30]}' \
   --analysis '{}'
 ```
 
@@ -138,13 +138,14 @@ axonx exec --task qlib_a158_research --task-name baseline \
 
 ## 任务与执行
 
-| Task                 | 上游             | 产物                                 |
-| -------------------- | ---------------- | ------------------------------------ |
-| `qlib_a158_etl`      | 工作区行情数据   | 特征、标签、交易状态和统计           |
-| `qlib_a158_analysis` | ETL 任务标识     | 因子诊断与分析结果                   |
-| `qlib_a158_train`    | ETL 任务标识     | 模型、训练协议、验证曲线和特征重要性 |
-| `qlib_a158_predict`  | Train + 可选 ETL | 全横截面预测与预测统计               |
-| `qlib_a158_backtest` | Predict 任务标识 | 日级回测、分期汇总与持仓相关产物     |
+| Task                  | 上游               | 产物                                 |
+| --------------------- | ------------------ | ------------------------------------ |
+| `qlib_a158_etl`       | 工作区行情数据     | 特征、标签、交易状态和统计           |
+| `qlib_a158_analysis`  | ETL 任务标识       | 因子诊断与分析结果                   |
+| `qlib_a158_train`     | ETL 任务标识       | 模型、训练协议、验证曲线和特征重要性 |
+| `qlib_a158_predict`   | Train + 可选 ETL   | 全横截面预测与预测统计               |
+| `qlib_a158_portfolio` | Predict 任务标识   | 冻结的组合计划、信号排名与策略身份   |
+| `qlib_a158_backtest`  | Portfolio 任务标识 | 日级回测、分期汇总与持仓相关产物     |
 
 因子分析从 ETL 分支执行，不是训练的前置任务。按以下顺序提交；从执行日志记录 Task ID，等待任务成功后再提交下游。
 
@@ -161,8 +162,8 @@ axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008
 
 # 预测成功后
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
-  --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<predict_task_id>"]' --top-ns '[5,10,20,30]'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 使用 `axonx get_task_def --task qlib_a158_train` 检查输入输出 schema。远程执行和定义查询都加上同一个 `--target`，使用目标服务的 Python 环境。
@@ -218,7 +219,7 @@ axonx exec --task qlib_a158_compare --task-name preset-comparison \
   --workspace-dir /tmp/axonx-research --upstream-task-ids '["<etl_task_id>"]' --labels '["rank","csz"]'
 ```
 
-比较任务使用普通 CLI 执行配置和子任务生命周期，`summary.csv` 与 `comparison.json` 记录各阶段 Task ID、`started_at` 和输入版本。嵌套的 `train`、`predict`、`backtest` 选项复用对应阶段参数及默认值；`predict.pred_start` 必须不早于 `train.train_end`。子任务名字、依赖、训练预设与标签、回测输入与截止日由比较任务控制，不接受对应嵌套选项。
+比较任务使用普通 CLI 执行配置和子任务生命周期，`summary_stats.csv` 与 `comparison.json` 记录各阶段 Task ID、`started_at` 和输入版本。嵌套的 `train`、`predict`、`backtest` 选项复用对应阶段参数及默认值；`predict.pred_start` 必须不早于 `train.train_end`。子任务名字、依赖、训练预设与标签、回测输入与截止日由比较任务控制，不接受对应嵌套选项。
 
 ## 实验记录
 

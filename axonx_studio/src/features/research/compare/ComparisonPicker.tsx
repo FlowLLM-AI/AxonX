@@ -101,7 +101,13 @@ export function ComparisonPicker({
               <span
                 className={`compare-slot-badge${idA === task.task_id ? " slot-a" : idB === task.task_id ? " slot-b" : ""}`}
               >
-                {idA === task.task_id ? "A" : idB === task.task_id ? "B" : "+"}
+                {idA === task.task_id && idB === task.task_id
+                  ? "A/B"
+                  : idA === task.task_id
+                    ? "A"
+                    : idB === task.task_id
+                      ? "B"
+                      : "+"}
               </span>
             </button>
           </article>

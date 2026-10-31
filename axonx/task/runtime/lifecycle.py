@@ -16,9 +16,7 @@ from ...utils.logging import get_logger
 from ..models.identity import TaskState, is_generated_task_name, task_type_from_id
 from ..models.lifecycle import TaskMetadata
 from ..storage.files import file_lock
-from ..storage.logs import TaskJournal
 from ..storage.workspace import (
-    EVENTS_FILE,
     PERSISTENT_DIR,
     load_task_metadata,
     read_task_metadata,
@@ -27,9 +25,9 @@ from ..storage.workspace import (
     scan_entries,
     task_directory,
     task_path,
-    write_task_metadata,
 )
 from .process import machine_id, process_instance, signal_process, wait_processes
+from .progress import TaskProgress
 
 if TYPE_CHECKING:
     from ..core.base import BaseTask
@@ -119,9 +117,7 @@ def reconcile_record(directory: Path, metadata: TaskMetadata) -> TaskMetadata:
         if child.state != TaskState.RUNNING:
             continue
         child.state, child.exit_code, child.error = TaskState.FAILED, 1, reason
-    TaskJournal(directory / EVENTS_FILE).append_snapshots(metadata.steps)
-    write_task_metadata(directory, metadata)
-    TaskJournal(directory / PERSISTENT_DIR / "runs.jsonl").append_run(metadata)
+    TaskProgress(directory, metadata).publish()
     get_logger("task").warning(
         f"Reconciled stale Task task_id={metadata.task_id} machine_id={metadata.machine_id} "
         f"started_at={metadata.started_at.isoformat()} state=running->failed: {reason}"

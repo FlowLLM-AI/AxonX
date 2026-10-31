@@ -206,6 +206,7 @@ example_plugin = ["plugin.yaml"]
 
 - 输入/输出继承对应 Pydantic 模型，未声明的 Task 入参会被拒绝。步骤同步执行，通过 `self.state` 传值，`build_output_params()` 返回 `output_cls` 实例。
 - 输出文件写入 `self.task_dir`，跨同名重跑保留的状态写入 `self.persistent_dir`；研究输入路径使用 `self.resolve_workspace_path()`。用 `report_progress()` 报告进度，在 `close()` 中释放资源；输出在清理后构建，须保留所需状态。
+- 执行中用 `self.resolve_task(reg_name)` 获取声明的 Task 类及 `input_cls`；注册解析由执行环境注入，不导入宿主。可选的 `self.input_budget` 由子任务继承，执行器在步骤边界检查截止时间。
 - 用 `upstream_task_ids` 声明数据依赖，它不会自动执行上游。用 `self.run_task(...)` 同步调用子任务，并检查返回的 `success`、`child_task_id` 和类型化 `output_params`。父子调用与输入依赖是两种关系。
 - 子任务共享进程与工作区，默认继承父实例名；同一注册名和实例名会复用同一目录，多次调用需使用不同 `task_name` 或先固定产物。
 
@@ -213,16 +214,17 @@ example_plugin = ["plugin.yaml"]
 
 研究基类在 `axonx.task.core.research`，输入/输出在 `axonx.task.models.params`，协议在 `axonx.task.models.artifacts`。标准研究输出的主要必填字段：
 
-| 阶段           | 字段                                             |
-| -------------- | ------------------------------------------------ |
-| ETL / Analysis | ETL：`rows`、`date_range`；Analysis：`rows`      |
-| Train          | `train_rows`                                     |
-| Predict        | `rows`、`date_range`、`protocol`                 |
-| Backtest       | `default_universe`、非空 `universes`、`protocol` |
+| 阶段           | 字段                                        |
+| -------------- | ------------------------------------------- |
+| ETL / Analysis | ETL：`rows`、`date_range`；Analysis：`rows` |
+| Train          | `feature_protocol`, `models`                |
+| Predict        | `rows`、`date_range`、`protocol`            |
+| Portfolio      | `portfolios`、`protocol`                    |
+| Backtest       | 非空 `portfolios`、`protocol`               |
 
-先写文件，再用 `axonx.task.storage.artifacts.artifact_record(path, task_dir)` 注册到输出 `artifacts`；记录包含 Task 相对路径、大小和 revision。原子写入与快照复用 `axonx.task.storage.files`。`verify_artifact()` 核验文件，revision 是大小/修改时间标识，并非内容哈希。`axonx.task.storage.inputs` 的 `pin_upstream_artifacts()` 可核验并固定成功、非副本上游的产物；业务兼容性仍由插件检查。
+先写文件，再用 `axonx.task.storage.artifacts.artifact_record(path, task_dir)` 注册到输出 `artifacts`；记录包含 Task 相对路径、大小和 revision。原子写入与输出复制复用 `axonx.task.storage.files`。`verify_artifact()` 核验文件，revision 是大小/修改时间标识，并非内容哈希。`axonx.task.storage.inputs` 的 `upstream_artifacts()` 直接读取成功、非副本上游的产物，metadata 的 `input_sources` 记录来源执行和文件修订，执行成功前再次校验；业务兼容性仍由插件检查。
 
-复用协议时使用 `version=1` 和正确的 `task_type`。Qlib 训练发布模型清单，预测发布模型身份、日期、评分列与输入修订；股票 ETL 分离数据、标签、行情和日历，预测不能含未来标签。股票回测可继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，实现 `build_universes()` 与 `select_universe()`，沿用信号、股池、成交和估值协议，勿另造不兼容格式。
+复用协议时使用 `version=1` 和正确的 `task_type`。训练在一个 Task metadata 中索引所有模型，预测发布模型身份、日期、评分列与输入修订；股票 ETL 分离数据、标签、行情和日历，预测不能含未来标签。股票组合 Task 继承 `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask`，实现信号时点的 `build_universes()` 与 `select_universe()`。回测继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，消费冻结的 Portfolio 产物，沿用成交和估值协议。
 
 在临时工作区运行受影响测试，再做小范围实际运行：
 
@@ -307,6 +309,10 @@ axonx get_task_def --task example_add --target node-b:1024
 
 本地服务采用相同流程，省略 target。安装/重启响应成功不等于新代码已验证；实际运行前先完成刷新。服务重启会终止它拥有的手动 CLI 执行，不能在研究中途随意重启。
 
+### Portfolio 与 Backtest
+
+研究链路使用 Predict → Portfolio → Backtest。组合基类是 `BasePortfolioTask`，股票实现是 `BaseStockPortfolioTask`。组合输出 `portfolios` 列表与明文 `portfolio_id` dict；同一语义使用相同 key，不同生产者可增加字段。组合固定信号资格、排名及策略规则。每个股票组合引用 Predict 输入，所有 N 与策略共用一份完整候选 `rankings.parquet`。仅新增聚合分数写入 `scores.parquet`，未改变的分数引用上游列。metadata 保存明文身份、股票池与文件引用。`PortfolioReader` 校验来源执行及修订并恢复信号，目标及等槽位权重按排名和 `top_n` 派生；Backtest 不复制信号。Backtest 消费组合上游并执行统一账本、估值与绩效统计。费用和评价参数放在 Backtest。在线与离线共用预测及组合构建逻辑，Compare 读取固定发布的预测、Portfolio 与在线历史，比较身份、排名、目标和账本。
+
 ## 4. 运行 Task 并检查证据
 
 先确认 Task Schema、数据覆盖和所需凭据。行情凭据与 AxonX 服务 token 不同；远程执行使用目标机的数据、路径与环境，本机 `export` 不会配置远端服务。
@@ -322,6 +328,8 @@ axonx get_task_graph --task-id 'base#demo#check'
 ```
 
 `exec` 同步运行，结束后返回业务输出与 Task 退出码；长任务在另一终端或工具调用中观察。远程执行及全部查询加同一个 `--target`，终端持续显示执行输出。远程断连后执行可能继续，重试前查记录，停止执行使用 `kill`。
+
+Task 状态与退出码描述程序执行错误。比对差异、待比对数据缺失、协议检查结论以及已处理的不完整/跳过窗口保留在业务输出中，不使已完成的 Task 失败；异常和记录的执行错误才使执行失败。比对视图必须在 Task 成功时继续展示差异。
 
 ```bash
 axonx exec --task demo --task-name remote-check --x 1 --y 2 --target node-b:1024
@@ -348,9 +356,8 @@ axonx exec --task qlib_a158_train --task-name research-01 \
 axonx exec --task qlib_a158_predict --task-name research-01 \
   --upstream-task-ids '["train#qlib_a158_train#research-01","etl#qlib_a158_etl#research-01"]' \
   --pred-start 20230101 --pred-end 20231231
-axonx exec --task qlib_a158_backtest --task-name research-01 \
-  --upstream-task-ids '["predict#qlib_a158_predict#research-01"]' \
-  --top-ns '[20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx exec --task qlib_a158_portfolio --task-name research-01 --upstream-task-ids '["predict#qlib_a158_predict#research-01"]' --top-ns '[20,30]'
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 下载写入共享 `tushare/` 分区，默认回溯 7 天不足以支持多年训练。检查原始历史、滚动特征所需长度和数据权限，缺失行情不能解释为零收益。训练结束日不包含在训练区间，预测不得早于训练结束，预测和选股不能使用未来标签。
@@ -378,7 +385,7 @@ Task ID 为 `task_type#registration#task_name`，实例名为 1–32 个字母�
 
 `status`/`wait_task` 默认摘要，`--detail full` 返回完整输入输出；`get_task_context` 提供完整选中记录、路径和输入关系。日志用 `next_offset` 续读，`--started-at TIMESTAMP` 可防止读到同名新执行。列表与图可能有索引刷新延迟，单任务状态直接读取 metadata。
 
-固定名字保存在 `<workspace>/tasks/<task_type>/<task_id>/`；匹配 `YYYYMMDDHH` 加四位字母数字的名字（包括继承名字）保存在 `<workspace>/tmp/tasks/<task_type>/<task_id>/`。两者包含 `metadata.json`、`events.jsonl`、相对 Task 目录的 `log_path`（启用文件日志时为 `task.log`）及 `persistent/runs.jsonl`。执行器为所有 Task 类型统一追加 `started`、`finished` 事件及完整执行元信息，同名重跑保留该日志；执行期间复用 `persistent/task.lock` 文件锁，不创建全局锁目录。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
+固定名字保存在 `<workspace>/tasks/<task_type>/<task_id>/`；匹配 `YYYYMMDDHH` 加四位字母数字的名字（包括继承名字）保存在 `<workspace>/tmp/tasks/<task_type>/<task_id>/`。两者包含 `metadata.json`、`events.jsonl`、相对 Task 目录的 `log_path`（启用文件日志时为 `task.log`）及 `persistent/history.jsonl`。每次 Task 结束后，执行器追加一行完整的终态元信息 JSON，同名重跑保留该历史；执行期间复用 `persistent/task.lock` 文件锁，不创建全局锁目录。从输出 `artifacts` 取实际文件名，将 Task 目录与产物相对路径组合后预览：
 
 ```bash
 axonx list_entries --path ''

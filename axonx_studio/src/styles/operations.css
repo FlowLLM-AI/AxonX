@@ -161,6 +161,9 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.online-warning > button {
+  justify-self: start;
+}
 @media (max-width: 600px) {
   .online-report-toolbar label {
     flex-wrap: wrap;

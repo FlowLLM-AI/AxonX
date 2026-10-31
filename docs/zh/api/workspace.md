@@ -54,12 +54,13 @@
 
 预览工作区内一个受支持格式的文件。
 
-| 参数        | 类型      | 必填 | 默认/约束                                    |
-| ----------- | --------- | ---- | -------------------------------------------- |
-| `max_bytes` | `integer` | 否   | `{"minimum":1,"maximum":33554432}`           |
-| `path`      | `string`  | 是   | `—`                                          |
-| `offset`    | `integer` | 否   | `{"minimum":0,"default":0}`                  |
-| `limit`     | `integer` | 否   | `{"minimum":1,"maximum":5000,"default":200}` |
+| 参数            | 类型      | 必填 | 默认/约束                                    |
+| --------------- | --------- | ---- | -------------------------------------------- |
+| `allow_missing` | `boolean` | 否   | `{"default":false}`                          |
+| `max_bytes`     | `integer` | 否   | `{"minimum":1,"maximum":33554432}`           |
+| `path`          | `string`  | 是   | `—`                                          |
+| `offset`        | `integer` | 否   | `{"minimum":0,"default":0}`                  |
+| `limit`         | `integer` | 否   | `{"minimum":1,"maximum":5000,"default":200}` |
 
 ```json
 {
@@ -70,6 +71,8 @@
   }
 }
 ```
+
+对尚未产出的文件可设置 `allow_missing: true`：文件不存在时成功返回 `answer: null`，默认仍将缺失视为错误。无效路径、权限异常和文件内容损坏保留原有报错或 `parse_error` 行为。
 
 ## delete_entries
 

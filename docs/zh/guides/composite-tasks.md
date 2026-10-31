@@ -36,7 +36,7 @@ class DemoChainTask(BaseTask):
 
 ## 失败与阶段屏障
 
-`run_task` 在子任务完成后返回，检查 result.success、child_task_id、record 和 output。默认 on_error=stop 抛出 ChildTaskError；continue 保留失败记录并可继续后续工作，但父任务默认退出策略仍报告失败。只有明确处理的业务失败才应覆盖 exit_code。
+`run_task` 在子任务完成后返回，检查 result.success、child_task_id、record 和 output。默认 on_error=stop 抛出 ChildTaskError；continue 保留失败记录并可继续后续工作，但父任务默认退出策略仍报告失败。只有明确处理了执行错误才应覆盖 exit_code；正常完成的业务结论保留在输出字段中。
 
 输入依赖需要显式传 upstream_task_ids，父子包含关系不建立这些边。node_name 标识调用和尝试，task_name 选择目录。重复调用同注册/名称会替换当前输出，应先消费或固定产物。
 

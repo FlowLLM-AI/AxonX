@@ -1,2 +1,2 @@
 tasks:
-  qlib_strategy_backtest: axonx_qlib_strategy.backtest:StrategyBacktestTask
+  qlib_strategy_portfolio: axonx_qlib_strategy.portfolio:StrategyPortfolioTask

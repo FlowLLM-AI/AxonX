@@ -1,4 +1,4 @@
-"""Atomic writes, verified file snapshots and exclusive publication leases."""
+"""Atomic writes, verified output copies and exclusive publication leases."""
 
 from __future__ import annotations
 
@@ -43,14 +43,13 @@ def file_revision(path: Path) -> str:
     return f"{stat.st_size}:{stat.st_mtime_ns}"
 
 
-def snapshot_file(
+def copy_file(
     source: Path,
     target: Path,
     *,
-    isolated: bool = False,
     expected_revision: str | None = None,
 ) -> None:
-    """Link immutable inputs, or copy when isolation or another filesystem requires it."""
+    """Copy a published output atomically and reject concurrent source changes."""
     source = Path(source).resolve(strict=True)
     before = source.stat()
     revision = f"{before.st_size}:{before.st_mtime_ns}"
@@ -58,14 +57,7 @@ def snapshot_file(
         raise ValueError(f"Source revision mismatch: {source}")
 
     def copy(temporary):
-        if isolated:
-            shutil.copy2(source, temporary)
-        else:
-            temporary.unlink()
-            try:
-                os.link(source, temporary)
-            except OSError:
-                shutil.copy2(source, temporary)
+        shutil.copy2(source, temporary)
         after = source.stat()
         if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
             after.st_dev,
@@ -73,7 +65,7 @@ def snapshot_file(
             after.st_size,
             after.st_mtime_ns,
         ) or file_revision(temporary) != revision:
-            raise ValueError(f"Source changed during snapshot: {source}")
+            raise ValueError(f"Source changed during copy: {source}")
 
     atomic_write(target, copy)
 

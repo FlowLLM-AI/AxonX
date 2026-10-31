@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import polars as pl
 
 from .data import (
-    KEYS,
     MARKET_COLUMNS,
     SIGNAL_COLUMNS,
     normalize_calendar,
@@ -44,10 +43,9 @@ def run_backtest(
     *,
     as_of_date: str,
     policy: PortfolioPolicy | None = None,
-    universe_keys: pl.DataFrame | None = None,
     events=None,
 ) -> BacktestResult:
-    """Replay each Top N independently; optional events supply reset/apply/blocked hooks."""
+    """Evaluate each Top N independently; optional events supply reset/apply/blocked hooks."""
     _validate_config(config, policy)
     signals, market = normalize_keys(signals), normalize_keys(market)
     for frame, required in ((signals, SIGNAL_COLUMNS), (market, MARKET_COLUMNS)):
@@ -92,9 +90,20 @@ def run_backtest(
     dates = [date for date in all_dates if first_date <= date <= as_of_date]
     if not dates:
         raise ValueError("No calendar dates within evaluation cutoff")
-    targets = _candidates(
-        signals.filter(pl.col("trade_date") <= as_of_date), _validate_universe_keys(signals, universe_keys)
+    if not {"is_portfolio_candidate", "target_rank"} <= set(signals.columns):
+        raise ValueError("Backtest requires prepared Portfolio signals")
+    if signals.schema["is_portfolio_candidate"] != pl.Boolean or signals["is_portfolio_candidate"].null_count():
+        raise ValueError("Portfolio candidate flags must be non-null Boolean")
+    if signals.filter(pl.col("is_portfolio_candidate") != pl.col("target_rank").is_not_null()).height:
+        raise ValueError("Portfolio ranks and candidate flags disagree")
+    targets = signals.filter((pl.col("trade_date") <= as_of_date) & pl.col("is_portfolio_candidate")).sort(
+        ["trade_date", "target_rank"]
     )
+    if targets.filter(
+        ~(pl.col("is_model_candidate") & pl.col("is_buyable_at_signal"))
+        | (pl.col("target_rank") != pl.int_range(1, pl.len() + 1).over("trade_date"))
+    ).height:
+        raise ValueError("Invalid frozen portfolio eligibility or ranks")
     market_days = {
         key[0]: frame
         for key, frame in market.filter(pl.col("trade_date").is_between(pl.lit(dates[0]), pl.lit(dates[-1])))
@@ -111,7 +120,7 @@ def run_backtest(
     by_date = {key[0]: frame.head(maximum_n).to_dicts() for key, frame in candidate_days.items()}
     ledger = PortfolioLedger(config, all_dates, slot, policy=policy, events=events)
     for n in config.top_ns:
-        ledger.replay(n, dates, market_days, by_date, ranks_by_date, signal_dates)
+        ledger.run(n, dates, market_days, by_date, ranks_by_date, signal_dates)
     output, targets, benchmarks = daily_output(dates, ledger.daily, signals, targets, labels, as_of_date, config)
     frames = {
         "daily": output,
@@ -122,37 +131,6 @@ def run_backtest(
             config.annualization_days,
             config.top_ns,
         ),
-        "signals": signals.join(
-            targets.select(
-                *KEYS,
-                pl.lit(True).alias("is_backtest_candidate"),
-                "target_rank",
-                pl.col("_target_return").alias("label_return"),
-            ),
-            on=list(KEYS),
-            how="left",
-            validate="1:1",
-            maintain_order="left",
-        ).with_columns(pl.col("is_backtest_candidate").fill_null(False)),
         **ledger.frames(),
     }
     return BacktestResult(frames, benchmarks, "incomplete_market_data" if ledger.incomplete else "done")
-
-
-def _validate_universe_keys(signals, universe_keys):
-    if universe_keys is None:
-        return None
-    keys = normalize_keys(universe_keys.select(*KEYS))
-    validate_keys(keys)
-    if keys.join(signals.select(*KEYS), on=list(KEYS), how="anti").height:
-        raise ValueError("Universe keys must be a subset of prediction keys")
-    return keys
-
-
-def _candidates(signals: pl.DataFrame, universe_keys: pl.DataFrame | None) -> pl.DataFrame:
-    candidates = signals.filter(pl.col("is_model_candidate") & pl.col("is_buyable_at_signal"))
-    if universe_keys is not None:
-        candidates = candidates.join(universe_keys, on=list(KEYS), how="semi")
-    return candidates.sort(["trade_date", "pred", "ts_code"], descending=[False, True, False]).with_columns(
-        pl.int_range(1, pl.len() + 1).over("trade_date").alias("target_rank")
-    )

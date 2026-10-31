@@ -96,6 +96,35 @@ def test_structured_preview_preserves_errors_and_partial_content(tmp_path, filen
         assert partial.truncated and partial.data is None
 
 
+def test_optional_preview_distinguishes_absent_files_from_invalid_content_and_paths(tmp_path, monkeypatch):
+    workspace = Workspace(tmp_path)
+    assert workspace.preview_file("not-yet/published.json", allow_missing=True) is None
+    with pytest.raises(ValueError, match="does not exist"):
+        workspace.preview_file("not-yet/published.json")
+    (tmp_path / "null.json").write_text("null")
+    preview = workspace.preview_file("null.json", allow_missing=True)
+    assert isinstance(preview, StructuredPreview) and preview.data is None
+    (tmp_path / "invalid.json").write_text("{")
+    assert workspace.preview_file("invalid.json", allow_missing=True).parse_error
+    with pytest.raises(ValueError, match="parent traversal"):
+        workspace.preview_file("../missing.json", allow_missing=True)
+    (tmp_path / "link").symlink_to(tmp_path / "missing", target_is_directory=True)
+    with pytest.raises(ValueError, match="symlinks"):
+        workspace.preview_file("link/missing.json", allow_missing=True)
+    with pytest.raises(ValueError, match="not a file"):
+        workspace.preview_file("", allow_missing=True)
+    stat = Path.stat
+
+    def protected_stat(path, *args, **kwargs):
+        if path.name == "private.json":
+            raise PermissionError("Permission denied")
+        return stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", protected_stat)
+    with pytest.raises(PermissionError, match="Permission denied"):
+        workspace.preview_file("private.json", allow_missing=True)
+
+
 def test_jsonl_preview_keeps_typed_rows_and_invalid_record_errors(tmp_path):
     (tmp_path / "records.jsonl").write_text('{"x": 1}\nbad json\n{"x": 3}\n')
     preview = Workspace(tmp_path).preview_file("records.jsonl", offset=1, limit=1)

@@ -31,12 +31,13 @@ export const previewWorkspaceFile = (
     path,
     offset = 0,
     limit = 200,
-  }: { path: string; offset?: number; limit?: number },
+    allow_missing = false,
+  }: { path: string; offset?: number; limit?: number; allow_missing?: boolean },
   options: RequestOptions = {},
 ) =>
-  axonx.invoke<WorkspacePreview>(
+  axonx.invoke<WorkspacePreview | null>(
     "preview_file",
-    { path, offset, limit },
+    { path, offset, limit, ...(allow_missing ? { allow_missing: true } : {}) },
     options,
   );
 

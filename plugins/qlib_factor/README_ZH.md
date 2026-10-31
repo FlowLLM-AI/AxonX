@@ -2,9 +2,9 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_factor` 为 Alpha158 ETL 增加 13 个可选的市场矩、中性动量和风险特征，共输出 171 个特征列。训练按组选择，默认空分组列表使用 158 个基础特征。下方示例选择 `risk`，共 160 个特征。
+`qlib_factor` 是离线特征研究插件，为 Alpha158 ETL 增加 13 个可选的市场矩、中性动量和风险特征，共输出 171 个特征列。训练按组选择，默认空分组列表使用 158 个基础特征。下方示例选择 `risk`，共 160 个特征。
 
-训练继承基础插件的截止日隔离、末尾 10% 日期早停与全训练期重拟合。预测和普通回测复用基础插件。
+训练继承基础插件的截止日隔离、末尾 10% 日期早停与全训练期重拟合。特征分析、预测、组合构建和回测复用基础插件。
 
 ## 因子与时点
 
@@ -50,16 +50,15 @@ axonx exec --task qlib_factor_train --upstream-task-ids '["<etl_task_id>"]' \
   --context-groups '["risk"]' --feature-fraction 1.0 --target http://research.example:1024
 axonx exec --task qlib_a158_predict --upstream-task-ids '["<train_task_id>"]' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx exec --task qlib_a158_backtest --upstream-task-ids '["<predict_task_id>"]' \
-  --top-ns '[5,10,20,30]' --as-of-date 20261008 \
-  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<predict_task_id>"]' --top-ns '[5,10,20,30]' --target http://research.example:1024
+axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --as-of-date 20261008 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
 从执行日志或 `status --detail full` 保存 Task ID 和 `started_at`；仅在退出码为零且状态为 `succeeded` 后提交下游。`qlib_a158_analysis` 可作为增强 ETL 的因子诊断分支。安装修改所选解释器；新 CLI 进程发现已安装插件，定义查询和 Studio 则保留服务启动时的目录，直到重启。安装或核验失败时停止并报告。[Qlib Alpha158](../qlib_a158/README_ZH.md)
 
 ## 执行与配置
 
-使用标准 `axonx app` 配置。本插件注册 `qlib_factor_etl` 和 `qlib_factor_train`，其余阶段复用 `qlib_a158_analysis`、`qlib_a158_predict` 和 `qlib_a158_backtest`。日期、特征组和模型参数在每次执行时传入。预测可指定一个 Train 和一个可选兼容 ETL，用已有模型预测新数据。
+使用标准 `axonx app` 配置。本插件注册 `qlib_factor_etl` 和 `qlib_factor_train`，其余阶段复用 `qlib_a158_analysis`、`qlib_a158_predict`、`qlib_a158_portfolio` 和 `qlib_a158_backtest`。日期、特征组和模型参数在每次执行时传入。预测可指定一个 Train 和一个可选兼容 ETL，用已有模型预测新数据。
 
 ## 本地验证
 

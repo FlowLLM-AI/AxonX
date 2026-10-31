@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="764" viewBox="0 0 1280 764" role="img" aria-labelledby="title desc">
   <title id="title">Publish, read and synchronize research evidence</title>
-  <desc id="desc">TaskExecutor writes metadata, progress events and published artifacts under the type/Task-ID directory. Research consumers verify successful non-replica upstreams and pin input revisions. TaskIndex and Studio read evidence. Bounded synchronization copies display snapshots to another workspace; replicas cannot be research inputs. Raw data, logs and software require their own preservation.</desc>
+  <desc id="desc">TaskExecutor writes metadata, progress events and published artifacts under the type/Task-ID directory. Research consumers read successful non-replica upstreams directly and record input revisions. TaskIndex and Studio read evidence. Bounded synchronization copies display snapshots to another workspace; replicas cannot be research inputs. Raw data, logs and software require their own preservation.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" /></marker></defs>
   <rect x="8" y="8" width="1264" height="748" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
@@ -32,7 +32,7 @@
     <rect x="48" y="398" width="368" height="174" rx="20" fill="#e6f5ef" stroke="#9ccfbf" stroke-width="1.7" stroke-dasharray="8 6" />
     <text x="72" y="432" font-size="22" font-weight="700">Research consumer</text>
     <text x="72" y="464" font-size="17">Require a successful source Task</text>
-    <text x="72" y="490" font-size="17">Verify and pin upstream artifacts</text>
+    <text x="72" y="490" font-size="17">Read verified upstream artifacts</text>
     <text x="72" y="516" font-size="17">Check model / feature compatibility</text>
     <text x="72" y="542" font-size="17">Replicas cannot be input producers.</text>
     <rect x="456" y="398" width="368" height="174" rx="20" fill="#e8f1ff" stroke="#a7c4e6" stroke-width="1.7" stroke-dasharray="8 6" />

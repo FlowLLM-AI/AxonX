@@ -1,10 +1,10 @@
 import type { TaskMetadata } from "../../shared/api/contracts";
 import { compactDate } from "../../shared/lib/format";
-import { listTaskStatuses } from "../tasks/api";
 import type { TaskNode } from "../tasks/tree";
 import { loadHistory } from "./api";
 import {
   activeCommits,
+  parseStockReport,
   type OnlineHistory,
   type StockOnlineReport,
 } from "./report";
@@ -26,9 +26,7 @@ export function historyTaskRecords(parent: TaskMetadata) {
     ...new Map(
       parent.children
         .filter((record) =>
-          names.some(
-            (name) => record.node_name === `${name}-${record.reg_name}`,
-          ),
+          names.some((name) => record.node_name === `${name}-a_stock_history`),
         )
         .map((record) => [record.node_name, record]),
     ).values(),
@@ -49,7 +47,7 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
           .find(
             (child) =>
               child.child_task_id?.startsWith("inference#") &&
-              child.node_name === `${name}-${slot}-${child.reg_name}`,
+              child.node_name === `${name}-${slot}-a_stock_online_predict`,
           );
         const node = nodes.find(
           (item) =>
@@ -59,13 +57,22 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
         const outcomes = parent.output_params.models as
           Record<string, Record<string, unknown>> | undefined;
         const outcome = (outcomes?.[slot]?.[name] || outcomes?.[slot]) as
-          { status?: string; error?: string; reason?: string } | undefined;
+          | {
+              status?: string;
+              error?: string;
+              reason?: string;
+              report?: unknown;
+            }
+          | undefined;
         return {
           id: `${slot}:${name}`,
           slot,
           name,
           record,
           node,
+          report: outcome?.report
+            ? parseStockReport(outcome.report)
+            : node?.report,
           state:
             record?.state ||
             outcome?.status ||
@@ -94,8 +101,8 @@ export function dailyCommit(
   const history = modelHistory(model, histories)?.history;
   const commits = history
     ? activeCommits(history)
-    : model.node?.report
-      ? [model.node.report.commit]
+    : model.report
+      ? [model.report.commit]
       : [];
   return commits.find(
     (commit) => commit.trade_date === date && commit.trade_time === model.slot,
@@ -130,6 +137,7 @@ interface HistorySource {
   modelId: string;
   name: string;
   taskId: string;
+  published: boolean;
 }
 /** Retain each model's last good history independently when discovery or refresh fails. */
 export class SignalHistoryStore {
@@ -140,30 +148,22 @@ export class SignalHistoryStore {
     signal: AbortSignal,
   ): Promise<SignalHistory[]> {
     const { target, retained } = this;
+    const reads = new Map<string, Promise<unknown>>();
 
-    const [discovery] = await Promise.allSettled([
-      models.some((model) => !model.taskId)
-        ? listTaskStatuses({ target, signal })
-        : Promise.resolve([]),
-    ]);
     return Promise.all(
-      models.map(async ({ modelId, name, taskId }) => {
+      models.map(async ({ modelId, taskId, published }) => {
         const key = `${target}:${modelId}`;
         try {
-          if (!taskId) {
-            if (discovery.status === "rejected") throw discovery.reason;
-            const candidates = discovery.value.filter(
-              (task) =>
-                task.task_type === "inference" &&
-                task.report_kind === "online" &&
-                task.display_name === name,
-            );
-            if (candidates.length > 1)
-              throw new Error(`Ambiguous online history: ${name}`);
-            taskId = candidates[0]?.task_id || "";
-          }
+          const previous = retained.get(key);
           const history = taskId
-            ? await loadHistory(taskId, { target, signal })
+            ? await loadHistory(
+                taskId,
+                { target, signal },
+                !published &&
+                  !(previous?.taskId === taskId && previous.history),
+                modelId,
+                reads,
+              )
             : null;
           signal.throwIfAborted();
           const result = { modelId, taskId, history, error: "" };

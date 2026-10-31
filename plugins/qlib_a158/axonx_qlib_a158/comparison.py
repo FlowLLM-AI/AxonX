@@ -1,11 +1,12 @@
 """Compare label and LightGBM presets through observable child Tasks."""
 
+import json
 from typing import Literal, Self
 
 import polars as pl
 from pydantic import Field, model_validator
 
-from axonx.task.builtins.stock.models import StockBacktestInput
+from axonx.task.builtins.stock.models import StockBacktestInput, StockPortfolioInput
 from axonx.task.core.research import BaseAnalysisTask
 from axonx.task.models.identity import TaskType, generated_task_name
 from axonx.task.models.params import BaseInputParams
@@ -21,12 +22,13 @@ class ComparisonInputParams(BaseInputParams):
     labels: list[Literal["rank", "csz"]] = Field(default_factory=lambda: ["rank"], min_length=1)
     train: LgbmTrainInputParams = Field(default_factory=LgbmTrainInputParams)
     predict: LgbmPredictInputParams = Field(default_factory=LgbmPredictInputParams)
+    portfolio: StockPortfolioInput = Field(default_factory=StockPortfolioInput)
     backtest: StockBacktestInput = Field(default_factory=StockBacktestInput)
 
     @model_validator(mode="after")
     def validate_stages(self) -> Self:
         self.upstream_task_id(TaskType.ETL)
-        for name in ("train", "predict", "backtest"):
+        for name in ("train", "predict", "portfolio", "backtest"):
             params = getattr(self, name)
             if params.task_name is not None or params.upstream_task_ids:
                 raise ValueError(f"Comparison owns {name}.task_name and {name}.upstream_task_ids")
@@ -34,9 +36,11 @@ class ComparisonInputParams(BaseInputParams):
             raise ValueError("Comparison owns train.parameter_preset and train.label_column")
         if any(
             getattr(self.backtest, key) is not None
-            for key in ("input_file", "market_file", "calendar_file", "labels_file", "as_of_date")
+            for key in ("market_file", "calendar_file", "labels_file", "as_of_date")
         ):
             raise ValueError("Comparison owns the backtest's input artifacts and as_of_date")
+        if self.portfolio.input_file is not None or self.portfolio.score_columns is not None:
+            raise ValueError("Comparison owns portfolio input artifacts")
         if self.predict.pred_start < self.train.train_end:
             raise ValueError("predict.pred_start must be at or after train.train_end")
         return self
@@ -82,15 +86,23 @@ class ParameterComparisonTask(BaseAnalysisTask):
                     upstream_task_ids=[train.child_task_id],
                     **p.predict.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
                 )
+                portfolio = self.run_task(
+                    "qlib_a158_portfolio",
+                    node_name=f"portfolio-{key}",
+                    task_name=name,
+                    upstream_task_ids=[prediction.child_task_id],
+                    **p.portfolio.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
+                )
                 backtest = self.run_task(
                     "qlib_a158_backtest",
                     node_name=f"backtest-{key}",
                     task_name=name,
-                    upstream_task_ids=[prediction.child_task_id],
+                    upstream_task_ids=[portfolio.child_task_id],
                     as_of_date=prediction.output["date_range"]["end"],
                     **p.backtest.model_dump(mode="json", exclude={"task_name", "upstream_task_ids", "as_of_date"}),
                 )
-                stages = {"train": train, "predict": prediction, "backtest": backtest}
+                stages = {"train": train, "predict": prediction, "portfolio": portfolio, "backtest": backtest}
+                member = next(iter(train.output["models"].values()))
                 records[key] = {
                     "label": label,
                     "parameter_preset": preset,
@@ -100,20 +112,20 @@ class ParameterComparisonTask(BaseAnalysisTask):
                         stage: result.record.model_dump(mode="json", include={"started_at"})["started_at"]
                         for stage, result in stages.items()
                     },
-                    "parameters": train.output["parameters"],
-                    "best_iteration": train.output["best_iteration"],
-                    "metrics": train.output["metrics"],
-                    "evaluation_status": {k: r["evaluation_status"] for k, r in backtest.output["universes"].items()},
+                    "parameters": member["model"]["parameters"],
+                    "best_iteration": member["model"]["best_iteration"],
+                    "metrics": member["metrics"],
+                    "evaluation_status": [r["evaluation_status"] for r in backtest.output["portfolios"]],
                     "input_revisions": backtest.output["protocol"]["input_revisions"],
                 }
-                for universe, report in backtest.output["universes"].items():
+                for report in backtest.output["portfolios"]:
                     artifact = backtest.output["artifacts"][report["artifacts"]["summary"]]
                     path = self.upstream_task_dir(backtest.child_task_id) / artifact["path"]
                     summaries.append(
                         pl.read_parquet(path).with_columns(
                             pl.lit(preset).alias("preset"),
                             pl.lit(label).alias("label"),
-                            pl.lit(universe).alias("universe"),
+                            pl.lit(json.dumps(report["portfolio_id"], sort_keys=True)).alias("portfolio_id"),
                         )
                     )
         for key in ("market", "calendar", "labels"):
@@ -130,7 +142,7 @@ class ParameterComparisonTask(BaseAnalysisTask):
             "selection": "Validation metrics, yearly summaries, transaction costs and evaluation status.",
         }
         summary = pl.concat(summaries)
-        atomic_write(self.task_dir / "summary.csv", summary.write_csv)
+        atomic_write(self.task_dir / "summary_stats.csv", summary.write_csv)
         atomic_write_json(self.task_dir / "comparison.json", comparison)
         self.state["rows"] = summary.height
 
@@ -139,7 +151,7 @@ class ParameterComparisonTask(BaseAnalysisTask):
             rows=self.state.get("rows", 0),
             artifacts={
                 key: artifact_record(self.task_dir / name, self.task_dir)
-                for key, name in {"summary": "summary.csv", "comparison": "comparison.json"}.items()
+                for key, name in {"summary": "summary_stats.csv", "comparison": "comparison.json"}.items()
                 if (self.task_dir / name).is_file()
             },
         )

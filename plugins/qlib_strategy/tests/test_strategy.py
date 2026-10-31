@@ -5,7 +5,8 @@ import pytest
 
 from axonx.task.builtins.stock.engine import run_backtest
 from axonx.task.builtins.stock.models import BacktestConfig
-from axonx_qlib_strategy.backtest import RankRetentionPolicy, StrategyBacktestInput
+from axonx.task.builtins.stock.portfolio import RankRetentionPolicy, prepare_portfolio_signals
+from axonx_qlib_strategy.portfolio import StrategyPortfolioInput
 
 
 def fixture():
@@ -40,7 +41,7 @@ def fixture():
                     "can_sell": not missing and not (code == "D" and i == 1),
                 }
             )
-    return pl.DataFrame(signals), pl.DataFrame(market), pl.DataFrame({"trade_date": dates})
+    return prepare_portfolio_signals(pl.DataFrame(signals)), pl.DataFrame(market), pl.DataFrame({"trade_date": dates})
 
 
 @pytest.mark.parametrize(
@@ -96,9 +97,9 @@ def test_future_scores_do_not_change_prefix_decisions():
 
 
 def test_fixed_expiry_cannot_be_silently_configured():
-    assert "holding_days" not in StrategyBacktestInput.model_fields
+    assert StrategyPortfolioInput().holding_days is None
     with pytest.raises(ValueError):
-        StrategyBacktestInput(holding_days=5)
+        StrategyPortfolioInput(holding_days=5)
 
 
 @pytest.mark.parametrize("n,fraction,expected", [(1, 0.2, 1), (3, 0.2, 1), (5, 0.2, 1), (30, 0.2, 6)])
@@ -117,7 +118,7 @@ def test_rank_buffer_retains_eligible_holdings():
 @pytest.mark.parametrize("fraction", [0.0, 1.1])
 def test_invalid_replacement_fraction_is_rejected(fraction):
     with pytest.raises(ValueError):
-        StrategyBacktestInput(replacement_fraction=fraction)
+        StrategyPortfolioInput(replacement_fraction=fraction)
 
 
 def test_policy_rejects_conflicting_fixed_expiry():
@@ -137,4 +138,4 @@ def test_policy_rejects_conflicting_fixed_expiry():
 @pytest.mark.parametrize("buffer", [float("inf"), -float("inf"), float("nan")])
 def test_nonfinite_rank_buffer_is_rejected_before_policy_execution(buffer):
     with pytest.raises(ValueError):
-        StrategyBacktestInput(rank_buffer=buffer)
+        StrategyPortfolioInput(rank_buffer=buffer)

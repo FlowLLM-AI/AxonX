@@ -13,6 +13,41 @@ if TYPE_CHECKING:
     from .models import BacktestConfig
 
 
+def online_frames(frames, day, portfolios):
+    """Publish daily ledger slices and long-form statistics with stable portfolio keys."""
+    output = {}
+    for role in (
+        "positions",
+        "orders",
+        "trades",
+        "daily",
+        "summary",
+        *(name for name in ("corporate_actions",) if name in frames),
+    ):
+        source = frames[role]
+        parts = []
+        for key, identity in portfolios.items():
+            n = identity["top_n"]
+            if role in {"daily", "summary"}:
+                prefix = f"top{n}_"
+                columns = [
+                    column
+                    for column, dtype in source.schema.items()
+                    if not dtype.is_nested() and (not column.startswith("top") or column.startswith(prefix))
+                ]
+                part = source.select(columns).rename(
+                    {c: c.removeprefix(prefix) for c in columns if c.startswith(prefix)}
+                )
+            else:
+                part = source.filter(pl.col("top_n") == n).drop("top_n")
+            if role != "summary":
+                column = "exit_date" if role == "trades" else "trade_date"
+                part = part.filter(pl.col(column).cast(pl.String) == day)
+            parts.append(part.with_columns(pl.lit(key).alias("portfolio_key")))
+        output[role] = pl.concat(parts, how="vertical_relaxed")
+    return output
+
+
 def daily_output(dates, daily, signals, targets, labels, as_of_date, config):
     """Assemble daily metrics and candidate diagnostics after execution."""
     if labels is not None:

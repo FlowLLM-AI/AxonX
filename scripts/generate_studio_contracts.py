@@ -43,6 +43,7 @@ from axonx.task.builtins.stock.models import (
     StockBacktestOutput,
     StockETLOutput,
     StockOnlineReport,
+    StockPortfolioOutput,
     StockReportSettings,
 )
 from axonx.task.models.artifacts import ArtifactRecord
@@ -53,6 +54,7 @@ from axonx.task.models.params import (
     BaseBacktestOutputParams,
     BaseETLOutputParams,
     BaseInferenceOutputParams,
+    BasePortfolioOutputParams,
     BasePredictionCompareOutputParams,
     BasePredictOutputParams,
     BaseTrainOutputParams,
@@ -92,6 +94,7 @@ MODELS = [
     WindowOutputParams,
     BaseInferenceOutputParams,
     StockBacktestOutput,
+    StockPortfolioOutput,
     StockETLOutput,
     TaskMetadata,
     TaskDefinition,
@@ -121,6 +124,7 @@ MODELS = [
     OnlineHistory,
     BaseAnalysisOutputParams,
     BaseBacktestOutputParams,
+    BasePortfolioOutputParams,
     BaseETLOutputParams,
     BasePredictOutputParams,
     BaseTrainOutputParams,

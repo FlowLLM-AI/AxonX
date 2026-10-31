@@ -17,10 +17,9 @@ export interface TopComparisonData {
   version: 1;
   key: string;
   std_ddof: 0;
-  mock_online?: boolean;
   absolute_tolerance: number;
   relative_tolerance: number;
-  score_selection: { seed: number | null; aggregation: string };
+  score_selection: { method: string; seeds: number[] };
   universe: Record<string, unknown>;
   scopes: Record<"buyable" | "all", Record<"online" | "offline", Snapshot>>;
 }
@@ -42,11 +41,11 @@ export function parseTopComparison(value: unknown): TopComparisonData {
     !isRecord(value.scopes) ||
     !isRecord(value.universe) ||
     !isRecord(value.score_selection) ||
-    !(
-      value.score_selection.seed === null ||
-      Number.isInteger(value.score_selection.seed)
-    ) ||
-    !["mean", "rank_mean"].includes(String(value.score_selection.aggregation))
+    typeof value.score_selection.method !== "string" ||
+    !Array.isArray(value.score_selection.seeds) ||
+    !value.score_selection.seeds.every(
+      (seed) => Number.isInteger(seed) && seed >= 0,
+    )
   )
     return fail();
   const pool = value.universe;
@@ -64,8 +63,7 @@ export function parseTopComparison(value: unknown): TopComparisonData {
       ) ||
         !Number.isInteger(pool.top_percent) ||
         Number(pool.top_percent) < 1 ||
-        Number(pool.top_percent) > 100)) ||
-    (value.mock_online !== undefined && typeof value.mock_online !== "boolean")
+        Number(pool.top_percent) > 100))
   )
     return fail();
   for (const scope of ["buyable", "all"]) {

@@ -136,4 +136,6 @@ npm run build:playground
 
 `features/operations/pages.ts` 按 `reportKinds` 定义分组：在线预测对应 `online_pipeline`/`online`，预测比对对应 `compare_pipeline`，数据更新对应 `data_update`。页面读取当前 Task metadata 和报告，不提供调度控制/历史记录。新增报告应由生产 Task 声明 `report_kind`，并实现有类型的报告和产物契约；生命周期继续使用共享执行/详情视图。
 
+在线工作台允许首条信号发布前不存在历史清单，使用 `preview_file` 的 `allow_missing: true` 读取；已经发布或成功读取过的历史仍为必需。可选文件不存在时返回 `null`；无效路径、内容损坏和读取异常仍报错。运行中的阶段或模型失败原因替代通用的“暂无信号”提示。已完成阶段省略重复阶段文字、单项计数和满进度条；修订警告只显示一次，组合评估不完整的提示只在组合与绩效视图展示。
+
 Task 执行由 features/tasks/execution.ts、TaskExecution.tsx 管理，连接所有权独立于页面选择，调用 cli argv、核验进程结果、观察 metadata 并比较 started_at。应与 Schema 表单编辑和所选导航路由分离。

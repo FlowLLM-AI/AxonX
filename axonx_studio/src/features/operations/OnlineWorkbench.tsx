@@ -50,7 +50,8 @@ export function OnlineWorkbench({
     planned.map((model) => ({
       modelId: model.id,
       name: `${model.name}-${model.slot}`,
-      taskId: model.record?.child_task_id || "",
+      taskId: model.report?.commit.task_id || model.record?.child_task_id || "",
+      published: !!model.report,
     })),
   );
   const historiesStore = useMemo(
@@ -177,18 +178,21 @@ export function OnlineWorkbench({
         !["done", "succeeded", "skipped"].includes(step.state || "") ||
         step.error ||
         (!published &&
-          (step.phase ||
-            step.completed != null ||
+          ((step.completed != null && step.total !== 1) ||
             Object.keys(step.files || {}).length ||
             Object.keys(step.metrics || {}).length)),
     );
-    if (!live) return emptyRun;
-    if (!useful.length && !model?.error) return null;
+    const modelError = model?.error;
+    const showError =
+      modelError &&
+      modelError !== model.node?.error &&
+      !useful.some((step) => step.error === modelError);
+    if (!useful.length && !showError) return null;
     return (
       <section className="pipeline-model-content">
-        {model?.error && (
+        {showError && (
           <p className="error-state" role="alert">
-            {t(`onlinePipeline.reasons.${model.error}`, model.error)}
+            {t(`onlinePipeline.reasons.${modelError}`, modelError)}
           </p>
         )}
         {useful.length > 0 && (
@@ -269,6 +273,8 @@ export function OnlineWorkbench({
       />
     ),
   }));
+  const resultStages =
+    live && showStages([...scores, ...publication], !!commit);
   const tabs = isData
     ? [
         {
@@ -381,7 +387,7 @@ export function OnlineWorkbench({
           lazy: true,
           content: (
             <>
-              {showStages([...scores, ...publication], !!commit)}
+              {resultStages}
               {commit ? (
                 <StockReport
                   key={`${target}:${model.id}:${date}`}
@@ -396,9 +402,13 @@ export function OnlineWorkbench({
                   }}
                 />
               ) : (
-                <p className="empty-state" role="status">
-                  {loading ? t("shell.loading") : t("onlineWorkbench.noSignal")}
-                </p>
+                !resultStages && (
+                  <p className="empty-state" role="status">
+                    {loading
+                      ? t("shell.loading")
+                      : t("onlineWorkbench.noSignal")}
+                  </p>
+                )
               )}
             </>
           ),
@@ -504,7 +514,11 @@ export function OnlineWorkbench({
       {histories.some((item) => item.error) && (
         <div className="online-warning" role="status">
           {t("onlineWorkbench.historyError")}
-          <button type="button" onClick={() => void refreshAll()}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void refreshAll()}
+          >
             {t("retry")}
           </button>
         </div>

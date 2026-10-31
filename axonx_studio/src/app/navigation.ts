@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  BriefcaseBusiness,
   Bot,
   BrainCircuit,
   Cpu,
@@ -110,6 +111,12 @@ export const navigationGroups: NavigationGroup[] = [
         labelKey: "shell.navigation.predict",
       },
       {
+        id: "portfolio",
+        route: { section: "portfolio", view: "runs" },
+        icon: BriefcaseBusiness,
+        labelKey: "shell.navigation.portfolio",
+      },
+      {
         id: "backtest",
         route: { section: "backtest", view: "runs" },
         icon: BarChart3,
@@ -166,5 +173,6 @@ export const researchSections = new Set<SectionId>([
   "factors",
   "train",
   "predict",
+  "portfolio",
   "backtest",
 ]);

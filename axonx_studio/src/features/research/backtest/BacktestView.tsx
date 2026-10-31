@@ -1,9 +1,9 @@
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BacktestUniverseReport } from "../../../shared/api/contracts";
+import type { BacktestPortfolioReport } from "../../../shared/api/contracts";
 import { taskDirectory } from "../../../shared/lib/tasks";
-import { Select } from "../../../shared/ui/Select";
+import { PortfolioSelector } from "../PortfolioSelector";
 import { loadBacktest } from "./api";
 import { Overview } from "./BacktestOverview";
 import { SummaryView } from "./BacktestSummary";
@@ -17,7 +17,7 @@ export function BacktestView({
   target?: string;
 }) {
   return (
-    <UniverseBacktest
+    <PortfolioBacktest
       key={`${target || ""}:${taskDirectory(meta.task_id)}:${meta.started_at}`}
       meta={meta}
       target={target}
@@ -25,7 +25,7 @@ export function BacktestView({
   );
 }
 
-function UniverseBacktest({
+function PortfolioBacktest({
   meta,
   target,
 }: {
@@ -33,11 +33,11 @@ function UniverseBacktest({
   target?: string;
 }) {
   const { t } = useTranslation();
-  const [universe, setUniverse] = useState(meta.output_params.default_universe);
+  const [universe, setUniverse] = useState("0");
   const cache = useRef(
     new Map<string, { daily: DailyRow[]; summary: SummaryRow[] }>(),
   );
-  const report = meta.output_params.universes?.[universe];
+  const report = meta.output_params.portfolios[Number(universe)];
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,22 +72,11 @@ function UniverseBacktest({
 
   return (
     <section>
-      <label className="backtest-universe-selector">
-        {t("backtest.universe")}
-        <Select
-          aria-label={t("backtest.universe")}
-          value={universe || ""}
-          onChange={(event) => setUniverse(event.target.value)}
-        >
-          {Object.entries(meta.output_params.universes || {}).map(
-            ([key, value]) => (
-              <option key={key} value={key}>
-                {value.label}
-              </option>
-            ),
-          )}
-        </Select>
-      </label>
+      <PortfolioSelector
+        portfolios={meta.output_params.portfolios}
+        value={universe}
+        onChange={setUniverse}
+      />
       {report && (
         <div className="backtest-report-dates">
           {report.date_range.start} – {report.date_range.end} · {report.days}{" "}
@@ -121,7 +110,7 @@ function BacktestReport({
   daily,
   summary,
 }: {
-  meta: BacktestUniverseReport;
+  meta: BacktestPortfolioReport;
   daily: DailyRow[];
   summary: SummaryRow[];
 }) {

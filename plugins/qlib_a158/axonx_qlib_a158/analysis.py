@@ -15,7 +15,7 @@ from axonx.task.models.identity import TaskType
 from axonx.task.models.params import BaseAnalysisOutputParams, BaseInputParams
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write
-from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
+from axonx.task.storage.inputs import read_upstream_metadata, upstream_artifacts
 
 from .internal.analysis import LABEL, FactorMetricsCalculator
 from .internal.modeling import feature_contract
@@ -71,16 +71,14 @@ class FactorAnalysisTask(BaseAnalysisTask):
         etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
         _, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         protocol = feature_contract(source_metadata["output_params"]["protocol"])
-        dataset_path, labels_path = pin_upstream_artifacts(
-            self, etl_task_id, "dataset", "labels", metadata=source_metadata
-        )
+        dataset_path, labels_path = upstream_artifacts(self, etl_task_id, "dataset", "labels", metadata=source_metadata)
         output_dir = self.task_dir
         self.state.update(
             features=tuple(protocol["feature_columns"]),
             dataset_path=dataset_path,
             labels_path=labels_path,
-            result_path=output_dir / "factor_analysis.csv",
-            quantiles_path=output_dir / "factor_quantiles.csv",
+            result_path=output_dir / "factor_analysis_stats.csv",
+            quantiles_path=output_dir / "factor_quantiles_stats.csv",
         )
         self.logger.info(
             f"Factor analysis source resolved etl_task_id={etl_task_id} "

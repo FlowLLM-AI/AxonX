@@ -3,7 +3,6 @@ import type { BenchmarkDefinition } from "../research/backtest/types";
 // An unknown return makes all later cumulative values unknown within this range.
 export function performanceRows(
   rows: Record<string, unknown>[],
-  topN: number,
   benchmarks: BenchmarkDefinition[],
 ) {
   const values = new Map<string, number | null>();
@@ -18,7 +17,7 @@ export function performanceRows(
     return next;
   };
   return rows.map((row) => {
-    const net = compound("net", row[`top${topN}_net_return`]);
+    const net = compound("net", row.net_return);
     if (net !== null) peak = Math.max(peak, net);
     return {
       ...row,

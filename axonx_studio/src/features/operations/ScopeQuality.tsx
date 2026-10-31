@@ -65,10 +65,7 @@ function ModelQuality({
   target?: string;
 }) {
   const { t } = useTranslation();
-  const load = useCallback(
-    (signal: AbortSignal) => loadQuality(commit, { target, signal }),
-    [commit, target],
-  );
+  const load = useCallback(() => loadQuality(commit), [commit]);
   const { data, loading, error, reload } = useAsyncResource(load);
   if (error)
     return (

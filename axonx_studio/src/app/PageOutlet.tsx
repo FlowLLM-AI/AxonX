@@ -175,7 +175,10 @@ export function PageOutlet({
     page = (
       <ResearchPage
         key={`${kind}:${target || "local"}`}
-        kind={kind as "analysis" | "backtest" | "etl" | "train" | "predict"}
+        kind={
+          kind as
+            "analysis" | "backtest" | "etl" | "train" | "predict" | "portfolio"
+        }
         target={target}
         initialSelectedId={route.resource}
         onSelected={(resource) =>

@@ -63,17 +63,17 @@
 
 固定名字使用 `tasks/<task_type>/<task_id>/`。自动命名保留格式为 `YYYYMMDDHH` 加四位字母数字；匹配该格式的名字（包括子任务继承名字）使用 `tmp/tasks/<task_type>/<task_id>/`。Task ID 仍为 `<类型>#<注册名>#<名字>`。新自动命名根任务不会覆盖已有目录；同一父任务的子调用重试可以复用目录。类型枚举为 base/api/etl/analysis/train/predict/inference/backtest。
 
-例如固定名训练任务位于 `tasks/train/train#qlib_a158_train#baseline/`，自动命名任务位于 `tmp/tasks/train/train#qlib_a158_train#2026102912aB3d/`。命名判断只依赖最终名字，不增加存储类别字段。参数比较使用普通分析 Task，`summary.csv` 和 `comparison.json` 保存在对应 Task 目录中。
+例如固定名训练任务位于 `tasks/train/train#qlib_a158_train#baseline/`，自动命名任务位于 `tmp/tasks/train/train#qlib_a158_train#2026102912aB3d/`。命名判断只依赖最终名字，不增加存储类别字段。参数比较使用普通分析 Task，`summary_stats.csv` 和 `comparison.json` 保存在对应 Task 目录中。
 
-保留目录 `persistent/` 用于 Task 的累计业务数据。同名重跑保留它并清理其他运行文件；显式删除 Task 时一并删除，展示同步则以所选发布产物替换目标目录。框架管理 `persistent/task.lock` 和 `persistent/runs.jsonl`，复用 `TaskJournal` 统一追加开始、结束执行元信息，重跑开始记录 `previous_started_at`；插件管理其他业务文件，不得覆盖该日志，该路径必须是普通目录，不能是符号链接。
+保留目录 `persistent/` 用于 Task 的累计业务数据。同名重跑保留它并清理其他运行文件；显式删除 Task 时一并删除，展示同步则以所选发布产物替换目标目录。框架管理 `persistent/task.lock` 和 `persistent/history.jsonl`，复用 `TaskJournal` 在每次执行结束后追加一行完整终态元信息 JSON；插件管理其他业务文件，不得覆盖该历史，该路径必须是普通目录，不能是符号链接。
 
 ## 运行记录
 
-| 文件                    | 生命周期                             | 内容                                                                                    |
-| ----------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
-| `metadata.json`         | 执行启动至终态                       | Task ID、started_at、进程身份、输入输出、状态、步骤、错误、退出码、日志路径和子调用记录 |
-| `persistent/runs.jsonl` | 执行开始、结束时追加，跨同名重跑保留 | 事件、完整执行元信息及上次执行启动时间                                                  |
-| `events.jsonl`          | 执行器报告进度时追加                 | 可回放的进度事件，每行一个 JSON 对象                                                    |
+| 文件                       | 生命周期                                  | 内容                                                                                    |
+| -------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| `metadata.json`            | 执行启动至终态                            | Task ID、started_at、进程身份、输入输出、状态、步骤、错误、退出码、日志路径和子调用记录 |
+| `persistent/history.jsonl` | 每次执行结束追加一行 JSON，跨同名重跑保留 | 完整终态执行元信息                                                                      |
+| `events.jsonl`             | 执行器报告进度时追加                      | 可回放的进度事件，每行一个 JSON 对象                                                    |
 
 一个原子 metadata 快照是权威 Task 记录。`TaskExecutor` 在同步执行进程中更新它，包含子调用、清理和最终输出。运行准备与显式 `kill` 可以收敛已确认退出的本地进程；查询只观察文件。同名重跑会替换 `metadata.json` 和 `events.jsonl`，两者都不保存以往执行的完整历史。
 

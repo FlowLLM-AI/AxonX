@@ -9,7 +9,7 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ....task.storage.files import snapshot_file
+from ....task.storage.files import copy_file
 from ....task.storage.workspace import (
     parse_task_directory,
     read_entry,
@@ -165,7 +165,7 @@ class TaskArchiveApplier:
                 if source.stat().st_size != record.size:
                     raise ValueError(f"Replica delta base is corrupt: {task_id}/{name}")
                 target.parent.mkdir(parents=True, exist_ok=True)
-                snapshot_file(source, target)
+                copy_file(source, target)
 
     def _commit(
         self,

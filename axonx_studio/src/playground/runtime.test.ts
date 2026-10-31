@@ -241,6 +241,7 @@ describe("static Playground", () => {
             state: string;
             output_params: {
               artifacts: Record<string, { path: string }>;
+              models?: Record<string, unknown>;
               protocol?: Record<string, unknown>;
             };
             input_params: { upstream_task_ids: string[] };
@@ -254,7 +255,8 @@ describe("static Playground", () => {
             analysis: ["etl#playground_etl#demo"],
             train: ["etl#playground_etl#demo"],
             predict: ["train#playground_train#demo"],
-            backtest: ["predict#playground_predict#demo"],
+            portfolio: ["predict#playground_predict#demo"],
+            backtest: ["portfolio#playground_portfolio#demo"],
           };
           if (
             metadata.task_id === `${task_type}#playground_${task_type}#demo` ||
@@ -279,9 +281,7 @@ describe("static Playground", () => {
           expect(metadata.output_params).not.toHaveProperty("model_files");
           expect(metadata.output_params).not.toHaveProperty("predictions_file");
           if (task_type === "train")
-            expect(
-              metadata.output_params.artifacts.model_manifest,
-            ).toBeDefined();
+            expect(metadata.output_params.models).toBeDefined();
           if (task_type === "predict")
             expect(
               (metadata.output_params.protocol as { score_columns: object })
@@ -320,6 +320,12 @@ describe("static Playground", () => {
     await expect(
       api.invoke("preview_file", { path: "private" }),
     ).rejects.toThrow("not found");
+    await expect(
+      api.invoke("preview_file", {
+        path: "not-yet/manifest.json",
+        allow_missing: true,
+      }),
+    ).resolves.toBeNull();
     await expect(
       api.invoke("status", {}, { target: "remote" }),
     ).rejects.toThrow("demo browser");
