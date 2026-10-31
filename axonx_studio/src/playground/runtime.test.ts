@@ -241,7 +241,7 @@ describe("static Playground", () => {
             state: string;
             output_params: {
               artifacts: Record<string, { path: string }>;
-              models?: Record<string, unknown>;
+              model_groups?: unknown[];
               protocol?: Record<string, unknown>;
             };
             input_params: { upstream_task_ids: string[] };
@@ -281,7 +281,7 @@ describe("static Playground", () => {
           expect(metadata.output_params).not.toHaveProperty("model_files");
           expect(metadata.output_params).not.toHaveProperty("predictions_file");
           if (task_type === "train")
-            expect(metadata.output_params.models).toBeDefined();
+            expect(metadata.output_params.model_groups).toBeDefined();
           if (task_type === "predict")
             expect(
               (metadata.output_params.protocol as { score_columns: object })

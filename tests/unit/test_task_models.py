@@ -11,14 +11,33 @@ from axonx.task.builtins.stock.models import (
     StockReportSettings,
     portfolio_key,
 )
-from axonx.task.models.artifacts import ArtifactRecord, PredictionProtocol, task_protocol
+from axonx.task.models.artifacts import (
+    ArtifactRecord,
+    PredictionProtocol,
+    task_protocol,
+)
 from axonx.task.models.base import normalize_yyyymmdd
-from axonx.task.models.events import TASK_EVENT_ADAPTER, LogChunk, LogEvent, ProgressEvent
-from axonx.task.models.identity import TaskType, task_type_from_id, validate_task_ids, validate_task_names
+from axonx.task.models.events import (
+    TASK_EVENT_ADAPTER,
+    LogChunk,
+    LogEvent,
+    ProgressEvent,
+)
+from axonx.task.models.identity import (
+    TaskType,
+    task_type_from_id,
+    validate_task_ids,
+    validate_task_names,
+)
 from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
 from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
 from axonx.task.models.query import TaskGraphEdge
-from axonx.task.models.reports import BacktestDimensions, OnlineCommit, TrainingCurve, WindowResult
+from axonx.task.models.reports import (
+    BacktestDimensions,
+    OnlineCommit,
+    TrainingCurve,
+    WindowResult,
+)
 
 
 @pytest.mark.parametrize("name", ["", "bad_name", "a/b", "a#b", "a" * 33, "name\n"])
@@ -117,7 +136,10 @@ def prediction_protocol():
 def test_prediction_windows_validate_dates_and_members(prediction_protocol, changes):
     with pytest.raises(ValidationError):
         PredictionProtocol.model_validate(
-            {**prediction_protocol, "windows": [{**prediction_protocol["windows"][0], **changes}]}
+            {
+                **prediction_protocol,
+                "windows": [{**prediction_protocol["windows"][0], **changes}],
+            }
         )
 
 
@@ -193,7 +215,12 @@ def test_metadata_is_closed_even_though_its_protocol_is_extensible():
     metadata = TaskMetadata(**values)
     assert TaskMetadata.model_validate_json(metadata.model_dump_json()) == metadata
     attempts = [
-        {"node_name": "child", "attempt": attempt, "reg_name": "model", "child_task_id": "train#model#child"}
+        {
+            "node_name": "child",
+            "attempt": attempt,
+            "reg_name": "model",
+            "child_task_id": "train#model#child",
+        }
         for attempt in (1, 2)
     ]
     attempts.append({"node_name": "invalid", "attempt": 1, "reg_name": "model"})
@@ -284,7 +311,7 @@ def test_stock_publication_rules_are_enforced_by_the_stock_contract(problem):
     now = datetime.now(UTC)
     record = ArtifactRecord(path="data.parquet", size=0, revision="0:1")
     settings = {
-        "signals_format": "stock-signals-v3" if problem != "format" else "custom-signals-v1",
+        "signals_format": ("stock-signals-v3" if problem != "format" else "custom-signals-v1"),
         "score_column": "pred",
         "strategy_identity": "a" * 64,
         "dimensions": {"top_ns": [1], "holding_detail_top_n": 1, "benchmarks": []},
@@ -334,33 +361,53 @@ def test_window_results_reject_partial_commits_and_nonfinite_elapsed_time(change
         WindowResult(**{"key": "open", "status": "done", **changes})
 
 
-def test_training_model_index_routes_boundaries_and_future_dates():
+def test_training_model_groups_route_boundaries_and_future_dates():
     from axonx.task.models.params import BaseTrainOutputParams
 
-    def member(start, stop=None, state="succeeded"):
+    def group(start, stop=None):
         return {
-            "model": {"random_seed": 7},
             "train_start": 20220101,
             "train_end_exclusive": start,
             "use_from": start,
             "use_to": stop,
-            "state": state,
-            "model_artifact": "weights",
+            "models": {
+                "seed_7": {
+                    "model": {"random_seed": 7},
+                    "state": "succeeded",
+                    "model_artifact": "weights",
+                }
+            },
         }
 
-    output = BaseTrainOutputParams(
-        feature_protocol=task_protocol(TaskType.ETL),
-        models={"first": member(20230101, 20230701), "latest": member(20230701)},
-        artifacts={"weights": {"path": "models/latest.pt", "size": 1, "revision": "1:1"}},
-    )
-    assert list(output.select_models(20230630)) == ["first"]
-    assert list(output.select_models(20230701)) == ["latest"]
-    assert list(output.select_models(20990101)) == ["latest"]
-    for day in (20221231, "20230230"):
+    params = {
+        "feature_protocol": task_protocol(TaskType.ETL),
+        "model_groups": [group(20230101, 20230701), group(20230701)],
+        "artifacts": {"weights": {"path": "models/latest.pt", "size": 1, "revision": "1:1"}},
+    }
+    output = BaseTrainOutputParams(**params)
+    assert output.select_group(20230630).use_from == "20230101"
+    assert output.select_group(20230701).use_from == "20230701"
+    assert output.select_group(20990101).use_from == "20230701"
+    assert len(output.select_groups(20230630, 20230701)) == 2
+    for start, end in (
+        (20221231, 20230101),
+        (20230701, 20230101),
+        ("20230230", 20230701),
+    ):
         with pytest.raises(ValueError):
-            output.select_models(day)
-    output.models["latest"].state = "failed"
+            output.select_groups(start, end)
+    output.model_groups[-1].models["seed_7"].state = "failed"
     with pytest.raises(ValueError, match="No completed model group"):
-        output.select_models(20230701)
+        output.select_group(20230701)
     with pytest.raises(ValueError, match="unregistered artifact"):
-        BaseTrainOutputParams(feature_protocol=task_protocol(TaskType.ETL), models={"model": member(20230101)})
+        BaseTrainOutputParams(**(params | {"artifacts": {}}))
+    for groups in (
+        [group(20230101), group(20230701)],
+        [group(20230701), group(20230101)],
+    ):
+        with pytest.raises(ValueError, match="ordered and non-overlapping"):
+            BaseTrainOutputParams(**(params | {"model_groups": groups}))
+    output = BaseTrainOutputParams(**(params | {"model_groups": [group(20230101, 20230601), group(20230701)]}))
+    with pytest.raises(ValueError, match="No completed model group"):
+        output.select_groups(20230101, 20230701)
+    assert output.select_group(20230701).use_from == "20230701"

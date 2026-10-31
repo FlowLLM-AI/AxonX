@@ -72,7 +72,10 @@ class LgbmTrainInputParams(BaseInputParams):
         description="Rounds without validation improvement before stopping.",
     )
     learning_rate: float = Field(
-        default=0.03, gt=0.0, allow_inf_nan=False, description="Step size applied to each boosting round."
+        default=0.03,
+        gt=0.0,
+        allow_inf_nan=False,
+        description="Step size applied to each boosting round.",
     )
     num_leaves: int = Field(default=31, ge=2, description="Maximum number of leaves in each tree.")
     max_depth: int = Field(default=-1, ge=-1, description="Maximum tree depth; -1 allows unlimited depth.")
@@ -95,10 +98,16 @@ class LgbmTrainInputParams(BaseInputParams):
         description="Boosting rounds between bagging samples; 0 disables bagging.",
     )
     lambda_l1: float = Field(
-        default=0.0, ge=0.0, allow_inf_nan=False, description="L1 penalty applied to leaf weights."
+        default=0.0,
+        ge=0.0,
+        allow_inf_nan=False,
+        description="L1 penalty applied to leaf weights.",
     )
     lambda_l2: float = Field(
-        default=0.0, ge=0.0, allow_inf_nan=False, description="L2 penalty applied to leaf weights."
+        default=0.0,
+        ge=0.0,
+        allow_inf_nan=False,
+        description="L2 penalty applied to leaf weights.",
     )
     random_seed: int = Field(default=42, ge=0, description="Seed for reproducible LightGBM sampling.")
     num_threads: int = Field(default=8, gt=0, description="Number of CPU threads used by LightGBM.")
@@ -223,7 +232,11 @@ class LgbmTrainTask(BaseTrainTask):
         # Deliberately retain AxonX's simple one-cutoff workflow instead of Qlib's
         # independent train/valid/test segments. Purge labels crossing the split.
         frame: pl.DataFrame = self.state["frame"]
-        frame = transform_labels(frame, reference=pl.lit(True), winsorize_tail=self.input_params.label_winsorize_tail)
+        frame = transform_labels(
+            frame,
+            reference=pl.lit(True),
+            winsorize_tail=self.input_params.label_winsorize_tail,
+        )
         dates = frame["trade_date"].unique().sort().to_list()
         if len(dates) < 2:
             raise ValueError("训练至少需要两个有效交易日")
@@ -449,30 +462,36 @@ class LgbmTrainTask(BaseTrainTask):
                     "transforms after eligibility and tail filtering"
                 ),
             },
-            models={
-                name: {
-                    "model_artifact": name,
-                    "state": "succeeded",
-                    "model": {
-                        "library": "lightgbm",
-                        "library_version": load_lightgbm().__version__,
-                        "parameters": self.state["parameters"],
-                        "best_iteration": self.state["best_iteration"],
-                        "feature_names": list(self.state["features"]),
-                    },
+            model_groups=[
+                {
                     "train_start": self.input_params.train_start,
                     "train_end_exclusive": self.input_params.train_end,
                     "use_from": self.input_params.train_end,
-                    "train_rows": self.state["frame"].height,
-                    "parameters": {"rows": self.state["rows"]},
-                    "metrics": {name: value for name, value in self.state["metrics"].items() if math.isfinite(value)},
-                    "training_curve": {
-                        "x": [str(i) for i in history["iteration"].to_list()],
-                        "y_left": {c: history[c].to_list() for c in history.columns if c.endswith("_l2")},
-                        "y_right": {c: history[c].to_list() for c in history.columns if c.endswith("_l1")},
+                    "models": {
+                        name: {
+                            "model_artifact": name,
+                            "state": "succeeded",
+                            "model": {
+                                "library": "lightgbm",
+                                "library_version": load_lightgbm().__version__,
+                                "parameters": self.state["parameters"],
+                                "best_iteration": self.state["best_iteration"],
+                                "feature_names": list(self.state["features"]),
+                            },
+                            "train_rows": self.state["frame"].height,
+                            "parameters": {"rows": self.state["rows"]},
+                            "metrics": {
+                                name: value for name, value in self.state["metrics"].items() if math.isfinite(value)
+                            },
+                            "training_curve": {
+                                "x": [str(i) for i in history["iteration"].to_list()],
+                                "y_left": {c: history[c].to_list() for c in history.columns if c.endswith("_l2")},
+                                "y_right": {c: history[c].to_list() for c in history.columns if c.endswith("_l1")},
+                            },
+                        }
                     },
                 }
-            },
+            ],
             artifacts={
                 name: artifact_record(path, self.task_dir),
                 "feature_importance": artifact_record(self.state["importance_path"], self.task_dir),

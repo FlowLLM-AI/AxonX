@@ -13,7 +13,7 @@
 
 Defaults: `minimum_holding_days=10`, `replacement_fraction=0.2`, `rank_buffer=1`. Top5/10/20/30 permit 1/2/4/6 fills per side per day; this is a count cap, not a notional turnover cap. `rank_buffer` must be finite. There is no fixed-expiry parameter; `planned_exit_date` is null.
 
-Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.0` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
+Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.1` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
 ## Install and run
 

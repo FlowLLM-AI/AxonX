@@ -15,7 +15,7 @@ Data tables use `<name>.parquet`; CSV is reserved for statistical reports and ev
 
 AxonX owns the shared research protocol in `axonx.task.models.artifacts`. Research protocol headers require `version=1` and a `TaskType` value in `task_type`. Readers reject missing headers and other versions.
 
-One training plan has one Task ID for all seeds and rolling windows. Its `metadata.json.output_params` is a `BaseTrainOutputParams`: shared contracts live in `feature_protocol` and `training_target`; `models` maps names to configurations, training/use ranges, state, row counts, parameters, metrics, curves and timing. Each member references an `artifacts` entry by `model_artifact`; final files are flat under `models/`. Prediction selects by `[use_from,use_to)`; the last group has `use_to=null` and serves later dates.
+One training plan has one Task ID for all seeds and rolling windows. Its `metadata.json.output_params` is a `BaseTrainOutputParams`: shared contracts live in `feature_protocol` and `training_target`; `model_groups` stores ordered groups with shared training/use ranges; each group's `models` map stores member configurations, state, row counts, parameters, metrics, curves and timing. Each member references an `artifacts` entry by `model_artifact`; final files are flat under `models/`. Prediction selects by `[use_from,use_to)`; the last group has `use_to=null` and serves later dates.
 
 Each offline prediction Task publishes one `predictions.parquet`, including all dates, seeds and score columns. Stock rows are unique by `(trade_date, trade_time, ts_code)`. `metadata.json.output_params.protocol` contains `score_columns` and ordered, non-overlapping `windows`. Each window records `[prediction_start,prediction_end_exclusive)`, a `models` mapping from score member to training model name, and that group's `model_identity`. Readers select the window by prediction date. Model configurations remain in training metadata; producing executions and consumed revisions remain in `input_sources`. The prediction file's path, size and revision appear only in `output_params.artifacts.predictions`; actual dates are in the parquet, with lightweight `rows`, `date_range`, `output_columns` and optional `statistics` summaries in output metadata. Prediction outputs always belong to the Task directory. Rolling parents retain their own `predictions.parquet` snapshot so reusable child Tasks cannot overwrite a published parent result.
 
@@ -55,20 +55,20 @@ The example size and revision only illustrate fields; calculate actual values fr
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type      | Required base-class fields       | Optional or default base-class fields           |
-| --------- | -------------------------------- | ----------------------------------------------- |
-| ETL       | `rows`, `date_range`             | `feature_columns=[]`, `label_columns=[]`        |
-| Analysis  | `rows`                           | `scores={}`                                     |
-| Train     | `feature_protocol`, `models`     | `training_target={}`, `artifacts={}`            |
-| Predict   | `protocol`, `rows`, `date_range` | `output_columns=[]`, `statistics={}`            |
-| Portfolio | `portfolios`, `protocol`         | Readable identities and frozen signal artifacts |
-| Backtest  | `portfolios`, `protocol`         | Shared `artifacts={}`                           |
+| Type      | Required base-class fields         | Optional or default base-class fields           |
+| --------- | ---------------------------------- | ----------------------------------------------- |
+| ETL       | `rows`, `date_range`               | `feature_columns=[]`, `label_columns=[]`        |
+| Analysis  | `rows`                             | `scores={}`                                     |
+| Train     | `feature_protocol`, `model_groups` | `training_target={}`, `artifacts={}`            |
+| Predict   | `protocol`, `rows`, `date_range`   | `output_columns=[]`, `statistics={}`            |
+| Portfolio | `portfolios`, `protocol`           | Readable identities and frozen signal artifacts |
+| Backtest  | `portfolios`, `protocol`           | Shared `artifacts={}`                           |
 
 Consumers read the model index directly from Task metadata.
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
-Training members are declared only in `output_params.models`. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
+Training declares an ordered `output_params.model_groups` list. Each group owns `train_start`, `train_end_exclusive`, `use_from` and optional exclusive `use_to`; its `models` map contains member configurations, state, artifacts and curves. Groups must be ordered and non-overlapping; selection requires completed members and complete coverage of the requested dates. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
 
 Member count distinguishes single-member from multi-member output, independently of prediction target count.
 
@@ -130,7 +130,7 @@ Requirements:
 - Series names cannot repeat across the left and right axes.
 - Empty x and empty groups on both axes indicate no curve data.
 
-Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio reads the validated training curve directly from `output_params.models[model_name].training_curve`; chart rendering filters mismatched series and nonfinite values.
+Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio reads the validated training curve directly from `output_params.model_groups[group_index].models[model_name].training_curve`; chart rendering filters mismatched series and nonfinite values.
 
 qlib_a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history stored directly in model metadata. `model` and `feature_importance` reference the final model and `feature_importance_stats.csv`.
 

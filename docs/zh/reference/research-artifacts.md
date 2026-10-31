@@ -15,7 +15,7 @@ description: 标准研究输出、文件版本、训练曲线及回测表的生�
 
 AxonX 在 `axonx.task.models.artifacts` 中统一定义研究协议。研究协议头必须包含 `version=1`，在 `task_type` 中使用 `TaskType` 的值。读取时拒绝缺少协议头和其他版本的数据。
 
-一次训练计划只有一个 Task ID，所有 seed 与 rolling 窗口共用 `metadata.json.output_params` 中的 `BaseTrainOutputParams`。`feature_protocol` 与 `training_target` 保存共享契约；`models` 按名称保存有效配置、训练和使用区间、状态、样本数、参数、指标、曲线与耗时。成员通过 `model_artifact` 引用 `artifacts`，最终模型打平放在 `models/`。预测按 `[use_from,use_to)` 选组；末组 `use_to=null`，持续服务后续日期。
+一次训练计划只有一个 Task ID，所有 seed 与 rolling 窗口共用 `metadata.json.output_params` 中的 `BaseTrainOutputParams`。`feature_protocol` 与 `training_target` 保存共享契约；`model_groups` 按时间保存共享训练和使用区间的模型组，组内 `models` 按名称保存各成员有效配置、状态、样本数、参数、指标、曲线与耗时。成员通过 `model_artifact` 引用 `artifacts`，最终模型打平放在 `models/`。预测按 `[use_from,use_to)` 选组；末组 `use_to=null`，持续服务后续日期。
 
 每个离线预测 Task 只发布一个 `predictions.parquet`，包含全部日期、seed 和分数列。股票行以 `(trade_date, trade_time, ts_code)` 唯一标识。`metadata.json.output_params.protocol` 保存 `score_columns` 和按时间有序、不重叠的 `windows`；每个窗口记录 `[prediction_start,prediction_end_exclusive)`、分数成员到训练模型名称的 `models` 映射，以及该组 `model_identity`。消费者按预测日期选择窗口。完整模型配置保留在训练 metadata，生产执行及消费的文件修订保留在 `input_sources`。预测文件路径、大小和修订只放在 `output_params.artifacts.predictions`；实际日期保存在 parquet，输出 metadata 仅保留 `rows`、`date_range`、`output_columns` 和可选 `statistics` 等轻量摘要。预测始终写入 Task 自有目录。rolling 父任务保存自己的 `predictions.parquet` 快照，避免可复用子任务覆盖父任务已发布的结果。
 
@@ -55,20 +55,20 @@ Task 输入通过 `input_sources` 保存生产执行与产物修订。显式外�
 
 下表的必填指模型没有默认值；不是所有字段都在 Studio 单独展示。
 
-| 类型      | 基类必填                         | 基类可选或默认字段                       |
-| --------- | -------------------------------- | ---------------------------------------- |
-| ETL       | `rows`、`date_range`             | `feature_columns=[]`、`label_columns=[]` |
-| Analysis  | `rows`                           | `scores={}`                              |
-| Train     | `feature_protocol`, `models`     | `training_target={}`, `artifacts={}`     |
-| Predict   | `protocol`、`rows`、`date_range` | `output_columns=[]`、`statistics={}`     |
-| Portfolio | `portfolios`、`protocol`         | 明文组合身份与冻结的信号产物             |
-| Backtest  | `portfolios`、`protocol`         | 共享的 `artifacts={}`                    |
+| 类型      | 基类必填                           | 基类可选或默认字段                       |
+| --------- | ---------------------------------- | ---------------------------------------- |
+| ETL       | `rows`、`date_range`               | `feature_columns=[]`、`label_columns=[]` |
+| Analysis  | `rows`                             | `scores={}`                              |
+| Train     | `feature_protocol`, `model_groups` | `training_target={}`, `artifacts={}`     |
+| Predict   | `protocol`、`rows`、`date_range`   | `output_columns=[]`、`statistics={}`     |
+| Portfolio | `portfolios`、`protocol`           | 明文组合身份与冻结的信号产物             |
+| Backtest  | `portfolios`、`protocol`           | 共享的 `artifacts={}`                    |
 
 训练索引直接读取 Task metadata。
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
 
-训练成员仅由 `output_params.models` 声明；预测分数映射仅保存在 `protocol.score_columns`，数据通过 `artifacts.predictions` 注册。单成员生产者使用相同集合契约。股票插件在调用回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
+训练在有序 `output_params.model_groups` 中声明模型组。每组持有 `train_start`、`train_end_exclusive`、`use_from` 和可选的右开边界 `use_to`，组内 `models` 保存成员配置、状态、产物与曲线。各组按时间排序且不重叠；选择要求所需成员已完成、日期范围完整覆盖。预测分数映射仅保存在 `protocol.score_columns`，数据通过 `artifacts.predictions` 注册。单成员生产者使用相同集合契约。股票插件在调用回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
 
 成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
 

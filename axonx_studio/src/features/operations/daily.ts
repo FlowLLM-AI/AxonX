@@ -17,20 +17,30 @@ type SignalHistory = {
   error: string;
 };
 
-/** History progress identifies the child role independently of its Task type. */
+/** Select the latest direct ETL attempts for one model and signal time. */
+export function etlTaskRecords(parent: TaskMetadata, name: string) {
+  // Failed construction has no Task ID; earlier attempts still identify its role.
+  const etlNodes = new Set(
+    parent.children
+      .filter((record) => record.child_task_id?.startsWith("etl#"))
+      .map((record) => record.node_name),
+  );
+  return [
+    ...new Map(
+      parent.children.map((record) => [record.node_name, record]),
+    ).values(),
+  ].filter(
+    (record) =>
+      etlNodes.has(record.node_name) &&
+      record.node_name === `${name}-${record.reg_name}`,
+  );
+}
+
 export function historyTaskRecords(parent: TaskMetadata) {
   const names = parent.steps
     .filter((step) => step.group === "history")
     .map((step) => step.name.replace(/^history:/, ""));
-  return [
-    ...new Map(
-      parent.children
-        .filter((record) =>
-          names.some((name) => record.node_name === `${name}-a_stock_history`),
-        )
-        .map((record) => [record.node_name, record]),
-    ).values(),
-  ];
+  return names.flatMap((name) => etlTaskRecords(parent, name));
 }
 
 export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {

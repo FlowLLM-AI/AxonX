@@ -27,7 +27,7 @@ Beta uses the preceding 60 market dates through T−1, with at least 30 paired s
 
 ETL reads 80 market dates before the requested output start so each residual in the 20-day risk window has its preceding 60-day beta history. The signal-eligibility history requirement remains 60 dates. With sufficient source history, overlapping features are independent of the requested output start.
 
-Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.0` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
+Plugin version 0.3.0 requires Python 3.12+, AxonX `>=0.3.1` and upstream research plugins `>=0.3.0`. Install the layers in dependency order. Research artifacts use protocol v1.
 
 ## Install and run
 

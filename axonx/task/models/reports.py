@@ -58,13 +58,9 @@ class TrainingCurve(TaskModel):
 
 
 class ModelMember(TaskModel):
-    """One named final model and its training record within a training Task."""
+    """One named final model and its training record within a model group."""
 
     model: dict[str, Any]
-    train_start: DateString
-    train_end_exclusive: DateString
-    use_from: DateString
-    use_to: DateString | None = None
     model_artifact: str | None = None
     state: Literal["pending", "running", "succeeded", "failed"] = "pending"
     train_rows: int = Field(default=0, ge=0)
@@ -77,13 +73,29 @@ class ModelMember(TaskModel):
     error: str = ""
 
     @model_validator(mode="after")
+    def validate_artifact(self):
+        if self.state == "succeeded" and not self.model_artifact:
+            raise ValueError("A completed model requires its final artifact")
+        return self
+
+
+class ModelGroup(TaskModel):
+    """Models sharing one training range and half-open use interval."""
+
+    train_start: DateString
+    train_end_exclusive: DateString
+    use_from: DateString
+    use_to: DateString | None = None
+    models: dict[str, ModelMember] = Field(min_length=1)
+
+    @model_validator(mode="after")
     def validate_window(self):
         if not self.train_start < self.train_end_exclusive <= self.use_from:
             raise ValueError("Require train_start < train_end_exclusive <= use_from")
         if self.use_to is not None and self.use_to <= self.use_from:
             raise ValueError("Model use_to must follow use_from")
-        if self.state == "succeeded" and not self.model_artifact:
-            raise ValueError("A completed model requires its final artifact")
+        if any(not name or "/" in name or "\\" in name for name in self.models):
+            raise ValueError("Model names must be nonempty file names")
         return self
 
 

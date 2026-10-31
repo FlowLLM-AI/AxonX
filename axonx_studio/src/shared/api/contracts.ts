@@ -136,7 +136,7 @@ export type BaseTrainOutputParams = {
   artifacts: Record<string, ArtifactRecord>;
   feature_protocol: Record<string, unknown>;
   training_target: Record<string, unknown>;
-  models: Record<string, ModelMember>;
+  model_groups: Array<ModelGroup>;
 };
 
 export type BuildInfo = {
@@ -306,12 +306,16 @@ export type MemoryInfo = {
   usage_percent: number;
 };
 
-export type ModelMember = {
-  model: Record<string, unknown>;
+export type ModelGroup = {
   train_start: string;
   train_end_exclusive: string;
   use_from: string;
   use_to: string | null;
+  models: Record<string, ModelMember>;
+};
+
+export type ModelMember = {
+  model: Record<string, unknown>;
   model_artifact: string | null;
   state: "pending" | "running" | "succeeded" | "failed";
   train_rows: number;

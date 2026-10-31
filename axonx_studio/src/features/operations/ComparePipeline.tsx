@@ -68,13 +68,7 @@ export function ComparePipeline({
         : ownedCompareNodes(
             model?.roles[
               currentStage === "results" ? "comparison" : currentStage
-            ]
-              ? [
-                  model.roles[
-                    currentStage === "results" ? "comparison" : currentStage
-                  ]!,
-                ]
-              : [],
+            ] || [],
             currentNodes,
           );
   const featureLog =
@@ -118,10 +112,16 @@ export function ComparePipeline({
             rawError && rawError !== "upstream_failed"
               ? compareError(rawError)
               : "";
-          const notes =
-            node?.status?.steps
-              .filter((s) => s.parent && s.phase)
-              .map((s) => s.phase) || [];
+          const notes = [
+            ...new Set(
+              [
+                step.phase,
+                ...(node?.status?.steps
+                  .filter((s) => s.parent && s.phase)
+                  .map((s) => s.phase) || []),
+              ].filter(Boolean),
+            ),
+          ];
           return (
             <section
               className={`compare-stage-row state-${state}${!preparation ? " compare-stage-compact" : ""}`}

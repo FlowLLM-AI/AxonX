@@ -2,7 +2,7 @@ import type { ChildTaskRecord, TaskMetadata } from "../../shared/api/contracts";
 import type { TaskStepStatus } from "../../shared/api/event";
 import { isRecord } from "../../shared/lib/values";
 import type { TaskNode } from "../tasks/tree";
-import { slotLabel } from "./daily";
+import { etlTaskRecords, slotLabel } from "./daily";
 
 /** Resolve only the latest owned attempt and its exact descendant Tasks. */
 export function ownedCompareNodes(
@@ -51,7 +51,6 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
         const value = slotOutcomes[taskName];
         const outcome = isRecord(value) ? value : {};
         const registrations = {
-          etl: "a_stock_history",
           prediction: isRecord(model.predict)
             ? String(model.predict.reg_name)
             : "",
@@ -65,12 +64,11 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
         const roles = Object.fromEntries(
           Object.entries(registrations).map(([role, registration]) => [
             role,
-            records.find((r) => r.node_name === `${name}-${registration}`),
+            records.filter((r) => r.node_name === `${name}-${registration}`),
           ]),
         );
-        const roots = Object.values(roles).filter(
-          (record): record is ChildTaskRecord => !!record,
-        );
+        roles.etl = etlTaskRecords(parent, name);
+        const roots = Object.values(roles).flat();
         const children = ownedCompareNodes(roots, nodes);
         const steps = parent.steps.filter((step) => step.group === name);
         let state = String(outcome.status || "pending");

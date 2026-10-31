@@ -66,7 +66,7 @@ Training results include model name, training row count, target column, paramete
 
 - `models/lightgbm_seed_<seed>_fit_end_<date>_use_<date>-onward.txt`: the final model fitted using the selected iteration count.
 - `feature_importance_stats.csv`: gain and split importance.
-- `metadata.json.output_params.models`: model configurations, use dates, parameters, metrics and training/validation curves.
+- `metadata.json.output_params.model_groups`: model configurations, use dates, parameters, metrics and training/validation curves.
 
 qlib_a158's training window includes the start and excludes the end, reserving the final dates for validation. Tuning selects the best iteration count, then refits using all valid samples within the training window. Curves and validation metrics come from the model used to select the iteration count, not an independent out-of-sample evaluation of the final model.
 

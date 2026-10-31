@@ -199,7 +199,7 @@ it("shows the business reason when a missed input window never started a child",
   );
 });
 
-it("shows nightly model plans, skipped comparisons and nested history task logs", async () => {
+it("shows nightly model plans, skipped comparisons and direct ETL task logs", async () => {
   parent.report_kind = "compare_pipeline";
   parent.input_params = {
     models: {
@@ -228,13 +228,6 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
       "1445": { demo: { status: "done", comparison: { status: "skipped" } } },
     },
   };
-  const history = structuredClone(child);
-  history.task_id = "base#a_stock_history#demo-1445";
-  history.started_at = "2026-01-07T00:00:00Z";
-  history.reg_name = "a_stock_history";
-  history.task_type = "base";
-  history.report_kind = null;
-  history.input_params.task_name = "demo-1445";
   const etl = structuredClone(child);
   etl.task_id = "etl#a_stock_etl#demo";
   etl.started_at = "2026-01-08T00:00:00Z";
@@ -242,27 +235,16 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
   etl.report_kind = null;
   etl.task_type = "etl";
   etl.children = [];
-  history.children = [
+  parent.children = [
     {
       ...parent.children[0],
       reg_name: etl.reg_name,
       child_task_id: etl.task_id,
       started_at: etl.started_at,
-      node_name: "demo-a_stock_etl",
+      node_name: "demo-1445-a_stock_etl",
     },
   ];
-  parent.children = [
-    {
-      ...parent.children[0],
-      reg_name: history.reg_name,
-      child_task_id: history.task_id,
-      started_at: history.started_at,
-      node_name: "demo-1445-a_stock_history",
-    },
-  ];
-  const tasks = new Map(
-    [parent, history, etl].map((task) => [task.task_id, task]),
-  );
+  const tasks = new Map([parent, etl].map((task) => [task.task_id, task]));
   vi.mocked(getTaskStatus).mockImplementation(async (id) => tasks.get(id)!);
   await render();
   expect(container.textContent).toContain(i18n.t("onlinePipeline.nightly"));
@@ -417,66 +399,77 @@ it("flattens quality into the second navigation row and preserves workspace file
   }
 });
 
-it.each(["base", "etl"] as const)(
-  "joins history progress and %s child stages by their role",
-  async (kind) => {
-    const record = {
-      ...parent.children[0],
-      reg_name: "a_stock_history",
-      node_name: "default-0945-0945-a_stock_history",
-      child_task_id: `${kind}#history#demo`,
-      state: "succeeded" as const,
-    };
-    const step = {
-      ...child.steps[0],
-      name: "history:default-0945-0945",
-      group: "history",
-      state: "done" as const,
-    };
-    parent.children = [record, { ...record, node_name: "unrelated" }];
-    parent.steps = [
-      step,
-      { ...step, name: "history:default-1000-1000", state: "pending" },
-    ];
-    child.steps = [
-      { ...child.steps[0], name: "prepare_history", label: "prepare_history" },
-    ];
-    const onOpenTask = vi.fn();
-    await act(async () =>
-      root.render(
-        <HistoryPreparation
-          parent={parent}
-          nodes={[{ record, status: child, error: "" }]}
-          onOpenTask={onOpenTask}
-        />,
-      ),
-    );
-    expect(
-      container.querySelectorAll(".history-preparation-card"),
-    ).toHaveLength(2);
-    expect(
-      container.querySelector(".history-preparation-card")?.textContent,
-    ).toContain("prepare_history");
-    expect(
-      container.querySelector(".history-preparation-card")?.textContent,
-    ).not.toContain(record.node_name);
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>(
-          ".history-preparation-actions button",
-        )!
-        .click(),
-    );
-    expect(onOpenTask).toHaveBeenCalledWith(record.child_task_id);
-  },
-);
+it("joins history progress and a direct multistage ETL chain", async () => {
+  const record = {
+    ...parent.children[0],
+    reg_name: "v1_merge",
+    node_name: "default-0945-0945-v1_merge",
+    child_task_id: "etl#v1_merge#demo",
+    state: "succeeded" as const,
+  };
+  const step = {
+    ...child.steps[0],
+    name: "history:default-0945-0945",
+    group: "history",
+    state: "done" as const,
+  };
+  const feature = {
+    ...record,
+    reg_name: "v1_feature",
+    node_name: "default-0945-0945-v1_feature",
+    child_task_id: "etl#v1_feature#demo",
+  };
+  parent.children = [record, feature, { ...record, node_name: "unrelated" }];
+  parent.steps = [
+    step,
+    { ...step, name: "history:default-1000-1000", state: "pending" },
+  ];
+  child.steps = [
+    { ...child.steps[0], name: "prepare_history", label: "prepare_history" },
+  ];
+  const onOpenTask = vi.fn();
+  await act(async () =>
+    root.render(
+      <HistoryPreparation
+        parent={parent}
+        nodes={[
+          { record, status: child, error: "" },
+          {
+            record: feature,
+            status: { ...child, task_id: feature.child_task_id },
+            error: "",
+          },
+        ]}
+        onOpenTask={onOpenTask}
+      />,
+    ),
+  );
+  expect(container.querySelectorAll(".history-preparation-card")).toHaveLength(
+    2,
+  );
+  expect(
+    container.querySelectorAll(".history-preparation-actions button"),
+  ).toHaveLength(2);
+  expect(
+    container.querySelector(".history-preparation-card")?.textContent,
+  ).toContain("prepare_history");
+  expect(
+    container.querySelector(".history-preparation-card")?.textContent,
+  ).not.toContain(record.node_name);
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(".history-preparation-actions button")!
+      .click(),
+  );
+  expect(onOpenTask).toHaveBeenCalledWith(record.child_task_id);
+});
 
 it("keeps history failure and exact-run replacement errors in the same card", async () => {
   const record = {
     ...parent.children[0],
-    reg_name: "a_stock_history",
-    node_name: "default-0945-0945-a_stock_history",
-    child_task_id: "base#history#demo",
+    reg_name: "a_stock_etl",
+    node_name: "default-0945-0945-a_stock_etl",
+    child_task_id: "etl#a_stock_etl#demo",
   };
   parent.children = [record];
   parent.steps = [
@@ -507,12 +500,113 @@ it("keeps history failure and exact-run replacement errors in the same card", as
   expect(container.querySelector(".history-preparation-stages")).toBeNull();
 });
 
-it("summarizes completed history reuse in one row while retaining failed stage details", async () => {
+it.each(["en", "zh"])(
+  "shows the latest ETL construction failure without the earlier execution in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    const previous = {
+      ...parent.children[0],
+      reg_name: "a_stock_etl",
+      node_name: "demo-1445-a_stock_etl",
+      child_task_id: "etl#a_stock_etl#demo",
+      state: "succeeded" as const,
+      exit_code: 0,
+      error: "",
+    };
+    const error = "ValueError: Invalid ETL configuration";
+    parent.children = [
+      previous,
+      {
+        ...previous,
+        attempt: previous.attempt + 1,
+        child_task_id: null,
+        started_at: null,
+        state: "failed",
+        exit_code: 1,
+        error,
+      },
+    ];
+    parent.output_params.models = {
+      "1445": {
+        demo: { status: "failed", stages: { etl: previous.child_task_id } },
+      },
+    };
+    parent.steps = [
+      {
+        ...child.steps[0],
+        name: "history:demo-1445",
+        group: "history",
+        state: "failed",
+        error: "",
+      },
+    ];
+    await act(async () =>
+      root.render(
+        <HistoryPreparation
+          parent={parent}
+          nodes={[{ record: previous, status: child, error: "" }]}
+          modelName="demo"
+          slot="1445"
+          onOpenTask={vi.fn()}
+        />,
+      ),
+    );
+    expect(container.querySelector(".step-failed")?.textContent).toContain(
+      error,
+    );
+    expect(container.querySelector(".history-preparation-stages")).toBeNull();
+    expect(
+      container.querySelector(".history-preparation-actions button"),
+    ).toBeNull();
+  },
+);
+
+it("shows reused ETL from its input reference without inventing a child execution", async () => {
+  parent.children = [];
+  parent.steps = [
+    {
+      ...child.steps[0],
+      name: "history:demo-1445",
+      group: "history",
+      state: "done",
+      phase: "reused",
+    },
+  ];
+  parent.output_params.models = {
+    "1445": {
+      demo: { status: "done", stages: { etl: "etl#a_stock_etl#demo" } },
+    },
+  };
+  const onOpenTask = vi.fn();
+  await act(async () =>
+    root.render(
+      <HistoryPreparation
+        parent={parent}
+        nodes={[]}
+        modelName="demo"
+        slot="1445"
+        onOpenTask={onOpenTask}
+      />,
+    ),
+  );
+  expect(container.textContent).toContain(
+    i18n.t("onlinePipeline.phases.reused"),
+  );
+  expect(container.querySelector(".history-preparation-stages")).toBeNull();
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(".history-preparation-actions button")!
+      .click(),
+  );
+  expect(onOpenTask).toHaveBeenCalledWith("etl#a_stock_etl#demo");
+});
+
+it("summarizes completed ETL in one row while retaining failed stage details", async () => {
   const record = {
     ...parent.children[0],
-    reg_name: "a_stock_history",
-    node_name: "demo-1445-a_stock_history",
-    child_task_id: "base#history#demo",
+    reg_name: "a_stock_etl",
+    node_name: "demo-1445-a_stock_etl",
+    child_task_id: "etl#a_stock_etl#demo",
     state: "succeeded" as const,
   };
   parent.children = [record];
@@ -522,6 +616,7 @@ it("summarizes completed history reuse in one row while retaining failed stage d
       name: "history:demo-1445",
       group: "history",
       state: "done",
+      phase: "rebuilt",
     },
   ];
   child.steps = [
@@ -530,7 +625,7 @@ it("summarizes completed history reuse in one row while retaining failed stage d
       name: "history",
       label: "prepare_history",
       state: "done",
-      phase: "reused",
+      phase: "rebuilt",
       metrics: {},
       files: {},
       completed: null,
@@ -551,7 +646,7 @@ it("summarizes completed history reuse in one row while retaining failed stage d
     );
   await renderHistory();
   expect(container.textContent).toContain(
-    i18n.t("onlinePipeline.phases.reused"),
+    i18n.t("onlinePipeline.phases.rebuilt"),
   );
   expect(container.querySelectorAll(".online-status")).toHaveLength(1);
   expect(container.querySelector(".history-preparation-stages")).toBeNull();

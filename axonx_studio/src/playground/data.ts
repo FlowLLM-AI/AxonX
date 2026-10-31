@@ -430,29 +430,33 @@ export function addArtifacts(
           feature_family: "synthetic",
         },
         training_target: { label_column: "label_return_rank" },
-        models: {
-          "synthetic_seed_0_fit_end_20230101_use_20230101-onward": {
-            model_artifact: "model",
-            state: "succeeded",
-            model: {
-              model_type: "Synthetic model",
-              feature_names: ["momentum", "value", "quality"],
-              random_seed: 0,
-            },
+        model_groups: [
+          {
             train_start: "20150101",
             train_end_exclusive: "20230101",
             use_from: "20230101",
             use_to: null,
-            train_rows: 1200,
-            parameters: { strategy },
-            metrics: metadata.output_params.metrics,
-            training_curve: metadata.output_params.training_curve,
-            started_at: task.started_at,
-            finished_at: task.finished_at,
-            elapsed_seconds: 1,
-            error: "",
+            models: {
+              "synthetic_seed_0_fit_end_20230101_use_20230101-onward": {
+                model_artifact: "model",
+                state: "succeeded",
+                model: {
+                  model_type: "Synthetic model",
+                  feature_names: ["momentum", "value", "quality"],
+                  random_seed: 0,
+                },
+                train_rows: 1200,
+                parameters: { strategy },
+                metrics: metadata.output_params.metrics,
+                training_curve: metadata.output_params.training_curve,
+                started_at: task.started_at,
+                finished_at: task.finished_at,
+                elapsed_seconds: 1,
+                error: "",
+              },
+            },
           },
-        },
+        ],
         artifacts,
       },
     });

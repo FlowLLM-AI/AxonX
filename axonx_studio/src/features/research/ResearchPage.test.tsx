@@ -4,6 +4,7 @@ import { expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
 import { axonx } from "../../shared/api/client";
+import type { ModelGroup } from "../../shared/api/contracts";
 import { previewWorkspaceFile } from "../../shared/api/workspace";
 import ResearchPage from "./ResearchPage";
 
@@ -93,9 +94,15 @@ it.each(["en", "zh"])(
   },
 );
 
-it("reads the model index directly from training metadata", async () => {
+it("selects same-named members from different training groups", async () => {
   const { files, tasks } = seed();
   const task = tasks.get("train#playground_train#demo")!;
+  const groups = task.output_params.model_groups as ModelGroup[];
+  const nextGroup = structuredClone(groups[0]);
+  groups[0].use_to = "20240101";
+  nextGroup.train_end_exclusive = nextGroup.use_from = "20240101";
+  Object.values(nextGroup.models)[0].train_rows = 2400;
+  groups.push(nextGroup);
   vi.mocked(axonx.invoke).mockImplementation(async (name) =>
     name === "status" ? task : [task],
   );
@@ -125,15 +132,28 @@ it("reads the model index directly from training metadata", async () => {
       ].find((node) =>
         node.textContent?.includes(i18n.t("research.model_members")),
       );
-      expect(card?.querySelector("strong")?.textContent).toBe("1");
+      expect(card?.querySelector("strong")?.textContent).toBe("2");
     });
     expect(previewWorkspaceFile).not.toHaveBeenCalled();
     const selector = container.querySelector<HTMLSelectElement>(
       ".artifact-content select",
     );
-    expect(selector?.options).toHaveLength(1);
+    expect(selector?.options).toHaveLength(2);
     expect(selector?.options[0].textContent).toContain("seed_0");
-    expect(container.textContent).toContain("∞");
+    expect(
+      container.querySelector(".training-model-window")?.textContent,
+    ).not.toContain("∞");
+    await act(async () => {
+      selector!.value = selector!.options[1].value;
+      selector!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(
+      container.querySelector(".training-model-window")?.textContent,
+    ).toContain("20240101");
+    expect(
+      container.querySelector(".training-model-window")?.textContent,
+    ).toContain("∞");
+    expect(container.textContent).toContain("2,400");
   } finally {
     await act(async () => root.unmount());
   }

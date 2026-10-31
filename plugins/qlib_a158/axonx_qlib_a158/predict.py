@@ -21,7 +21,11 @@ from axonx.task.models.identity import (
     task_type_from_id,
     validate_upstream_task_ids,
 )
-from axonx.task.models.params import BaseInputParams, BasePredictOutputParams, BaseTrainOutputParams
+from axonx.task.models.params import (
+    BaseInputParams,
+    BasePredictOutputParams,
+    BaseTrainOutputParams,
+)
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write
 from axonx.task.storage.inputs import (
@@ -30,7 +34,12 @@ from axonx.task.storage.inputs import (
     upstream_artifacts,
 )
 
-from .internal.modeling import feature_contract, feature_identity, feature_matrix, load_lightgbm
+from .internal.modeling import (
+    feature_contract,
+    feature_identity,
+    feature_matrix,
+    load_lightgbm,
+)
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
@@ -80,15 +89,17 @@ class LgbmPredictTask(BasePredictTask):
         train_task_id = self.input_params.upstream_task_id(TaskType.TRAIN)
         _, train_metadata = read_upstream_metadata(self.workspace_path, train_task_id)
         collection = BaseTrainOutputParams.model_validate(train_metadata["output_params"])
-        selected = collection.select_models(self.input_params.pred_start)
+        group = collection.select_group(self.input_params.pred_start)
+        selected = group.models
         if len(selected) != 1:
             raise ValueError("LightGBM prediction requires one active model")
         member_name, member = next(iter(selected.items()))
         self.state["member_name"] = member_name
         self.state["member"] = member.model_dump(mode="json")
+        self.state["model_group"] = group.model_dump(mode="json")
         self.state["model_collection"] = collection.model_dump(mode="json")
         model_path = upstream_artifact(self, train_task_id, member.model_artifact)[0]
-        train_end = member.train_end_exclusive
+        train_end = group.train_end_exclusive
         if self.input_params.pred_start < train_end:
             raise ValueError("Prediction precedes the training cutoff")
         output_dir = self.task_dir
@@ -169,7 +180,7 @@ class LgbmPredictTask(BasePredictTask):
             raise ValueError(
                 f"预测日期范围内没有数据: {self.input_params.pred_start}..{pred_end}",
             )
-        use_to = self.state["member"]["use_to"]
+        use_to = self.state["model_group"]["use_to"]
         if use_to is not None and frame["trade_date"].max() >= use_to:
             raise ValueError("Prediction interval exceeds the selected model's use window")
         validate_keys(frame)

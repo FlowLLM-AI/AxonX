@@ -14,8 +14,19 @@ from .artifacts import (
     validate_protocol,
 )
 from .base import TaskModel, normalize_yyyymmdd
-from .identity import TaskType, task_type_from_id, validate_task_name, validate_upstream_task_ids
-from .reports import BacktestPortfolioReport, ModelMember, PortfolioDefinition, PredictionComparison, WindowResult
+from .identity import (
+    TaskType,
+    task_type_from_id,
+    validate_task_name,
+    validate_upstream_task_ids,
+)
+from .reports import (
+    BacktestPortfolioReport,
+    ModelGroup,
+    PortfolioDefinition,
+    PredictionComparison,
+    WindowResult,
+)
 
 
 class BaseInputParams(TaskModel):
@@ -132,28 +143,43 @@ class BaseTrainOutputParams(BaseOutputParams):
 
     feature_protocol: dict[str, Any]
     training_target: dict[str, Any] = Field(default_factory=dict)
-    models: dict[str, ModelMember] = Field(min_length=1)
+    model_groups: list[ModelGroup] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_models(self):
         validate_protocol(self.feature_protocol, TaskType.ETL)
-        for name, member in self.models.items():
-            if not name or "/" in name or "\\" in name:
-                raise ValueError("Model names must be nonempty file names")
-            if member.model_artifact is not None and member.model_artifact not in self.artifacts:
-                raise ValueError("Model references an unregistered artifact")
+        for index, group in enumerate(self.model_groups):
+            if index:
+                previous = self.model_groups[index - 1]
+                if previous.use_to is None or previous.use_to > group.use_from:
+                    raise ValueError("Model groups must be ordered and non-overlapping")
+            for member in group.models.values():
+                if member.model_artifact is not None and member.model_artifact not in self.artifacts:
+                    raise ValueError("Model references an unregistered artifact")
         return self
 
-    def select_models(self, use_at: str | int) -> dict[str, ModelMember]:
-        date = normalize_yyyymmdd(use_at)
-        selected = {
-            name: member
-            for name, member in self.models.items()
-            if member.use_from <= date and (member.use_to is None or date < member.use_to)
-        }
-        if not selected or any(member.state != "succeeded" for member in selected.values()):
-            raise ValueError(f"No completed model group for {date}")
-        return selected
+    def select_groups(self, start: str | int, end: str | int) -> list[ModelGroup]:
+        """Select completed groups covering an inclusive prediction interval."""
+        start, end = normalize_yyyymmdd(start), normalize_yyyymmdd(end)
+        if end < start:
+            raise ValueError("end_date must not precede start_date")
+        groups = [
+            group
+            for group in self.model_groups
+            if group.use_from <= end and (group.use_to is None or start < group.use_to)
+        ]
+        covered = (
+            bool(groups)
+            and groups[0].use_from <= start
+            and (groups[-1].use_to is None or groups[-1].use_to > end)
+            and all(left.use_to == right.use_from for left, right in zip(groups, groups[1:]))
+        )
+        if not covered or any(member.state != "succeeded" for group in groups for member in group.models.values()):
+            raise ValueError(f"No completed model group covering {start} through {end}")
+        return groups
+
+    def select_group(self, use_at: str | int) -> ModelGroup:
+        return self.select_groups(use_at, use_at)[0]
 
 
 class BasePredictionCompareInputParams(BaseInputParams):

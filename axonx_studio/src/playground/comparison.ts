@@ -67,7 +67,6 @@ export function seedNightly(
     deadline: null,
   });
   const download = taskStatus("base", "base#tushare_mins#nightly");
-  const history = taskStatus("base", "base#a_stock_history#nightly-1445");
   const etl = taskStatus("etl", "etl#a_stock_etl#nightly");
   const comparison = taskStatus(
     "analysis",
@@ -122,12 +121,9 @@ export function seedNightly(
     exit_code: 0,
     error: "",
   });
-  history.children = [record(etl, "nightly-a_stock_etl")];
-  history.steps = [step("history", "history", "done")];
-  history.steps[0].phase = "rebuilt";
   parent.children = [
     record(download, "tushare_mins"),
-    record(history, "nightly-1445-a_stock_history"),
+    record(etl, "nightly-1445-a_stock_etl"),
     record(comparison, "nightly-1445-a_stock_prediction_compare"),
   ];
   parent.steps = [
@@ -146,6 +142,8 @@ export function seedNightly(
       ),
     ),
   ];
+  parent.steps.find((item) => item.name === "nightly-1445:etl")!.phase =
+    "rebuilt";
   parent.output_params = {
     models: {
       "0945": {
@@ -160,7 +158,7 @@ export function seedNightly(
       "1445": { nightly: { status: "done" }, missing: { status: "done" } },
     },
   };
-  for (const task of [parent, download, history, etl, comparison]) {
+  for (const task of [parent, download, etl, comparison]) {
     task.output_params.artifacts = {};
     task.reg_name = task.task_id.split("#")[1];
     tasks.set(task.task_id, task);

@@ -64,8 +64,9 @@ def test_plugin_dependency_layers_require_current_contracts(name):
     if name != "qlib_a158":
         dependencies.append("axonx-qlib-a158")
     for dependency in dependencies:
-        assert "0.3.0" in requirements[dependency].specifier
+        assert ("0.3.1" if dependency == "axonx" else "0.3.0") in requirements[dependency].specifier
         assert "0.2.0" not in requirements[dependency].specifier
+    assert "0.3.0" not in requirements["axonx"].specifier
 
 
 def test_plugins_register_distinct_implementations_without_application_presets():

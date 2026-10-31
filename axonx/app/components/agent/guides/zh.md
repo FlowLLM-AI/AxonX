@@ -217,14 +217,14 @@ example_plugin = ["plugin.yaml"]
 | 阶段           | 字段                                        |
 | -------------- | ------------------------------------------- |
 | ETL / Analysis | ETL：`rows`、`date_range`；Analysis：`rows` |
-| Train          | `feature_protocol`, `models`                |
+| Train          | `feature_protocol`, `model_groups`          |
 | Predict        | `rows`、`date_range`、`protocol`            |
 | Portfolio      | `portfolios`、`protocol`                    |
 | Backtest       | 非空 `portfolios`、`protocol`               |
 
 先写文件，再用 `axonx.task.storage.artifacts.artifact_record(path, task_dir)` 注册到输出 `artifacts`；记录包含 Task 相对路径、大小和 revision。原子写入与输出复制复用 `axonx.task.storage.files`。`verify_artifact()` 核验文件，revision 是大小/修改时间标识，并非内容哈希。`axonx.task.storage.inputs` 的 `upstream_artifacts()` 直接读取成功、非副本上游的产物，metadata 的 `input_sources` 记录来源执行和文件修订，执行成功前再次校验；业务兼容性仍由插件检查。
 
-复用协议时使用 `version=1` 和正确的 `task_type`。训练在一个 Task metadata 中索引所有模型，预测发布模型身份、日期、评分列与输入修订；股票 ETL 分离数据、标签、行情和日历，预测不能含未来标签。股票组合 Task 继承 `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask`，实现信号时点的 `build_universes()` 与 `select_universe()`。回测继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，消费冻结的 Portfolio 产物，沿用成交和估值协议。
+复用协议时使用 `version=1` 和正确的 `task_type`。训练在一个 Task metadata 中用有序 `model_groups` 索引模型，每组持有训练和使用区间以及组内 `models` 成员映射。预测发布模型身份、日期、评分列与输入修订；股票 ETL 分离数据、标签、行情和日历，预测不能含未来标签。股票组合 Task 继承 `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask`，实现信号时点的 `build_universes()` 与 `select_universe()`。回测继承 `axonx.task.builtins.stock.backtest.BaseStockBacktestTask`，消费冻结的 Portfolio 产物，沿用成交和估值协议。
 
 在临时工作区运行受影响测试，再做小范围实际运行：
 

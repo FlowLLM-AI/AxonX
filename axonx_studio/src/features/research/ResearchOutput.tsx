@@ -41,12 +41,19 @@ export function BaseOutputView({
   const kind = meta.task_type;
   const { t } = useTranslation();
   const train = meta.task_type === "train" ? meta.output_params : null;
-  const [selectedName, setSelectedName] = useState("");
-  const modelNames = Object.keys(train?.models || {});
-  const modelName = modelNames.includes(selectedName)
-    ? selectedName
-    : modelNames[0];
-  const model = train?.models[modelName];
+  const [selectedKey, setSelectedKey] = useState("");
+  const models =
+    train?.model_groups.flatMap((group, index) =>
+      Object.entries(group.models).map(([name, model]) => ({
+        key: `${index}:${name}`,
+        name,
+        model,
+        group,
+      })),
+    ) || [];
+  const selected = models.find(({ key }) => key === selectedKey) || models[0];
+  const model = selected?.model;
+  const group = selected?.group;
   const parameters = { ...model?.model, ...model?.parameters };
   const targetColumn = train?.training_target.label_column;
 
@@ -128,7 +135,7 @@ export function BaseOutputView({
                   label: t("research.model_members"),
                   value:
                     meta.task_type === "train"
-                      ? fmt(modelNames.length, 0)
+                      ? fmt(models.length, 0)
                       : fmt(members.length, 0),
                 },
               ]
@@ -160,21 +167,21 @@ export function BaseOutputView({
             <h3>{t("research.model")}</h3>
             <Select
               aria-label={t("research.model")}
-              value={modelName || ""}
-              onChange={(event) => setSelectedName(event.target.value)}
+              value={selected?.key || ""}
+              onChange={(event) => setSelectedKey(event.target.value)}
             >
-              {modelNames.map((name) => (
-                <option key={name} value={name}>
+              {models.map(({ key, name }) => (
+                <option key={key} value={key}>
                   {name}
                 </option>
               ))}
             </Select>
           </header>
-          {model && (
+          {model && group && (
             <p className="training-model-window">
-              {t("research.training_range")}: [{model.train_start},{" "}
-              {model.train_end_exclusive}) · {t("research.use_range")}: [
-              {model.use_from}, {model.use_to || "∞"}) ·{" "}
+              {t("research.training_range")}: [{group.train_start},{" "}
+              {group.train_end_exclusive}) · {t("research.use_range")}: [
+              {group.use_from}, {group.use_to || "∞"}) ·{" "}
               {t(`states.${model.state}`)}
             </p>
           )}

@@ -217,14 +217,14 @@ Research bases are in `axonx.task.core.research`, inputs/outputs in `axonx.task.
 | Stage          | Fields                                      |
 | -------------- | ------------------------------------------- |
 | ETL / Analysis | ETL: `rows`, `date_range`; Analysis: `rows` |
-| Train          | `feature_protocol`, `models`                |
+| Train          | `feature_protocol`, `model_groups`          |
 | Predict        | `rows`, `date_range`, `protocol`            |
 | Portfolio      | `portfolios`, `protocol`                    |
 | Backtest       | nonempty `portfolios`, `protocol`           |
 
 Write files first, then register them in output `artifacts` using `axonx.task.storage.artifacts.artifact_record(path, task_dir)`. Records contain a Task-relative path, size and revision. Reuse `axonx.task.storage.files` for atomic writes and output copies. `verify_artifact()` checks the file; revision identifies size/modification time, not a content hash. `upstream_artifacts()` in `axonx.task.storage.inputs` reads verified producer files directly and records their executions and revisions in metadata `input_sources`; execution revalidates these references before success. Plugins still check business compatibility.
 
-Reuse protocols with `version=1` and the correct `task_type`. Training indexes all models in one Task metadata record; prediction publishes model identity, dates, score columns and input revisions. Stock ETL separates data, labels, market and calendar; predictions must not contain future labels. Stock portfolio Tasks inherit `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask` and implement signal-time `build_universes()` and `select_universe()`. Backtests inherit `axonx.task.builtins.stock.backtest.BaseStockBacktestTask` and consume frozen Portfolio artifacts, preserving execution and valuation protocols.
+Reuse protocols with `version=1` and the correct `task_type`. Training indexes ordered `model_groups` in one Task metadata record: each group owns its training/use ranges and a `models` member map. Prediction publishes model identity, dates, score columns and input revisions. Stock ETL separates data, labels, market and calendar; predictions must not contain future labels. Stock portfolio Tasks inherit `axonx.task.builtins.stock.portfolio.BaseStockPortfolioTask` and implement signal-time `build_universes()` and `select_universe()`. Backtests inherit `axonx.task.builtins.stock.backtest.BaseStockBacktestTask` and consume frozen Portfolio artifacts, preserving execution and valuation protocols.
 
 Run affected tests in temporary workspaces, then perform a small actual run:
 

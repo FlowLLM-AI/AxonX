@@ -2,10 +2,11 @@ import { ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskMetadata } from "../../shared/api/contracts";
 import type { TaskNode } from "../tasks/tree";
-import { historyTaskRecords } from "./daily";
+import { etlTaskRecords } from "./daily";
+import { isRecord } from "../../shared/lib/values";
 import { PipelineSteps } from "./PipelineSteps";
 
-/** Join parent progress and its exact child Task into one card per model. */
+/** Show workflow preparation progress alongside its exact ETL executions. */
 export function HistoryPreparation({
   parent,
   nodes,
@@ -22,17 +23,25 @@ export function HistoryPreparation({
   slot?: string;
 }) {
   const { t, i18n } = useTranslation();
-  const records = historyTaskRecords(parent);
   const steps = parent.steps.filter((step) => step.group === "history");
+  const outcomes = isRecord(parent.output_params.models)
+    ? parent.output_params.models
+    : {};
+  const historyIds = new Map(
+    Object.entries(outcomes).flatMap(([time, models]) =>
+      isRecord(models)
+        ? Object.entries(models).map(([name, result]): [string, string] => [
+            `${name}-${time}`,
+            isRecord(result) && isRecord(result.stages)
+              ? String(result.stages.etl || "")
+              : "",
+          ])
+        : [],
+    ),
+  );
   const rows = steps.map((step) => {
     const name = step.name.replace(/^history:/, "");
-    return {
-      name,
-      step,
-      record: records.find(
-        (record) => record.node_name === `${name}-a_stock_history`,
-      ),
-    };
+    return { name, step, records: etlTaskRecords(parent, name) };
   });
   return (
     <div className="pipeline-steps history-preparation">
@@ -42,44 +51,56 @@ export function HistoryPreparation({
             ? entry.name === `${modelName}-${slot}`
             : !modelName || entry.name.startsWith(`${modelName}-`),
         )
-        .map(({ name, step, record }) => {
-          const node =
-            record &&
-            nodes.find(
+        .map(({ name, step, records }) => {
+          const children = records.map((record) => ({
+            record,
+            node: nodes.find(
               (node) =>
                 node.record.child_task_id === record.child_task_id &&
                 node.record.started_at === record.started_at,
+            ),
+          }));
+          const state = step.state || "pending";
+          const details = children.flatMap(({ node }) => {
+            const child = node?.status;
+            if (!child) return [];
+            const childSteps = child.steps.filter(
+              (stage) =>
+                stage.parent &&
+                (!slot ||
+                  !(
+                    ["done", "succeeded"].includes(stage.state || "") &&
+                    !stage.error &&
+                    !Object.keys(stage.files || {}).length &&
+                    !Object.keys(stage.metrics || {}).length &&
+                    (stage.completed == null || stage.total === 1)
+                  )),
             );
-          const child = node?.status;
-          const state =
-            step?.state === "failed"
-              ? "failed"
-              : record?.state || step?.state || "pending";
-          const childSteps = child?.steps.filter((stage) => stage.parent) || [];
+            return childSteps.length ? [{ child, steps: childSteps }] : [];
+          });
           const errors = [
             ...new Set(
-              [step?.error, record?.error, node?.error, child?.error].filter(
+              [
+                step.error,
+                ...children.flatMap(({ record, node }) => [
+                  record.error,
+                  node?.error,
+                  node?.status?.error,
+                ]),
+              ].filter(
                 (error) =>
-                  error && !childSteps.some((stage) => stage.error === error),
+                  error &&
+                  !details.some(({ steps }) =>
+                    steps.some((stage) => stage.error === error),
+                  ),
               ),
             ),
           ];
-          const summarized = slot
-            ? childSteps.filter(
-                (stage) =>
-                  ["done", "succeeded"].includes(stage.state || "") &&
-                  !stage.error &&
-                  !Object.keys(stage.files || {}).length &&
-                  !Object.keys(stage.metrics || {}).length &&
-                  (stage.completed == null || stage.total === 1),
-              )
-            : [];
-          const notes = [
-            ...new Set(summarized.map((stage) => stage.phase).filter(Boolean)),
-          ];
-          const remaining = childSteps.filter(
-            (stage) => !summarized.includes(stage),
+          const taskIds = records.flatMap((record) =>
+            record.child_task_id ? [record.child_task_id] : [],
           );
+          const reusedId = historyIds.get(name);
+          if (!records.length && reusedId) taskIds.push(reusedId);
           const badge = (
             <span className={`online-status status-${state}`}>
               {t(`onlinePipeline.status.${state}`, state)}
@@ -88,31 +109,32 @@ export function HistoryPreparation({
           return (
             <section
               key={name}
-              className={`pipeline-step history-preparation-card${slot ? " history-preparation-compact" : ""} step-${state === "succeeded" ? "done" : state}`}
+              className={`pipeline-step history-preparation-card${slot ? " history-preparation-compact" : ""} step-${state}`}
             >
               <header>
                 <strong>
                   {slot ? t("onlineWorkbench.historyInputs") : name}
                 </strong>
                 {slot && badge}
-                {notes.map((phase) => (
-                  <span className="history-preparation-note" key={phase}>
-                    {t(`onlinePipeline.phases.${phase}`, phase || "")}
+                {step.phase && (
+                  <span className="history-preparation-note">
+                    {t(`onlinePipeline.phases.${step.phase}`, step.phase)}
                   </span>
-                ))}
+                )}
                 <div className="history-preparation-actions">
                   {!slot && badge}
-                  {record?.child_task_id && (
+                  {taskIds.map((taskId) => (
                     <button
+                      key={taskId}
                       type="button"
                       className="secondary-button"
                       title={t("onlinePipeline.openTask")}
                       aria-label={t("onlinePipeline.openTask")}
-                      onClick={() => onOpenTask(record.child_task_id!)}
+                      onClick={() => onOpenTask(taskId)}
                     >
                       <ArrowUpRight aria-hidden="true" />
                     </button>
-                  )}
+                  ))}
                 </div>
               </header>
               {step?.updated_at && !slot && (
@@ -129,16 +151,19 @@ export function HistoryPreparation({
                   {error}
                 </p>
               ))}
-              {child && remaining.length > 0 && (
-                <div className="history-preparation-stages">
+              {details.map(({ child, steps }) => (
+                <div
+                  className="history-preparation-stages"
+                  key={`${child.task_id}:${child.started_at}`}
+                >
                   <PipelineSteps
                     task={child}
                     target={target}
                     compact
-                    steps={remaining}
+                    steps={steps}
                   />
                 </div>
-              )}
+              ))}
             </section>
           );
         })}

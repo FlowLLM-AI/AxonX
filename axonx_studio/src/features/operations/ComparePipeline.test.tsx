@@ -138,7 +138,9 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
       missing: { status: "done" },
     },
   };
-  const history = nodes.find((n) => n.record.reg_name.includes("history"))!;
+  const history = nodes.find((n) =>
+    n.record.child_task_id?.startsWith("etl#"),
+  )!;
   history.record.state = "failed";
   history.status!.state = "failed";
   history.status!.error = error;
@@ -158,6 +160,31 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   await click("prediction");
   expect(container.querySelector(".compare-stage-row")?.textContent).toContain(
     i18n.t("onlinePipeline.status.skipped"),
+  );
+  expect(container.querySelector("pre")).toBeNull();
+});
+
+it("does not show an earlier ETL log when the latest construction failed", async () => {
+  const previous = parent.children.find((record) =>
+    record.child_task_id?.startsWith("etl#"),
+  )!;
+  const error = "ValueError: Invalid ETL configuration";
+  parent.children.push({
+    ...previous,
+    attempt: previous.attempt + 1,
+    child_task_id: null,
+    started_at: null,
+    state: "failed",
+    exit_code: 1,
+    error,
+  });
+  const step = parent.steps.find((item) => item.name === "nightly-1445:etl")!;
+  step.state = "failed";
+  step.error = error;
+  await render();
+  await click("etl");
+  expect(container.querySelector(".compare-stage-row")?.textContent).toContain(
+    error,
   );
   expect(container.querySelector("pre")).toBeNull();
 });
@@ -259,13 +286,13 @@ it("keeps model logs isolated and refuses to substitute a restarted task", async
 
 it("resolves owned descendants and ignores an earlier attempt and similarly named models", () => {
   const old = structuredClone(
-    parent.children.find((r) => r.node_name.endsWith("-a_stock_history"))!,
+    parent.children.find((r) => r.node_name.endsWith("-a_stock_etl"))!,
   );
   old.started_at = "2026-01-01T00:00:00Z";
   parent.children.unshift(old);
   const unrelated = {
     ...old,
-    node_name: "nightly-other-1445-a_stock_history",
+    node_name: "nightly-other-1445-a_stock_etl",
     started_at: "2026-01-16T00:00:00Z",
   };
   parent.children.push(unrelated);

@@ -41,7 +41,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "axonx>=0.3.0",
+    "axonx>=0.3.1",
     "axonx-qlib-a158>=0.3.0",
     "polars>=1.44.2",
     "pydantic>=2.13.5",

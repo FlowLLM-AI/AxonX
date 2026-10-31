@@ -39,7 +39,7 @@ Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bag
 
 ## 安装与检查
 
-插件版本 0.3.0 要求 Python 3.12+ 和 AxonX `>=0.3.0`；任务执行支持 macOS 和 Linux。安装在运行 `axonx exec` 的 Python 环境中，使用 `--target` 时为目标服务解释器。LightGBM、NumPy 和 Polars 随插件依赖安装。
+插件版本 0.3.0 要求 Python 3.12+ 和 AxonX `>=0.3.1`；任务执行支持 macOS 和 Linux。安装在运行 `axonx exec` 的 Python 环境中，使用 `--target` 时为目标服务解释器。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
 插件尚未发布到 PyPI。先克隆仓库并从根目录安装匹配的主包，再将插件安装为 wheel：
 

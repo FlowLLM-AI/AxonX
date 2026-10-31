@@ -39,7 +39,7 @@ Qlib aliases `colsample_bytree` / `subsample` map to `feature_fraction` / `baggi
 
 ## Install and inspect
 
-Plugin version 0.3.0 requires Python 3.12+ and AxonX `>=0.3.0`; Task execution supports macOS and Linux. Install into the Python environment that runs `axonx exec` (the service interpreter for `--target`). LightGBM, NumPy, and Polars are installed as dependencies.
+Plugin version 0.3.0 requires Python 3.12+ and AxonX `>=0.3.1`; Task execution supports macOS and Linux. Install into the Python environment that runs `axonx exec` (the service interpreter for `--target`). LightGBM, NumPy, and Polars are installed as dependencies.
 
 This plugin is not published to PyPI. Clone the repository and install the matching core from its root, then install the plugin as a wheel:
 

@@ -102,7 +102,7 @@ class ParameterComparisonTask(BaseAnalysisTask):
                     **p.backtest.model_dump(mode="json", exclude={"task_name", "upstream_task_ids", "as_of_date"}),
                 )
                 stages = {"train": train, "predict": prediction, "portfolio": portfolio, "backtest": backtest}
-                member = next(iter(train.output["models"].values()))
+                member = next(iter(train.output["model_groups"][0]["models"].values()))
                 records[key] = {
                     "label": label,
                     "parameter_preset": preset,
