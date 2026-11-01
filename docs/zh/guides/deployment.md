@@ -67,7 +67,7 @@ axonx status --task-id 'base#demo#remote-check' --detail full --target node-b:10
 
 ### 远程文件与插件
 
-原生命令路径均在目标服务工作区解释，包括 plugin install/build/inspect 的源码路径。--target 不上传本地文件。本地构建 wheel、上传 /upload、安装返回的绝对 location、清理相对 path，再重启常驻服务刷新 Task 目录，详见[插件部署](../plugins/management.md)。
+原生命令路径均在目标服务工作区解释，包括 plugin install/build 的源码路径和 inspect 的 wheel 路径。--target 不上传本地文件。本地构建 wheel、上传 /upload、安装返回的绝对 location、清理相对 path，再重启常驻服务刷新 Task 目录，详见[插件部署](../plugins/management.md)。
 
 ### 连通性、资源与停止
 

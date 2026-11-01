@@ -54,23 +54,23 @@ Exec waits for completion, prints business output and returns the Task exit code
 
 ```bash
 # After ETL succeeds, factor analysis can run independently
-axonx exec --task qlib_a158_analysis --upstream-task-ids '<ETL Task ID>'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '["<ETL Task ID>"]'
 
 # The training end date is excluded from the training interval
-axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --upstream-task-ids '["<ETL Task ID>"]' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # After training succeeds, prediction must start no earlier than train_end
-axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '["<Train Task ID>"]' \
   --pred-start 20230101 --pred-end 20231231
 
 # After prediction succeeds, generate backtest artifacts
-axonx exec --task qlib_a158_portfolio --upstream-task-ids '<Predict Task ID>'
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<Predict Task ID>"]'
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-Each exec waits. Check its exit code and metadata before the next stage. upstream_task_ids is a JSON array; CLI exec also accepts comma-separated IDs. Validate each stage against its actual definition.
+Each exec waits. Check its exit code and metadata before the next stage. upstream_task_ids is a JSON array in both CLI and Python inputs. Validate each stage against its actual definition.
 
 Training reserves the final dates in trading-day order for validation, with a default validation ratio of 10%. Validation and early stopping first select the iteration count, then all valid samples in the training window fit the final model. Saved training curves come from tuning; they are not the final model's performance on an independent test set.
 

@@ -18,11 +18,10 @@
 
 ```bash
 axonx plugin list
-axonx plugin show DISTRIBUTION
 axonx plugin inspect DISTRIBUTION
 ```
 
-本地命令检查当前解释器。添加 `--target HOST:PORT` 则在服务解释器中执行。每次命令启动新进程并发现已安装元数据。
+本地命令检查当前解释器。添加 `--target HOST:PORT` 则在服务解释器中执行。每次命令启动新进程并发现已安装元数据。`inspect` 只读取已安装插件或已有 wheel，不构建、不安装；源码目录使用 `build`。
 
 ## 准备插件源码
 
@@ -35,7 +34,7 @@ axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 axonx plugin inspect './dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-构建输出包含 `wheel`、`sha256`、`content_sha256`、distribution、version、requirements 和注册信息。记录实际 wheel 文件名。不传 `--output` 时，缓存位于 `<workspace>/tmp/plugins/<源码指纹>`；工作区依次使用 `--workspace-dir`、`AXONX_WORKSPACE_DIR`、默认 `.axonx`，服务拥有的命令使用服务工作区。构建可离线执行，删除缓存不会卸载已安装包。已有 wheel 不能与 `--output` 同用。源码指纹忽略环境和缓存，拒绝参与哈希的源码软链接。
+构建输出包含 `wheel`、`sha256`、`content_sha256`、distribution、version、requirements 和注册信息。记录实际 wheel 文件名。不传 `--output` 时，缓存位于 `<workspace>/tmp/plugins/<源码指纹>`；工作区依次使用 `--workspace-dir`、`AXONX_WORKSPACE_DIR`、默认 `.axonx`，服务拥有的命令使用服务工作区。构建可离线执行，删除缓存不会卸载已安装包。`build` 要求源码目录。源码指纹忽略环境和缓存，拒绝参与哈希的源码软链接。
 
 ## 本地安装
 

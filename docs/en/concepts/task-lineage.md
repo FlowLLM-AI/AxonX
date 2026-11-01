@@ -17,7 +17,7 @@ All BaseInputParams contain a list of canonical Task IDs:
 }
 ```
 
-Python/HTTP inputs use a JSON array. CLI exec accepts that array or comma-separated IDs. Names must be canonical and unique; the Task cannot depend on itself. Pass each child Task's upstream IDs explicitly. Declaring an upstream does not run it or validate its business compatibility.
+Python/HTTP and CLI exec inputs use a JSON array. Names must be canonical and unique; the Task cannot depend on itself. Pass each child Task's upstream IDs explicitly. Declaring an upstream does not run it or validate its business compatibility.
 
 ## Where the graph comes from
 

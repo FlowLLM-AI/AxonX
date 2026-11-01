@@ -10,8 +10,6 @@ from ..client import http as client
 from ..client.events import ResultEvent
 from ..client.models import JobCatalog, JobResponse
 from ..task.models.events import LogEvent
-from ..utils.env import load_env
-from .commands import LOCAL_HANDLERS
 from .parser import ClientOptions, Command
 from .rendering import print_event_blocks, print_json
 
@@ -25,18 +23,7 @@ _QUERY_DEFAULTS = {
 }
 
 
-async def run_remote(command: Command, options: ClientOptions) -> int:
-    """Load connection credentials once and select the remote operation."""
-    load_env(override=False)
-    connection = options.connection()
-    if command.action in {"upload", "upload_archive", "discard_file", "health", "list_jobs"}:
-        return await _run_http(command, options, connection)
-    if command.action in LOCAL_HANDLERS:
-        return await _forward_cli(command, options, connection)
-    return await _run_job(command, options, connection)
-
-
-async def _run_http(command: Command, options: ClientOptions, connection: dict) -> int:
+async def run_http(command: Command, options: ClientOptions, connection: dict) -> int:
     """Adapt HTTP operations with the same connection and response conventions as Jobs."""
     if options.stream:
         raise ValueError(f"{command.action} does not support --stream")
@@ -61,7 +48,8 @@ async def _run_http(command: Command, options: ClientOptions, connection: dict) 
     return 0 if response.success else 1
 
 
-async def _run_job(command: Command, options: ClientOptions, connection: dict) -> int:
+async def run_job(command: Command, options: ClientOptions, connection: dict) -> int:
+    """Call a configured Job and render its response or event stream."""
     arguments = {**_QUERY_DEFAULTS.get(command.action, {}), **command.arguments}
     if not options.stream:
         response = await client.run_remote_job(command.action, arguments, **connection)
@@ -79,7 +67,8 @@ async def _run_job(command: Command, options: ClientOptions, connection: dict) -
     return 0 if success else 1
 
 
-async def _forward_cli(command: Command, options: ClientOptions, connection: dict) -> int:
+async def forward_cli(command: Command, options: ClientOptions, connection: dict) -> int:
+    """Run a native command through the target service's cli Job."""
     argv = [command.action, *command.raw_arguments]
     if command.action in {"exec", "kill"}:
         argv.extend(["--client-timeout", str(options.timeout)])

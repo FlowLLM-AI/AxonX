@@ -13,7 +13,7 @@
 | `discard_file`, `health`, `list_jobs` | Selected service's HTTP endpoints | `JobResponse` JSON                      |
 | Any configured Job name               | Selected service                  | `JobResponse` JSON or event stream      |
 
-An explicit `--target HOST:PORT` sends native commands (`app`, `exec`, `kill`, `plugin`) to the service's `cli` Job. The remote CLI rejects `app`, nested `cli`, and forwarding to another target. Ordinary Jobs connect directly to the selected service.
+An explicit `--target HOST:PORT` sends native commands (`exec`, `kill`, `plugin`) to the service's `cli` Job. `app` only supports local startup. The remote CLI rejects `app`, nested `cli`, and forwarding to another target. Ordinary Jobs connect directly to the selected service.
 
 ## Capability discovery and environment diagnosis
 
@@ -85,7 +85,7 @@ CLI `status` and `wait_task` request `detail=summary`; file previews default to 
 
 ## Parameter and value conversion
 
-Use `--field value` pairs. Hyphens become underscores, dots create nested dictionaries. Values convert booleans, nulls, numbers, JSON arrays/objects and JSON-quoted strings. Quote Task IDs containing `#` and JSON arrays in the shell. Use `--upstream-task-ids '["etl#name#instance"]'` to declare dependencies; this does not execute upstream Tasks. CLI `exec` also accepts comma-separated upstream IDs.
+Use `--field value` pairs. Hyphens become underscores, dots create nested dictionaries. Values convert booleans, nulls, numbers, JSON arrays/objects and JSON-quoted strings. Quote Task IDs containing `#` and JSON arrays in the shell. Use `--upstream-task-ids '["etl#name#instance"]'` to declare dependencies as a JSON array; this does not execute upstream Tasks.
 
 ## Client options
 
@@ -104,12 +104,14 @@ Ordinary Jobs default to a single response. Streaming uses `/jobs/NAME/events`; 
 
 ```bash
 axonx plugin list
-axonx plugin show DISTRIBUTION
-axonx plugin inspect ./plugins/qlib_a158
+axonx plugin inspect DISTRIBUTION
+axonx plugin inspect ./dist/plugins/ACTUAL_FILENAME.whl
 axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 axonx plugin install -e ./plugins/qlib_a158
 axonx plugin uninstall DISTRIBUTION
 ```
+
+`inspect` reads installed plugin metadata or an existing wheel without building or installing. `build` requires a source directory and returns a validated wheel; `--output` and `--workspace-dir` apply to `build` and `install`.
 
 With `--target`, paths are evaluated on the target. Local files are not transferred automatically. For local-to-remote deployment, explicitly build a wheel, upload it, install its returned absolute `location`, and clean up its returned relative `path`. See [Plugin deployment](../plugins/management.md). Editable installation requires a source directory on the executing machine; it cannot be combined with `--output`.
 

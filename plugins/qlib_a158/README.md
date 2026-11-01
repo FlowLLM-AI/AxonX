@@ -49,14 +49,14 @@ cd AxonX
 pip install -e .
 axonx plugin install ./plugins/qlib_a158
 axonx plugin list
-axonx plugin show axonx-qlib-a158
+axonx plugin inspect axonx-qlib-a158
 ```
 
 For source development, run from the repository root:
 
 ```bash
 axonx plugin install -e ./plugins/qlib_a158
-axonx plugin inspect ./plugins/qlib_a158
+axonx plugin inspect axonx-qlib-a158
 ```
 
 Editable installation requires source in the selected Python environment and cannot use `--output`; with `--target`, the source directory belongs to that machine. New `exec` processes load current Python sources. Reinstall after dependency or entry-point changes, and restart persistent services to refresh their Task catalogs, schemas and loaded dependencies.

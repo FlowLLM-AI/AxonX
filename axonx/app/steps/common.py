@@ -51,7 +51,7 @@ class HelpStep(BaseStep):
 
     async def execute(self):
         authenticated = bool(getattr(self.app_context.service, "token", None))
-        jobs = {name: job for name, job in self.app_context.jobs.items() if job.is_public(authenticated=authenticated)}
+        jobs = self.app_context.public_jobs(authenticated=authenticated)
         name = self.context.get("job")
         if name is not None:
             if name not in jobs:
@@ -59,7 +59,7 @@ class HelpStep(BaseStep):
             self.response.answer = {"job": jobs[name].info}
         else:
             self.response.answer = {
-                "jobs": [{"name": name, "description": jobs[name].description} for name in sorted(jobs)],
+                "jobs": [{"name": name, "description": job.description} for name, job in jobs.items()],
             }
 
 

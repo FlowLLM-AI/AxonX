@@ -18,9 +18,9 @@ The lower half shows the comparison page calculation: select matching reports, p
 Use different task names to retain different training, prediction, and backtest results. When comparing changes in one factor, keep other settings as consistent as possible—for example, use the same ETL and prediction window while changing only training parameters or costs.
 
 ```bash
-axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[20,30]' --holding-days 1
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

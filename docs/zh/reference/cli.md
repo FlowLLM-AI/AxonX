@@ -13,7 +13,7 @@
 | `discard_file`、`health`、`list_jobs` | 所选服务的 HTTP 接口 | `JobResponse` JSON           |
 | 已配置的 Job 名                       | 所选服务             | `JobResponse` JSON 或事件流  |
 
-显式 `--target HOST:PORT` 通过目标服务的 `cli` Job 转发原生命令（`app`、`exec`、`kill`、`plugin`）。远端 CLI 拒绝 `app`、嵌套 `cli` 和继续转发到其他目标。普通 Job 直接连接所选服务。
+显式 `--target HOST:PORT` 通过目标服务的 `cli` Job 转发原生命令（`exec`、`kill`、`plugin`）。`app` 只支持本地启动。远端 CLI 拒绝 `app`、嵌套 `cli` 和继续转发到其他目标。普通 Job 直接连接所选服务。
 
 ## 能力发现与环境诊断
 
@@ -85,7 +85,7 @@ CLI 的 `status`、`wait_task` 默认请求 `detail=summary`；文件预览默�
 
 ## 参数与值转换
 
-使用 `--field value` 参数对。连字符转为下划线，点号生成嵌套字典。值会转换布尔值、null、数字、JSON 数组/对象和 JSON 引号包围的字符串。shell 中应引用包含 `#` 的 Task ID 和 JSON 数组。使用 `--upstream-task-ids '["etl#name#instance"]'` 声明依赖，不会自动执行上游。CLI `exec` 也接受逗号分隔的上游 ID。
+使用 `--field value` 参数对。连字符转为下划线，点号生成嵌套字典。值会转换布尔值、null、数字、JSON 数组/对象和 JSON 引号包围的字符串。shell 中应引用包含 `#` 的 Task ID 和 JSON 数组。使用 JSON 数组 `--upstream-task-ids '["etl#name#instance"]'` 声明依赖，不会自动执行上游。
 
 ## 客户端选项
 
@@ -104,12 +104,14 @@ axonx agent_chat --message '检查工作区' --stream true
 
 ```bash
 axonx plugin list
-axonx plugin show DISTRIBUTION
-axonx plugin inspect ./plugins/qlib_a158
+axonx plugin inspect DISTRIBUTION
+axonx plugin inspect ./dist/plugins/ACTUAL_FILENAME.whl
 axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 axonx plugin install -e ./plugins/qlib_a158
 axonx plugin uninstall DISTRIBUTION
 ```
+
+`inspect` 只读取已安装插件元数据或已有 wheel，不构建、不安装。`build` 要求源码目录，返回校验后的 wheel；`--output` 和 `--workspace-dir` 用于 `build` 与 `install`。
 
 使用 `--target` 时，路径在目标机解释，不会自动传输本地文件。从本机部署到远程必须显式构建 wheel、上传、用返回的绝对 `location` 安装，再用相对 `path` 清理。详见[插件部署](../plugins/management.md)。editable 需要执行机器上已有源码目录，不能与 `--output` 同用。
 

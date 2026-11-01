@@ -245,9 +245,9 @@ python -m pytest plugins/qlib_factor/tests
 从包含 `example/` 的目录执行：
 
 ```bash
-axonx plugin inspect ./example
+axonx plugin build ./example
 axonx plugin install -e ./example
-axonx plugin show axonx-example
+axonx plugin inspect axonx-example
 axonx exec --task example_add --task-name check --x 1 --y 2
 ```
 
@@ -261,7 +261,7 @@ axonx plugin list
 axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 ```
 
-不带 target 的 `plugin` 操作当前 Python 环境。`inspect`/`build` 只检查/构建，不安装；保留实际 `wheel`、`sha256` 和 `content_sha256`，分别用于定位 wheel、标识文件字节与规范化内容。安装器安装插件依赖但不升级 AxonX 自身，需确认框架版本满足要求；pip 不会自动定位相邻插件源码。
+不带 target 的 `plugin` 操作当前 Python 环境。`inspect` 只读取已安装元数据或已有 wheel；`build` 构建并校验源码目录，不安装。保留实际 `wheel`、`sha256` 和 `content_sha256`，分别用于定位 wheel、标识文件字节与规范化内容。安装器安装插件依赖但不升级 AxonX 自身，需确认框架版本满足要求；pip 不会自动定位相邻插件源码。
 
 editable 要求执行机已有源码目录，不能与 `--output` 同用。依赖或入口点变化后重新安装；常驻服务在安装或已加载源码变化后需重启，新 CLI 进程会重新发现插件。环境变更应与运行中的研究协调，已有进程不会固定插件版本。
 
@@ -279,7 +279,7 @@ axonx upload --path dist/plugins/ACTUAL_FILENAME.whl --target node-b:1024
 ```bash
 axonx plugin install '/ABSOLUTE/LOCATION_FROM_UPLOAD.whl' \
   --target node-b:1024 --client-timeout 600
-axonx plugin show axonx-example --target node-b:1024
+axonx plugin inspect axonx-example --target node-b:1024
 ```
 
 确认安装退出码为 0，核对目标插件版本、`sha256` 和 `content_sha256` 与本地构建结果一致，再用上传返回的 `path` 清理暂存：

@@ -49,14 +49,14 @@ cd AxonX
 pip install -e .
 axonx plugin install ./plugins/qlib_a158
 axonx plugin list
-axonx plugin show axonx-qlib-a158
+axonx plugin inspect axonx-qlib-a158
 ```
 
 源码开发时，在仓库根目录执行：
 
 ```bash
 axonx plugin install -e ./plugins/qlib_a158
-axonx plugin inspect ./plugins/qlib_a158
+axonx plugin inspect axonx-qlib-a158
 ```
 
 editable 需要选定 Python 环境中的源码目录，不能与 `--output` 同用；指定 `--target` 时源码目录属于目标机器。新的 `exec` 进程加载当前 Python 源码；依赖或入口点变化后重新安装，重启常驻服务以刷新 Task 目录、Schema 和已加载依赖。

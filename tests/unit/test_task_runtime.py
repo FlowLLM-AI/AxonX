@@ -154,10 +154,10 @@ def test_business_tasks_keep_their_steps_outputs_and_type_when_calling_children(
 
 
 @pytest.mark.parametrize(
-    "sources",
-    ["etl#data#first, train#model#second", '["etl#data#first", "train#model#second"]'],
+    ("sources", "exit_code"),
+    [("etl#data#first, train#model#second", 2), ('["etl#data#first", "train#model#second"]', 0)],
 )
-def test_cli_converts_upstream_task_arguments_before_execution(tmp_path, sources):
+def test_cli_requires_a_json_array_for_upstream_task_arguments(tmp_path, sources, exit_code):
     result = subprocess.run(
         [
             sys.executable,
@@ -185,7 +185,12 @@ def test_cli_converts_upstream_task_arguments_before_execution(tmp_path, sources
         timeout=10,
         check=False,
     )
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == exit_code, result.stderr
+    if exit_code:
+        assert "upstream_task_ids" in result.stderr
+        assert "Input should be a valid list" in result.stderr
+        assert not (tmp_path / "tasks/base/base#demo#sources/metadata.json").exists()
+        return
     metadata = read_entry(tmp_path, "base#demo#sources")
     assert metadata.input_params["upstream_task_ids"] == ["etl#data#first", "train#model#second"]
     assert metadata.output_params["result"] == 5

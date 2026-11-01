@@ -54,23 +54,23 @@ Exec 等待完成、输出业务结果并返回 Task 退出码。从 metadata �
 
 ```bash
 # ETL 成功后，可独立做因子分析
-axonx exec --task qlib_a158_analysis --upstream-task-ids '<ETL Task ID>'
+axonx exec --task qlib_a158_analysis --upstream-task-ids '["<ETL Task ID>"]'
 
 # 训练结束日期不包含在训练区间内
-axonx exec --task qlib_a158_train --upstream-task-ids '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --upstream-task-ids '["<ETL Task ID>"]' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # 训练成功后，预测开始日期必须不早于 train_end
-axonx exec --task qlib_a158_predict --upstream-task-ids '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '["<Train Task ID>"]' \
   --pred-start 20230101 --pred-end 20231231
 
 # 预测成功后，生成回测产物
-axonx exec --task qlib_a158_portfolio --upstream-task-ids '<Predict Task ID>'
+axonx exec --task qlib_a158_portfolio --upstream-task-ids '["<Predict Task ID>"]'
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
-每条 `exec` 都等待完成，执行下一阶段前检查退出码与 metadata。`upstream_task_ids` 是 JSON 数组，CLI `exec` 也接受逗号分隔 ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
+每条 `exec` 都等待完成，执行下一阶段前检查退出码与 metadata。`upstream_task_ids` 在 CLI 和 Python 入参中统一使用 JSON 数组；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
 
 训练按交易日顺序保留末尾日期作验证，默认验证比例为 10%。先用验证集和早停选择轮数，再用训练窗口的全部有效样本拟合最终模型。保存的训练曲线来自调参阶段，不能将它当成最终模型在独立测试集上的表现。
 

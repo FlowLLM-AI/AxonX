@@ -104,6 +104,8 @@ def test_documented_cli_commands_use_current_grammar_and_job_schemas():
                 count += 1
                 if command.action == "plugin":
                     parse_plugin_arguments(command.raw_arguments)
+                elif command.action == "exec" and "upstream_task_ids" in command.arguments:
+                    assert isinstance(command.arguments["upstream_task_ids"], list), (page, line)
                 elif command.action not in {
                     "app",
                     "exec",

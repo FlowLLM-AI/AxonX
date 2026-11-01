@@ -63,9 +63,7 @@ class JobRoutes(APIRouter):
     def __init__(self, app: "Application", *, authenticated: bool) -> None:
         super().__init__()
         self.app = app
-        self.public_jobs = {
-            name: job for name, job in app.context.jobs.items() if job.is_public(authenticated=authenticated)
-        }
+        self.public_jobs = app.context.public_jobs(authenticated=authenticated)
         self.add_api_route(PROTOCOL_ROUTE_HEALTH, self.health, methods=["GET"], response_model=JobResponse)
         self.add_api_route(PROTOCOL_ROUTE_JOBS, self.list_jobs, methods=["GET"], response_model=JobResponse)
         self.add_api_route(PROTOCOL_ROUTE_JOB, self.run_job, methods=["POST"], response_model=JobResponse)

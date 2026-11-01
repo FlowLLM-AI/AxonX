@@ -245,9 +245,9 @@ Review the diff and record the source commit plus uncommitted changes, plugin ve
 From the directory containing `example/`:
 
 ```bash
-axonx plugin inspect ./example
+axonx plugin build ./example
 axonx plugin install -e ./example
-axonx plugin show axonx-example
+axonx plugin inspect axonx-example
 axonx exec --task example_add --task-name check --x 1 --y 2
 ```
 
@@ -261,7 +261,7 @@ axonx plugin list
 axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 ```
 
-Without a target, `plugin` operates on the current Python environment. `inspect`/`build` inspect or build without installing. Retain the actual `wheel`, `sha256` and `content_sha256`: the wheel path, byte hash and normalized-content hash respectively. The installer installs plugin dependencies but does not upgrade AxonX itself; verify that the framework version meets requirements. pip does not automatically locate adjacent plugin source directories.
+Without a target, `plugin` operates on the current Python environment. `inspect` reads installed metadata or an existing wheel; `build` builds and validates a source directory without installing. Retain the actual `wheel`, `sha256` and `content_sha256`: the wheel path, byte hash and normalized-content hash respectively. The installer installs plugin dependencies but does not upgrade AxonX itself; verify that the framework version meets requirements. pip does not automatically locate adjacent plugin source directories.
 
 Editable installation requires a source directory on the execution machine and cannot be combined with `--output`. Reinstall after dependency or entry-point changes. Restart a persistent service after installation or changes to loaded source; new CLI processes rediscover plugins. Coordinate environment changes with running research because existing processes do not pin plugin versions.
 
@@ -279,7 +279,7 @@ Run commands individually and substitute actual returned values. The build retur
 ```bash
 axonx plugin install '/ABSOLUTE/LOCATION_FROM_UPLOAD.whl' \
   --target node-b:1024 --client-timeout 600
-axonx plugin show axonx-example --target node-b:1024
+axonx plugin inspect axonx-example --target node-b:1024
 ```
 
 Verify installation exit code 0 and compare the target plugin's version, `sha256` and `content_sha256` with the local build. Then clean up staging with the upload's returned `path`:

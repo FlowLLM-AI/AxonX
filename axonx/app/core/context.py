@@ -61,6 +61,10 @@ class ApplicationContext:
     def jobs(self) -> Mapping[str, BaseJob]:
         return self._jobs_view
 
+    def public_jobs(self, *, authenticated: bool) -> dict[str, BaseJob]:
+        """Return the public Job directory in name order for help and transports."""
+        return {name: job for name, job in sorted(self._jobs.items()) if job.is_public(authenticated=authenticated)}
+
     def finalize(
         self,
         components: Mapping[str, Mapping[str, BaseComponent]],

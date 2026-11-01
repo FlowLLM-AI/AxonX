@@ -64,6 +64,10 @@ def test_wheel_and_installed_metadata_agree_without_importing_plugin_code(tmp_pa
     assert result["plugins"] == info.plugins
     assert result["wheel"] == str(path)
     assert result["content_sha256"] == info.content_sha256
+    (tmp_path / "ResearchPlugin").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main(["plugin", "inspect", "ResearchPlugin"]) == 0
+    assert json.loads(capsys.readouterr().out) == info.model_dump(mode="json")
 
 
 def test_content_identity_ignores_archive_compression_and_installed_bytecode(tmp_path, monkeypatch):

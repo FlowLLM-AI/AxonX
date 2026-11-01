@@ -76,6 +76,8 @@ def test_cli_banner_preserves_launch_terminal_colors(
     assert main(argv) == 0
     capsys.readouterr()
     assert len(plans) == 1
+    if dotenv:
+        assert "TERM" not in plans[0]["environment"]
 
     # Start the worker with the daemon's environment, but a redirected stdout.
     for name, value in plans[0]["environment"].items():

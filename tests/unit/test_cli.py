@@ -2,11 +2,12 @@
 
 import json
 import os
+from pathlib import Path
 
 import httpx
 import pytest
 
-from axonx.cli import commands, main, remote
+from axonx.cli import main
 from axonx.client import http as client
 from axonx.client.base import RemoteConnectionError, RemoteServiceError
 from axonx.client.events import AgentBlockPatch, AgentMessageEvent, ResultEvent
@@ -14,6 +15,7 @@ from axonx.client.models import JobResponse
 from axonx.task.models.events import LogEvent
 from axonx.task.runtime.settings import ExecutionSettings
 from axonx.task.storage.workspace import read_entry
+from axonx.utils import env
 
 
 @pytest.fixture(autouse=True)
@@ -21,8 +23,7 @@ def isolate_cli_environment(monkeypatch):
     monkeypatch.delenv("AXONX_CLI_REQUEST_ID", raising=False)
     monkeypatch.delenv("AXONX_TARGET_TOKEN", raising=False)
     monkeypatch.delenv("AXONX_SERVICE_TOKEN", raising=False)
-    monkeypatch.setattr(remote, "load_env", lambda **kwargs: {})
-    monkeypatch.setattr(commands, "load_env", lambda **kwargs: {})
+    monkeypatch.setattr(env, "load_env", lambda **kwargs: {})
 
 
 @pytest.mark.parametrize("argv", [[], ["--help"], ["-h"], ["plugin", "--help"]])
@@ -359,11 +360,42 @@ def test_forwarded_cli_cannot_start_or_forward_recursively(monkeypatch, capsys, 
     assert "Remote CLI cannot" in capsys.readouterr().err
 
 
+def test_remote_app_is_rejected_without_contacting_the_service(monkeypatch, capsys):
+    monkeypatch.setattr(client, "stream_remote_job", lambda *a, **k: pytest.fail("Must reject before forwarding"))
+    assert main(["app", "--target", "remote:1024"]) == 2
+    assert "app only supports local service startup" in capsys.readouterr().err
+
+
 def test_plugin_usage_errors_return_a_code_instead_of_exiting(capsys):
     assert main(["plugin", "install"]) == 2
     assert "required" in capsys.readouterr().err
     assert main(["plugin", "install", "-e", ".", "--output", "dist"]) == 2
     assert "--editable cannot be combined with --output" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["plugin", "show", "example"],
+        ["plugin", "inspect", "example", "--output", "dist"],
+        ["plugin", "inspect", "example", "--workspace-dir", "workspace"],
+    ],
+)
+def test_plugin_inspection_has_no_build_options(argv, capsys):
+    assert main(argv) == 2
+    assert "error:" in capsys.readouterr().err
+
+
+def test_plugin_inspection_and_build_reject_the_wrong_source_kind(tmp_path, monkeypatch, capsys):
+    from axonx.plugin import installer
+
+    monkeypatch.setattr(installer, "prepare_artifact", lambda *a, **k: pytest.fail("Must not prepare an artifact"))
+    assert main(["plugin", "inspect", str(tmp_path)]) == 2
+    assert "Unknown plugin" in capsys.readouterr().err
+    wheel = tmp_path / "existing.whl"
+    wheel.write_bytes(b"unused")
+    assert main(["plugin", "build", str(wheel)]) == 2
+    assert "requires a source directory" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("explicit", [False, True])
@@ -384,7 +416,7 @@ def test_plugin_build_uses_the_selected_workspace_without_a_service(tmp_path, mo
     if explicit:
         argv.extend(["--workspace-dir", str(selected)])
     assert main(argv) == 0
-    assert calls == [(".", selected / "tmp/plugins", None)]
+    assert calls == [(Path.cwd(), selected / "tmp/plugins", None)]
     assert "example.whl" in capsys.readouterr().out
 
 

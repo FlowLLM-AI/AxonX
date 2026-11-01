@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..utils.env import load_env
 from .parser import ClientOptions, Command, parse_plugin_arguments, validate_cron_command
 from .rendering import print_json
 
@@ -22,7 +21,6 @@ def _execution_config(arguments: dict, options: ClientOptions) -> ExecutionSetti
     from ..task.runtime.settings import ExecutionSettings
     from ..utils.logging import LoggingConfig, configure_logging
 
-    load_env(override=False)
     try:
         response = asyncio.run(client.run_remote_job("get_config", {}, **options.connection()))
     except RemoteConnectionError:
@@ -69,7 +67,6 @@ def _run_exec(command: Command, options: ClientOptions) -> int:
     from ..task.runtime.executor import TaskExecutor
 
     if not command.arguments:
-        load_env(override=False)
         for name, task_class in TaskCatalog(registrations=discover_task_registrations()).tasks().items():
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
         return 0
@@ -80,9 +77,6 @@ def _run_exec(command: Command, options: ClientOptions) -> int:
         raise ValueError("Missing required option: --task") from None
     config = _execution_config(inputs, options)
     catalog = TaskCatalog(registrations=discover_task_registrations())
-    if isinstance(inputs.get("upstream_task_ids"), str):
-        upstream_ids = inputs["upstream_task_ids"]
-        inputs["upstream_task_ids"] = [item.strip() for item in upstream_ids.split(",")] if upstream_ids.strip() else []
     task = catalog.resolve(name)(
         inputs,
         workspace_path=config.workspace_dir,
@@ -109,21 +103,23 @@ def _run_kill(command: Command, options: ClientOptions) -> int:
 def _run_plugin(command: Command, _options: ClientOptions) -> int:
     from ..plugin.discovery import get_installed_plugin, list_installed_plugins
     from ..plugin.installer import install_plugin, prepare_artifact, uninstall_plugin
+    from ..plugin.wheel import inspect_wheel
     from ..task.runtime.settings import ExecutionSettings
 
     try:
         args = parse_plugin_arguments(command.raw_arguments)
     except SystemExit as exc:
         return exc.code
-    load_env(override=False)
     if args.command == "list":
         result = list_installed_plugins()
-    elif args.command == "show":
-        result = get_installed_plugin(args.plugin)
-    elif args.command == "inspect" and not Path(args.plugin).expanduser().exists():
-        result = get_installed_plugin(args.plugin)
-    elif args.command in {"inspect", "build", "install"}:
-        source = Path(args.plugin).expanduser().resolve() if getattr(args, "editable", False) else None
+    elif args.command == "inspect":
+        path = Path(args.plugin).expanduser()
+        result = inspect_wheel(path.resolve()) if path.suffix == ".whl" else get_installed_plugin(args.plugin)
+    elif args.command in {"build", "install"}:
+        path = Path(args.plugin).expanduser().resolve()
+        if args.command == "build" and not path.is_dir():
+            raise ValueError("Plugin build requires a source directory")
+        source = path if getattr(args, "editable", False) else None
         if source is not None and not source.is_dir():
             raise ValueError(f"Editable plugin path must be a project directory: {source}")
         workspace = (
@@ -131,7 +127,7 @@ def _run_plugin(command: Command, _options: ClientOptions) -> int:
             .expanduser()
             .resolve()
         )
-        artifact = prepare_artifact(args.plugin, cache_dir=workspace / "tmp/plugins", output=args.output)
+        artifact = prepare_artifact(path, cache_dir=workspace / "tmp/plugins", output=args.output)
         result = install_plugin(artifact, editable_source=source) if args.command == "install" else artifact
     else:
         result = uninstall_plugin(args.plugin)

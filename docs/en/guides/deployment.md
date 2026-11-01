@@ -67,7 +67,7 @@ Configure target address/token in the local service's targets list. Studio selec
 
 ### Remote files and plugins
 
-All native command paths are interpreted at the target service workspace, including plugin install/build/inspect source paths. --target does not upload local files. Build a local wheel, upload to /upload, install the returned absolute location, clean relative path and restart the persistent service to refresh its Task catalog. See [Plugin deployment](../plugins/management.md).
+All native command paths are interpreted at the target service workspace, including plugin install/build source paths and inspect wheel paths. --target does not upload local files. Build a local wheel, upload to /upload, install the returned absolute location, clean relative path and restart the persistent service to refresh its Task catalog. See [Plugin deployment](../plugins/management.md).
 
 ### Connectivity, resources and termination
 

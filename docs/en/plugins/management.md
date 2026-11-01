@@ -18,11 +18,10 @@ Query the actual registration name before executing. Package names and Task name
 
 ```bash
 axonx plugin list
-axonx plugin show DISTRIBUTION
 axonx plugin inspect DISTRIBUTION
 ```
 
-Local commands inspect the current interpreter. Add `--target HOST:PORT` to run the command in the service's interpreter. Each command starts a new process and discovers installed metadata.
+Local commands inspect the current interpreter. Add `--target HOST:PORT` to run the command in the service's interpreter. Each command starts a new process and discovers installed metadata. `inspect` reads an installed plugin or existing wheel without building or installing; use `build` for source directories.
 
 ## Prepare plugin sources
 
@@ -35,7 +34,7 @@ axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 axonx plugin inspect './dist/plugins/ACTUAL_FILENAME.whl'
 ```
 
-Build output includes `wheel`, `sha256`, `content_sha256`, distribution, version, requirements and registrations. Save the actual wheel filename. Without `--output`, builds use `<workspace>/tmp/plugins/<source fingerprint>`. Select the workspace with `--workspace-dir`, then `AXONX_WORKSPACE_DIR`, or the `.axonx` default; service-owned commands receive the service workspace. Building remains available offline, and deleting cached wheels does not uninstall packages. Existing wheels cannot be combined with `--output`. Source hashing ignores environments/caches and rejects symlinks in included source.
+Build output includes `wheel`, `sha256`, `content_sha256`, distribution, version, requirements and registrations. Save the actual wheel filename. Without `--output`, builds use `<workspace>/tmp/plugins/<source fingerprint>`. Select the workspace with `--workspace-dir`, then `AXONX_WORKSPACE_DIR`, or the `.axonx` default; service-owned commands receive the service workspace. Building remains available offline, and deleting cached wheels does not uninstall packages. `build` requires a source directory. Source hashing ignores environments/caches and rejects symlinks in included source.
 
 ## Local installation
 

@@ -18,9 +18,9 @@ Studio 策略比较页面读取两个选定组合的日频产物，在共同有�
 用不同任务名称保留不同训练、预测和回测结果。比较同一因素的变化时，其他设置尽量一致，例如使用同一 ETL、同一预测窗口，仅调整训练参数或成本。
 
 ```bash
-axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1
+axonx exec --task qlib_a158_portfolio --task-name fixed-holding --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[20,30]' --holding-days 1
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
+axonx exec --task qlib_strategy_portfolio --task-name rank-retention --upstream-task-ids '["<Predict Task ID>"]' --top-ns '[20,30]' --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1
 axonx exec --task qlib_a158_backtest --upstream-task-ids '["<portfolio_task_id>"]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

@@ -75,6 +75,44 @@ async def test_json_sse_and_mcp_share_the_public_job_policy(make_app, token):
                 assert stream.status_code == (200 if name in expected and name != "ordinary" else 404)
 
 
+@pytest.mark.parametrize("token", [None, "secret"])
+async def test_help_and_http_catalog_share_job_visibility_order_and_metadata(tmp_path, token):
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        jobs={
+            "z_public": {"requires_auth": False, "steps": [{"backend": "version_step"}]},
+            "a_private": {"steps": [{"backend": "version_step"}]},
+            "hidden": {"enable_serve": False, "steps": [{"backend": "version_step"}]},
+            "help": {"requires_auth": False, "steps": [{"backend": "help_step"}]},
+        },
+        service={"backend": "http", "token": token, "web_enabled": False},
+    )
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    async with (
+        app,
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app.context.service.build_service(app)),
+            base_url="http://test",
+            headers=headers,
+        ) as client,
+    ):
+        catalog = (await client.get("/jobs")).json()["answer"]["items"]
+        expected = (["a_private"] if token else []) + ["help", "z_public"]
+        assert [item["name"] for item in catalog] == expected
+        help_response = await client.post("/jobs/help", json={"arguments": {}})
+        assert help_response.json()["answer"]["jobs"] == [
+            {"name": item["name"], "description": item["description"]} for item in catalog
+        ]
+        for item in catalog:
+            response = await client.post("/jobs/help", json={"arguments": {"job": item["name"]}})
+            assert response.json()["answer"]["job"] == item
+        for name in {"hidden", "a_private"} - set(expected):
+            response = await client.post("/jobs/help", json={"arguments": {"job": name}})
+            assert not response.json()["success"]
+
+
 async def test_mcp_binds_each_job_without_consuming_business_argument_names(make_app):
     app = make_app()
     arguments = {"value": 3, "name": "business", "self": "caller", "arguments": {"nested": True}}

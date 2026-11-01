@@ -46,7 +46,7 @@ CLI_USAGE = f"""Usage:
   axonx exec [--task TASK] [--workspace-dir PATH] [--field value ...] [--target HOST:PORT]
   axonx kill --task-id ID [--workspace-dir PATH] [--timeout SECONDS] [--force true] [--target HOST:PORT]
   axonx app [--config NAME_OR_PATH]
-  axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
+  axonx plugin list|inspect|install|uninstall ... [--target HOST:PORT]
   axonx plugin build SOURCE [--workspace-dir PATH] [--output DIRECTORY] [--target HOST:PORT]
   axonx plugin install -e SOURCE
 
@@ -174,8 +174,7 @@ def parse_plugin_arguments(argv: Sequence[str]) -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List installed plugins.")
     for name, help_text in (
-        ("show", "Show one installed plugin."),
-        ("inspect", "Inspect an installed plugin, wheel, or source tree."),
+        ("inspect", "Inspect an installed plugin or existing wheel without building."),
         ("build", "Build and inspect a plugin wheel locally."),
         ("install", "Install a plugin in the current Python environment."),
         ("uninstall", "Uninstall a plugin from the current Python environment."),
@@ -184,7 +183,7 @@ def parse_plugin_arguments(argv: Sequence[str]) -> argparse.Namespace:
         command.add_argument("plugin")
         if name == "install":
             command.add_argument("-e", "--editable", action="store_true", help="Install a local source directory.")
-        if name in {"inspect", "build", "install"}:
+        if name in {"build", "install"}:
             command.add_argument("--output", help="Wheel output directory.")
             command.add_argument("--workspace-dir", help="Workspace containing tmp/plugins build caches.")
     args = parser.parse_args(argv)
