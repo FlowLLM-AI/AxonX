@@ -1,6 +1,7 @@
 """Workflow timing, model isolation through logical invocation names and atomic display-view replacement."""
 
 import asyncio
+import os
 import shutil
 from datetime import timedelta
 
@@ -8,6 +9,7 @@ import pytest
 from pydantic import Field
 
 from axonx.app.components.sync.artifacts import plan_task
+from axonx.app.components.sync.local import archive_batches
 from axonx.app.components.sync.models import SnapshotChangedError
 from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.core.application import Application
@@ -19,7 +21,7 @@ from axonx.task.models.params import BaseInputParams, BaseOutputParams
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
+from axonx.task.storage.workspace import read_entry, task_directory, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging
 
 BUDGET = 8_000_000
@@ -312,3 +314,106 @@ def test_selecting_no_models_does_not_delete_remote_tasks(workflow, tmp_path):
     assert send(source, status, target, tmp_path)
     assert send(source, status, target, tmp_path, ("no-matching-model",)) is None
     assert task_path(target, status.task_id).exists()
+
+
+@pytest.fixture
+def large_group(workflow):
+    source, status = workflow
+    for identity, metadata in task_group(source, status.task_id).items():
+        directory = task_path(source, identity)
+        artifact = directory / "payload.bin"
+        artifact.write_bytes(os.urandom(40_000))
+        metadata.output_params.setdefault("artifacts", {})["payload"] = artifact_record(artifact, directory)
+        write_task_metadata(directory, metadata)
+    return source, read_entry(source, status.task_id)
+
+
+def test_each_task_retains_its_budget_and_large_groups_split_into_bounded_archives(large_group, tmp_path):
+    source, status = large_group
+    budget = 100_000
+    _, plans = prepare_group(source, status.task_id, tmp_path / "prepared", budget, TaskLogReader(source))
+    assert sum(plan.size for plan in plans.values()) > budget
+    batches = list(archive_batches(plans, budget))
+    assert len(batches) > 1
+    assert list(batches[-1])[-1] == task_directory(status.task_id)
+    target = tmp_path / "target"
+    for index, batch in enumerate(batches):
+        archive = tmp_path / f"batch-{index}.tar.gz"
+        expanded = build_file_archive({name: plan.directory for name, plan in batch.items()}, archive)
+        assert max(expanded, archive.stat().st_size) <= budget
+        Workspace(target).uploads.replace(archive, budget)
+    for identity in task_group(source, status.task_id):
+        replica = read_entry(target, identity).replica
+        assert not replica.omitted
+        assert (task_path(target, identity) / "payload.bin").read_bytes() == (
+            task_path(source, identity) / "payload.bin"
+        ).read_bytes()
+
+
+@pytest.mark.parametrize("maximum", [1, 4])
+@pytest.mark.parametrize("failure", ["exception", "incomplete"])
+def test_partial_group_resumes_before_publishing_changed_parent(large_group, tmp_path, monkeypatch, maximum, failure):
+    source, status = large_group
+    budget = 100_000
+    target = tmp_path / "target"
+    completed, calls = [], []
+
+    class Receiver:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def upload_archive(self, path):
+            calls.append(path)
+            if len(calls) == 2 and failure == "exception":
+                raise OSError("temporary receiver failure")
+            received = Workspace(target).uploads.replace(path, budget)
+            if len(calls) == 2:
+                return []
+            completed.extend(received)
+            return received
+
+    app = Application(
+        workspace_dir=str(source),
+        transfer_budget_bytes=budget,
+        log_to_console=False,
+        log_to_file=False,
+        targets=[{"address": "http://receiver:1024"}],
+        components={
+            "sync": {
+                "selected": {
+                    "backend": "local",
+                    "target": "http://receiver:1024",
+                    "rules": {"workflow": "live"},
+                    "max_archives_per_flush": maximum,
+                }
+            }
+        },
+    )
+    component = app.context.components["sync"]["selected"]
+    monkeypatch.setattr(component, "_client", Receiver)
+
+    async def run():
+        first = await component.flush()
+        assert first.deferred and not first.rejected
+        assert read_entry(target, status.task_id) is None
+        status.output_params["updated"] = True
+        write_task_metadata(task_path(source, status.task_id), status)
+        for _ in range(20):
+            before = len(calls)
+            report = await component.flush()
+            assert len(calls) - before <= maximum
+            assert not report.rejected
+            if not report.deferred:
+                break
+        else:
+            pytest.fail("Partial group never completed")
+        assert completed[-1] == task_directory(status.task_id)
+        assert len(completed) == len(set(completed))
+        assert set(completed) == {task_directory(identity) for identity in task_group(source, status.task_id)}
+        assert read_entry(target, status.task_id).output_params["updated"]
+        assert not (await component.flush()).uploaded
+
+    asyncio.run(run())

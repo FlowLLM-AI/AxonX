@@ -104,7 +104,7 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None,
 
 
 def policy_revision(budget: int, view=None) -> str:
-    return f"display-replica-4:{budget}:latest-whole-days:{fingerprint(view)}"
+    return f"display-replica-5:{budget}:latest-whole-days:{fingerprint(view)}"
 
 
 def source_revision(

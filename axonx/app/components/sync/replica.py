@@ -378,8 +378,7 @@ def prepare_group(
     group = task_group(root, task_id, model_names)
     if when == "terminal" and any(not status.state.is_terminal for status in group.values()):
         raise SnapshotChangedError(f"Task group has not completed: {task_id}")
-    member_budget = archive_budget(budget) // max(1, len(group))
-    policy = policy_revision(member_budget, (when, list(model_names)))
+    policy = policy_revision(budget, (when, list(model_names)))
     version = fingerprint(
         [
             policy,
@@ -411,7 +410,10 @@ def prepare_group(
     plans = {}
     for identity, status in group.items():
         destination = task_path(staging, identity)
-        plans[task_directory(identity)] = ReplicaBuilder(
+        relative = task_directory(identity)
+        # Each Task owns the full budget; reserve its archive manifest separately.
+        member_budget = budget - archived_bytes(len(json.dumps([relative]).encode()))
+        plans[relative] = ReplicaBuilder(
             root,
             identity,
             destination,
@@ -420,9 +422,6 @@ def prepare_group(
             metadata=status,
             logs=logs,
         ).prepare()
-    size = archived_bytes(len(json.dumps(list(plans)).encode())) + sum(plan.size for plan in plans.values())
-    if size > archive_budget(budget):
-        raise ReplicaBudgetError(f"Task group exceeds the transfer budget: {task_id}")
     for identity, status in group.items():
         current = read_entry(root, identity)
         if current is None or current.started_at != status.started_at:

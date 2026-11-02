@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import tempfile
 from collections.abc import Mapping, Sequence
@@ -10,15 +11,32 @@ from pathlib import Path
 
 from ....client import http as client
 from ....client.base import RemoteServiceError
-from ....client.files import build_file_archive
+from ....client.config import archived_bytes
+from ....client.files import archive_budget, build_file_archive
 from ....task.models.identity import validate_registration_name
 from ....task.storage.logs import TaskLogReader
-from ....task.storage.workspace import scan_entries, task_directory
+from ....task.storage.workspace import load_task_metadata, scan_entries, task_directory
 from ....utils.async_work import run_blocking
 from ..registry import provider
 from .base import BaseSyncComponent
-from .models import ReplicaBudgetError, SyncReport
+from .models import ReplicaBudgetError, SyncReport, TaskPlan
 from .replica import prepare_group
+
+
+def archive_batches(plans: Mapping[str, TaskPlan], budget: int):
+    """Pack complete Task directories, with descendants before their root."""
+    batch, size = {}, 0
+    for relative, plan in reversed(list(plans.items())):
+        manifest_size = archived_bytes(len(json.dumps([*batch, relative]).encode()))
+        if batch and size + plan.size + manifest_size > archive_budget(budget):
+            yield batch
+            batch, size = {}, 0
+        if plan.size + archived_bytes(len(json.dumps([relative]).encode())) > archive_budget(budget):
+            raise ReplicaBudgetError(f"Task archive exceeds the transfer budget: {relative}")
+        batch[relative] = plan
+        size += plan.size
+    if batch:
+        yield batch
 
 
 @provider("local")
@@ -59,6 +77,7 @@ class LocalSyncComponent(BaseSyncComponent):
             if when not in {"live", "terminal"}:
                 raise ValueError("Sync rules must select 'live' or 'terminal'")
         self._sent: dict[str, str] = {}
+        self._uploaded: dict[str, dict[str, tuple[str, str]]] = {}
         self._last_task = ""
         self._flush_lock = asyncio.Lock()
 
@@ -69,6 +88,7 @@ class LocalSyncComponent(BaseSyncComponent):
     async def _start(self) -> None:
         self.app_config.resolve_target(self.target)
         self._sent.clear()
+        self._uploaded.clear()
         self._last_task = ""
 
     async def flush(self) -> SyncReport:
@@ -83,6 +103,7 @@ class LocalSyncComponent(BaseSyncComponent):
             if status.replica is None and status.reg_name in self.rules
         }
         self._sent = {identity: version for identity, version in self._sent.items() if identity in roots}
+        self._uploaded = {identity: versions for identity, versions in self._uploaded.items() if identity in roots}
         ordered = sorted(roots)
         ordered = [i for i in ordered if i > self._last_task] + [i for i in ordered if i <= self._last_task]
         report = SyncReport()
@@ -119,16 +140,30 @@ class LocalSyncComponent(BaseSyncComponent):
                             continue
                         version, plans = prepared
                         archive = staging / "files.tar.gz"
-                        directories = {relative: plan.directory for relative, plan in plans.items()}
-                        expanded_size = await run_blocking(build_file_archive, directories, archive)
-                        if max(expanded_size, archive.stat().st_size) > budget:
-                            raise ReplicaBudgetError("Archive exceeds the transfer budget")
-                        report.archives += 1
-                        uploaded = await remote.upload_archive(archive)
-                        if set(uploaded) != plans.keys():
-                            raise ValueError("Remote file transfer returned an incomplete directory list")
-                        self._sent[task_id] = version
-                        report.uploaded.extend(plans)
+                        uploaded = self._uploaded.setdefault(task_id, {})
+                        versions = {}
+                        for relative, plan in plans.items():
+                            metadata = load_task_metadata(plan.directory, plan.directory.name)
+                            replica = metadata.replica
+                            versions[relative] = (replica.source_revision, replica.policy_revision)
+                        pending = {name: plan for name, plan in plans.items() if uploaded.get(name) != versions[name]}
+                        for batch in archive_batches(pending, budget):
+                            if report.archives >= self.max_archives_per_flush:
+                                report.deferred.append(task_directory(task_id))
+                                break
+                            directories = {name: plan.directory for name, plan in batch.items()}
+                            expanded_size = await run_blocking(build_file_archive, directories, archive)
+                            if max(expanded_size, archive.stat().st_size) > budget:
+                                raise ReplicaBudgetError("Archive exceeds the transfer budget")
+                            report.archives += 1
+                            received = await remote.upload_archive(archive)
+                            if set(received) != batch.keys():
+                                raise ValueError("Remote file transfer returned an incomplete directory list")
+                            uploaded.update({name: versions[name] for name in batch})
+                            report.uploaded.extend(batch)
+                        else:
+                            self._sent[task_id] = version
+                            self._uploaded.pop(task_id, None)
                 except ReplicaBudgetError as exc:
                     report.rejected.append(task_directory(task_id))
                     self.logger.warning(f"Display push rejected {task_id}: {exc}")
