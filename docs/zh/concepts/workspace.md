@@ -112,6 +112,8 @@ tasks/etl/etl#my-etl#dataset-01/data/dataset.parquet
 
 TaskIndex 周期扫描类型目录下的 metadata（默认每 5 秒），为列表和依赖图维护快照。单任务状态、等待和流式观察直接读取当前 metadata。重启可从有效记录重建查询信息，不会重新训练模型或下载原始数据。
 
+metadata 文件的属性查询和读取遇到 NFS `ESTALE` 时，分别等待 50 毫秒、100 毫秒，最多额外重试两次；读取每次都重新打开路径。其他 I/O 错误不重试。扫描仍失败时，索引保留上一份快照，等待下一次轮询。
+
 任务列表包含所有有效生命周期记录。Studio 研究页面选择 `state=succeeded` 的记录，metadata 存在不代表实验成功。
 
 ## 浏览目录

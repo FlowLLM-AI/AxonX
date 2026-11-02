@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import errno
 import math
 import os
 import shutil
 import stat
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from itertools import product
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -25,6 +27,18 @@ METADATA_FILE = "metadata.json"
 EVENTS_FILE = "events.jsonl"
 LOG_FILE = "task.log"
 FileVersion = tuple[int, int, int, int]
+
+
+def _retry_stale[T](operation: Callable[[], T]) -> T:
+    """Retry transient NFS handles by repeating the path-based operation."""
+    for delay in (0.05, 0.1):
+        try:
+            return operation()
+        except OSError as exc:
+            if exc.errno != errno.ESTALE:
+                raise
+            time.sleep(delay)
+    return operation()
 
 
 def task_directory(task_id: str) -> str:
@@ -131,7 +145,7 @@ def scan_metadata(
     for directory in _task_directories(root):
         task_id = directory.name
         try:
-            info = (directory / METADATA_FILE).lstat()
+            info = _retry_stale((directory / METADATA_FILE).lstat)
         except FileNotFoundError:
             continue
         if not stat.S_ISREG(info.st_mode):
@@ -158,13 +172,13 @@ def load_task_metadata(directory: Path, task_id: str) -> TaskMetadata:
     if not is_task_directory(directory):
         raise ValueError(f"Invalid Task directory: {directory}")
     try:
-        regular = stat.S_ISREG(path.lstat().st_mode)
+        regular = stat.S_ISREG(_retry_stale(path.lstat).st_mode)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Task metadata is missing: {path}; existing Task files were not overwritten") from exc
     if not regular:
         raise ValueError(f"Task metadata must be a regular file: {path}; existing Task files were not overwritten")
     try:
-        metadata = TaskMetadata.model_validate_json(path.read_text(encoding="utf-8"))
+        metadata = TaskMetadata.model_validate_json(_retry_stale(lambda: path.read_text(encoding="utf-8")))
     except ValueError as exc:
         raise ValueError(
             f"Invalid Task metadata: {path}; the record must match TaskMetadata. "

@@ -1,7 +1,9 @@
 """Verify storage publication, incremental reads and immutable input contracts."""
 
+import errno
 import os
 from datetime import UTC, datetime, timedelta
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -24,6 +26,7 @@ from axonx.task.models.lifecycle import (
 )
 from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime.executor import TaskExecutor
+from axonx.task.storage import workspace as storage
 from axonx.task.storage.artifacts import artifact_record, verify_artifact
 from axonx.task.storage.files import atomic_write_json, copy_file, file_revision
 from axonx.task.storage.inputs import (
@@ -279,17 +282,85 @@ def test_scans_ignore_symlinks_invalid_ids_and_nested_artifact_directories(tmp_p
     assert set(scan_metadata(tmp_path, {}, {})[0]) == {record.task_id}
 
 
-def test_incremental_scan_propagates_io_errors_without_mutating_its_cache(tmp_path, record, monkeypatch):
+@pytest.mark.parametrize("operation", ["lstat", "read_text"])
+@pytest.mark.parametrize("failures", [1, 2])
+def test_metadata_scan_recovers_from_transient_stale_handles(tmp_path, record, monkeypatch, operation, failures):
+    entries, versions = scan_metadata(tmp_path, {}, {})
+    path = task_path(tmp_path, record.task_id) / "metadata.json"
+    record.output_params = {"result": 42}
+    write_task_metadata(path.parent, record)
+    original = getattr(Path, operation)
+    attempts = 0
+    delays = []
+
+    def transient(self, *args, **kwargs):
+        nonlocal attempts
+        if self == path:
+            attempts += 1
+            if attempts <= failures:
+                raise OSError(errno.ESTALE, "stale metadata handle")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, operation, transient)
+    monkeypatch.setattr(storage.time, "sleep", delays.append)
+    updated, current = scan_metadata(tmp_path, entries, versions)
+    assert updated[record.task_id] == record
+    assert current != versions
+    assert delays == [0.05, 0.1][:failures]
+
+
+def test_metadata_read_closes_a_stale_handle_and_reopens_the_replaced_file(tmp_path, record, monkeypatch):
+    path = task_path(tmp_path, record.task_id) / "metadata.json"
+    replacement = record.model_copy(update={"output_params": {"result": 42}})
+    stale = StringIO(record.model_dump_json())
+    original_open = Path.open
+    delays = []
+
+    def fail_read(*args, **kwargs):
+        write_task_metadata(path.parent, replacement)
+        raise OSError(errno.ESTALE, "file replaced on another NFS client")
+
+    def open_file(self, *args, **kwargs):
+        if self == path and not stale.closed:
+            return stale
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(stale, "read", fail_read)
+    monkeypatch.setattr(Path, "open", open_file)
+    monkeypatch.setattr(storage.time, "sleep", delays.append)
+    assert load_task_metadata(path.parent, record.task_id) == replacement
+    assert stale.closed
+    assert delays == [0.05]
+
+
+@pytest.mark.parametrize("operation", ["lstat", "read_text"])
+@pytest.mark.parametrize("error_number", [errno.EACCES, errno.EIO, errno.ESTALE])
+def test_incremental_scan_propagates_io_errors_without_mutating_its_cache(
+    tmp_path, record, monkeypatch, operation, error_number
+):
     entries, versions = scan_metadata(tmp_path, {}, {})
     path = task_path(tmp_path, record.task_id) / "metadata.json"
     path.write_text("changed", encoding="utf-8")
 
-    def denied(*args, **kwargs):
-        raise PermissionError("unreadable metadata")
+    original = getattr(Path, operation)
+    error = OSError(error_number, "unreadable metadata")
+    attempts = 0
+    delays = []
 
-    monkeypatch.setattr(Path, "read_text", denied)
-    with pytest.raises(PermissionError, match="unreadable metadata"):
+    def denied(self, *args, **kwargs):
+        nonlocal attempts
+        if self == path:
+            attempts += 1
+            raise error
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, operation, denied)
+    monkeypatch.setattr(storage.time, "sleep", delays.append)
+    with pytest.raises(OSError, match="unreadable metadata") as caught:
         scan_metadata(tmp_path, entries, versions)
+    assert caught.value is error
+    assert attempts == (3 if error_number == errno.ESTALE else 1)
+    assert delays == ([0.05, 0.1] if error_number == errno.ESTALE else [])
     assert entries[record.task_id] == record
     assert versions
 

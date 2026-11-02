@@ -112,6 +112,8 @@ When file logging is enabled, `status.log_path` is `task.log`, relative to the T
 
 TaskIndex polls metadata under type directories (every 5 seconds by default), maintaining one snapshot for lists and dependency graphs. Single-Task status, waiting and streaming read current metadata directly. Restarting can rebuild indexes from valid files; it does not retrain models or download raw data for you.
 
+Metadata file stat and read operations retry NFS `ESTALE` twice, after 50 ms and 100 ms; reads reopen the path on each attempt. Other I/O errors are not retried. If a scan still fails, the index retains its previous snapshot and retries at the next poll.
+
 Task lists include every valid lifecycle record. Studio research pages select records with `state=succeeded`; the existence of metadata alone does not mean an experiment succeeded.
 
 ## Browse directories
