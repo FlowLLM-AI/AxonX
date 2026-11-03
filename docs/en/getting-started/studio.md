@@ -12,7 +12,7 @@ Install axonx[studio] or build/install axonx_studio from source, then start `axo
 
 ## Research and development entry points
 
-Current navigation groups are System management, Daily operations, Research, and Development tools. System management contains All tasks, Machine resources, Environment, and Workspace. Development tools contains Task definitions and API interfaces. Research contains Agent, Data processing, Factor analysis, Model training, Offline prediction, Offline backtest, and Strategy comparison. Daily operations contains Online prediction, Prediction comparison, and Data updates.
+Current navigation groups are System management, Daily operations, Research, and Development tools. System management contains All tasks, Machine resources, Environment, and Workspace. Development tools contains Task definitions and API interfaces. Research contains Agent, Data processing, Factor analysis, Model training, Offline prediction, Portfolio configuration, Offline backtest, and Strategy comparison. Daily operations contains Online prediction, Prediction comparison, and Data updates.
 
 **Data processing** shows datasets and artifacts produced by ETL Tasks for reuse in factor analysis, training, and prediction. **Prediction comparison** checks online and offline model inputs, prediction scores, and candidate ranks at the same signal time. **Strategy comparison** compares returns, risk, and holdings from two offline backtests.
 

@@ -35,7 +35,7 @@
       "predict": "离线预测",
       "backtest": "离线回测",
       "compare": "策略对比",
-      "portfolio": "组合"
+      "portfolio": "组合配置"
     },
     "switchLanguageLabel": "EN",
     "taskDefinitions": "任务定义"
@@ -434,7 +434,7 @@
         "lead": "查看样本范围、列信息与产物"
       },
       "portfolio": {
-        "title": "投资组合",
+        "title": "组合配置",
         "lead": "查看组合定义与每日目标。"
       }
     },

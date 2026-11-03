@@ -35,7 +35,7 @@
       "predict": "Offline prediction",
       "backtest": "Offline backtest",
       "compare": "Strategy comparison",
-      "portfolio": "Portfolios"
+      "portfolio": "Portfolio configuration"
     },
     "switchLanguageLabel": "中文",
     "taskDefinitions": "Task definitions"
@@ -434,7 +434,7 @@
         "lead": "Inspect sample coverage, columns, and artifacts"
       },
       "portfolio": {
-        "title": "Portfolios",
+        "title": "Portfolio configuration",
         "lead": "Inspect portfolio definitions and daily targets."
       }
     },
