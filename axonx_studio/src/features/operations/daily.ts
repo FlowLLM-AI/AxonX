@@ -165,7 +165,7 @@ export class SignalHistoryStore {
         const key = `${target}:${modelId}`;
         try {
           const previous = retained.get(key);
-          const history = taskId
+          let history = taskId
             ? await loadHistory(
                 taskId,
                 { target, signal },
@@ -176,6 +176,11 @@ export class SignalHistoryStore {
               )
             : null;
           signal.throwIfAborted();
+          if (
+            previous &&
+            JSON.stringify(history) === JSON.stringify(previous.history)
+          )
+            history = previous.history;
           const result = { modelId, taskId, history, error: "" };
           retained.set(key, result);
           return result;

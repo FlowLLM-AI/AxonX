@@ -307,7 +307,7 @@ it("settles unfinished nightly model summaries after download failure and cancel
   ).toContain(i18n.t("onlinePipeline.status.skipped"));
 });
 
-it("refreshes details and logs every 60 seconds while preserving the selected tab", async () => {
+it("refreshes details and logs every 5 seconds while preserving the selected tab", async () => {
   vi.useFakeTimers();
   try {
     await render();
@@ -324,7 +324,7 @@ it("refreshes details and logs every 60 seconds while preserving the selected ta
     ).toBe("false");
     const initial = vi.mocked(getTaskStatus).mock.calls.length;
     const initialLogs = vi.mocked(readTaskLog).mock.calls.length;
-    await act(async () => vi.advanceTimersByTimeAsync(59_000));
+    await act(async () => vi.advanceTimersByTimeAsync(4_000));
     expect(getTaskStatus).toHaveBeenCalledTimes(initial);
     expect(readTaskLog).toHaveBeenCalledTimes(initialLogs);
     await act(async () => vi.advanceTimersByTimeAsync(1_000));
@@ -340,10 +340,12 @@ it("refreshes details and logs every 60 seconds while preserving the selected ta
         .click(),
     );
     const beforeRefresh = vi.mocked(getTaskStatus).mock.calls.length;
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    const hiddenLogs = vi.mocked(readTaskLog).mock.calls.length;
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(vi.mocked(getTaskStatus).mock.calls.length).toBeGreaterThan(
       beforeRefresh,
     );
+    expect(readTaskLog).toHaveBeenCalledTimes(hiddenLogs);
     expect(
       container
         .querySelector('[role="tab"][id$="-logs-tab"]')

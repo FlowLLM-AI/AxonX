@@ -129,7 +129,7 @@ describe("Studio backend version", () => {
       signal: expect.any(AbortSignal),
     });
     vi.mocked(machineStatus).mockRejectedValue(new Error("Offline"));
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(version()).toBeUndefined();
   });
 
@@ -253,7 +253,7 @@ it("shares one clock across service health, operation reports and logs", async (
     )!;
   await act(async () => logTab().click());
   const initial = requests.length;
-  await act(async () => vi.advanceTimersByTimeAsync(59_000));
+  await act(async () => vi.advanceTimersByTimeAsync(4_000));
   expect(requests).toHaveLength(initial);
   expect(machineStatus).toHaveBeenCalledTimes(1);
   await act(async () => vi.advanceTimersByTimeAsync(1_000));

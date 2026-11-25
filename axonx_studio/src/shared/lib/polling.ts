@@ -4,7 +4,6 @@ export function startPolling(
   intervalSeconds: number,
   onSeconds: (seconds: number) => void,
   immediate = false,
-  refreshOnVisible = true,
 ) {
   const controller = new AbortController();
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -41,7 +40,7 @@ export function startPolling(
     clearInterval(timer);
     reset();
     if (!document.hidden) {
-      if (refreshOnVisible) void run();
+      void run();
       start();
     }
   };

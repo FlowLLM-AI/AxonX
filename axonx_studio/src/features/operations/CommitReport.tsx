@@ -78,7 +78,7 @@ export function CommitReport({
     },
     [cache, commit, history, tab],
   );
-  const { data, error, loading, reload } = useAsyncResource(load);
+  const { data, error, reload } = useAsyncResource(load);
   if (error)
     return (
       <div className="error-state" role="alert">
@@ -88,8 +88,7 @@ export function CommitReport({
         </button>
       </div>
     );
-  if (loading || !data)
-    return <div className="loading-state">{t("shell.loading")}</div>;
+  if (!data) return <div className="loading-state">{t("shell.loading")}</div>;
   const settings = commit.protocol.report;
   const multipleStrategies =
     new Set(

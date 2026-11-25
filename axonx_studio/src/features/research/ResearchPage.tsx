@@ -175,7 +175,7 @@ export default function ResearchPage({
           <span>{labels[1]}</span>
         </div>
         {kind !== "etl" && (
-          <button className="secondary-button" onClick={load}>
+          <button className="secondary-button" onClick={() => void load()}>
             <RefreshCw className={loading ? "spin" : ""} />
             {t("research.refresh")}
           </button>
@@ -188,7 +188,7 @@ export default function ResearchPage({
             <strong>{t("research.unable_to_load_artifacts")}</strong>
             <span>{error}</span>
           </div>
-          <button type="button" onClick={load}>
+          <button type="button" onClick={() => void load()}>
             {t("research.retry")}
           </button>
         </div>

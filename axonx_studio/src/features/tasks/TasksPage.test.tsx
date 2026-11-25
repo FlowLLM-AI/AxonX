@@ -172,14 +172,14 @@ describe("grouped task list", () => {
       "run-050",
     );
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(5_000);
     });
     expect(container.querySelector("tbody strong")!.textContent).toBe(
       "run-050",
     );
     await click(".task-group-toggle");
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(5_000);
     });
     expect(container.querySelector("tbody")).toBeNull();
     await click(".task-group-toggle");

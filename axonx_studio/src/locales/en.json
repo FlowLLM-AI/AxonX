@@ -197,7 +197,7 @@
       "stocks": "stocks"
     },
     "remaining": "{{seconds}} seconds until deadline",
-    "refreshHint": "Refreshes every 60s",
+    "refreshHint": "Refreshes every {{seconds}}s",
     "nightly": "Nightly comparison"
   },
   "offline": "Offline",

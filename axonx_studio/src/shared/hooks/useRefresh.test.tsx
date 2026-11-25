@@ -36,7 +36,7 @@ it("deduplicates immediate, manual and automatic refreshes", async () => {
   await act(async () => {
     request = refresh();
   });
-  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
   expect(load).toHaveBeenCalledTimes(1);
   await act(async () => {
     finish();
@@ -50,12 +50,39 @@ it("refreshes a new subscriber while an aborted old request remains unsettled", 
     return new Promise<void>(() => {});
   });
   await act(async () => root.render(<Harness load={oldLoad} />));
-  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
   const next = vi.fn().mockResolvedValue(undefined);
   await act(async () => root.render(<Harness load={next} />));
   expect(oldSignal.aborted).toBe(true);
-  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
   expect(next).toHaveBeenCalledTimes(2);
   await act(async () => refresh());
   expect(next).toHaveBeenCalledTimes(3);
+});
+
+it("pauses in the background and refreshes once when the page becomes visible", async () => {
+  const load = vi.fn().mockResolvedValue(undefined);
+  await act(async () => root.render(<Harness load={load} />));
+  expect(load).toHaveBeenCalledTimes(1);
+  const visibility = async (hidden: boolean) =>
+    act(async () => {
+      Object.defineProperty(document, "hidden", {
+        value: hidden,
+        configurable: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+  try {
+    await visibility(true);
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    expect(load).toHaveBeenCalledTimes(1);
+    await visibility(false);
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(4_000));
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    expect(load).toHaveBeenCalledTimes(3);
+  } finally {
+    Reflect.deleteProperty(document, "hidden");
+  }
 });

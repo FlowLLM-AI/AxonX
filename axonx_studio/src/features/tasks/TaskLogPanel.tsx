@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -8,7 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TaskMetadata } from "../../shared/api/contracts";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { useRefresh } from "../../shared/hooks/useRefresh";
+import { RefreshVisible, useRefresh } from "../../shared/hooks/useRefresh";
 import { errorMessage } from "../../shared/lib/errors";
 import { formatBytes } from "../../shared/lib/format";
 import { readTaskLog } from "./api";
@@ -34,6 +35,7 @@ export function TaskLogPanel(props: TaskLogProps) {
 
 function TaskLogContent({ task, target, toolbar }: TaskLogProps) {
   const { t } = useTranslation();
+  const visible = useContext(RefreshVisible);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -110,15 +112,16 @@ function TaskLogContent({ task, target, toolbar }: TaskLogProps) {
   );
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
+    if (visible) void load(controller.signal);
     return () => controller.abort();
-  }, [load, task.state]);
+  }, [load, task.state, visible]);
   useEffect(() => {
     const owned = requests.current;
     return () => {
       for (const controller of owned) controller.abort();
+      owned.clear();
     };
-  }, []);
+  }, [visible]);
   useRefresh(load, follow);
   useEffect(() => {
     if (follow && viewport.current)

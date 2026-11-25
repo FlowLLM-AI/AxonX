@@ -5,6 +5,7 @@ import { parseHash, routeHash } from "../../app/routes";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import type { TaskMetadata } from "../../shared/api/contracts";
 import type { TaskStepStatus } from "../../shared/api/event";
+import { REFRESH_SECONDS } from "../../shared/hooks/useRefresh";
 import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { Picker, Select } from "../../shared/ui/Select";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
@@ -302,7 +303,7 @@ export function ComparePipeline({
               i18n?.resolvedLanguage === "zh" ? "zh-CN" : "en-US",
               { timeZone: "Asia/Shanghai", hour12: false },
             )}{" "}
-            · {t("onlinePipeline.refreshHint")}
+            · {t("onlinePipeline.refreshHint", { seconds: REFRESH_SECONDS })}
           </small>
           <button
             className="secondary-button"

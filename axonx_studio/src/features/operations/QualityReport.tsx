@@ -318,7 +318,7 @@ function QualityDetails({
       loadArtifactRows(taskId, artifact, { target, signal }),
     [taskId, artifact, target],
   );
-  const { data, error, loading, reload } = useAsyncResource(load);
+  const { data, error, reload } = useAsyncResource(load);
   if (error)
     return (
       <div className="error-state" role="alert">
@@ -328,8 +328,7 @@ function QualityDetails({
         </button>
       </div>
     );
-  if (loading || !data)
-    return <div className="loading-state">{t("shell.loading")}</div>;
+  if (!data) return <div className="loading-state">{t("shell.loading")}</div>;
   const exportDetails = () => {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),

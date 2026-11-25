@@ -197,7 +197,7 @@
       "stocks": "证券"
     },
     "remaining": "距截止 {{seconds}} 秒",
-    "refreshHint": "每 60 秒刷新",
+    "refreshHint": "每 {{seconds}} 秒刷新",
     "nightly": "夜间复核"
   },
   "offline": "离线",

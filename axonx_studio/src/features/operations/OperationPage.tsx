@@ -66,9 +66,16 @@ export default function OperationPage({
       .toLowerCase()
       .includes(text),
   );
-  const selected = initialResource
-    ? tasks.find((task) => task.task_id === initialResource)
-    : visible[0];
+  const [defaultTask, setDefaultTask] = useState("");
+  const chosen = tasks.find(
+    (task) => task.task_id === (initialResource || defaultTask),
+  );
+  const selected = initialResource ? chosen : (chosen ?? visible[0]);
+  const selectedId = selected?.task_id ?? "";
+  useEffect(() => {
+    if (!initialResource && data && selectedId !== defaultTask)
+      setDefaultTask(selectedId);
+  }, [initialResource, data, defaultTask, selectedId]);
   useEffect(() => {
     onOptionsChange(
       tasks.map((task) => ({

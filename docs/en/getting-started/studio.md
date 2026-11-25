@@ -52,6 +52,8 @@ Agent requires backend model configuration and supports stored sessions, present
 
 ## Page links and preferences
 
+Task lists, Task details, and operations reports poll every 5 seconds in the foreground. The Task list can pause automatic refresh. Refresh retains the selected Task, date, time slot, model, tab, and filters when they are still available. Hidden report tabs stop loading and polling, then refresh when reopened. Automatic refresh pauses while the browser tab is in the background and runs immediately on return. Logs scroll to the end while Follow is enabled. Disable Follow to retain the reading position.
+
 Routes use `#machine/section/view/resource`; routeHash encodes resource IDs containing #. Task definition example: `#local/task-defs/catalog/demo`. Browser language/theme/panel preferences do not change server research configuration. Switching machines must preserve the selected target in each request and avoid stale responses.
 
 ## Empty states and failures

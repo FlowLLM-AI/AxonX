@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
 import type { TaskMetadata } from "../../shared/api/contracts";
+import { RefreshVisible } from "../../shared/hooks/useRefresh";
 import { TaskLogPanel } from "./TaskLogPanel";
 import { readTaskLog } from "./api";
 
@@ -15,6 +16,7 @@ let task: TaskMetadata;
 let source: string;
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   source = "A".repeat(464) + "B".repeat(65_536);
   task = structuredClone(seed().tasks.get("base#playground_online#demo")!);
   vi.mocked(readTaskLog).mockImplementation(
@@ -39,10 +41,15 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
-const render = async () =>
+const render = async (visible = true) =>
   act(async () =>
-    root.render(<TaskLogPanel task={task} target="selected:1024" />),
+    root.render(
+      <RefreshVisible value={visible}>
+        <TaskLogPanel task={task} target="selected:1024" />
+      </RefreshVisible>,
+    ),
   );
 it("loads the exact preceding byte range without overlapping the existing log", async () => {
   await render();
@@ -66,6 +73,26 @@ it("loads the exact preceding byte range without overlapping the existing log", 
       .mock.calls.every((call) => call[0].started_at === task.started_at),
   ).toBe(true);
 });
+
+it("cancels a manual history read when hidden and resumes the tail on return", async () => {
+  await render();
+  vi.mocked(readTaskLog).mockImplementationOnce(() => new Promise(() => {}));
+  const earlier = container.querySelector<HTMLButtonElement>(".load-earlier")!;
+  await act(async () => earlier.click());
+  const signal = vi.mocked(readTaskLog).mock.lastCall?.[1]?.signal;
+  expect(earlier.disabled).toBe(true);
+
+  await render(false);
+  expect(signal?.aborted).toBe(true);
+
+  source += "LATEST";
+  await render();
+  expect(container.querySelector("pre")?.textContent).toBe(
+    "B".repeat(65_536) + "LATEST",
+  );
+  expect(earlier.disabled).toBe(false);
+});
+
 it("drains all remaining pages when the task finishes", async () => {
   source = "initial\n";
   task.state = "running";
@@ -116,7 +143,7 @@ it("shows the error without mixing logs when the server rejects a task restart",
   );
 });
 
-it("follows a completed replica every 60 seconds using its replicated log", async () => {
+it("follows a completed replica every 5 seconds using its replicated log", async () => {
   vi.useFakeTimers();
   Object.defineProperty(document, "hidden", {
     value: false,
@@ -138,7 +165,7 @@ it("follows a completed replica every 60 seconds using its replicated log", asyn
     await render();
     const calls = vi.mocked(readTaskLog).mock.calls.length;
     source += "FINAL-SYNC";
-    await act(async () => vi.advanceTimersByTimeAsync(59_999));
+    await act(async () => vi.advanceTimersByTimeAsync(4_999));
     expect(vi.mocked(readTaskLog).mock.calls.length).toBe(calls);
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(container.querySelector("pre")?.textContent).toContain("FINAL-SYNC");

@@ -2,7 +2,7 @@ import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TaskMetadata } from "../../shared/api/contracts";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { useRefresh } from "../../shared/hooks/useRefresh";
+import { REFRESH_SECONDS, useRefresh } from "../../shared/hooks/useRefresh";
 import { dateInput, compactDate as signalDate } from "../../shared/lib/format";
 import { selectOptions } from "../../shared/lib/values";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
@@ -508,7 +508,8 @@ export function OnlineWorkbench({
         </span>
         <small>
           {t("onlineWorkbench.updated")} {stamp(refreshedAt)} ·{" "}
-          {t("onlinePipeline.refreshHint")} · {t("onlineWorkbench.timezone")}
+          {t("onlinePipeline.refreshHint", { seconds: REFRESH_SECONDS })} ·{" "}
+          {t("onlineWorkbench.timezone")}
         </small>
       </div>
       {histories.some((item) => item.error) && (

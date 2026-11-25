@@ -204,7 +204,7 @@ it("keeps breadcrumb resources limited to the actual visible entries", async () 
 });
 
 it.each(["online", "comparison", "data"])(
-  "refreshes %s only after 60 seconds and allows manual refresh",
+  "refreshes %s only after 5 seconds and allows manual refresh",
   async (pageId) => {
     vi.useFakeTimers();
     try {
@@ -218,7 +218,7 @@ it.each(["online", "comparison", "data"])(
       );
       await render(undefined, pageId);
       const initial = calls;
-      await act(async () => vi.advanceTimersByTimeAsync(59_000));
+      await act(async () => vi.advanceTimersByTimeAsync(4_000));
       expect(calls).toBe(initial);
       await act(async () => vi.advanceTimersByTimeAsync(1_000));
       expect(calls).toBeGreaterThan(initial);
@@ -253,7 +253,7 @@ it("uses one page clock and refreshes the index, report and logs together", asyn
     );
     expect(clocks).toHaveBeenCalledTimes(1);
     const initial = calls.length;
-    await act(async () => vi.advanceTimersByTimeAsync(59_000));
+    await act(async () => vi.advanceTimersByTimeAsync(4_000));
     expect(calls).toHaveLength(initial);
     await act(async () => vi.advanceTimersByTimeAsync(1_000));
     const batch = calls.slice(initial);
@@ -276,6 +276,75 @@ it("uses one page clock and refreshes the index, report and logs together", asyn
     expect(clocks).toHaveBeenCalledTimes(1);
   } finally {
     clocks.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it("keeps the current task and tab until that run leaves the index", async () => {
+  vi.useFakeTimers();
+  const demo = createPlayground();
+  let newer = false;
+  let removeCurrent = false;
+  const statuses: string[] = [];
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      if (url === "/jobs/status")
+        statuses.push(JSON.parse(String(init?.body)).arguments.task_id);
+      const response = await demo(url, init);
+      if (url !== "/jobs/list_task_statuses" || !newer) return response;
+      const body = await response.json();
+      const current = body.answer.find(
+        (task: { report_kind: string }) =>
+          task.report_kind === "online_pipeline",
+      );
+      body.answer.push({
+        ...current,
+        task_id: "base#new#run",
+        display_name: "New run",
+        created_at: "2099-01-01T00:00:00Z",
+      });
+      if (removeCurrent)
+        body.answer = body.answer.filter(
+          (task: { task_id: string }) => task.task_id !== current.task_id,
+        );
+      return Response.json(body);
+    }, false),
+  );
+  try {
+    await render();
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[role="tab"][id$="-logs-tab"]')!
+        .click(),
+    );
+    const current = container.querySelector(
+      ".operation-index-list article.active strong",
+    )!.textContent;
+    newer = true;
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(
+      container.querySelector(
+        ".operation-index-list article:first-child strong",
+      )!.textContent,
+    ).toBe("New run");
+    expect(
+      container.querySelector(".operation-index-list article.active strong")!
+        .textContent,
+    ).toBe(current);
+    expect(
+      container
+        .querySelector('[role="tab"][id$="-logs-tab"]')!
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(statuses).not.toContain("base#new#run");
+    removeCurrent = true;
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(
+      container.querySelector(".operation-index-list article.active strong")
+        ?.textContent,
+    ).toBe("New run");
+    expect(statuses).toContain("base#new#run");
+  } finally {
     vi.useRealTimers();
   }
 });

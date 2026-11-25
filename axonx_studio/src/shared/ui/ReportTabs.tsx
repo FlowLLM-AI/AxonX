@@ -1,4 +1,5 @@
-import { Fragment, useId, useState, type ReactNode } from "react";
+import { Fragment, useContext, useId, useState, type ReactNode } from "react";
+import { RefreshVisible } from "../hooks/useRefresh";
 
 type ReportTab = {
   id: string;
@@ -29,6 +30,7 @@ export function ReportTabs({
   connectors?: boolean;
   actions?: ReactNode;
 }) {
+  const visible = useContext(RefreshVisible);
   const [selected, setSelected] = useState(defaultTab || tabs[0]?.id);
   const [visited, setVisited] = useState(
     () => new Set([defaultTab || tabs[0]?.id]),
@@ -118,8 +120,10 @@ export function ReportTabs({
             hidden={active !== tab.id}
             tabIndex={0}
           >
-            {(!tab.lazy || active === tab.id || visited.has(tab.id)) &&
-              tab.content}
+            <RefreshVisible value={visible && active === tab.id}>
+              {(!tab.lazy || active === tab.id || visited.has(tab.id)) &&
+                tab.content}
+            </RefreshVisible>
           </section>
         ))}
     </div>

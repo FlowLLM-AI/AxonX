@@ -1,5 +1,8 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { startPolling } from "../lib/polling";
+
+export const REFRESH_SECONDS = 5;
+export const RefreshVisible = createContext(true);
 
 type Subscriber = {
   callback: (signal: AbortSignal) => Promise<unknown>;
@@ -43,19 +46,17 @@ class RefreshScheduler {
       controller: new AbortController(),
     };
     this.subscribers.add(subscriber);
-    onSeconds?.(60);
+    onSeconds?.(REFRESH_SECONDS);
     if (!this.stop && enabled)
       this.stop = startPolling(
         async () => {
           void this.refresh(true);
         },
-        60,
+        REFRESH_SECONDS,
         (seconds) => {
           for (const listener of this.subscribers)
             listener.onSeconds?.(seconds);
         },
-        false,
-        false,
       );
     if (enabled && immediate) void this.run(subscriber).catch(() => {});
     return () => {
@@ -76,9 +77,13 @@ export function useRefresh(
   immediate = false,
   onSeconds?: Subscriber["onSeconds"],
 ) {
+  const visible = useContext(RefreshVisible);
   useEffect(
-    () => scheduler.subscribe(callback, enabled, immediate, onSeconds),
-    [callback, enabled, immediate, onSeconds],
+    () =>
+      visible
+        ? scheduler.subscribe(callback, enabled, immediate, onSeconds)
+        : undefined,
+    [callback, enabled, immediate, onSeconds, visible],
   );
   return scheduler.refresh;
 }

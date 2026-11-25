@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ContextOption } from "../../app/types";
 import type { TaskSummary } from "../../shared/api/contracts";
-import { useRefresh } from "../../shared/hooks/useRefresh";
+import { REFRESH_SECONDS, useRefresh } from "../../shared/hooks/useRefresh";
 import { Select } from "../../shared/ui/Select";
 import { listTaskStatuses } from "./api";
 import {
@@ -94,7 +94,7 @@ export function TasksPage({
     );
   }, [tasks, onTasksChange]);
   const poll = useCallback((signal: AbortSignal) => load(true, signal), [load]);
-  const [seconds, setSeconds] = useState(60);
+  const [seconds, setSeconds] = useState(REFRESH_SECONDS);
   const refreshNow = useRefresh(poll, autoRefresh, false, setSeconds);
 
   const types = useMemo(

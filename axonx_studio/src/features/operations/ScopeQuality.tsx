@@ -74,7 +74,7 @@ function ModelQuality({
         <button onClick={() => void reload()}>{t("retry")}</button>
       </div>
     );
-  if (loading) return <p>{t("shell.loading")}</p>;
+  if (loading && !data) return <p>{t("shell.loading")}</p>;
   return data ? (
     <QualityReport
       summary={{

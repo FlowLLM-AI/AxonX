@@ -87,6 +87,43 @@ const selectModel = async (value: string) => {
   });
 };
 
+it("retains result filters and table controls across refreshes and tab changes", async () => {
+  vi.useFakeTimers();
+  await render();
+  await clickTab("1445");
+  await clickTab("results");
+  const table = panel().querySelector(".online-table-card")!;
+  const search = table.querySelector<HTMLInputElement>(
+    ".online-table-tools > input",
+  )!;
+  const pool = table.querySelector<HTMLSelectElement>(
+    ".online-pool-picker select",
+  )!;
+  await act(async () => {
+    pool.value = "hs300";
+    pool.dispatchEvent(new Event("change", { bubbles: true }));
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(search, "Synthetic");
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    search.dispatchEvent(new Event("change", { bubbles: true }));
+    table.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+  });
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
+  parent = structuredClone(parent);
+  nodes = structuredClone(nodes);
+  await render();
+  await clickTab("collection");
+  await clickTab("results");
+  expect(panel().querySelector(".online-table-card")).toBe(table);
+  expect(pool.value).toBe("hs300");
+  expect(search.value).toBe("Synthetic");
+  expect(
+    table.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked,
+  ).toBe(false);
+});
+
 it("uses exactly two navigation rows, labels time status and opens result views without more tabs", async () => {
   await render();
   expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(2);
@@ -256,7 +293,7 @@ it.each(["en", "zh"])(
     expect(container.querySelector(".online-warning")).toBeNull();
     expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
     unpublished = false;
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(panel().textContent).toContain("Synthetic 1");
     // A previously read history disappearing is a real error; retain its last valid signals.
     configureClient(
@@ -276,7 +313,7 @@ it.each(["en", "zh"])(
         return playground(url, init);
       }, false),
     );
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(container.textContent).toContain(
       i18n.t("onlineWorkbench.historyError"),
     );
@@ -402,7 +439,7 @@ it("keeps a daily archive readable after its child is replaced and metadata refr
       return playground(url, init);
     }, false),
   );
-  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
   expect(container.textContent).toContain(
     i18n.t("onlineWorkbench.historyError"),
   );
